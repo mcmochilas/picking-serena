@@ -481,6 +481,10 @@ input.invalid{border-color:var(--bad);outline:2px solid var(--bad-soft)}
 .btn.dark{background:var(--ink);color:var(--bg);padding-inline:22px}
 .btn.dark:disabled{opacity:.45;cursor:not-allowed}
 .qlist{display:flex;flex-direction:column;gap:8px}
+.pager{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:10px 0 4px;font-size:13px;color:var(--muted)}
+.pager .pg-info{text-align:center;flex:1}
+.pager .mini[disabled]{opacity:.35;pointer-events:none}
+.pager.top{margin:0 0 8px}
 .qcard{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;background:var(--bg)}
 .qcard .row{display:flex;justify-content:space-between;gap:8px;align-items:center}
 .qcard .pvn{font-family:var(--mono);font-weight:700;font-size:13px}
@@ -691,6 +695,26 @@ function patchOrder(id, patch){
 }
 
 /* ================== Estado da interface ================== */
+/* Paginação: pageOf(lista, "chave", tamanho) -> {items, pager, top} */
+function pageOf(list, key, size){
+  state.pg ||= {};
+  const pages = Math.max(1, Math.ceil(list.length/size));
+  const p = Math.min(Math.max(1, state.pg[key]||1), pages); state.pg[key] = p;
+  const a = (p-1)*size;
+  const pager = pages<=1 ? "" : `<div class="pager" data-pgbox="${key}">
+    <button class="mini" data-pg="${key}:${p-1}" ${p===1?"disabled":""} aria-label="Página anterior">‹ Anterior</button>
+    <span class="pg-info tnum">${a+1}–${Math.min(a+size, list.length)} de ${list.length} · pág. ${p}/${pages}</span>
+    <button class="mini" data-pg="${key}:${p+1}" ${p===pages?"disabled":""} aria-label="Próxima página">Próxima ›</button></div>`;
+  return { items: list.slice(a, a+size), pager, top: `<span id="pgtop-${key}"></span>` };
+}
+const resetPage = key => { state.pg ||= {}; state.pg[key] = 1; };
+document.addEventListener("click", e => {
+  const b = e.target.closest && e.target.closest("[data-pg]"); if(!b || b.disabled) return;
+  const [key, n] = b.dataset.pg.split(":"); state.pg ||= {}; state.pg[key] = +n;
+  if(key==="aside" && state.sector==="comercial" && state.draft) rerender(); else render(); // na edição da pré-venda, só a lateral
+  const t = document.getElementById("pgtop-"+key);
+  if(t){ const y = t.getBoundingClientRect().top; if(y < 0 || y > innerHeight*0.6) t.scrollIntoView({block:"start"}); }
+});
 const state = { sector:null, view:"orders", oid:null, idx:0, phase:"loc", count:0, draft:null, draftErr:"", parsing:false, etab:"enderecos", rua:1, lado:"A", selLoc:null, mesaLast:null };
 function initialSector(){ const h=location.hash.slice(1); if(["comercial","expedicao","estoque","usuarios"].includes(h)) return h; return innerWidth>=900 ? "comercial" : "expedicao"; }
 state.sector = initialSector();
@@ -915,9 +939,10 @@ function asideHTML(){
   const today=new Date().toDateString();
   const finished = o => o.status==="enviado" || (o.status==="pronto_envio" && o.mode!=="aguarda");
   const list = [...ORDERS].filter(o=>!finished(o) || new Date(o.atMesaAt||o.pickedAt||o.sentAt||0).toDateString()===today).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const pg = pageOf(list, "aside", 10);
   return `<h2>Pedidos na expedição</h2>
-    ${kpisHTML()}
-    <div class="qlist">${list.length ? list.map(o=>{
+    ${kpisHTML()}${pg.top}
+    <div class="qlist">${list.length ? pg.items.map(o=>{
       const st=statusInfo(o), r=res(o);
       const enc=o.items.filter(i=>i.qtyEnc>0), falt=o.items.filter((it,i)=>r[i].status==="miss"||r[i].status==="part");
       const pl=pickList(o), done=pl.filter(x=>r[x.i].status!=="pend").length;
@@ -930,7 +955,7 @@ function asideHTML(){
         ${enc.length?`<details><summary>${enc.length} ref. sob encomenda</summary><ul>${enc.map(i=>`<li>${esc(i.code)} · ${i.qtyEnc} pç · chega ${fmtDate(i.eta)||"—"}</li>`).join("")}</ul></details>`:""}
         ${o.status==="na_colmeia"||o.status==="enc_pendente"||(o.status==="pronto_envio"&&o.mode==="parcial"&&o.remessa!==2&&enc.length)?`<div><button class="mini" data-arrived="${esc(o.id)}">Encomenda chegou</button></div>`:""}
         ${o.status==="pronto_envio"&&o.mode==="aguarda"?`<div><button class="mini" data-sent="${esc(o.id)}">Retirado · liberar colmeia ${esc(o.colmeia||"")}</button></div>`:""}
-      </div>`;}).join("") : `<div class="empty">Nenhum pedido na expedição. Importe uma pré-venda para começar.</div>`}</div>
+      </div>`;}).join("") : `<div class="empty">Nenhum pedido na expedição. Importe uma pré-venda para começar.</div>`}</div>${pg.pager}
     <h3>Colmeias</h3>${hiveHTML(null)}`;
 }
 function bindAside(){
@@ -962,6 +987,7 @@ function renderOrders(){
   const units = queue.reduce((s,o)=>s+pickList(o).reduce((a,x)=>a+x.need,0),0);
   const tabs = [["fila","Separação",queue.length+parked.length],["colmeias","Colmeias · encomenda",hive.length],["historico","Histórico",hist.length]];
   let body = "";
+  const pgQ = pageOf(queue, "fila", 20), pgP = pageOf(parked, "mesa", 20), pgH = pageOf(hist, "hist", 25);
   if(tab==="fila"){
     body = `
     <div class="shift">
@@ -969,8 +995,8 @@ function renderOrders(){
       <div><b class="tnum">${queue.reduce((s,o)=>s+pickList(o).length,0)}</b><span class="eyebrow">Referências</span></div>
       <div><b class="tnum">${units}</b><span class="eyebrow">Peças</span></div>
     </div>
-    <div class="section"><div class="eyebrow">Fila de separação</div>
-      ${queue.length ? queue.map(o=>{
+    <div class="section"><div class="eyebrow">Fila de separação</div>${pgQ.top}
+      ${queue.length ? pgQ.items.map(o=>{
         const pl=pickList(o), r=res(o), done=pl.filter(x=>r[x.i].status!=="pend").length, enc=o.items.filter(i=>i.qtyEnc>0).length;
         const aisles=[...new Set(pl.map(x=>"R"+x.loc.r))].join(" · ");
         return `<button class="order ${o.mode==="aguarda"?"urgent":""}" data-oid="${esc(o.id)}">
@@ -978,10 +1004,10 @@ function renderOrders(){
           <div class="client">${esc(o.client)}</div>
           <div class="meta tnum"><span>${pl.length} ref. · ${pl.reduce((a,x)=>a+x.need,0)} pç</span><span>Ruas ${aisles}</span>${o.status==="separando"&&o.startedAt?`<span>Separando há ${since(o.startedAt)}</span>`:`<span>Na fila há ${since(o.createdAt)}</span>`}${o.tray&&o.status==="separando"?`<span>Bandeja ${esc(o.tray)}</span>`:""}${o.mode==="aguarda"?`<span>Colmeia ${esc(o.colmeia)}</span>`:`<span>Destino: mesa de expedição</span>`}${enc?`<span>${enc} ref. sob encomenda</span>`:""}</div>
           ${done?`<div class="prog-bar"><i style="width:${done/pl.length*100}%"></i></div>`:""}
-        </button>`;}).join("") : `<div class="empty">Nenhum pedido aguardando separação.</div>`}
+        </button>`;}).join("") + pgQ.pager : `<div class="empty">Nenhum pedido aguardando separação.</div>`}
     </div>
-    ${parked.length?`<div class="section"><div class="eyebrow">Separados · na mesa com bandeja</div><div class="list" style="margin-top:0">${parked.map(o=>
-      `<div class="li sep" style="cursor:default"><span class="lc tnum">${esc(o.tray)}</span><span class="ln">#${esc(o.num)} · ${esc(o.client)}<small>${o.mode==="aguarda"?"Vai para a colmeia "+esc(o.colmeia||""):"Mesa"}</small></span>${can("coleta")||can("mesa") ? `<button class="mini" data-free="${esc(o.id)}">Liberar bandeja</button>` : ""}</div>`).join("")}</div></div>`:""}`;
+    ${parked.length?`<div class="section"><div class="eyebrow">Separados · na mesa com bandeja · ${parked.length}</div>${pgP.top}<div class="list" style="margin-top:0">${pgP.items.map(o=>
+      `<div class="li sep" style="cursor:default"><span class="lc tnum">${esc(o.tray)}</span><span class="ln">#${esc(o.num)} · ${esc(o.client)}<small>${o.mode==="aguarda"?"Vai para a colmeia "+esc(o.colmeia||""):"Mesa"}</small></span>${can("coleta")||can("mesa") ? `<button class="mini" data-free="${esc(o.id)}">Liberar bandeja</button>` : ""}</div>`).join("")}</div>${pgP.pager}</div>`:""}`;
   } else if(tab==="colmeias"){
     body = `
     <div class="section"><div class="eyebrow">Mapa das colmeias</div>${hiveHTML(null)}</div>
@@ -992,9 +1018,9 @@ function renderOrders(){
     </div>`;
   } else {
     body = `
-    <div class="section"><div class="eyebrow">Pedidos separados · ${hist.length}</div>
-      ${hist.length ? `<div class="list" style="margin-top:0">${hist.slice(0,200).map(o=>{ const st=statusInfo(o), pk=o.pickedAt&&o.startedAt?o.pickedAt-o.startedAt:null;
-        return `<div class="li sep" style="cursor:default"><span class="lc tnum">#${esc(o.num)}</span><span class="ln">${esc(o.client)}<small>${fmtClock(o.pickedAt)}${pk!=null?" · picking "+fmtDur(pk).replace(/ \d+s$/,""):""}${o.tray?" · bandeja "+esc(o.tray):""}</small></span><span class="chip ${st.c}">${st.t.split(" · ")[0]}</span></div>`; }).join("")}</div>` : `<div class="empty">Nenhum pedido separado ainda.</div>`}
+    <div class="section"><div class="eyebrow">Pedidos separados · ${hist.length}</div>${pgH.top}
+      ${hist.length ? `<div class="list" style="margin-top:0">${pgH.items.map(o=>{ const st=statusInfo(o), pk=o.pickedAt&&o.startedAt?o.pickedAt-o.startedAt:null;
+        return `<div class="li sep" style="cursor:default"><span class="lc tnum">#${esc(o.num)}</span><span class="ln">${esc(o.client)}<small>${fmtClock(o.pickedAt)}${pk!=null?" · picking "+fmtDur(pk).replace(/ \d+s$/,""):""}${o.tray?" · bandeja "+esc(o.tray):""}</small></span><span class="chip ${st.c}">${st.t.split(" · ")[0]}</span></div>`; }).join("")}</div>${pgH.pager}` : `<div class="empty">Nenhum pedido separado ainda.</div>`}
     </div>`;
   }
   app.innerHTML = topnav() + `
@@ -1734,6 +1760,7 @@ function produtosHTML(){
   const all=Object.values(PRODUCTS).sort((a,b)=>a.code.localeCompare(b.code));
   const noEan=all.filter(p=>!p.ean).length, noLoc=all.filter(p=>!p.loc).length;
   const list=all.filter(p=>(!q || p.code.includes(q) || p.name.toUpperCase().includes(q) || (p.ean||"").includes(q)) && (f==="todos" || (f==="sem-ean"&&!p.ean) || (f==="sem-end"&&!p.loc)));
+  const pg=pageOf(list, "prod", 50);
   return `<section class="panel" style="margin-top:14px">
     ${csvPanelHTML()}
     <form class="newprod" id="newprod" autocomplete="off">
@@ -1750,15 +1777,16 @@ function produtosHTML(){
       <div class="seg">${[["todos",`Todos · ${all.length}`],["sem-ean",`Sem EAN · ${noEan}`],["sem-end",`Sem endereço · ${noLoc}`]].map(([k,t])=>`<button data-pf="${k}" aria-pressed="${f===k}">${t}</button>`).join("")}</div>
     </div>
     <p class="hint">Para cadastrar o EAN: clique no campo do produto, bipe a embalagem com o leitor (ele digita e dá Enter) e o cadastro é salvo na hora.</p>
+    ${pg.top}${pg.pager.replace('class="pager"','class="pager top"')}
     <div class="tablewrap"><table class="items">
       <thead><tr><th>Cód.</th><th>Descrição</th><th>EAN</th><th>Situação</th><th>Endereço</th><th></th></tr></thead>
-      <tbody>${list.map(p=>{ const st=eanState(p.ean); return `<tr data-row="${esc(p.code)}">
+      <tbody>${pg.items.map(p=>{ const st=eanState(p.ean); return `<tr data-row="${esc(p.code)}">
         <td class="code">${esc(p.code)}</td><td class="desc">${esc(p.name)}</td>
         <td><input class="tin mono sm" data-ean="${esc(p.code)}" value="${esc(p.ean||"")}" placeholder="bipe o EAN" inputmode="numeric" aria-label="EAN de ${esc(p.code)}"></td>
         <td><span class="chip ${st.c==="bad"?"bad":st.c}">${st.t}</span></td>
         <td><input class="tin mono sm" data-loc="${esc(p.code)}" value="${esc(p.loc||"")}" placeholder="R1-LB-BIN-8.M" aria-label="Endereço de ${esc(p.code)}" style="width:110px"></td>
         <td><button class="mini" data-save="${esc(p.code)}">Salvar</button></td></tr>`; }).join("") || `<tr><td colspan="6" class="empty">Nenhum produto.</td></tr>`}</tbody>
-    </table></div>
+    </table></div>${pg.pager}
   </section>`;
 }
 function validateProduct(p){
@@ -1779,8 +1807,8 @@ function saveRow(codeV){
 function bindProdutos(){
   bindCsv();
   const q=document.getElementById("prodQ");
-  q.oninput=()=>{ state.prodQ=q.value; const pos=q.selectionStart; render(); const n=document.getElementById("prodQ"); n.focus(); n.setSelectionRange(pos,pos); };
-  app.querySelectorAll("[data-pf]").forEach(b=>b.onclick=()=>{ state.prodF=b.dataset.pf; render(); });
+  q.oninput=()=>{ state.prodQ=q.value; resetPage("prod"); const pos=q.selectionStart; render(); const n=document.getElementById("prodQ"); n.focus(); n.setSelectionRange(pos,pos); };
+  app.querySelectorAll("[data-pf]").forEach(b=>b.onclick=()=>{ state.prodF=b.dataset.pf; resetPage("prod"); render(); });
   app.querySelectorAll("[data-save]").forEach(b=>b.onclick=()=>saveRow(b.dataset.save));
   app.querySelectorAll("[data-ean],[data-loc]").forEach(inp=>inp.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); saveRow(inp.dataset.ean||inp.dataset.loc); } });
   document.getElementById("newprod").onsubmit=e=>{
@@ -2104,20 +2132,21 @@ function renderLoading(){ app.innerHTML = `<nav class="topnav"><div class="brand
 
 function renderUsuarios(){
   const ids = Object.keys(USERS).sort((a,b)=>(USERS[a].addedAt||0)-(USERS[b].addedAt||0));
+  const pgU = pageOf(ids.filter(id=>!(ME.isOwner && id===ME.id)), "users", 20);
   const roleSel = (id, cur) => `<select class="tin" data-role="${esc(id)}" aria-label="Nível de acesso">${Object.entries(ROLES).map(([k,r])=>`<option value="${k}" ${cur===k?"selected":""}>${r.t}</option>`).join("")}</select>`;
   app.innerHTML = topnav() + `
     <header class="bar"><div class="grow"><h1>Usuários</h1><div class="sub">Quem usa o Picking Serena e o que cada um pode fazer</div></div></header>
     <div class="cgrid">
       <section class="panel">
-        <h2>Pessoas com acesso</h2>
+        <h2>Pessoas com acesso</h2>${pgU.top}
         <div class="ulist">
           ${ME.isOwner?`<div class="urow"><img class="av" data-uid="${esc(ME.id)}" alt=""><div class="grow"><b data-uid="${esc(ME.id)}" data-fallback="Você"></b><small>Proprietário da página · sempre Administrador</small></div><span class="chip done">Administrador</span></div>`:""}
-          ${ids.filter(id=>!(ME.isOwner && id===ME.id)).map(id=>{ const u=USERS[id]; return `<div class="urow ${u.active===false?"off":""}">
+          ${pgU.items.map(id=>{ const u=USERS[id]; return `<div class="urow ${u.active===false?"off":""}">
             <img class="av" data-uid="${esc(id)}" alt=""><div class="grow"><b data-uid="${esc(id)}"></b><small>${ROLES[u.role]?.d||""}</small></div>
             ${roleSel(id,u.role)}
             <label class="chk"><input type="checkbox" data-active="${esc(id)}" ${u.active!==false?"checked":""}> Ativo</label>
             <button class="mini" data-del="${esc(id)}" aria-label="Remover usuário">Remover</button></div>`; }).join("") || (!ME.isOwner?`<div class="empty">Nenhum usuário cadastrado.</div>`:"")}
-        </div>
+        </div>${pgU.pager}
         <h2 style="margin-top:6px">Adicionar pessoa</h2>
         <div class="filters">
           <input class="tin" id="uq" placeholder="Buscar colega pelo nome" autocomplete="off" style="flex:1;min-width:200px">
