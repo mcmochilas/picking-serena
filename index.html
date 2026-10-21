@@ -257,6 +257,8 @@ select.tin{width:auto}
 .tl li.on::before{background:var(--ok)}
 .tl li.now::before{background:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 .tl li:not(:last-child)::after{content:"";position:absolute;left:4px;top:14px;bottom:0;width:1px;background:var(--line)}
+.tl-total{margin:2px 0 4px 20px;font-size:12px;color:var(--muted)}
+.tl-total b{color:var(--ink)}
 .tl .t{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:right}
 .tl .d{grid-column:2/4;font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.02em}
 .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
@@ -577,12 +579,12 @@ function statusInfo(o){
   switch(o.status){
     case "aguardando": return {t:"Aguardando separação", c:"norm"};
     case "separando": return {t:"Em separação", c:"prog"};
-    case "pronto_envio": return {t: o.mode==="aguarda" ? "Pronto p/ envio · retirar da colmeia" : o.remessa===2 ? "2º envio pronto" : "Pronto p/ envio", c:"done"};
+    case "pronto_envio": return {t: o.mode==="aguarda" ? `Encomenda chegou · retirar da colmeia ${o.colmeia||""}` : o.remessa===2 ? "Encomenda chegou" : "Finalizado · na mesa", c:"done"};
     case "enc_pendente": return {t:"1º envio feito · aguardando encomenda", c:"enc"};
     case "na_colmeia": return {t:"Na colmeia · aguardando encomenda", c:"enc"};
     case "na_mesa": return {t:`Na mesa · guardar na colmeia ${o.colmeia||""}`, c:"prog"};
     case "lavagem": return o.trayStatus==="lavagem" ? {t:`A caminho da mesa · bandeja ${o.tray||""}`, c:"prog"} : {t:"A caminho da mesa", c:"prog"};
-    default: return {t:"Enviado", c:"sent"};
+    default: return {t:"Finalizado", c:"sent"};
   }
 }
 const usesHive = o => o.mode==="aguarda" && o.status!=="enviado" && !!o.colmeia;
@@ -641,16 +643,19 @@ function stages(o){
       ...(o.semPecas?[]:[{k: o.mode==="aguarda"?"Guardado na colmeia":"Mesa de expedição", t:mesa, d:"Até a mesa", from:o.pickedAt}]) ]
     : [ {k:"Chegada na mesa · fim do picking", t:o.pickedAt, d:"Tempo de picking", from:o.startedAt},
       ...(o.mode==="aguarda" && !o.semPecas ? [{k:"Guardado na colmeia", t:o.storedAt, d:"Mesa até a colmeia", from:o.pickedAt}] : []) ]),
-    ...(o.mode==="parcial"?[{k:"1º envio", t:o.sent1At||(o.remessa!==2&&o.sentAt), d:"Até o 1º envio", from:o.createdAt}]:[]),
-    {k: o.mode==="parcial"?"2º envio (encomenda)":"Enviado", t:o.mode==="parcial"?(o.sent1At?o.sentAt:null):o.sentAt, d:"Total desde a integração", from:o.createdAt, total:true},
+    ...(hasEnc(o) ? [{k:"Encomenda chegou", t:o.arrivedAt, d:"Espera da encomenda", from:o.pickedAt}] : []),
+    ...(o.mode==="aguarda" ? [{k:"Retirado da colmeia", t:o.sentAt, d:"Total desde a integração", from:o.createdAt}] : []),
   ];
 }
+const hasEnc = o => (o.items||[]).some(i=>i.qtyEnc>0);
 function timelineHTML(o){
   const st=stages(o); let nowMarked=false;
+  const end = o.atMesaAt || o.pickedAt; // o picking termina na mesa
+  const total = end && o.createdAt && o.mode!=="aguarda" ? `<div class="tl-total">Total do picking (integração → mesa): <b class="tnum">${fmtDur(end-o.createdAt)}</b></div>` : "";
   return `<ol class="tl">${st.map(x=>{
     let cls=""; if(x.t) cls="on"; else if(!nowMarked){ cls="now"; nowMarked=true; }
     const dur = x.t && x.from ? fmtDur(x.t-x.from) : (!x.t && cls==="now" && x.from ? `em andamento · ${since(x.from)}` : "");
-    return `<li class="${cls}"><span>${esc(x.k)}</span><span class="t">${x.t?fmtClock(x.t):""}</span>${x.d&&dur?`<span class="d">${esc(x.d)}: ${dur}</span>`:""}</li>`; }).join("")}</ol>`;
+    return `<li class="${cls}"><span>${esc(x.k)}</span><span class="t">${x.t?fmtClock(x.t):""}</span>${x.d&&dur?`<span class="d">${esc(x.d)}: ${dur}</span>`:""}</li>`; }).join("")}</ol>${total}`;
 }
 function avg(list){ return list.length ? list.reduce((a,b)=>a+b,0)/list.length : null; }
 function kpisHTML(){
@@ -907,7 +912,9 @@ function hiveHTML(target){
     <div class="legend2"><span><i></i>Livre</span><span><i style="background:var(--floor)"></i>Reservada</span><span><i style="background:var(--accent-soft)"></i>Aguarda encomenda</span><span><i style="background:var(--ok-soft)"></i>Encomenda chegou</span></div>`;
 }
 function asideHTML(){
-  const list = [...ORDERS].filter(o=>o.status!=="enviado").sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const today=new Date().toDateString();
+  const finished = o => o.status==="enviado" || (o.status==="pronto_envio" && o.mode!=="aguarda");
+  const list = [...ORDERS].filter(o=>!finished(o) || new Date(o.atMesaAt||o.pickedAt||o.sentAt||0).toDateString()===today).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   return `<h2>Pedidos na expedição</h2>
     ${kpisHTML()}
     <div class="qlist">${list.length ? list.map(o=>{
@@ -918,11 +925,11 @@ function asideHTML(){
         <div class="row"><span class="pvn">${esc(o.num)}${o.mode==="aguarda"?" · "+esc(o.colmeia):""}</span><span class="chip ${st.c}">${st.t}</span></div>
         <div class="cl">${esc(o.client)}</div>
         <div class="meta tnum"><span>${MODES[o.mode]?.t||""}</span>${pl.length?`<span>Separado ${done}/${pl.length} ref.</span>`:""}${falt.length?`<span style="color:var(--bad)">${falt.length} com falta</span>`:""}</div>
-        <div class="meta tnum"><span>⏱ ${since(o.createdAt)} desde a integração</span>${o.status==="separando"&&o.startedAt?`<span>separando há ${since(o.startedAt)}</span>`:""}</div>
+        <div class="meta tnum"><span>⏱ ${finished(o)&&(o.atMesaAt||o.pickedAt) ? `picking em ${fmtDur((o.atMesaAt||o.pickedAt)-o.createdAt)}` : `${since(o.createdAt)} desde a integração`}</span>${o.status==="separando"&&o.startedAt?`<span>separando há ${since(o.startedAt)}</span>`:""}</div>
         <details><summary>Tempos</summary>${timelineHTML(o)}</details>
         ${enc.length?`<details><summary>${enc.length} ref. sob encomenda</summary><ul>${enc.map(i=>`<li>${esc(i.code)} · ${i.qtyEnc} pç · chega ${fmtDate(i.eta)||"—"}</li>`).join("")}</ul></details>`:""}
-        ${o.status==="na_colmeia"||o.status==="enc_pendente"?`<div><button class="mini" data-arrived="${esc(o.id)}">Encomenda chegou</button></div>`:""}
-        ${o.status==="pronto_envio"?`<div><button class="mini" data-sent="${esc(o.id)}">${o.mode==="parcial"&&o.remessa!==2&&enc.length?"Marcar 1º envio como enviado":"Marcar como enviado"}</button></div>`:""}
+        ${o.status==="na_colmeia"||o.status==="enc_pendente"||(o.status==="pronto_envio"&&o.mode==="parcial"&&o.remessa!==2&&enc.length)?`<div><button class="mini" data-arrived="${esc(o.id)}">Encomenda chegou</button></div>`:""}
+        ${o.status==="pronto_envio"&&o.mode==="aguarda"?`<div><button class="mini" data-sent="${esc(o.id)}">Retirado · liberar colmeia ${esc(o.colmeia||"")}</button></div>`:""}
       </div>`;}).join("") : `<div class="empty">Nenhum pedido na expedição. Importe uma pré-venda para começar.</div>`}</div>
     <h3>Colmeias</h3>${hiveHTML(null)}`;
 }
@@ -934,9 +941,7 @@ function bindAside(){
   });
   app.querySelectorAll("[data-sent]").forEach(b=>b.onclick=()=>{
     const o=ORDERS.find(x=>x.id===b.dataset.sent); if(!o) return;
-    const first = o.mode==="parcial" && o.remessa!==2 && o.items.some(i=>i.qtyEnc>0);
-    if(first){ patchOrder(o.id,{status:"enc_pendente", sent1At:Date.now()}); toast(`1º envio do pedido ${o.num} registrado · aguardando encomenda`); }
-    else { patchOrder(o.id,{status:"enviado", sentAt:Date.now()}); toast(`Pedido ${o.num} enviado${o.mode==="aguarda"?" · colmeia "+o.colmeia+" liberada":""}`); }
+    patchOrder(o.id,{status:"enviado", sentAt:Date.now()}); toast(`Pedido ${o.num} finalizado · colmeia ${o.colmeia||""} liberada`);
     rerender();
   });
 }
