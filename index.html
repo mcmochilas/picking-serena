@@ -1,0 +1,2275 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Picking Serena</title>
+<meta name="theme-color" content="#0F151C">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Picking Serena">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+img{max-width:100%}
+[hidden]{display:none!important}
+/* Login */
+#lgOverlay{position:fixed;inset:0;z-index:50;background:var(--bg,#EDF0F3);display:flex;align-items:center;justify-content:center;padding:24px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));overflow:auto}
+.lg-card{width:100%;max-width:380px;background:var(--surface,#fff);border:1px solid var(--line,#D4DBE3);border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:14px;color:var(--ink,#15202B)}
+.lg-brand{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:700;font-size:18px;letter-spacing:.04em;text-transform:uppercase}
+.lg-brand span{color:var(--muted,#5A6978)}
+.lg-card h1{margin:0;font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:30px}
+#lgForm{display:flex;flex-direction:column;gap:12px}
+#lgForm label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted,#5A6978)}
+#lgForm input{height:46px;border:1px solid var(--line,#D4DBE3);border-radius:10px;padding:0 12px;font:16px system-ui,sans-serif;background:var(--bg,#EDF0F3);color:var(--ink,#15202B);text-transform:none;letter-spacing:0}
+#lgForm input:focus{outline:2px solid var(--route,#2A5BC8);outline-offset:0}
+.lg-btn{height:50px;border:0;border-radius:12px;background:var(--accent,#F2A900);color:#1A1405;font:600 16px system-ui,sans-serif;cursor:pointer}
+.lg-btn:disabled{opacity:.6}
+.lg-links{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.lg-links button{border:0;background:none;color:var(--route,#2A5BC8);font:600 14px system-ui,sans-serif;cursor:pointer;padding:4px 0;text-decoration:underline;text-underline-offset:3px}
+.lg-err{background:var(--bad-soft,#FBE3E0);color:var(--bad,#C0392B);border-radius:10px;padding:10px 12px;font-weight:600;font-size:14px}
+.lg-ok{background:var(--ok-soft,#DDF2E8);color:var(--ok,#1D845A);border-radius:10px;padding:10px 12px;font-weight:600;font-size:14px}
+.lg-hint{margin:0;font-size:13px;color:var(--muted,#5A6978)}
+.me .logout{color:var(--route,#2A5BC8)}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
+<script src="/js/config.js"></script>
+<script src="/js/backend.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: single phone-width column; sticky task bar; map card is the hero of the picking screen. */
+:root{
+  --bg:#EDF0F3; --surface:#FFFFFF; --ink:#15202B; --muted:#5A6978; --line:#D4DBE3;
+  --accent:#F2A900; --accent-soft:#FFF1C7; --accent-ink:#7A5300;
+  --floor:#E2E7ED; --rack:#B6C2CE; --route:#2A5BC8; --ok:#1D845A; --ok-soft:#DDF2E8; --bad:#C0392B; --bad-soft:#FBE3E0;
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F151C; --surface:#18212B; --ink:#E6ECF2; --muted:#93A2B2; --line:#2A3542;
+  --accent:#F5B71A; --accent-soft:#3A2F12; --accent-ink:#F5C449;
+  --floor:#1B2530; --rack:#3A4858; --route:#6F9BFF; --ok:#3CC488; --ok-soft:#163327; --bad:#F06A5B; --bad-soft:#3A1D1A; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F151C; --surface:#18212B; --ink:#E6ECF2; --muted:#93A2B2; --line:#2A3542;
+  --accent:#F5B71A; --accent-soft:#3A2F12; --accent-ink:#F5C449;
+  --floor:#1B2530; --rack:#3A4858; --route:#6F9BFF; --ok:#3CC488; --ok-soft:#163327; --bad:#F06A5B; --bad-soft:#3A1D1A; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 32px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.app{max-width:520px;margin:0 auto}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:3px solid var(--route);outline-offset:2px}
+.tnum{font-variant-numeric:tabular-nums}
+
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:14px 10px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--line)}
+.bar h1{font-family:var(--display);font-weight:700;font-size:24px;letter-spacing:.01em;margin:0;line-height:1.1;text-wrap:balance}
+.bar .sub{color:var(--muted);font-size:13px}
+.back{width:40px;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;flex:none}
+.grow{flex:1;min-width:0}
+.badge{font-family:var(--mono);font-size:12px;font-weight:700;padding:4px 8px;border-radius:6px;background:var(--surface);border:1px solid var(--line);white-space:nowrap}
+
+.eyebrow{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.section{display:flex;flex-direction:column;gap:10px;margin-top:18px}
+
+/* Orders */
+.shift{display:flex;gap:10px;margin-top:16px}
+.shift > div{flex:1;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.shift b{display:block;font-family:var(--display);font-size:26px;line-height:1}
+.order{all:unset;box-sizing:border-box;display:flex;flex-direction:column;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;cursor:pointer;position:relative;overflow:hidden}
+.order:focus-visible{outline:3px solid var(--route);outline-offset:2px}
+.order.urgent{border-left:5px solid var(--accent)}
+.order .row{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.order .num{font-family:var(--mono);font-weight:700;font-size:15px}
+.order .client{font-weight:600;font-size:16px}
+.meta{display:flex;flex-wrap:wrap;gap:6px 14px;color:var(--muted);font-size:13px}
+.chip{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:99px;white-space:nowrap}
+.chip.urg{background:var(--accent-soft);color:var(--accent-ink)}
+.chip.norm{background:var(--floor);color:var(--muted)}
+.chip.done{background:var(--ok-soft);color:var(--ok)}
+.chip.prog{background:var(--floor);color:var(--route)}
+.prog-bar{height:5px;border-radius:3px;background:var(--floor);overflow:hidden}
+.prog-bar i{display:block;height:100%;background:var(--ok);border-radius:3px;transition:width .4s}
+
+/* Picking */
+.steps{display:flex;gap:4px;margin-top:12px}
+.steps i{flex:1;height:5px;border-radius:3px;background:var(--line)}
+.steps i.ok{background:var(--ok)} .steps i.miss{background:var(--bad)} .steps i.cur{background:var(--accent)}
+
+.loc{display:flex;align-items:center;gap:14px;margin-top:14px}
+.loc-code{font-family:var(--mono);font-weight:700;font-size:clamp(22px,7vw,36px);letter-spacing:.02em;line-height:1}
+.loc-code span{color:var(--muted);font-weight:500}
+.loc-parts{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}
+.loc-parts div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:7px 8px}
+.loc-parts small{display:block;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.loc-parts b{font-family:var(--display);font-size:20px;line-height:1.1}
+
+.map-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:10px;margin-top:12px;position:relative}
+.map-card svg{display:block;width:100%;height:auto;max-width:100%}
+.map-tools{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:2px 4px 8px}
+.legend{display:flex;gap:12px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.replay{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:5px 10px;font-size:13px;font-weight:600;white-space:nowrap}
+
+.m-floor{fill:var(--floor)}
+.m-cell{fill:var(--rack)}
+.m-cell.target{fill:var(--accent)}
+.m-lane{fill:var(--accent);opacity:0}
+.m-txt{fill:var(--muted);font-family:var(--mono);font-size:10px}
+.m-ais{fill:var(--ink);font-family:var(--display);font-weight:700;font-size:16px}
+.m-dock{fill:var(--surface);stroke:var(--line);stroke-width:1.5}
+.m-dock-t{fill:var(--muted);font-family:var(--body);font-weight:600;font-size:9px;letter-spacing:.1em}
+.m-route{fill:none;stroke:var(--route);stroke-width:3.5;stroke-linecap:round;stroke-linejoin:round}
+.m-op{fill:var(--route);stroke:var(--surface);stroke-width:2.5}
+.m-pin{fill:var(--accent);stroke:var(--ink);stroke-width:2}
+.m-ring{fill:none;stroke:var(--accent);stroke-width:2.5;opacity:0;transform-box:fill-box;transform-origin:center}
+.m-prev{fill:var(--surface);stroke:var(--route);stroke-width:2}
+.arrived .m-lane{opacity:.16;transition:opacity .5s}
+.arrived .m-ring{animation:ring 1.6s ease-out infinite}
+.arrived .m-cell.target{animation:blink 1.6s ease-in-out infinite}
+@keyframes ring{0%{opacity:.9;transform:scale(.6)}100%{opacity:0;transform:scale(2.6)}}
+@keyframes blink{50%{opacity:.55}}
+
+.elev{flex:none}
+.e-lvl{fill:var(--floor);stroke:var(--rack);stroke-width:1.5}
+.e-lvl.on{fill:var(--accent);stroke:var(--ink)}
+.e-post{fill:var(--rack)}
+.e-t{fill:var(--muted);font-family:var(--mono);font-size:8px}
+
+.product{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px;margin-top:12px;display:flex;flex-direction:column;gap:12px}
+.product .name{font-weight:600;font-size:18px;line-height:1.25}
+.product .ids{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.qty-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.stepper{display:flex;align-items:center;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.stepper button{width:48px;height:48px;border:0;background:var(--bg);font-size:22px;font-weight:600}
+.stepper output{min-width:64px;text-align:center;font-family:var(--display);font-size:28px;font-weight:700}
+.want{color:var(--muted);font-size:14px}
+.want b{color:var(--ink);font-family:var(--display);font-size:22px}
+.actions{display:flex;gap:8px}
+.btn{border:0;border-radius:12px;padding:15px 16px;font-weight:600;font-size:16px;min-height:52px}
+.btn.primary{flex:1;background:var(--accent);color:#1A1405}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--bad)}
+
+.list{margin-top:18px;display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.li{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:12px;padding:11px 14px;border-top:1px solid var(--line);cursor:pointer}
+.li:first-child{border-top:0}
+.li:focus-visible{outline:3px solid var(--route);outline-offset:-3px}
+.li.cur{background:var(--accent-soft)}
+.li .lc{font-family:var(--mono);font-size:13px;font-weight:700;width:86px;flex:none}
+.li .ln{flex:1;min-width:0;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st{width:22px;height:22px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:12px;font-weight:700;border:2px solid var(--line)}
+.st.ok{background:var(--ok);border-color:var(--ok);color:var(--surface)}
+.st.miss{background:var(--bad);border-color:var(--bad);color:var(--surface)}
+.st.part{background:var(--accent);border-color:var(--accent);color:#1A1405}
+
+/* Done */
+.done:not(.chip){text-align:center;padding-block:36px 8px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.done .big{width:76px;height:76px;border-radius:50%;background:var(--ok-soft);color:var(--ok);display:grid;place-items:center}
+.done h2{font-family:var(--display);font-size:30px;margin:0}
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:100%;margin-top:8px}
+.summary div{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 6px}
+.summary b{display:block;font-family:var(--display);font-size:28px;line-height:1}
+.summary small{color:var(--muted);font-size:12px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;font-size:14px;z-index:20;max-width:calc(100% - 32px)}
+.note{font-size:12px;color:var(--muted);margin-top:16px;text-align:center}
+
+/* Scan flow */
+.app.picking{padding-bottom:92px}
+.phases{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:12px}
+.phase{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-size:13px;font-weight:600;color:var(--muted)}
+.phase .n{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:11px;background:var(--floor);flex:none}
+.phase.on{border-color:var(--accent);background:var(--accent-soft);color:var(--ink)}
+.phase.on .n{background:var(--accent);color:#1A1405}
+.phase.ok{color:var(--ok)} .phase.ok .n{background:var(--ok);color:var(--surface)}
+.instr{display:flex;gap:12px;align-items:center;padding:12px;border-radius:12px;background:var(--bg);border:1px dashed var(--line)}
+.instr svg{flex:none;color:var(--accent-ink)}
+.instr b{font-family:var(--mono)}
+.counter{display:flex;align-items:baseline;gap:6px;font-family:var(--display);font-weight:700;line-height:1}
+.counter .c{font-size:56px} .counter .t{font-size:28px;color:var(--muted)}
+.cbar{height:8px;border-radius:4px;background:var(--floor);overflow:hidden}
+.cbar i{display:block;height:100%;background:var(--ok);transition:width .25s}
+.locok{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ok);font-weight:600}
+.locok b{font-family:var(--mono)}
+.demo{border:0;background:none;color:var(--route);font-weight:600;font-size:13px;padding:4px 0;text-decoration:underline;text-underline-offset:3px;align-self:flex-start}
+.undo{border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600}
+
+.scanbar{position:fixed;left:0;right:0;bottom:0;z-index:8;background:var(--surface);border-top:1px solid var(--line);
+  padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));transition:background .2s}
+.scanbar .in{max-width:520px;margin:0 auto;display:flex;gap:8px;align-items:center}
+.scanbar.good{background:var(--ok-soft)} .scanbar.bad{background:var(--bad-soft)}
+.cam{display:flex;align-items:center;gap:6px;border:0;border-radius:12px;background:var(--ink);color:var(--bg);padding:0 14px;height:48px;font-weight:600;flex:none}
+.scanfield{flex:1;min-width:0;position:relative}
+.scanfield input{width:100%;height:48px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:0 44px 0 12px;font-family:var(--mono);font-size:15px}
+.scanfield input:focus{outline:2px solid var(--route);outline-offset:0}
+.scanfield .kbd{position:absolute;right:4px;top:4px;width:40px;height:40px;border:0;background:none;border-radius:8px;display:grid;place-items:center;color:var(--muted)}
+.scanfield .kbd.on{color:var(--route)}
+.scanmsg{max-width:520px;margin:0 auto 6px;font-size:13px;font-weight:600;min-height:18px}
+.scanmsg.good{color:var(--ok)} .scanmsg.bad{color:var(--bad)} .scanmsg.info{color:var(--muted)}
+
+/* Estoque */
+.phases.three{grid-template-columns:repeat(3,1fr)}
+.subtabs{margin-top:12px;width:max-content;max-width:100%;overflow-x:auto}
+.tin{height:40px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);padding:0 10px;font:inherit;width:100%;min-width:0}
+.tin:focus{outline:2px solid var(--route);outline-offset:0}
+.tin.mono{font-family:var(--mono);font-size:13px}
+.tin.sm{height:34px;width:150px}
+select.tin{width:auto}
+.hint{color:var(--muted);font-size:13px;margin:0}
+.ruas{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+@media (max-width:700px){.ruas{grid-template-columns:repeat(3,1fr)}}
+.ruabtn{border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:8px;text-align:left;display:flex;flex-direction:column}
+.ruabtn b{font-family:var(--display);font-size:18px}
+.ruabtn small{color:var(--muted);font-size:11px}
+.ruabtn[aria-pressed="true"]{border-color:var(--ink);background:var(--surface);box-shadow:inset 0 -3px 0 var(--accent)}
+.rackwrap{display:flex;flex-direction:column;gap:14px;overflow-x:auto}
+.rack{display:flex;flex-direction:column;gap:6px;min-width:620px}
+.rackgrid{display:grid;gap:4px}
+.rh{font-size:10px;color:var(--muted);font-weight:600;display:flex;align-items:center;justify-content:center;letter-spacing:.04em}
+.cell{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:5px 4px;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0}
+.cell span{font-family:var(--mono);font-size:9px;color:var(--muted)}
+.cell b{font-family:var(--mono);font-size:12px}
+.cell i{font-size:11px;color:var(--muted)}
+.cell.busy{background:var(--surface);border-color:var(--rack)}
+.cell.busy b{color:var(--ink)}
+.cell.sel{border-color:var(--ink);background:var(--accent-soft);box-shadow:0 0 0 2px var(--accent)}
+.match{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 10px;text-align:left;font-size:13px;display:flex;flex-direction:column;gap:2px}
+.match b{font-family:var(--mono)}
+.match small{color:var(--muted)}
+.newprod{display:grid;grid-template-columns:120px minmax(0,2fr) minmax(0,1.2fr) 140px auto;gap:8px;align-items:center}
+@media (max-width:860px){.newprod{grid-template-columns:1fr 1fr}}
+.filters{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.chk{display:flex;gap:6px;align-items:center;font-size:14px}
+.chip.bad{background:var(--bad-soft);color:var(--bad)}
+.setloc{display:flex;gap:6px;align-items:center}
+.setloc small{color:var(--bad);font-weight:600;font-size:11px;white-space:nowrap}
+
+/* Tempos */
+.timer{font-family:var(--mono);font-size:12px;font-weight:700;padding:4px 8px;border-radius:6px;background:var(--accent-soft);color:var(--accent-ink);white-space:nowrap;display:inline-flex;gap:5px;align-items:center}
+.tl{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column}
+.tl li{display:grid;grid-template-columns:12px 1fr auto;gap:8px;align-items:start;position:relative;padding-bottom:8px;font-size:13px;color:var(--ink)}
+.tl li::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--line);margin-top:4px;grid-row:1/3}
+.tl li.on::before{background:var(--ok)}
+.tl li.now::before{background:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.tl li:not(:last-child)::after{content:"";position:absolute;left:4px;top:14px;bottom:0;width:1px;background:var(--line)}
+.tl .t{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:right}
+.tl .d{grid-column:2/4;font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.02em}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.kpis div{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0}
+.kpis small{display:block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.kpis b{font-family:var(--display);font-size:22px;line-height:1.1}
+
+/* Usuários */
+.me{display:flex;align-items:center;gap:8px;font-size:13px;line-height:1.15}
+.me b{display:block;font-weight:600;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.me small{color:var(--muted)}
+.av{width:30px;height:30px;border-radius:50%;object-fit:cover;background:var(--floor);flex:none}
+.ulist{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.urow{display:flex;align-items:center;gap:10px;padding:10px 12px;border-top:1px solid var(--line);flex-wrap:wrap}
+.urow:first-child{border-top:0}
+.urow .grow b{display:block}
+.urow .grow small{color:var(--muted);font-size:12px}
+.urow.off{opacity:.55}
+.urow select.tin{height:34px;width:auto}
+.matrix th{white-space:normal;text-align:center;font-size:10px}
+.matrix td.c{text-align:center}
+.matrix .yes{color:var(--ok);font-weight:700}
+.matrix .no{color:var(--line)}
+.mini.danger{background:var(--bad);border-color:var(--bad);color:var(--surface)}
+.viewas{max-width:1240px;margin:10px auto 0;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--accent-soft);color:var(--accent-ink);border-radius:10px;padding:8px 12px;font-weight:600;font-size:13px}
+
+/* Etiqueta de endereço 100 × 50 mm (prévia em escala; preto no branco para leitura) */
+.loclabel{container-type:inline-size;width:100%;max-width:440px;aspect-ratio:100/50;background:#FFFFFF;color:#000000;border:1px solid var(--line);border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.12);position:relative;font-family:Helvetica,Arial,sans-serif;overflow:hidden}
+.loclabel > *{position:absolute}
+.ll-cap{left:4cqw;top:3.6cqw;font-size:2.4cqw;letter-spacing:.02em}
+.ll-code{left:4cqw;font-weight:700;line-height:1;letter-spacing:-.01em;white-space:nowrap;max-width:52cqw;overflow:hidden}
+.ll-box{left:58cqw;top:3cqw;width:38cqw;height:21.5cqw;border:.5cqw solid #000;border-radius:1.5cqw;display:flex;align-items:center;justify-content:center}
+.ll-box b{font-size:7.2cqw;white-space:nowrap;line-height:1}
+.ll-rule{left:4cqw;right:4cqw;top:27.5cqw;border-top:.25cqw solid #000}
+.ll-desc{left:4cqw;right:4cqw;top:29.2cqw;font-weight:700;font-size:3.5cqw;line-height:1.1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ll-bc{left:4cqw;top:37.8cqw;width:60cqw;height:10.2cqw}
+.ll-bc svg{width:100%;height:100%;display:block}
+.ll-ean{left:67cqw;top:39.8cqw;font-size:2.1cqw}
+.ll-ean b{display:block;font-family:"Courier New",monospace;font-size:3.3cqw;margin-top:1.2cqw}
+.llgrid{display:flex;flex-direction:column;gap:12px}
+
+.ttag{display:inline-block;font-family:var(--mono);font-size:.62em;font-weight:700;padding:.12em .35em;border-radius:4px;background:var(--ink);color:var(--bg);vertical-align:middle;margin-right:.3em;letter-spacing:.03em}
+.cell .ty{font-family:var(--mono);font-size:9px;font-weight:700;color:var(--accent-ink)}
+.types{display:flex;gap:6px;flex-wrap:wrap}
+.types button{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:6px 10px;font-size:13px;font-weight:600}
+.types button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.ll-box.two{flex-direction:column;gap:1.2cqw}
+.ll-box .hd{font-size:4.8cqw;font-weight:700;line-height:1;border-bottom:.2cqw solid #000;padding-bottom:1.2cqw;width:84%;text-align:center;white-space:nowrap}
+.ll-box.two b{font-size:11cqw}
+
+.cell.void{border:1px dashed transparent;background:transparent}
+.bform{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.bform label{display:flex;flex-direction:column;gap:4px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.bform label .tin{text-transform:none;letter-spacing:0;color:var(--ink);font-size:14px}
+
+.locgo{font-size:14px;color:var(--muted)}
+.locgo b{font-family:var(--mono);color:var(--ink)}
+
+/* Modo coletor: tela pequena, leitor embutido e teclado físico */
+.tbtn[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+body.pda .cam, body.pda .demo{display:none}
+body.pda .scanbar{padding-top:6px;padding-bottom:calc(6px + env(safe-area-inset-bottom,0px))}
+body.pda .scanfield input{height:40px}
+body.pda .app.picking{padding-bottom:72px}
+body.pda .bar{padding-block:8px 6px}
+body.pda .bar h1{font-size:20px}
+body.pda .steps{margin-top:8px}
+body.pda .phases{margin-top:8px}
+body.pda .phase{padding:6px 8px;font-size:12px}
+body.pda .loc{margin-top:8px}
+body.pda .loc-parts{margin-top:6px}
+body.pda .loc-parts div{padding:4px 6px}
+body.pda .loc-parts b{font-size:17px}
+body.pda .product{padding:10px;gap:8px;margin-top:8px}
+body.pda .product .name{font-size:16px}
+body.pda .instr{padding:8px}
+body.pda .instr svg{width:22px;height:22px}
+body.pda .map-card{padding:6px;margin-top:8px}
+body.pda .map-card svg{max-height:300px}
+body.pda .stepper output{font-size:34px;min-width:72px}
+body.pda .stepper button{width:56px;height:56px}
+body.pda .keyhint{display:block}
+.keyhint{display:none;font-size:12px;color:var(--muted)}
+@media (max-height:700px){ .elev{height:64px} }
+
+/* Tela de separação enxuta */
+.pickbar h1{font-size:22px}
+.task{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;margin-top:10px;display:flex;flex-direction:column;gap:10px}
+.task .row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.task .pn{font-weight:600;font-size:16px;line-height:1.25}
+.task .pm{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:2px}
+.task .do{display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px}
+.task .do svg{width:22px;height:22px;color:var(--accent-ink)}
+.task .ok-line{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--ok)}
+.task .btn.primary{flex:1}
+.btn.sm{min-height:38px;padding:6px 14px;font-size:14px}
+.map-card{padding:8px}
+.replay-ic{position:absolute;top:12px;right:12px;width:34px;height:34px;border-radius:8px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;color:var(--muted);z-index:1}
+.li .ln small{color:var(--muted);font-family:var(--mono);font-size:12px}
+.li .ln b{font-family:var(--mono)}
+
+/* Leitor ao vivo pela câmera */
+.camov{position:fixed;inset:0;z-index:30;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.camov video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.camframe{position:relative;width:86%;max-width:520px;aspect-ratio:2.4/1;border:3px solid #F5B71A;border-radius:14px;box-shadow:0 0 0 9999px rgba(0,0,0,.45)}
+.camframe i{position:absolute;left:6%;right:6%;top:50%;height:2px;background:#F05A4B;box-shadow:0 0 8px #F05A4B;animation:scanl 1.6s ease-in-out infinite}
+@keyframes scanl{50%{transform:translateY(-18px)}}
+.camhint{position:relative;margin-top:16px;color:#fff;font-weight:600;font-size:15px;text-shadow:0 1px 3px #000}
+.camov .btn{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom,0px));background:#fff;color:#111;min-width:160px}
+@media (prefers-reduced-motion: reduce){ .camframe i{animation:none} }
+
+.unlink{width:100%;border:1px dashed var(--accent);background:var(--accent-soft);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px;align-items:stretch;text-align:left;margin-top:6px}
+.unlink .do{display:flex;gap:8px;align-items:flex-start;font-size:14px}
+.unlink .do svg{width:22px;height:22px;flex:none;color:var(--accent-ink)}
+.btn.danger{background:var(--bad);color:var(--surface);border-color:var(--bad)}
+
+/* Alerta de novo pedido */
+.alertbar{position:fixed;left:0;right:0;top:0;z-index:25;padding:calc(10px + env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) 10px max(12px,env(safe-area-inset-left,0px));background:var(--accent);color:#1A1405;box-shadow:0 4px 18px rgba(0,0,0,.25);animation:abIn .3s ease-out}
+.ab-in{max-width:620px;margin:0 auto;display:flex;align-items:center;gap:10px}
+.ab-ic{width:36px;height:36px;border-radius:50%;background:#1A1405;color:var(--accent);display:grid;place-items:center;flex:none;animation:ring2 1s ease-in-out 3}
+.ab-tx{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.25}
+.ab-tx b{font-size:15px}
+.ab-tx span{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ab-act{display:flex;gap:6px}
+.alertbar .mini{background:#1A1405;color:#FFF1C7;border-color:#1A1405}
+.chip.newc{background:var(--accent);color:#1A1405;vertical-align:middle;margin-left:4px}
+@keyframes abIn{from{transform:translateY(-100%)}}
+@keyframes ring2{0%,100%{transform:rotate(0)}25%{transform:rotate(-14deg)}75%{transform:rotate(14deg)}}
+@media (prefers-reduced-motion: reduce){ .alertbar,.ab-ic{animation:none} }
+
+.li.sep .ln{display:flex;flex-direction:column;white-space:normal}
+.li.sep .ln small{font-size:12px;color:var(--muted)}
+.li.sep .mini{flex:none;white-space:nowrap}
+.li.sep .freed{font-size:12px;color:var(--ok);font-weight:600;white-space:nowrap}
+
+.septabs{margin-top:12px;width:100%;overflow-x:auto}
+.septabs button{flex:1}
+.septabs .cnt{display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:var(--floor);color:var(--ink);font-size:11px;margin-left:4px}
+.septabs button[aria-pressed="true"] .cnt{background:var(--accent);color:#1A1405}
+
+.mainnav{flex-wrap:wrap}
+
+.li .chip{flex:none;align-self:center}
+
+.csvbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px dashed var(--line);border-radius:12px;padding:12px;background:var(--bg)}
+.csvbar .grow b{display:block}
+.csvbar .grow small{color:var(--muted);font-size:13px}
+.csvprev{display:flex;flex-direction:column;gap:12px;border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--bg)}
+.csvprev .kpis div{background:var(--surface)}
+
+/* Labels (barcodes stay black on white so any scanner reads them) */
+.tbtn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 12px;font-weight:600;font-size:13px;white-space:nowrap}
+.labels{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.label{background:#FFFFFF;color:#111;border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.label .lt{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.label .lb{font-family:var(--mono);font-size:22px;font-weight:700}
+.label svg{width:100%;height:auto;max-width:100%}
+
+
+/* Top navigation between sectors */
+.topnav{max-width:1240px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:10px 0;flex-wrap:wrap}
+.brand{font-family:var(--display);font-weight:700;font-size:17px;letter-spacing:.04em;text-transform:uppercase}
+.brand span{color:var(--muted);font-weight:600}
+.seg{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
+.seg button{border:0;background:none;border-radius:8px;padding:7px 12px;font-weight:600;font-size:13px;color:var(--muted);white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.sync{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.sync i{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+.sync.local i{background:var(--accent)}
+.app.wide{max-width:1240px}
+.app.wide .bar{position:static;border-bottom:0;padding-block:14px 0}
+
+/* Comercial */
+.cgrid{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:20px;margin-top:14px;align-items:start}
+@media (max-width:980px){.cgrid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:16px;min-width:0}
+.panel h2{font-family:var(--display);font-size:22px;margin:0;line-height:1.1}
+.panel h3{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0;font-weight:600}
+.drop{border:2px dashed var(--line);border-radius:12px;padding:30px 16px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px;background:var(--bg);cursor:pointer}
+.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.drop b{font-size:16px}
+.drop small{color:var(--muted)}
+.linkbtn{border:0;background:none;color:var(--route);font-weight:600;text-decoration:underline;text-underline-offset:3px;padding:2px}
+.err{background:var(--bad-soft);color:var(--bad);border-radius:10px;padding:10px 12px;font-weight:600;font-size:14px}
+.warn{background:var(--accent-soft);color:var(--accent-ink);border-radius:10px;padding:10px 12px;font-weight:600;font-size:14px}
+.pshead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.pshead .pv{font-family:var(--mono);font-size:24px;font-weight:700}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px 16px;margin:0}
+.fields div{min-width:0}
+.fields dt{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.fields dd{margin:2px 0 0;font-weight:600;overflow-wrap:anywhere}
+.modes{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media (max-width:760px){.modes{grid-template-columns:1fr}}
+.mode{display:flex;gap:10px;align-items:flex-start;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer;background:var(--bg)}
+.mode input{margin-top:4px;accent-color:var(--ink)}
+.mode b{display:block;font-size:16px}
+.mode small{color:var(--muted)}
+.mode:has(input:checked){border-color:var(--ink);background:var(--surface)}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+table.items{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+table.items th{text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:9px 10px;background:var(--bg);border-bottom:1px solid var(--line);white-space:nowrap}
+table.items td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+table.items tr:last-child td{border-bottom:0}
+table.items .num{text-align:right}
+table.items .code{font-family:var(--mono);font-weight:700}
+table.items .desc{min-width:220px}
+table.items .desc small{display:block;font-family:var(--mono);color:var(--muted);font-size:11px}
+table.items tr.enc td{background:var(--accent-soft)}
+.encin{display:flex;align-items:center;gap:6px}
+.encin input[type=number]{width:62px;height:34px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);padding:0 6px;font:inherit;text-align:right}
+.encin label{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px;white-space:nowrap}
+input[type=date]{height:34px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);padding:0 6px;font:inherit}
+input.invalid{border-color:var(--bad);outline:2px solid var(--bad-soft)}
+.pill{font-family:var(--mono);font-size:12px;font-weight:700;padding:3px 7px;border-radius:6px;background:var(--floor);white-space:nowrap}
+.now{font-family:var(--display);font-size:20px;font-weight:700}
+.sumbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:14px}
+.sumbar .totals{display:flex;gap:18px;flex-wrap:wrap}
+.sumbar .totals div small{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.sumbar .totals b{font-family:var(--display);font-size:24px}
+.btn.dark{background:var(--ink);color:var(--bg);padding-inline:22px}
+.btn.dark:disabled{opacity:.45;cursor:not-allowed}
+.qlist{display:flex;flex-direction:column;gap:8px}
+.qcard{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;background:var(--bg)}
+.qcard .row{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.qcard .pvn{font-family:var(--mono);font-weight:700;font-size:13px}
+.qcard .cl{font-weight:600;font-size:14px;line-height:1.25}
+.qcard details{font-size:13px;color:var(--muted)}
+.qcard summary{cursor:pointer;font-weight:600}
+.qcard ul{margin:6px 0 0;padding-left:18px}
+.mini{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600}
+.hive{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
+.slot{aspect-ratio:1;max-width:100%;border-radius:6px;border:1px solid var(--line);background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;color:var(--muted);line-height:1.1;text-align:center;min-width:0}
+.slot b{font-size:9px;color:var(--ink)}
+.slot.res{background:var(--floor);border-style:dashed}
+.slot.envio{background:var(--ok-soft);border-color:var(--ok);color:var(--ok)}
+.slot.enc{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-ink)}
+.slot.target{background:var(--accent);border-color:var(--ink);color:#1A1405;animation:blink 1.4s ease-in-out infinite}
+.slot.target b{color:#1A1405}
+.legend2{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
+.legend2 i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px;border:1px solid var(--line)}
+.chip.enc{background:var(--accent-soft);color:var(--accent-ink)}
+.chip.sent{background:var(--floor);color:var(--muted)}
+.empty{color:var(--muted);font-size:14px;padding:8px 0}
+.banner{margin-top:12px;background:var(--accent-soft);color:var(--accent-ink);border-radius:10px;padding:10px 12px;font-size:13px;font-weight:600}
+.hivebig{margin-top:14px}
+.store-code{font-family:var(--mono);font-weight:700;font-size:48px;line-height:1}
+
+@media (prefers-reduced-motion: reduce){
+  .arrived .m-ring,.arrived .m-cell.target{animation:none}
+  .arrived .m-ring{opacity:.6;transform:scale(1.6)}
+}
+</style>
+
+</head>
+<body>
+<div class="app" id="app"></div>
+<div class="toast" id="toast" hidden></div>
+<div class="alertbar" id="alertbar" role="alert" hidden></div>
+<div class="scanbar" id="scanbar" hidden>
+  <div class="scanmsg info" id="scanmsg" aria-live="polite"></div>
+  <div class="in">
+    <button class="cam" id="cam" aria-label="Ler código com a câmera"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h3l2-2.5h6L17 7h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Câmera</button>
+    <div class="scanfield">
+      <input id="scan" inputmode="none" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Leitor pronto: bipe o código" aria-label="Código lido">
+      <button class="kbd" id="kbd" aria-label="Digitar código manualmente"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/></svg></button>
+    </div>
+  </div>
+</div>
+<input type="file" id="camfile" accept="image/*" capture="environment" hidden>
+
+<script>
+function brNum(s){ return parseFloat(String(s).replace(/[^\d,.-]/g,"").replace(/\./g,"").replace(",", ".")) || 0; }
+function parsePresale(raw){
+  const cells = raw.filter(c=>c.s && c.s.trim()).map(c=>({s:c.s.trim(), x:c.x, y:c.y, w:c.w, cx:c.x+c.w/2}));
+  const lines=[];
+  [...cells].sort((a,b)=>b.y-a.y||a.x-b.x).forEach(c=>{ let L=lines.find(l=>Math.abs(l.y-c.y)<2.5); if(!L){ L={y:c.y,cells:[]}; lines.push(L); } L.cells.push(c); });
+  const all = lines.map(l=>l.cells.sort((a,b)=>a.x-b.x).map(c=>c.s).join(" ")).join("\n");
+  const m = re => { const r=all.match(re); return r ? r.slice(1).map(x=>x && x.trim()) : null; };
+  const num = m(/Pr[ée]-venda\s*-\s*(\d+)/)?.[0];
+  const dt = m(/Data:\s*([\d/]+)\s*Hora:\s*([\d:]+)/) || [];
+  const cli = m(/Cliente:\s*(\d+)\s*-\s*(.+?)(?:\s+CPF\/CNPJ:.*)?$/m) || [];
+  const end = m(/Endere[çc]o:\s*(.+)$/m)?.[0] || "";
+  const cm = end.match(/([^,]+?)\s+-\s+([A-Z]{2})\s*(?:,\s*[\d.-]+)?\s*$/);
+  const seller = m(/Vendedor:\s*(.+?)(?:\s+Tabela:.*)?$/m)?.[0] || "";
+  const obs = m(/Observa[çc][õo]es:\s*(.+)$/m)?.[0] || "";
+  const total = brNum(m(/VALOR TOTAL:\s*R\$\s*([\d.,]+)/)?.[0] || 0);
+
+  const hCod = cells.find(c=>/^C[óo]d/.test(c.s));
+  if(!num || !hCod) throw new Error("formato");
+  const yH = hCod.y;
+  const hdr = cells.filter(c=>Math.abs(c.y-yH)<3);
+  const H = re => hdr.find(c=>re.test(c.s));
+  const cols = [["code",hCod],["desc",H(/^Descri/)],["un",H(/^UN$/)],["qty",H(/^Quant/)],["vb",H(/^Valor Bruto/)],["dp",H(/^Desconto/)],["vl",H(/^Valor L/)],["vt",H(/^Valor Total/)]].filter(c=>c[1]);
+  const ends = cells.filter(c=>/^(SUBTOTAL|QTD\. TOTAL|REFER)/.test(c.s)).map(c=>c.y);
+  const yE = ends.length ? Math.max(...ends) : -Infinity;
+  const region = cells.filter(c=>c.y<yH-2 && c.y>yE+2).map(c=>{
+    let best=null,d=1e9; for(const [k,h] of cols){ const dd=Math.abs(c.cx-(h.x+h.w/2)); if(dd<d){d=dd;best=k;} } return {...c,col:best};
+  });
+  const rows = region.filter(c=>c.col==="code" && /^\d{2,12}$/.test(c.s)).sort((a,b)=>b.y-a.y).map(c=>({y:c.y, code:c.s, cells:[]}));
+  if(!rows.length) throw new Error("sem itens");
+  region.filter(c=>!(c.col==="code" && rows.some(r=>r.code===c.s && r.y===c.y))).forEach(c=>{
+    let best=rows[0]; for(const r of rows) if(Math.abs(r.y-c.y)<Math.abs(best.y-c.y)) best=r; best.cells.push(c);
+  });
+  const items = rows.map(r=>{
+    const desc = r.cells.filter(c=>c.col==="desc").sort((a,b)=>b.y-a.y||a.x-b.x);
+    const ean = desc.find(c=>/^\d{8,14}$/.test(c.s))?.s || "";
+    const name = desc.filter(c=>c.s!==ean).map(c=>c.s).join(" ");
+    const g = k => r.cells.find(c=>c.col===k)?.s;
+    return {code:r.code, name, ean, un:g("un")||"UN", qty:Math.round(brNum(g("qty"))), price:brNum(g("vl")||g("vb")), lineTotal:brNum(g("vt"))};
+  });
+  return { num, date:dt[0]||"", time:dt[1]||"", clientCode:cli[0]||"", client:cli[1]||"", city: cm ? `${cm[1].trim()} - ${cm[2]}` : "", seller, obs, total, items };
+}
+
+/* ================== Dados e utilidades ================== */
+const HIVE = Array.from({length:24},(_,i)=>"CM-"+String(i+1).padStart(2,"0"));
+const MODES = { total:{t:"Envio total", c:"norm"}, parcial:{t:"Envio parcial", c:"prog"}, aguarda:{t:"Aguarda encomenda", c:"urg"} };
+function statusInfo(o){
+  switch(o.status){
+    case "aguardando": return {t:"Aguardando separação", c:"norm"};
+    case "separando": return {t:"Em separação", c:"prog"};
+    case "pronto_envio": return {t: o.mode==="aguarda" ? "Pronto p/ envio · retirar da colmeia" : o.remessa===2 ? "2º envio pronto" : "Pronto p/ envio", c:"done"};
+    case "enc_pendente": return {t:"1º envio feito · aguardando encomenda", c:"enc"};
+    case "na_colmeia": return {t:"Na colmeia · aguardando encomenda", c:"enc"};
+    case "na_mesa": return {t:`Na mesa · guardar na colmeia ${o.colmeia||""}`, c:"prog"};
+    case "lavagem": return o.trayStatus==="lavagem" ? {t:`A caminho da mesa · bandeja ${o.tray||""}`, c:"prog"} : {t:"A caminho da mesa", c:"prog"};
+    default: return {t:"Enviado", c:"sent"};
+  }
+}
+const usesHive = o => o.mode==="aguarda" && o.status!=="enviado" && !!o.colmeia;
+function normalize(o){ // compatibilidade com pedidos gravados na versão anterior
+  if(o.status==="aguardando_envio") o.status="pronto_envio";
+  if(o.status==="aguardando_encomenda") o.status="na_colmeia";
+  if(o.mode==="parcial" && o.colmeia && !o.v2) o.mode="aguarda";
+  if(o.mode!=="aguarda") delete o.colmeia;
+  return o;
+}
+// Cadastro de endereços de estoque (no sistema real vem do ERP/WMS)
+const TRAYS = Array.from({length:30},(_,i)=>"BJ-"+String(i+1).padStart(2,"0"));
+let PRODUCTS = {}; // cadastro: código -> {code, name, ean, loc}
+const LOC_TYPES = { GAV:"Gaveta", COL:"Colmeia", BIN:"Bin" };
+let BLOCKS = {}, blockCol = null; // estruturas: {r, l, t, n1, n2, c1, c2} geram os locais
+const colIdx = c => c.length===1 ? c.charCodeAt(0)-65 : (c.charCodeAt(0)-64)*26 + (c.charCodeAt(1)-65);
+const colName = i => i<26 ? String.fromCharCode(65+i) : String.fromCharCode(64+Math.floor(i/26)) + String.fromCharCode(65+i%26);
+const LOC_RE = /^R(\d{1,2})-L([A-Z])-(GAV|COL|BIN)-(\d{1,2})\.([A-Z]{1,2})$/;
+function parseCode(s){ const m=String(s||"").toUpperCase().match(LOC_RE); return m ? {r:+m[1], l:m[2], t:m[3], n:+m[4], c:m[5], ci:colIdx(m[5])} : null; }
+const inBlock = (b,x) => b.r===x.r && b.l===x.l && b.t===x.t && x.n>=b.n1 && x.n<=b.n2 && x.ci>=colIdx(b.c1) && x.ci<=colIdx(b.c2);
+function parseLoc(s){ const x=parseCode(s); return x && Object.values(BLOCKS).some(b=>inBlock(b,x)) ? x : null; } // válido e cadastrado
+function blockLocs(b){ const out=[]; for(let n=b.n1;n<=b.n2;n++) for(let ci=colIdx(b.c1);ci<=colIdx(b.c2);ci++) out.push(`R${b.r}-L${b.l}-${b.t}-${n}.${colName(ci)}`); return out; }
+function allLocs(){ return Object.values(BLOCKS).flatMap(blockLocs).sort((a,b)=>{ const x=parseCode(a), y=parseCode(b); return x.r-y.r || x.l.localeCompare(y.l) || x.n-y.n || x.ci-y.ci; }); }
+const ruas = () => [...new Set(Object.values(BLOCKS).map(b=>b.r))].sort((a,b)=>a-b);
+const locType = lc => parseCode(lc)?.t || "";
+const fullLoc = lc => lc;
+function normLoc(s){ s=String(s||"").trim().toUpperCase().replace(/\s+/g,"-"); const m=s.match(/^R?(\d{1,2})-?L?([A-Z])-?(GAV|COL|BIN)-?(\d{1,2})[.\-]?([A-Z]{1,2})$/); return m ? `R${+m[1]}-L${m[2]}-${m[3]}-${+m[4]}.${m[5]}` : s; }
+function locFor(c){ return parseLoc(PRODUCTS[c]?.loc); }
+const liveLoc = it => locFor(it.code) || (typeof it.loc==="string" ? parseLoc(it.loc) : null);
+const liveEan = it => PRODUCTS[it.code]?.ean || it.ean || "";
+const ean13 = b => { const d=String(b).slice(0,12); let s=0; [...d].forEach((c,i)=>s+=(+c)*(i%2?3:1)); return d+((10-s%10)%10); };
+const validEan = e => /^\d{13}$/.test(e) && ean13(e)===e;
+const pad = n => String(n).padStart(2,"0");
+const code = l => `R${l.r}-L${l.l}-${l.t}-${l.n}.${l.c}`;
+const money = v => (v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmtDate = iso => iso ? iso.split("-").reverse().join("/") : "";
+const app = document.getElementById("app");
+
+/* Tempos: integração → início da separação → fim da separação → mesa → envio */
+function fmtDur(ms){
+  if(ms==null || isNaN(ms)) return "—"; ms=Math.max(0,ms);
+  const s=Math.floor(ms/1000), m=Math.floor(s/60), h=Math.floor(m/60), d=Math.floor(h/24);
+  if(s<60) return s+"s"; if(m<60) return m+" min "+pad(s%60)+"s"; if(h<24) return h+"h "+pad(m%60)+"min"; return d+"d "+(h%24)+"h";
+}
+function fmtClock(ts){ if(!ts) return "—"; const d=new Date(ts), t=d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+  return d.toDateString()===new Date().toDateString() ? t : d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})+" "+t; }
+const since = ts => ts ? `<span class="tick tnum" data-since="${ts}">${fmtDur(Date.now()-ts)}</span>` : "—";
+function stages(o){
+  const mesa = o.atMesaAt || o.storedAt;
+  return [
+    {k:"Integrado pelo comercial", t:o.createdAt},
+    {k:"Início da separação", t:o.startedAt, d:"Espera na fila", from:o.createdAt},
+    ...(o.tray && o.atMesaAt && o.pickedAt && o.atMesaAt!==o.pickedAt ? [
+      {k:"Fim da separação", t:o.pickedAt, d:"Separação", from:o.startedAt},
+      ...(o.semPecas?[]:[{k: o.mode==="aguarda"?"Guardado na colmeia":"Mesa de expedição", t:mesa, d:"Até a mesa", from:o.pickedAt}]) ]
+    : [ {k:"Chegada na mesa · fim do picking", t:o.pickedAt, d:"Tempo de picking", from:o.startedAt},
+      ...(o.mode==="aguarda" && !o.semPecas ? [{k:"Guardado na colmeia", t:o.storedAt, d:"Mesa até a colmeia", from:o.pickedAt}] : []) ]),
+    ...(o.mode==="parcial"?[{k:"1º envio", t:o.sent1At||(o.remessa!==2&&o.sentAt), d:"Até o 1º envio", from:o.createdAt}]:[]),
+    {k: o.mode==="parcial"?"2º envio (encomenda)":"Enviado", t:o.mode==="parcial"?(o.sent1At?o.sentAt:null):o.sentAt, d:"Total desde a integração", from:o.createdAt, total:true},
+  ];
+}
+function timelineHTML(o){
+  const st=stages(o); let nowMarked=false;
+  return `<ol class="tl">${st.map(x=>{
+    let cls=""; if(x.t) cls="on"; else if(!nowMarked){ cls="now"; nowMarked=true; }
+    const dur = x.t && x.from ? fmtDur(x.t-x.from) : (!x.t && cls==="now" && x.from ? `em andamento · ${since(x.from)}` : "");
+    return `<li class="${cls}"><span>${esc(x.k)}</span><span class="t">${x.t?fmtClock(x.t):""}</span>${x.d&&dur?`<span class="d">${esc(x.d)}: ${dur}</span>`:""}</li>`; }).join("")}</ol>`;
+}
+function avg(list){ return list.length ? list.reduce((a,b)=>a+b,0)/list.length : null; }
+function kpisHTML(){
+  const today=new Date().toDateString(), isToday=t=>t && new Date(t).toDateString()===today;
+  const picked=ORDERS.filter(o=>isToday(o.pickedAt) && o.startedAt);
+  const wait=avg(picked.map(o=>o.startedAt-o.createdAt).filter(x=>x>=0)), pick=avg(picked.map(o=>o.pickedAt-o.startedAt).filter(x=>x>=0));
+  return `<div class="kpis"><div><small>Separados hoje</small><b class="tnum">${picked.length}</b></div><div><small>Espera média</small><b class="tnum">${wait==null?"—":fmtDur(wait).replace(/ \d+s$/,"")}</b></div><div><small>Separação média</small><b class="tnum">${pick==null?"—":fmtDur(pick).replace(/ \d+s$/,"")}</b></div></div>`;
+}
+setInterval(()=>{ const n=Date.now(); document.querySelectorAll("[data-since]").forEach(e=>{ e.textContent=fmtDur(n-(+e.dataset.since)); }); }, 1000);
+
+/* ================== Armazenamento compartilhado ================== */
+let ORDERS = [], db = null, col = null, synced = false;
+const writeQ = {};
+function queueWrite(id, fn){
+  writeQ[id] = (writeQ[id]||Promise.resolve()).then(fn).catch(e=>{ console.warn(e); toast(e?.code==="quota_exceeded" ? "Limite de armazenamento atingido" : "Não foi possível salvar. Verifique a conexão."); });
+  return writeQ[id];
+}
+function saveOrder(o){
+  const i = ORDERS.findIndex(x=>x.id===o.id); i<0 ? ORDERS.push(o) : (ORDERS[i]=o);
+  if(col) queueWrite(o.id, ()=>col.doc(o.id).set(JSON.parse(JSON.stringify(o))));
+  rerender();
+}
+let prodCol = null;
+function saveProduct(p){
+  const clean = {code:p.code, name:p.name, ean:p.ean||"", loc:p.loc||""};
+  PRODUCTS[p.code] = clean;
+  if(prodCol) queueWrite("p:"+p.code, ()=>prodCol.doc(p.code).set(clean));
+  rerender();
+}
+function patchOrder(id, patch){
+  const o = ORDERS.find(x=>x.id===id); if(!o) return; Object.assign(o, patch);
+  if(col) queueWrite(id, ()=>col.doc(id).update(JSON.parse(JSON.stringify(patch))));
+}
+
+/* ================== Estado da interface ================== */
+const state = { sector:null, view:"orders", oid:null, idx:0, phase:"loc", count:0, draft:null, draftErr:"", parsing:false, etab:"enderecos", rua:1, lado:"A", selLoc:null, mesaLast:null };
+function initialSector(){ const h=location.hash.slice(1); if(["comercial","expedicao","estoque","usuarios"].includes(h)) return h; return innerWidth>=900 ? "comercial" : "expedicao"; }
+state.sector = initialSector();
+
+function pickList(o){
+  return o.items.map((it,i)=>({...it, i, need: it.qty-(it.qtyEnc||0), loc: liveLoc(it), ean: liveEan(it)})).filter(x=>x.need>0 && x.loc)
+    .sort((x,y)=> x.loc.r-y.loc.r || x.loc.ci-y.loc.ci || x.loc.l.localeCompare(y.loc.l) || x.loc.n-y.loc.n);
+}
+function res(o){ if(!o.res || o.res.length!==o.items.length) o.res = o.items.map(()=>({status:"pend",got:0})); return o.res; }
+
+/* ================== Navegação ================== */
+function topnav(){
+  const names = {comercial:"Comercial", expedicao:"Separação", estoque:"Locais", usuarios:"Usuários"};
+  return `<nav class="topnav" aria-label="Setores">
+    <div class="brand">Picking <span>Serena</span></div>
+    <div class="sync ${synced?"":"local"}" title="${synced?"Dados sincronizados entre os setores":"Sem sincronização: os dados ficam só nesta tela"}"><i></i>${synced?"Sincronizado":"Modo local"}</div>
+    <div class="seg mainnav" role="group">${allowedSectors().flatMap(k=> k==="expedicao"
+      ? [["fila","Separação"],["historico","Separados"],["colmeias","Encomendas"]].map(([t,n])=>`<button data-sec="expedicao" data-tab="${t}" aria-pressed="${state.sector==="expedicao" && (state.sepTab||"fila")===t}">${n}</button>`)
+      : [`<button data-sec="${k}" aria-pressed="${state.sector===k}">${names[k]}</button>`]).join("")}</div>
+    ${userChip()}
+  </nav>${state.viewAs?`<div class="viewas"><span>Simulando o nível ${ROLES[state.viewAs].t}. Os dados são reais.</span><button class="mini" id="exitViewAs">Voltar ao meu acesso</button></div>`:""}`;
+}
+function bindNav(){
+  app.querySelectorAll("[data-sec]").forEach(b=>b.onclick=()=>{ state.sector=b.dataset.sec; if(b.dataset.tab) state.sepTab=b.dataset.tab; state.view="orders"; render(); scrollTo(0,0); });
+  const ex=document.getElementById("exitViewAs"); if(ex) ex.onclick=()=>{ state.viewAs=null; state.sector="usuarios"; state.view="orders"; render(); };
+  fillNames(app.querySelector(".topnav"));
+}
+
+/* ================== COMERCIAL ================== */
+const EXAMPLE_PRESALE = { num:"36671", date:"21/10/2026", time:"14:05", clientCode:"10812", client:"MARCENARIA PINHEIRO (EXEMPLO)", city:"CURITIBA - PR", seller:"EVELIN", obs:"JADLOG - 3 A 5 DIAS ÚTEIS", total:1213.05,
+  items:[
+    {code:"18337", name:"ITALY - AURI IL1690 37MM - BROWN", ean:"7895887303077", un:"UN", qty:10, price:42.97},
+    {code:"19139", name:"ITALY - ZIGRINATO IL1582 20MM - BROWN", ean:"", un:"UN", qty:8, price:45.00},
+    {code:"17702", name:"PUXADOR PERFIL SLIM 128MM - PRETO FOSCO", ean:"", un:"UN", qty:12, price:31.50},
+    {code:"20114", name:"PUXADOR CONCHA OVAL 96MM - DOURADO ESCOVADO", ean:"", un:"UN", qty:6, price:28.90},
+  ]};
+
+function startDraft(p){
+  const id = "PV-"+p.num;
+  state.draft = { ...p, id, mode:"total", dup: ORDERS.some(o=>o.id===id && o.status!=="enviado"),
+    items: p.items.map(it=>({...it, ean: it.ean || PRODUCTS[it.code]?.ean || "", loc:locFor(it.code), qtyEnc:0, eta:""})) };
+  state.draftErr = ""; render();
+}
+function freeSlot(){ const used=new Set(ORDERS.filter(usesHive).map(o=>o.colmeia)); return HIVE.find(s=>!used.has(s)) || null; }
+
+function renderComercial(){
+  const d = state.draft;
+  app.innerHTML = topnav() + `
+    <header class="bar"><div class="grow"><h1>Integração de pré-vendas</h1><div class="sub">Envie a pré-venda para a expedição separar. Envio parcial: marque o que é sob encomenda.</div></div>
+      <button class="tbtn" id="labelsBtn">Etiquetas de teste</button></header>
+    <div class="cgrid">
+      <section class="panel" id="main">${d ? draftHTML(d) : dropHTML()}</section>
+      <aside class="panel" id="aside">${asideHTML()}</aside>
+    </div>`;
+  bindNav();
+  document.getElementById("labelsBtn").onclick=()=>{ state.view="labels"; render(); scrollTo(0,0); };
+  d ? bindDraft() : bindDrop();
+  bindAside();
+}
+
+function dropHTML(){
+  return `<h2>1. Importar pré-venda</h2>
+    <label class="drop" id="drop" for="pdfIn">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 18v-6M9 15l3-3 3 3"/></svg>
+      <b>${state.parsing ? "Lendo pré-venda…" : "Arraste o PDF da pré-venda aqui"}</b>
+      <small>ou clique para escolher o arquivo · formato "Pré-venda - Nº" do sistema</small>
+    </label>
+    <input type="file" id="pdfIn" accept="application/pdf" hidden>
+    ${state.draftErr ? `<div class="err">${esc(state.draftErr)}</div>` : ""}
+    <div><button class="linkbtn" id="exBtn">Usar uma pré-venda de exemplo</button></div>`;
+}
+function bindDrop(){
+  const drop=document.getElementById("drop"), inp=document.getElementById("pdfIn");
+  inp.onchange=()=>inp.files[0] && importPdf(inp.files[0]);
+  drop.ondragover=e=>{ e.preventDefault(); drop.classList.add("over"); };
+  drop.ondragleave=()=>drop.classList.remove("over");
+  drop.ondrop=e=>{ e.preventDefault(); drop.classList.remove("over"); const f=e.dataTransfer.files[0]; f && importPdf(f); };
+  document.getElementById("exBtn").onclick=()=>startDraft(JSON.parse(JSON.stringify(EXAMPLE_PRESALE)));
+}
+
+let pdfReady=null;
+function loadPdfJs(){
+  if(pdfReady) return pdfReady;
+  const add = src => new Promise((ok,ko)=>{ const s=document.createElement("script"); s.src=src; s.onload=ok; s.onerror=ko; document.head.appendChild(s); });
+  const base="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
+  pdfReady = add(base+"pdf.min.js").then(()=>add(base+"pdf.worker.min.js")).catch(e=>{ pdfReady=null; throw e; });
+  return pdfReady;
+}
+async function importPdf(file){
+  if(!/pdf$/i.test(file.type) && !/\.pdf$/i.test(file.name)){ state.draftErr="Escolha um arquivo PDF."; return render(); }
+  state.parsing=true; state.draftErr=""; render();
+  try{
+    await loadPdfJs();
+    const pdf = await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
+    const pg = await pdf.getPage(1); const tc = await pg.getTextContent();
+    const raw = tc.items.map(i=>({s:i.str, x:i.transform[4], y:i.transform[5], w:i.width}));
+    const p = parsePresale(raw);
+    state.parsing=false; startDraft(p);
+  }catch(e){
+    console.warn(e); state.parsing=false;
+    state.draftErr = e?.message==="formato"||e?.message==="sem itens" ? "Não reconheci este PDF como uma pré-venda (não achei o número ou a tabela de itens)." : "Não foi possível ler o PDF. Tente de novo ou use outro arquivo.";
+    render();
+  }
+}
+
+function draftHTML(d){
+  const par = d.mode!=="total";
+  const tot = draftTotals(d);
+  return `
+    <div class="pshead">
+      <div><h3>Pré-venda</h3><div class="pv">${esc(d.num)}</div><div class="meta">${esc(d.date)} ${esc(d.time)}</div></div>
+      <button class="mini" id="cancelDraft">Descartar e importar outra</button>
+    </div>
+    ${d.dup ? `<div class="warn">A pré-venda ${esc(d.num)} já está na expedição. Enviar de novo substitui o pedido atual.</div>` : ""}
+    <dl class="fields">
+      <div><dt>Cliente</dt><dd>${esc(d.clientCode)} · ${esc(d.client)}</dd></div>
+      <div><dt>Cidade</dt><dd>${esc(d.city)||"—"}</dd></div>
+      <div><dt>Vendedor</dt><dd>${esc(d.seller)||"—"}</dd></div>
+      <div><dt>Transporte / observações</dt><dd>${esc(d.obs)||"—"}</dd></div>
+      <div><dt>Valor total</dt><dd class="tnum">${money(d.total)}</dd></div>
+    </dl>
+    <div><h2 style="margin-bottom:10px">2. Tipo de envio</h2>
+    <div class="modes" role="radiogroup">
+      <label class="mode"><input type="radio" name="mode" value="total" ${d.mode==="total"?"checked":""}><span><b>Envio total</b><small>Todas as peças têm pronta entrega. A expedição separa tudo e o pedido vai direto para o envio.</small></span></label>
+      <label class="mode"><input type="radio" name="mode" value="parcial" ${d.mode==="parcial"?"checked":""}><span><b>Envio parcial</b><small>Envia agora o que tem em estoque. As peças encomendadas seguem depois, em um 2º envio.</small></span></label>
+      <label class="mode"><input type="radio" name="mode" value="aguarda" ${d.mode==="aguarda"?"checked":""}><span><b>Aguarda encomenda</b><small>Separa o que tem em estoque e guarda na colmeia até chegar o restante. Envio único.</small></span></label>
+    </div></div>
+    <div><h2 style="margin-bottom:10px">3. Itens ${par?"· marque o que é sob encomenda":""}</h2>
+    <div class="tablewrap"><table class="items">
+      <thead><tr><th>Cód.</th><th>Descrição</th><th>Endereço</th><th class="num">Qtd</th>${par?`<th>Sob encomenda</th><th>Previsão de chegada</th>`:""}<th class="num">Separar agora</th></tr></thead>
+      <tbody>${d.items.map((it,i)=>{
+        const enc = it.qtyEnc||0, now = it.qty-enc;
+        return `<tr class="${par&&enc?"enc":""}">
+          <td class="code">${esc(it.code)}</td>
+          <td class="desc">${esc(it.name)}<small>${it.ean?("EAN "+esc(it.ean)):"sem EAN · bipar pelo código"}</small></td>
+          <td>${it.loc?`<span class="pill">${fullLoc(code(it.loc))}</span>`:`<div class="setloc"><input class="tin mono sm" id="dl-${i}" placeholder="R1-LB-BIN-8.M" style="width:104px" aria-label="Endereço de ${esc(it.code)}"><button class="mini" data-setloc="${i}">Salvar</button></div><div class="setloc"><small>sem endereço no estoque</small></div>`}</td>
+          <td class="num">${it.qty} ${esc(it.un)}</td>
+          ${par?`<td><div class="encin"><input type="number" min="0" max="${it.qty}" step="1" value="${enc}" id="enc-${i}" data-i="${i}" aria-label="Quantidade sob encomenda de ${esc(it.code)}"><label><input type="checkbox" data-all="${i}" ${enc===it.qty?"checked":""}>todas</label></div></td>
+                 <td><input type="date" id="eta-${i}" data-eta="${i}" value="${esc(it.eta)}" ${enc?"":"disabled"} aria-label="Previsão de chegada de ${esc(it.code)}"></td>`:""}
+          <td class="num now" id="now-${i}">${now}</td>
+        </tr>`;}).join("")}</tbody>
+    </table></div></div>
+    ${state.draftErr ? `<div class="err">${esc(state.draftErr)}</div>` : ""}
+    <div class="sumbar">
+      <div class="totals" id="totals">${totalsHTML(tot, d)}</div>
+      <button class="btn dark" id="sendBtn">Enviar para expedição</button>
+    </div>`;
+}
+function draftTotals(d){
+  let pick=0, enc=0, refsPick=0, refsEnc=0;
+  d.items.forEach(it=>{ const e=d.mode!=="total"?(it.qtyEnc||0):0; enc+=e; pick+=it.qty-e; if(it.qty-e>0) refsPick++; if(e>0) refsEnc++; });
+  return {pick, enc, refsPick, refsEnc};
+}
+function totalsHTML(t, d){
+  const prev = ORDERS.find(o=>o.id===d.id);
+  const slot = d.mode==="aguarda" ? ((prev && usesHive(prev) && prev.colmeia) || freeSlot()) : null;
+  return `<div><small>${d.mode==="parcial"?"1º envio":"Separar agora"}</small><b class="tnum">${t.pick}</b> pç · ${t.refsPick} ref.</div>
+    ${d.mode!=="total"?`<div><small>${d.mode==="parcial"?"2º envio (encomenda)":"Sob encomenda"}</small><b class="tnum">${t.enc}</b> pç · ${t.refsEnc} ref.</div>`:""}
+    <div><small>Destino da separação</small><b>${d.mode==="aguarda" ? (slot ? "Colmeia "+slot : "Colmeias lotadas") : "Mesa de expedição"}</b></div>`;
+}
+function bindDraft(){
+  const d = state.draft;
+  document.getElementById("cancelDraft").onclick=()=>{ state.draft=null; state.draftErr=""; render(); };
+  app.querySelectorAll('input[name=mode]').forEach(r=>r.onchange=()=>{ d.mode=r.value; state.draftErr=""; render(); });
+  const refresh = i => {
+    const it=d.items[i], enc=it.qtyEnc||0;
+    document.getElementById("now-"+i).textContent = it.qty-enc;
+    const row=document.getElementById("now-"+i).closest("tr"); row.classList.toggle("enc", enc>0);
+    const eta=document.getElementById("eta-"+i); if(eta){ eta.disabled=!enc; if(!enc){ eta.value=""; it.eta=""; } }
+    const all=app.querySelector(`[data-all="${i}"]`); if(all) all.checked = enc===it.qty;
+    document.getElementById("totals").innerHTML = totalsHTML(draftTotals(d), d);
+  };
+  app.querySelectorAll("input[data-i]").forEach(inp=>inp.oninput=()=>{
+    const i=+inp.dataset.i, it=d.items[i]; let v=Math.round(+inp.value||0); v=Math.max(0,Math.min(it.qty,v));
+    it.qtyEnc=v; if(String(v)!==inp.value && inp.value!=="") inp.value=v; refresh(i);
+  });
+  app.querySelectorAll("input[data-all]").forEach(cb=>cb.onchange=()=>{
+    const i=+cb.dataset.all, it=d.items[i]; it.qtyEnc = cb.checked ? it.qty : 0;
+    document.getElementById("enc-"+i).value = it.qtyEnc; refresh(i);
+  });
+  app.querySelectorAll("input[data-eta]").forEach(inp=>inp.onchange=()=>{ d.items[+inp.dataset.eta].eta=inp.value; inp.classList.remove("invalid"); });
+  app.querySelectorAll("[data-setloc]").forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.setloc, it=d.items[i], lc=normLoc(document.getElementById("dl-"+i).value);
+    const prod={code:it.code, name:PRODUCTS[it.code]?.name||it.name, ean:PRODUCTS[it.code]?.ean||it.ean||"", loc:lc};
+    const err = !lc ? "Informe o local, ex.: R1-LB-BIN-8.M." : validateProduct(prod);
+    if(err){ toast(err); return; }
+    saveProduct(prod); it.loc=parseLoc(lc); state.draftErr=""; render(); toast(`${it.code} cadastrado em ${lc}`);
+  });
+  document.getElementById("sendBtn").onclick=sendDraft;
+}
+function sendDraft(){
+  const d = state.draft, m = d.mode, enc = m!=="total";
+  const items = d.items.map(it=>({code:it.code, name:it.name, ean:it.ean, un:it.un, qty:it.qty, price:it.price, loc:it.loc?code(it.loc):"", qtyEnc: enc?(it.qtyEnc||0):0, eta: enc&&it.qtyEnc?it.eta:""}));
+  const hasEnc = items.some(it=>it.qtyEnc>0), hasPick = items.some(it=>it.qty-it.qtyEnc>0);
+  if(enc && !hasEnc){ state.draftErr="Informe pelo menos um item sob encomenda, ou escolha Envio total."; return render(); }
+  if(m==="parcial" && !hasPick){ state.draftErr="No envio parcial precisa haver peças em estoque para o 1º envio. Se tudo é sob encomenda, use Aguarda encomenda."; return render(); }
+  const missing = items.map((it,i)=>it.qtyEnc>0 && !it.eta ? i : -1).filter(i=>i>=0);
+  if(missing.length){ missing.forEach(i=>document.getElementById("eta-"+i)?.classList.add("invalid")); state.draftErr=""; toast("Informe a previsão de chegada dos itens sob encomenda."); return; }
+  const noLoc = items.filter(it=>it.qty-it.qtyEnc>0 && !it.loc);
+  if(noLoc.length){ state.draftErr=`Sem endereço de estoque: ${noLoc.map(x=>x.code).join(", ")}. Defina o endereço na tabela acima ou na aba Locais.`; return render(); }
+  items.forEach(it=>{ const p=PRODUCTS[it.code]; if(!p) saveProduct({code:it.code, name:it.name, ean:it.ean, loc:it.loc?code(it.loc):""}); else if(!p.ean && it.ean && !validateProduct({...p, ean:it.ean})) saveProduct({...p, ean:it.ean}); });
+  const prev = ORDERS.find(o=>o.id===d.id);
+  const slot = m==="aguarda" ? ((prev && usesHive(prev) && prev.colmeia) || freeSlot()) : null;
+  if(m==="aguarda" && !slot){ state.draftErr="Todas as colmeias estão ocupadas. Libere uma colmeia antes de integrar este pedido."; return render(); }
+  const o = { id:d.id, num:d.num, date:d.date, time:d.time, clientCode:d.clientCode, client:d.client, city:d.city, seller:d.seller, obs:d.obs, total:d.total,
+    mode:m, v2:true, items, remessa:1, status: hasPick ? "aguardando" : "na_colmeia", createdAt: Date.now(), createdBy: ME.id||"" };
+  if(slot) o.colmeia = slot;
+  res(o);
+  state.draft=null; state.draftErr="";
+  saveOrder(o);
+  toast(m==="aguarda" ? (hasPick ? `Pré-venda ${o.num} enviada para separação · colmeia ${slot}` : `Pré-venda ${o.num} toda sob encomenda · colmeia ${slot} reservada`) : `Pré-venda ${o.num} enviada para separação · ${MODES[m].t.toLowerCase()}`);
+}
+
+function hiveHTML(target){
+  const by = {}; ORDERS.filter(usesHive).forEach(o=>by[o.colmeia]=o);
+  return `<div class="hive">${HIVE.map(s=>{ const o=by[s];
+    const cls = s===target ? "target" : !o ? "" : o.status==="pronto_envio" ? "envio" : o.status==="na_colmeia" ? "enc" : "res";
+    return `<div class="slot ${cls}" title="${o?esc(o.id+" · "+o.client):"Livre"}">${s.slice(3)}${o?`<b>${esc(o.num)}</b>`:""}</div>`; }).join("")}</div>
+    <div class="legend2"><span><i></i>Livre</span><span><i style="background:var(--floor)"></i>Reservada</span><span><i style="background:var(--accent-soft)"></i>Aguarda encomenda</span><span><i style="background:var(--ok-soft)"></i>Encomenda chegou</span></div>`;
+}
+function asideHTML(){
+  const list = [...ORDERS].filter(o=>o.status!=="enviado").sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  return `<h2>Pedidos na expedição</h2>
+    ${kpisHTML()}
+    <div class="qlist">${list.length ? list.map(o=>{
+      const st=statusInfo(o), r=res(o);
+      const enc=o.items.filter(i=>i.qtyEnc>0), falt=o.items.filter((it,i)=>r[i].status==="miss"||r[i].status==="part");
+      const pl=pickList(o), done=pl.filter(x=>r[x.i].status!=="pend").length;
+      return `<div class="qcard">
+        <div class="row"><span class="pvn">${esc(o.num)}${o.mode==="aguarda"?" · "+esc(o.colmeia):""}</span><span class="chip ${st.c}">${st.t}</span></div>
+        <div class="cl">${esc(o.client)}</div>
+        <div class="meta tnum"><span>${MODES[o.mode]?.t||""}</span>${pl.length?`<span>Separado ${done}/${pl.length} ref.</span>`:""}${falt.length?`<span style="color:var(--bad)">${falt.length} com falta</span>`:""}</div>
+        <div class="meta tnum"><span>⏱ ${since(o.createdAt)} desde a integração</span>${o.status==="separando"&&o.startedAt?`<span>separando há ${since(o.startedAt)}</span>`:""}</div>
+        <details><summary>Tempos</summary>${timelineHTML(o)}</details>
+        ${enc.length?`<details><summary>${enc.length} ref. sob encomenda</summary><ul>${enc.map(i=>`<li>${esc(i.code)} · ${i.qtyEnc} pç · chega ${fmtDate(i.eta)||"—"}</li>`).join("")}</ul></details>`:""}
+        ${o.status==="na_colmeia"||o.status==="enc_pendente"?`<div><button class="mini" data-arrived="${esc(o.id)}">Encomenda chegou</button></div>`:""}
+        ${o.status==="pronto_envio"?`<div><button class="mini" data-sent="${esc(o.id)}">${o.mode==="parcial"&&o.remessa!==2&&enc.length?"Marcar 1º envio como enviado":"Marcar como enviado"}</button></div>`:""}
+      </div>`;}).join("") : `<div class="empty">Nenhum pedido na expedição. Importe uma pré-venda para começar.</div>`}</div>
+    <h3>Colmeias</h3>${hiveHTML(null)}`;
+}
+function bindAside(){
+  app.querySelectorAll("[data-arrived]").forEach(b=>b.onclick=()=>{
+    const o=ORDERS.find(x=>x.id===b.dataset.arrived); if(!o) return;
+    patchOrder(o.id,{status:"pronto_envio", remessa: o.mode==="parcial"?2:1, arrivedAt:Date.now()});
+    toast(o.mode==="aguarda" ? `Encomenda recebida · retire o pedido ${o.num} da colmeia ${o.colmeia} para envio` : `Encomenda recebida · 2º envio do pedido ${o.num} pronto`); rerender();
+  });
+  app.querySelectorAll("[data-sent]").forEach(b=>b.onclick=()=>{
+    const o=ORDERS.find(x=>x.id===b.dataset.sent); if(!o) return;
+    const first = o.mode==="parcial" && o.remessa!==2 && o.items.some(i=>i.qtyEnc>0);
+    if(first){ patchOrder(o.id,{status:"enc_pendente", sent1At:Date.now()}); toast(`1º envio do pedido ${o.num} registrado · aguardando encomenda`); }
+    else { patchOrder(o.id,{status:"enviado", sentAt:Date.now()}); toast(`Pedido ${o.num} enviado${o.mode==="aguarda"?" · colmeia "+o.colmeia+" liberada":""}`); }
+    rerender();
+  });
+}
+
+/* ================== EXPEDIÇÃO: lista ================== */
+const trayTied = o => !!o.tray && (o.trayStatus==="mesa" || o.trayStatus==="lavagem");
+const inHive = o => o.mode==="aguarda" && ["na_mesa","na_colmeia"].includes(o.status) && !trayTied(o);
+const isSeparated = o => trayTied(o) && !["aguardando","separando"].includes(o.status);
+const inHistory = o => !!o.pickedAt && !isSeparated(o) && !inHive(o) && !["aguardando","separando"].includes(o.status);
+function sepTab(o){ return isSeparated(o) ? "fila" : inHive(o) ? "colmeias" : inHistory(o) ? "historico" : "fila"; }
+
+function renderOrders(){
+  const tab = state.sepTab || "fila";
+  const queue = ORDERS.filter(o=>(o.status==="aguardando"||o.status==="separando") && pickList(o).length).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+  const parked = ORDERS.filter(isSeparated).sort((a,b)=>(a.pickedAt||0)-(b.pickedAt||0));
+  const hive = ORDERS.filter(inHive).sort((a,b)=>(a.colmeia||"").localeCompare(b.colmeia||""));
+  const hist = ORDERS.filter(inHistory).sort((a,b)=>(b.pickedAt||0)-(a.pickedAt||0));
+  const units = queue.reduce((s,o)=>s+pickList(o).reduce((a,x)=>a+x.need,0),0);
+  const tabs = [["fila","Separação",queue.length+parked.length],["colmeias","Colmeias · encomenda",hive.length],["historico","Histórico",hist.length]];
+  let body = "";
+  if(tab==="fila"){
+    body = `
+    <div class="shift">
+      <div><b class="tnum">${queue.length}</b><span class="eyebrow">Pedidos</span></div>
+      <div><b class="tnum">${queue.reduce((s,o)=>s+pickList(o).length,0)}</b><span class="eyebrow">Referências</span></div>
+      <div><b class="tnum">${units}</b><span class="eyebrow">Peças</span></div>
+    </div>
+    <div class="section"><div class="eyebrow">Fila de separação</div>
+      ${queue.length ? queue.map(o=>{
+        const pl=pickList(o), r=res(o), done=pl.filter(x=>r[x.i].status!=="pend").length, enc=o.items.filter(i=>i.qtyEnc>0).length;
+        const aisles=[...new Set(pl.map(x=>"R"+x.loc.r))].join(" · ");
+        return `<button class="order ${o.mode==="aguarda"?"urgent":""}" data-oid="${esc(o.id)}">
+          <div class="row"><span class="num">#${esc(o.num)}${newIds.has(o.id)&&o.status==="aguardando"?` <span class="chip newc">Novo</span>`:""}</span>${o.status==="separando"?`<span class="chip prog">Em separação</span>`:`<span class="chip ${MODES[o.mode].c}">${MODES[o.mode].t}</span>`}</div>
+          <div class="client">${esc(o.client)}</div>
+          <div class="meta tnum"><span>${pl.length} ref. · ${pl.reduce((a,x)=>a+x.need,0)} pç</span><span>Ruas ${aisles}</span>${o.status==="separando"&&o.startedAt?`<span>Separando há ${since(o.startedAt)}</span>`:`<span>Na fila há ${since(o.createdAt)}</span>`}${o.tray&&o.status==="separando"?`<span>Bandeja ${esc(o.tray)}</span>`:""}${o.mode==="aguarda"?`<span>Colmeia ${esc(o.colmeia)}</span>`:`<span>Destino: mesa de expedição</span>`}${enc?`<span>${enc} ref. sob encomenda</span>`:""}</div>
+          ${done?`<div class="prog-bar"><i style="width:${done/pl.length*100}%"></i></div>`:""}
+        </button>`;}).join("") : `<div class="empty">Nenhum pedido aguardando separação.</div>`}
+    </div>
+    ${parked.length?`<div class="section"><div class="eyebrow">Separados · na mesa com bandeja</div><div class="list" style="margin-top:0">${parked.map(o=>
+      `<div class="li sep" style="cursor:default"><span class="lc tnum">${esc(o.tray)}</span><span class="ln">#${esc(o.num)} · ${esc(o.client)}<small>${o.mode==="aguarda"?"Vai para a colmeia "+esc(o.colmeia||""):"Mesa"}</small></span>${can("coleta")||can("mesa") ? `<button class="mini" data-free="${esc(o.id)}">Liberar bandeja</button>` : ""}</div>`).join("")}</div></div>`:""}`;
+  } else if(tab==="colmeias"){
+    body = `
+    <div class="section"><div class="eyebrow">Mapa das colmeias</div>${hiveHTML(null)}</div>
+    <div class="section"><div class="eyebrow">Pedidos nas colmeias · ${hive.length}</div>
+      ${hive.length ? `<div class="list" style="margin-top:0">${hive.map(o=>{ const enc=o.items.filter(i=>i.qtyEnc>0);
+        const eta=enc.map(i=>i.eta).filter(Boolean).sort()[0];
+        return `<div class="li sep" style="cursor:default"><span class="lc tnum">${esc(o.colmeia||"—")}</span><span class="ln">#${esc(o.num)} · ${esc(o.client)}<small>${enc.reduce((s,i)=>s+i.qtyEnc,0)} pç sob encomenda${eta?" · chega "+fmtDate(eta):""}</small></span>${o.status==="na_mesa" && (can("mesa")||can("coleta")) ? `<button class="mini" data-hive="${esc(o.id)}">Guardar</button>` : `<span class="chip enc">Na colmeia</span>`}</div>`; }).join("")}</div>` : `<div class="empty">Nenhum pedido aguardando encomenda nas colmeias.</div>`}
+    </div>`;
+  } else {
+    body = `
+    <div class="section"><div class="eyebrow">Pedidos separados · ${hist.length}</div>
+      ${hist.length ? `<div class="list" style="margin-top:0">${hist.slice(0,200).map(o=>{ const st=statusInfo(o), pk=o.pickedAt&&o.startedAt?o.pickedAt-o.startedAt:null;
+        return `<div class="li sep" style="cursor:default"><span class="lc tnum">#${esc(o.num)}</span><span class="ln">${esc(o.client)}<small>${fmtClock(o.pickedAt)}${pk!=null?" · picking "+fmtDur(pk).replace(/ \d+s$/,""):""}${o.tray?" · bandeja "+esc(o.tray):""}</small></span><span class="chip ${st.c}">${st.t.split(" · ")[0]}</span></div>`; }).join("")}</div>` : `<div class="empty">Nenhum pedido separado ainda.</div>`}
+    </div>`;
+  }
+  app.innerHTML = topnav() + `
+    <header class="bar"><div class="grow"><h1>${tab==="fila"?"Pedidos para separar":tab==="colmeias"?"Encomendas":"Pedidos separados"}</h1><div class="sub">CD Porto Belo${can("coleta")?"":" · somente consulta"}</div></div></header>
+    ${!synced ? `<div class="banner">Sem conexão com o banco de dados. Verifique a internet ou a configuração do Supabase.</div>`:""}
+    ${body}`;
+  bindNav();
+  if(can("coleta")) app.querySelectorAll(".order").forEach(b=>b.onclick=()=>openOrder(b.dataset.oid));
+  else app.querySelectorAll(".order").forEach(b=>{ b.style.cursor="default"; b.tabIndex=-1; });
+  app.querySelectorAll("[data-free]").forEach(b=>b.onclick=()=>{ if(!b.dataset.c){ b.dataset.c="1"; b.textContent="Confirmar liberação"; b.classList.add("danger"); return; } const o=ORDERS.find(x=>x.id===b.dataset.free); if(o){ unlinkTray(o); toast(`Bandeja ${o.tray} liberada · pedido ${o.num} foi para ${inHive(o)?"Encomendas":"Separados"}`); } });
+  app.querySelectorAll("[data-hive]").forEach(b=>b.onclick=()=>{ state.oid=b.dataset.hive; state.fromMesa=false; state.view="store"; render(); scrollTo(0,0); });
+}
+function openOrder(id){
+  const o=ORDERS.find(x=>x.id===id); if(!o) return;
+  newIds.delete(id); alertQueue=alertQueue.filter(x=>x!==id); showAlert();
+  state.oid=id; state.phase=startPhase(o); state.count=0;
+  const r=res(o), pl=pickList(o), k=pl.findIndex(x=>r[x.i].status==="pend");
+  if(k<0){ state.view="tomesa"; render(); scrollTo(0,0); return; }
+  if(o.status!=="separando") patchOrder(id, {status:"separando", startedAt:o.startedAt||Date.now(), startedBy:o.startedBy||ME.id||"", res:r});
+  state.idx=k; state.view="pick"; render(); scrollTo(0,0);
+}
+
+/* ================== Etiquetas de teste ================== */
+function renderLabels(){
+  const locs=new Map(), prods=new Map();
+  ORDERS.filter(o=>o.status!=="enviado").forEach(o=>pickList(o).forEach(i=>{ locs.set(code(i.loc), i.name); prods.set(i.ean||i.code, {t:i.name, f: validEan(i.ean)?"EAN13":"CODE128"}); }));
+  const card = (v,t,fmt,big) => `<div class="label"><div class="lt">${esc(t)}</div>${big?`<div class="lb">${esc(v)}</div>`:""}<svg class="bc" data-v="${esc(v)}" data-f="${fmt}"></svg></div>`;
+  app.innerHTML = topnav() + `
+    <header class="bar"><button class="back" id="back" aria-label="Voltar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button><div class="grow"><h1>Etiquetas de teste</h1><div class="sub">Abra no computador e aponte o celular ou o leitor para a tela</div></div></header>
+    <div class="section"><div class="eyebrow">Endereços · ${locs.size}</div><div class="labels">${[...locs].sort().map(([v,t])=>card(v,t,"CODE128",true)).join("")||`<div class="empty">Sem pedidos abertos.</div>`}</div></div>
+    <div class="section"><div class="eyebrow">Produtos · ${prods.size}</div><div class="labels">${[...prods].map(([v,p])=>card(v,p.t,p.f,p.f!=="EAN13")).join("")}</div></div>
+    <div class="section"><div class="eyebrow">Bandejas · ${TRAYS.length}</div><div class="labels">${TRAYS.slice(0,8).map(s=>card(s,"Bandeja de separação","CODE128",true)).join("")}</div></div>
+    <div class="section"><div class="eyebrow">Colmeias · ${HIVE.length}</div><div class="labels">${HIVE.map(s=>card(s,"Colmeia de separação","CODE128",true)).join("")}</div></div>`;
+  bindNav();
+  document.getElementById("back").onclick=()=>{ state.view="orders"; render(); };
+  if(!window.JsBarcode){ ensureBarcode().then(()=>{ if(state.view==="labels") renderLabels(); }, ()=>{}); return; }
+  app.querySelectorAll("svg.bc").forEach(s=>{ try{ JsBarcode(s, s.dataset.v, {format:s.dataset.f, height:56, width:2, margin:6, fontSize:14, displayValue:s.dataset.f==="EAN13", background:"#FFFFFF", lineColor:"#000000"}); }catch(e){} });
+}
+
+/* ================== Mapa do estoque ================== */
+let animToken = 0, lastAnimKey = null;
+function mapGeom(){
+  const rs = ruas(); const n = Math.max(1, rs.length);
+  const rows = Math.max(6, ...Object.values(BLOCKS).map(b=>colIdx(b.c2)+1));
+  const W = 360, unit = Math.min(120, 316/n), x0 = (W - n*unit)/2 + 8;
+  const rw = Math.max(9, Math.min(26, unit*0.22)), cw = Math.min(46, unit*0.38), rh = 240/rows;
+  const laneX = r => x0 + rs.indexOf(r)*unit + unit/2;
+  return { rs, W, rows, rh, rw, cw, laneX, rackX: (r,l) => l==="A" ? laneX(r) - cw/2 - rw : laneX(r) + cw/2, rowY: ci => 300 - (ci+0.5)*rh };
+}
+const CROSS_Y = 325;
+function routePts(g, from, l){
+  const to = {x:g.laneX(l.r), y:g.rowY(l.ci)};
+  if(from.lane!==undefined && from.x===to.x) return [from,to];
+  const pts=[from,{x:from.x,y:CROSS_Y},{x:to.x,y:CROSS_Y},to];
+  return pts.filter((p,i)=>!i || p.x!==pts[i-1].x || p.y!==pts[i-1].y);
+}
+function mapSVG(item, prevItem){
+  const g = mapGeom(), l = item.loc, W = g.W;
+  const from = prevItem ? {x:g.laneX(prevItem.loc.r), y:g.rowY(prevItem.loc.ci), lane:1} : {x:W/2, y:372};
+  const pts = routePts(g, from, l), t = {x:g.laneX(l.r), y:g.rowY(l.ci)};
+  const d = "M"+pts.map(p=>`${p.x} ${p.y}`).join(" L");
+  let s = `<svg viewBox="0 0 ${W} 410" role="img" aria-label="Mapa do estoque: vá até a rua ${l.r}, lado ${l.l}, coluna ${l.c}, nível ${l.n}">`;
+  s += `<rect class="m-floor" x="0" y="0" width="${W}" height="410" rx="12"/>`;
+  s += `<rect class="m-lane" x="${g.laneX(l.r)-g.cw/2}" y="60" width="${g.cw}" height="240" rx="3"/>`;
+  for(const r of g.rs) for(const side of ["A","B"]){
+    const bl = Object.values(BLOCKS).filter(b=>b.r===r && b.l===side);
+    for(let ci=0; ci<g.rows; ci++){
+      const has = bl.some(b=>ci>=colIdx(b.c1) && ci<=colIdx(b.c2)), tgt = r===l.r && side===l.l && ci===l.ci;
+      if(has) s += `<rect class="m-cell${tgt?" target":""}" x="${g.rackX(r,side)}" y="${300-(ci+1)*g.rh+1}" width="${g.rw}" height="${Math.max(2,g.rh-2)}" rx="1.5"/>`;
+    }
+    s += `<text class="m-txt" x="${g.rackX(r,side)+g.rw/2}" y="316" text-anchor="middle">${side}</text>`;
+  }
+  for(const r of g.rs) s += `<text class="m-ais" x="${g.laneX(r)}" y="52" text-anchor="middle">R${r}</text>`;
+  const step = g.rows>16 ? 2 : 1;
+  for(let ci=0; ci<g.rows; ci+=step) s += `<text class="m-txt" x="10" y="${g.rowY(ci)+3}" text-anchor="middle">${colName(ci)}</text>`;
+  s += `<rect class="m-dock" x="${W/2-110}" y="362" width="220" height="34" rx="6"/><text class="m-dock-t" x="${W/2}" y="383" text-anchor="middle">MESA DE EXPEDIÇÃO · COLMEIAS</text>`;
+  if(prevItem) s += `<circle class="m-prev" cx="${from.x}" cy="${from.y}" r="4"/>`;
+  s += `<path id="route" class="m-route" d="${d}"/><circle class="m-ring" cx="${t.x}" cy="${t.y}" r="9"/><circle class="m-pin" cx="${t.x}" cy="${t.y}" r="6.5"/><circle id="op" class="m-op" cx="${from.x}" cy="${from.y}" r="6"/>`;
+  return s + `</svg>`;
+}
+function animateRoute(force){
+  const card = document.getElementById("map"); if(!card) return;
+  const path = document.getElementById("route"), op = document.getElementById("op");
+  card.classList.remove("arrived");
+  const len = path.getTotalLength(), tok = ++animToken, key = state.oid+":"+state.idx;
+  const finish = () => { path.style.strokeDasharray=""; path.style.strokeDashoffset=0; const p=path.getPointAtLength(len); op.setAttribute("cx",p.x); op.setAttribute("cy",p.y); card.classList.add("arrived"); };
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches || (!force && lastAnimKey===key)) return finish();
+  lastAnimKey = key;
+  path.style.strokeDasharray = len; path.style.strokeDashoffset = len;
+  const dur = Math.min(2400, Math.max(1000, len*4.2)), t0 = performance.now();
+  const ease = x => x<.5 ? 2*x*x : 1-Math.pow(-2*x+2,2)/2;
+  (function step(now){
+    if(tok!==animToken) return;
+    const k = Math.min(1,(now-t0)/dur), e = ease(k);
+    path.style.strokeDashoffset = len*(1-e);
+    const p = path.getPointAtLength(e*len); op.setAttribute("cx",p.x); op.setAttribute("cy",p.y);
+    k<1 ? requestAnimationFrame(step) : finish();
+  })(t0);
+}
+function elevSVG(l){
+  const nMax = Math.max(l.n, ...Object.values(BLOCKS).filter(b=>b.r===l.r && b.l===l.l).map(b=>b.n2));
+  const H = 72, h = H/nMax;
+  let s=`<svg class="elev" width="54" height="78" viewBox="0 0 54 78" aria-label="Nível ${l.n} de ${nMax}">`;
+  s+=`<rect class="e-post" x="10" y="2" width="3" height="72"/><rect class="e-post" x="49" y="2" width="3" height="72"/>`;
+  for(let k=1;k<=nMax;k++){ const y=74-k*h; s+=`<rect class="e-lvl${k===l.n?" on":""}" x="14" y="${y+1}" width="34" height="${Math.max(1.5,h-2)}" rx="${Math.min(2,h/4)}"/>`;
+    if(k===l.n || nMax<=8) s+=`<text class="e-t" x="4" y="${y+h/2+3}" text-anchor="middle"${k===l.n?' style="font-weight:700"':""}>${k}</text>`; }
+  return s+`</svg>`;
+}
+
+/* ================== EXPEDIÇÃO: coleta ================== */
+const BACK_BTN = `<button class="back" id="back" aria-label="Voltar aos pedidos"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>`;
+const ICON_SCAN = `<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3M7 8v8M10 8v8M13 8v8M16 8v8"/></svg>`;
+const cur = () => { const o=ORDERS.find(x=>x.id===state.oid); if(!o) return null; const pl=pickList(o); return {o, r:res(o), pl, it:pl[state.idx]}; };
+const scanCode = it => it.ean || it.code;
+const hasTray = o => !!o.tray && o.trayStatus==="separando";
+let CONFIG = {requireLoc:false, useTray:true}, cfgDoc = null; // configuração da separação
+const startPhase = o => (CONFIG.useTray && o && !hasTray(o)) ? "tray" : "prod";
+const LOCGO = l => `<div class="locgo">Pegue no local <b>${code(l)}</b></div>`;
+const freeTray = o => TRAYS.find(t=>!trayBusy(t, o.id));
+const LOCOK = l => `<div class="locok"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Endereço <b>${code(l)}</b> confirmado</div>`;
+
+function taskCard(it){
+  const head = `<div class="row"><div class="grow"><div class="pn">${esc(it.name)}</div><div class="pm tnum">Cód. ${esc(it.code)} · ${it.need} pç</div></div></div>`;
+  if(state.phase==="tray"){ const o=ORDERS.find(x=>x.id===state.oid), ft=o&&freeTray(o); return `
+    <div class="task">${head}
+      <div class="row"><div class="do">${ICON_SCAN}Bipe uma bandeja vazia</div><button class="btn ghost sm" id="miss">Falta</button></div>
+      ${ft?`<button class="demo" id="sim">Simular bandeja ${ft} (demo)</button>`:`<div class="err">Todas as bandejas estão em uso.</div>`}
+    </div>`; }
+  if(state.phase==="qty") return `
+    <div class="task">
+      <div class="ok-line"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Produto confirmado</div>
+      ${head}
+      <div class="row">
+        <div class="stepper"><button id="minus" aria-label="Diminuir">−</button><output id="q" class="tnum">${state.count}</output><button id="plus" aria-label="Aumentar">+</button></div>
+        <button class="btn primary" id="okQty">Confirmar ${state.count} pç</button>
+      </div>
+      <div class="row"><span class="keyhint">Digite a quantidade e ENTER</span><button class="btn ghost sm" id="miss">Falta</button></div>
+    </div>`;
+  return `
+    <div class="task">${head}
+      <div class="row"><div class="do">${ICON_SCAN}Bipe o produto</div><button class="btn ghost sm" id="miss">Falta</button></div>
+      <button class="demo" id="sim">Simular leitura (demo)</button>
+    </div>`;
+}
+function renderPick(){
+  const c = cur(); if(!c || !c.it){ state.view="orders"; return render(); }
+  const {o, r, pl, it} = c, l=it.loc, prev = state.idx>0 ? pl[state.idx-1] : null;
+  const done = pl.filter(x=>r[x.i].status!=="pend").length;
+  app.innerHTML = `
+    <header class="bar pickbar">${BACK_BTN}
+      <div class="grow"><h1>#${esc(o.num)}</h1></div>
+      <span class="timer" title="Tempo de picking">⏱ ${since(o.startedAt)}</span>
+      <span class="badge tnum">${state.idx+1}/${pl.length}</span>
+    </header>
+    <div class="steps">${pl.map((x,k)=>{ const s=r[x.i].status; return `<i class="${s==="ok"||s==="part"?"ok":s==="miss"?"miss":k===state.idx?"cur":""}"></i>`; }).join("")}</div>
+    <div class="loc">
+      <div class="grow"><div class="eyebrow">Local</div>
+        <div class="loc-code tnum">R${l.r}<span>-</span>L${l.l}<span>-</span><span class="ttag">${l.t}</span>${l.n}<span>.</span>${l.c}</div></div>
+      ${elevSVG(l)}
+    </div>
+    ${taskCard(it)}
+    <div class="map-card" id="map">
+      <button class="replay-ic" id="replay" aria-label="Ver rota de novo" title="Ver rota de novo"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
+      ${mapSVG(it, prev)}
+    </div>
+    <div class="eyebrow" style="margin-top:14px">Itens · ${done} de ${pl.length}</div>
+    <div class="list" style="margin-top:6px">
+      ${pl.map((x,k)=>{ const s=r[x.i].status; const ic = s==="ok"?"✓":s==="miss"?"!":s==="part"?r[x.i].got:"";
+        return `<button class="li ${k===state.idx?"cur":""}" data-k="${k}"><span class="st ${s}">${ic}</span><span class="ln"><b class="tnum">${esc(x.code)}</b> <small>${x.loc.n}.${x.loc.c} · R${x.loc.r}-L${x.loc.l}</small></span><span class="tnum">${x.need} pç</span></button>`;}).join("")}
+    </div>`;
+  document.getElementById("back").onclick = ()=>{ state.view="orders"; render(); };
+  document.getElementById("replay").onclick = ()=>animateRoute(true);
+  const sim=document.getElementById("sim"); if(sim) sim.onclick = ()=> handleScan(state.phase==="tray" ? freeTray(o) : scanCode(it));
+  const miss=document.getElementById("miss"); if(miss) miss.onclick = ()=>{ if(state.phase!=="qty") state.count=0; commit(state.count===0 ? "miss" : state.count>=it.need ? "ok" : "part"); };
+  const qOut=document.getElementById("q"), okQ=document.getElementById("okQty");
+  const setQ = v => { state.count=Math.max(0,Math.min(it.need,v)); qOut.value=state.count; okQ.textContent=`Confirmar ${state.count} pç`; };
+  if(qOut){ document.getElementById("minus").onclick=()=>setQ(state.count-1); document.getElementById("plus").onclick=()=>setQ(state.count+1);
+    okQ.onclick=()=> commit(state.count>=it.need ? "ok" : state.count===0 ? "miss" : "part"); }
+  app.querySelectorAll(".li[data-k]").forEach(b=>b.onclick=()=>{ const k=+b.dataset.k; if(r[pl[k].i].status!=="pend"){ toast("Item já finalizado"); return; } goItem(k); });
+  setMsg(state.phase==="tray" ? "Bipe a bandeja" : state.phase==="qty" ? `Conte ${it.need} pç e confirme` : "Bipe o produto", "info");
+  requestAnimationFrame(()=>animateRoute(false));
+  focusScan();
+}
+function goItem(k){ state.idx=k; state.phase=startPhase(ORDERS.find(x=>x.id===state.oid)); state.count=0; render(); scrollTo({top:0,behavior:"smooth"}); }
+function updateCount(){
+  const {it} = cur();
+  const c=document.getElementById("cnt"), b=document.getElementById("cbar"), u=document.getElementById("undo"), m=document.getElementById("miss");
+  if(c) c.textContent=state.count; if(b) b.style.width=(state.count/it.need*100)+"%";
+  if(u) u.disabled=!state.count; if(m) m.textContent=`Encerrar com ${state.count} (falta)`;
+}
+function commit(status){
+  const {o, r, pl, it} = cur();
+  r[it.i] = {status, got: state.count};
+  patchOrder(o.id, {res:r});
+  toast(status==="ok" ? `${code(it.loc)} coletado · ${it.need} pç` : status==="part" ? `Coleta parcial: ${state.count} de ${it.need} pç` : `Falta registrada em ${code(it.loc)}`);
+  const next = pl.findIndex((x,k)=>k>state.idx && r[x.i].status==="pend"), any = pl.findIndex(x=>r[x.i].status==="pend");
+  const n = next>=0 ? next : any;
+  if(n<0){ state.view="tomesa"; render(); scrollTo(0,0); return; }
+  goItem(n);
+}
+
+/* ================== Guardar na colmeia ================== */
+function renderStore(){
+  const o = ORDERS.find(x=>x.id===state.oid); if(!o){ state.view="orders"; return render(); }
+  const r=res(o), pl=pickList(o), got=pl.reduce((s,x)=>s+r[x.i].got,0), need=pl.reduce((s,x)=>s+x.need,0);
+  app.innerHTML = `
+    <header class="bar">${BACK_BTN}<div class="grow"><h1>#${esc(o.num)}</h1><div class="sub">${esc(o.client)}</div></div></header>
+    <div class="phases"><div class="phase ok"><span class="n">✓</span>${o.trayStatus==="lavagem"?"Bandeja "+esc(o.tray||"")+" na mesa":"Picking finalizado na mesa"}</div><div class="phase on"><span class="n">→</span>Guardar na colmeia</div></div>
+    <div class="product">
+      <div class="eyebrow">Leve as peças para a colmeia</div>
+      <div class="store-code">${esc(o.colmeia)}</div>
+      <div class="meta tnum"><span>${got} de ${need} peças separadas</span><span>Fica aguardando a encomenda</span></div>
+      <div class="hivebig">${hiveHTML(o.colmeia)}</div>
+      <div class="instr">${ICON_SCAN}<div>Coloque as peças na colmeia e bipe a etiqueta <b>${esc(o.colmeia)}</b> para finalizar.</div></div>
+      <button class="demo" id="sim">Simular leitura da colmeia (demo)</button>
+    </div>`;
+  document.getElementById("back").onclick = ()=>{ state.view = state.fromMesa ? "mesa" : "orders"; render(); };
+  document.getElementById("sim").onclick = ()=> handleScan(o.colmeia);
+  setMsg(`Aguardando colmeia ${o.colmeia}`,"info");
+  focusScan();
+}
+function finishStore(o){
+  const fromPick = o.status==="na_mesa" && state.sector==="expedicao" && !state.fromMesa;
+  patchOrder(o.id, {status:"na_colmeia", trayStatus: o.trayStatus||"", storedAt:Date.now(), res:res(o)});
+  if(fromPick){ state.view="done"; render(); scrollTo(0,0); return; }
+  state.fromMesa=false; state.mesaLast=o.id; state.view="mesa"; render(); scrollTo(0,0);
+}
+function finishDock(o){
+  patchOrder(o.id, {status:"pronto_envio", remessa:1, pickedAt:Date.now(), res:res(o)});
+  state.view="done"; render(); scrollTo(0,0);
+}
+function renderToMesa(){
+  const o = ORDERS.find(x=>x.id===state.oid); if(!o){ state.view="orders"; return render(); }
+  const r=res(o), pl=pickList(o), units=pl.reduce((s,x)=>s+(r[x.i].got||0),0), total=pl.reduce((s,x)=>s+x.need,0);
+  app.innerHTML = `
+    <header class="bar">${BACK_BTN}<div class="grow"><h1>#${esc(o.num)}</h1><div class="sub">${esc(o.client)}</div></div><span class="timer" title="Tempo de picking">⏱ ${since(o.startedAt)}</span></header>
+    <div class="done">
+      <div class="big" style="background:var(--accent-soft);color:var(--accent-ink)"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10h18v3H3zM5 13v7M19 13v7M8 10V6h8v4"/></svg></div>
+      <h2>Leve as peças para a mesa de expedição</h2>
+      <div class="want"><b class="tnum">${units}</b> de ${total} pç coletadas. O tempo de picking termina quando você chega na mesa.</div>
+      <div class="actions" style="width:100%;margin-top:10px"><button class="btn primary" id="atMesa">Cheguei na mesa · finalizar picking</button></div>
+    </div>`;
+  document.getElementById("back").onclick = ()=>{ state.view="orders"; render(); };
+  document.getElementById("atMesa").onclick = ()=> finishAtMesa(o);
+}
+function finishAtMesa(o){
+  const r=res(o), got=pickList(o).reduce((a,x)=>a+(r[x.i].got||0),0), now=Date.now();
+  if(!got){ patchOrder(o.id, {status:"pronto_envio", remessa:1, pickedAt:now, semPecas:true, res:r, ...(o.tray?{trayStatus:"livre"}:{})}); toast(`Pedido ${o.num} sem peças coletadas · avise o comercial`); state.view="orders"; return render(); }
+  if(o.mode==="aguarda"){
+    patchOrder(o.id, {status:"na_mesa", pickedAt:now, atMesaAt:now, pickedBy:ME.id||"", res:r, ...(hasTray(o)?{trayStatus:"mesa"}:{})});
+    toast(`Picking finalizado em ${fmtDur(now-(o.startedAt||now))}`);
+    state.view="store"; render(); scrollTo(0,0); setMsg(`Guarde na colmeia ${o.colmeia} e bipe a etiqueta dela`,"info"); return;
+  }
+  patchOrder(o.id, {status:"pronto_envio", remessa:1, pickedAt:now, atMesaAt:now, pickedBy:ME.id||"", receivedBy:ME.id||"", res:r, ...(hasTray(o)?{trayStatus:"mesa"}:{})});
+  state.view="done"; render(); scrollTo(0,0);
+}
+function renderTrays(){
+  const tied = ORDERS.filter(o=>o.tray && TRAY_TIED.includes(o.trayStatus)).sort((a,b)=>a.tray.localeCompare(b.tray));
+  const free = TRAYS.filter(t=>!trayBusy(t,null));
+  app.innerHTML = `
+    <header class="bar">${BACK_BTN}<div class="grow"><h1>Bandejas</h1><div class="sub">${tied.length} vinculadas · ${free.length} livres</div></div></header>
+    <div class="task">
+      <div class="do">${ICON_SCAN}<span>Bipe a bandeja para desvinculá-la do pedido depois da conferência.</span></div>
+    </div>
+    <div class="eyebrow" style="margin-top:14px">Vinculadas a pedidos</div>
+    <div class="list" style="margin-top:6px">${tied.map(o=>`<div class="li" style="cursor:default"><span class="lc tnum">${esc(o.tray)}</span><span class="ln">#${esc(o.num)} <small>${o.trayStatus==="separando"?"em separação":"na mesa"}</small></span>${o.trayStatus==="separando"?"":`<button class="mini" data-unlink="${esc(o.id)}">Desvincular</button>`}</div>`).join("") || `<div class="li" style="cursor:default"><span class="ln">Nenhuma bandeja vinculada.</span></div>`}</div>`;
+  document.getElementById("back").onclick = ()=>{ state.view="orders"; render(); };
+  app.querySelectorAll("[data-unlink]").forEach(b=>b.onclick=()=>{ if(!b.dataset.c){ b.dataset.c="1"; b.textContent="Confirmar"; b.classList.add("danger"); return; } const o=ORDERS.find(x=>x.id===b.dataset.unlink); if(o) unlinkTray(o); });
+  setMsg("Bipe a bandeja para desvincular","info");
+  focusScan();
+}
+function scanUnlink(v, onlyOrder){
+  if(!/^BJ-\d{2}$/.test(v)){ feedback(false); return setMsg(`Código ${v} não é uma bandeja.`,"bad"); }
+  const o = ORDERS.find(x=>x.tray===v && TRAY_TIED.includes(x.trayStatus) && (!onlyOrder || x.id===onlyOrder));
+  if(!o){ feedback(false); return setMsg(onlyOrder ? `Bandeja ${v} não é a deste pedido.` : `Bandeja ${v} já está livre.`,"bad"); }
+  if(o.trayStatus==="separando"){ feedback(false); return setMsg(`Bandeja ${v} está em separação no pedido ${o.num}. Finalize o picking antes.`,"bad"); }
+  unlinkTray(o);
+}
+function renderDone(){
+  const o = ORDERS.find(x=>x.id===state.oid); if(!o){ state.view="orders"; return render(); }
+  const r=res(o), pl=pickList(o);
+  const units=pl.reduce((s,x)=>s+r[x.i].got,0), total=pl.reduce((s,x)=>s+x.need,0), miss=pl.filter(x=>r[x.i].status==="miss"||r[x.i].status==="part").length;
+  const enc=o.items.filter(i=>i.qtyEnc>0);
+  const pickMs = (o.pickedAt||Date.now())-(o.startedAt||o.pickedAt||Date.now()), leadMs=(o.pickedAt||Date.now())-(o.createdAt||Date.now());
+  app.innerHTML = `
+    <header class="bar">${BACK_BTN}<div class="grow"><h1>#${esc(o.num)}</h1><div class="sub">${esc(o.client)}</div></div></header>
+    <div class="done">
+      <div class="big"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+      <h2>${o.trayStatus==="lavagem" ? "Separação concluída" : o.status==="na_colmeia" ? "Guardado na colmeia "+esc(o.colmeia) : "Picking finalizado na mesa"}</h2>
+      <div class="want">${o.trayStatus==="lavagem" ? `Leve a bandeja <b>${esc(o.tray||"")}</b> para a <b>mesa de expedição</b>.` : o.status==="na_colmeia" ? `O pedido aguarda a encomenda na colmeia.` : `O pedido está na <b>mesa de expedição</b>.`}</div>
+      <div class="meta" style="justify-content:center">${o.status==="na_colmeia" ? "" : o.mode==="aguarda" ? `Na mesa: guardar na colmeia ${esc(o.colmeia)} até chegar a encomenda (${enc.reduce((s,i)=>s+i.qtyEnc,0)} pç)`
+        : o.mode==="parcial" ? `Na mesa: 1º envio. ${enc.reduce((s,i)=>s+i.qtyEnc,0)} pç seguem no 2º envio.` : `Na mesa: conferir e embalar para envio`}</div>
+      <div class="summary">
+        <div><b class="tnum">${units}/${total}</b><small>peças</small></div>
+        <div><b class="tnum">${pl.length-miss}/${pl.length}</b><small>referências</small></div>
+        <div><b class="tnum" style="color:${miss?"var(--bad)":"inherit"}">${miss}</b><small>com falta</small></div>
+      </div>
+      <div class="summary" style="grid-template-columns:1fr 1fr"><div><b class="tnum">${fmtDur(pickMs)}</b><small>tempo de picking</small></div><div><b class="tnum">${fmtDur(leadMs)}</b><small>desde a integração</small></div></div>
+      ${o.tray && o.trayStatus==="mesa" ? `<div class="unlink">
+        <div class="do">${ICON_SCAN}<span>Depois da conferência no packing, <b>bipe a bandeja ${esc(o.tray)}</b> para desvinculá-la deste pedido.</span></div>
+        <button class="btn ghost sm" id="unlinkBtn">Desvincular bandeja ${esc(o.tray)}</button></div>`
+      : o.tray && o.trayStatus==="livre" ? `<div class="ok-line" style="justify-content:center">Bandeja ${esc(o.tray)} liberada</div>` : ""}
+      <div class="actions" style="width:100%;margin-top:14px"><button class="btn primary" id="nextOrder">Próximo pedido</button></div>
+    </div>`;
+  document.getElementById("back").onclick = ()=>{ state.view="orders"; render(); };
+  const ub=document.getElementById("unlinkBtn"); if(ub) ub.onclick=()=>{ if(!ub.dataset.c){ ub.dataset.c="1"; ub.textContent="Confirmar: peças já saíram da bandeja"; ub.classList.add("danger"); return; } unlinkTray(o); };
+  if(o.tray && o.trayStatus==="mesa") setMsg(`Bipe a bandeja ${o.tray} para desvincular`,"info");
+  document.getElementById("nextOrder").onclick = ()=>{
+    const nx = ORDERS.filter(x=>(x.status==="aguardando"||x.status==="separando") && pickList(x).length).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0))[0];
+    nx ? openOrder(nx.id) : (state.view="orders", render());
+  };
+}
+
+/* ================== Leitura (câmera, leitor, digitação) ================== */
+const scanbar=document.getElementById("scanbar"), scanIn=document.getElementById("scan"), scanMsg=document.getElementById("scanmsg");
+let busy=false, msgT, audioCtx;
+function setMsg(t,k){ scanMsg.textContent=t; scanMsg.className="scanmsg "+k; }
+function feedback(ok){
+  scanbar.classList.remove("good","bad"); void scanbar.offsetWidth; scanbar.classList.add(ok?"good":"bad");
+  clearTimeout(msgT); msgT=setTimeout(()=>scanbar.classList.remove("good","bad"),700);
+  try{ navigator.vibrate && navigator.vibrate(ok?60:[80,60,80]); }catch(e){}
+  try{ audioCtx ||= new (window.AudioContext||window.webkitAudioContext)(); const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+    o.frequency.value = ok?1760:220; o.type = ok?"sine":"square"; g.gain.value=.08; o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime+(ok?.09:.25)); }catch(e){}
+}
+const SCAN_VIEWS = ["pick","store","tray","mesa","done","trays"];
+const libs = {};
+function loadLib(key, src){ return libs[key] ||= new Promise((ok,ko)=>{ const s=document.createElement("script"); s.src=src; s.onload=ok; s.onerror=()=>{ delete libs[key]; ko(new Error("lib")); }; document.head.appendChild(s); }); }
+const ensureBarcode = () => window.JsBarcode ? Promise.resolve() : loadLib("jsb","https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js");
+const ensureZXing = () => window.ZXing ? Promise.resolve() : loadLib("zx","https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js");
+
+/* ---- Modo coletor (PDA Android com leitor embutido e teclado físico) ---- */
+let PDA = null; try{ const v=localStorage.getItem("ps-pda"); PDA = v===null ? null : v==="1"; }catch(e){}
+function setPDA(on, silent){ PDA=!!on; try{ localStorage.setItem("ps-pda", on?"1":"0"); }catch(e){} document.body.classList.toggle("pda", PDA); if(!silent) toast(PDA?"Modo coletor ligado":"Modo coletor desligado"); render(); }
+document.body.classList.toggle("pda", !!PDA);
+let wakeLock=null;
+async function keepAwake(on){
+  try{ if(on && !wakeLock && navigator.wakeLock){ wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener?.("release", ()=>{ wakeLock=null; }); }
+       if(!on && wakeLock){ await wakeLock.release(); wakeLock=null; } }catch(e){ wakeLock=null; }
+}
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible" && SCAN_VIEWS.includes(state.view)) keepAwake(true); });
+// Quantidade pelo teclado físico
+function qtyKey(delta){ if(state.view!=="pick" || state.phase!=="qty") return false; const b=document.getElementById(delta>0?"plus":"minus"); if(b){ b.click(); return true; } return false; }
+function focusScan(){ if(SCAN_VIEWS.includes(state.view) && document.activeElement!==scanIn) try{ scanIn.focus({preventScroll:true}); }catch(e){} }
+
+function handleScan(raw){
+  const v = String(raw||"").trim().toUpperCase().replace(/\s+/g,"");
+  if(state.view==="pick" && state.phase==="qty"){
+    const ok=document.getElementById("okQty");
+    if(!v && ok){ ok.click(); return; }
+    if(/^\d{1,3}$/.test(v)){ const c=cur(); if(c){ state.count=Math.min(c.it.need, +v); const q=document.getElementById("q"); if(q) q.value=state.count; if(ok){ ok.textContent=`Confirmar ${state.count} pç`; ok.click(); } } return; }
+  }
+  if(!v || busy) return;
+  if(state.view==="tray") return scanTray(v);
+  if(state.view==="mesa") return scanMesa(v);
+  if(state.view==="trays") return scanUnlink(v);
+  if(state.view==="done"){ const o=ORDERS.find(x=>x.id===state.oid); if(o?.tray && o.trayStatus==="mesa") return scanUnlink(v, o.id); return; }
+  if(state.view==="store"){
+    const o=ORDERS.find(x=>x.id===state.oid); if(!o) return;
+    if(v===o.colmeia){ feedback(true); setMsg(`Colmeia ${v} confirmada`,"good"); return finishStore(o); }
+    feedback(false); return setMsg(/^CM-\d{2}$/.test(v) ? `Colmeia errada: ${v}. Este pedido vai na ${o.colmeia}.` : `Código ${v} não é uma colmeia.`, "bad");
+  }
+  if(state.view!=="pick") return;
+  const c = cur(); if(!c) return; const {o, it} = c;
+  const isLoc = LOC_RE.test(v), isProd = (!!it.ean && v===it.ean) || v===it.code;
+  if(state.phase==="loc"){
+    if(v===code(it.loc)){ feedback(true); state.count=0;
+      if(hasTray(o)){ state.phase="prod"; render(); setMsg(`Endereço ${v} confirmado. Bipe as peças.`,"good"); }
+      else { state.phase="tray"; render(); setMsg(`Endereço ${v} confirmado. Agora bipe a bandeja.`,"good"); }
+      return; }
+    feedback(false);
+    if(isProd) return setMsg("Bipe primeiro a etiqueta do endereço.","bad");
+    return setMsg(isLoc ? `Endereço errado: ${v}. Vá para ${code(it.loc)}.` : `Código ${v} não é um endereço.`, "bad");
+  }
+  if(isLoc){
+    if(v===code(it.loc)){ feedback(true); return setMsg(state.phase==="tray" ? "Local certo. Agora bipe a bandeja." : "Local certo. Agora bipe o produto.","good"); }
+    feedback(false); return setMsg(`Local errado: ${v}. O produto está em ${code(it.loc)}.`,"bad");
+  }
+  if(state.phase==="tray"){
+    if(!/^BJ-\d{2}$/.test(v)){ feedback(false); return setMsg(isProd ? "Bipe primeiro a bandeja, depois as peças." : `Código ${v} não é uma bandeja.`,"bad"); }
+    const other = trayBusy(v, o.id);
+    if(other){ feedback(false); return setMsg(other.trayStatus==="separando" ? `Bandeja ${v} está em uso no pedido ${other.num}. Pegue outra.` : `Bandeja ${v} ainda está vinculada ao pedido ${other.num}. Desvincule antes em Bandejas.`,"bad"); }
+    feedback(true); patchOrder(o.id, {tray:v, trayStatus:"separando"});
+    state.phase="prod"; state.count=0; render(); setMsg(`Bandeja ${v} vinculada. Bipe o produto.`,"good"); return;
+  }
+  if(isProd){
+    if(state.phase==="qty"){ feedback(true); return setMsg("Produto já confirmado. Conte e confirme a quantidade.","info"); }
+    feedback(true); state.phase="qty"; state.count=it.need; render(); setMsg(`Produto certo. Conte ${it.need} pç e confirme.`,"good");
+    return;
+  }
+  feedback(false);
+  if(isLoc) return setMsg(`Você já está em ${code(it.loc)}. Agora bipe a peça.`,"bad");
+  const enc = o.items.find(x=>(x.ean===v||x.code===v) && x.qtyEnc>=x.qty);
+  const other = o.items.find(x=>x.ean===v||x.code===v);
+  setMsg(enc ? `${enc.name} é sob encomenda. Não separar.` : other ? `Produto de outro local: ${other.name}. Este item está em ${code(it.loc)}.` : `Código ${v} não é deste produto.`, "bad");
+}
+let wedgeT0=0, wedgeN=0, autoT;
+scanIn.addEventListener("keydown", e=>{
+  if(e.key==="Enter"||e.key==="Tab"){ e.preventDefault(); clearTimeout(autoT);
+    const v=scanIn.value, fast = wedgeN>=6 && (performance.now()-wedgeT0)/wedgeN < 35;
+    if(fast && PDA===null) setTimeout(()=>{ setPDA(true, true); toast("Leitor do coletor detectado · modo coletor ligado"); }, 50);
+    wedgeN=0; handleScan(v); scanIn.value=""; return; }
+  if(e.key==="ArrowUp"||e.key==="+"){ if(qtyKey(1)) e.preventDefault(); return; }
+  if(e.key==="ArrowDown"||e.key==="-"){ if(qtyKey(-1)) e.preventDefault(); return; }
+  if(e.key.length===1){ if(!wedgeN) wedgeT0=performance.now(); wedgeN++; }
+});
+// Leitores configurados sem "Enter" no final: processa quando a digitação para
+scanIn.addEventListener("input", ()=>{
+  clearTimeout(autoT);
+  if(scanIn.getAttribute("inputmode")!=="none") return;
+  autoT=setTimeout(()=>{ const v=scanIn.value.trim(); if(v.length>=6){ wedgeN=0; handleScan(v); scanIn.value=""; } }, 180);
+});
+let buf="", bufT;
+document.addEventListener("keydown", e=>{
+  if(!SCAN_VIEWS.includes(state.view) || state.sector!=="expedicao" || e.target===scanIn || /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+  if(e.key==="Enter"){ e.preventDefault(); handleScan(buf); buf=""; return; }
+  if(e.key==="ArrowUp"){ if(qtyKey(1)) e.preventDefault(); return; }
+  if(e.key==="ArrowDown"){ if(qtyKey(-1)) e.preventDefault(); return; }
+  if(e.key.length===1){ buf+=e.key; clearTimeout(bufT); bufT=setTimeout(()=>buf="",300); }
+});
+document.getElementById("kbd").onclick = ()=>{
+  const k=document.getElementById("kbd"), on = scanIn.getAttribute("inputmode")==="none";
+  scanIn.setAttribute("inputmode", on?"text":"none"); k.classList.toggle("on",on);
+  scanIn.placeholder = on ? "Digite o código e toque Enter" : "Leitor pronto: bipe o código";
+  scanIn.blur(); setTimeout(()=>scanIn.focus(),50);
+};
+const camFile=document.getElementById("camfile");
+let liveBlocked = false;
+document.getElementById("cam").onclick = async ()=>{
+  if(liveBlocked){ camFile.value=""; ensureZXing().catch(()=>{}); camFile.click(); return; }
+  const ok = await openLiveScanner();
+  if(!ok){ liveBlocked = true; feedback(false); setMsg("A câmera ao vivo não está liberada nesta tela. Toque em Câmera de novo para ler por foto.","bad"); }
+};
+async function openLiveScanner(){
+  if(!navigator.mediaDevices?.getUserMedia) return false;
+  let stream;
+  try{ stream = await navigator.mediaDevices.getUserMedia({audio:false, video:{facingMode:{ideal:"environment"}, width:{ideal:1280}, height:{ideal:720}}}); }
+  catch(e){ return false; }
+  const ov=document.createElement("div"); ov.className="camov"; ov.setAttribute("role","dialog"); ov.setAttribute("aria-label","Leitor por câmera");
+  ov.innerHTML=`<video playsinline muted autoplay></video><div class="camframe"><i></i></div><div class="camhint">Aponte para o código de barras</div><button class="btn" id="camClose">Fechar</button>`;
+  document.body.appendChild(ov);
+  const v=ov.querySelector("video"); v.srcObject=stream;
+  try{ await v.play(); }catch(e){}
+  try{ const t=stream.getVideoTracks()[0], c=t.getCapabilities?.(); if(c?.focusMode?.includes("continuous")) await t.applyConstraints({advanced:[{focusMode:"continuous"}]}); }catch(e){}
+  let stop=false;
+  const close=()=>{ stop=true; stream.getTracks().forEach(t=>t.stop()); ov.remove(); focusScan(); };
+  ov.querySelector("#camClose").onclick=close;
+  let det=null; try{ if("BarcodeDetector" in window){ const f=await BarcodeDetector.getSupportedFormats(); if(f.includes("ean_13")) det=new BarcodeDetector({formats:["ean_13","ean_8","code_128"].filter(x=>f.includes(x))}); } }catch(e){}
+  let reader=null;
+  if(!det){ try{ await ensureZXing(); const h=new Map(); h.set(ZXing.DecodeHintType.TRY_HARDER,true); h.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.EAN_13,ZXing.BarcodeFormat.EAN_8,ZXing.BarcodeFormat.CODE_128]); reader=new ZXing.MultiFormatReader(); reader.setHints(h); }catch(e){ close(); return false; } }
+  const cv=document.createElement("canvas"), g=cv.getContext("2d",{willReadFrequently:true});
+  const tick = async ()=>{
+    if(stop) return;
+    let txt=null;
+    try{
+      if(det){ const r=await det.detect(v); if(r[0]) txt=r[0].rawValue; }
+      else if(v.videoWidth){
+        const w=v.videoWidth, h=v.videoHeight, bw=w*0.9, bh=h*0.4;
+        cv.width=Math.min(1280,Math.round(bw)); cv.height=Math.round(cv.width*bh/bw);
+        g.drawImage(v,(w-bw)/2,(h-bh)/2,bw,bh,0,0,cv.width,cv.height);
+        try{ txt=reader.decode(new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(new ZXing.HTMLCanvasElementLuminanceSource(cv)))).getText(); }catch(e){}
+      }
+    }catch(e){}
+    if(txt){ close(); handleScan(txt); return; }
+    setTimeout(tick, det ? 80 : 120);
+  };
+  tick();
+  return true;
+}
+camFile.onchange = async ()=>{
+  const f=camFile.files[0]; if(!f) return;
+  setMsg("Lendo código da foto…","info");
+  try{ const r=await decodePhoto(f); handleScan(r.text); }
+  catch(e){ feedback(false); setMsg("Não consegui ler. Fotografe só a etiqueta, de perto, reta e sem reflexo.","bad"); }
+};
+async function loadPhoto(file){
+  try{ return await createImageBitmap(file, {imageOrientation:"from-image"}); }catch(e){}
+  return await new Promise((ok,ko)=>{ const u=URL.createObjectURL(file), im=new Image(); im.onload=()=>{ ok(im); setTimeout(()=>URL.revokeObjectURL(u),1000); }; im.onerror=()=>ko(new Error("imagem")); im.src=u; });
+}
+function cropCanvas(img, max, band, rot){
+  const W=img.width||img.naturalWidth, H=img.height||img.naturalHeight;
+  // recorte: imagem inteira ou faixa central (onde costuma estar o código)
+  const sx = band ? W*0.05 : 0, sw = band ? W*0.9 : W, sy = band ? H*(0.5-band/2) : 0, sh = band ? H*band : H;
+  const sc = Math.min(1, max/Math.max(sw,sh)), cw=Math.max(1,Math.round(sw*sc)), ch=Math.max(1,Math.round(sh*sc));
+  const cv=document.createElement("canvas"); cv.width = rot? ch:cw; cv.height = rot? cw:ch;
+  const g=cv.getContext("2d", {willReadFrequently:true});
+  if(rot){ g.translate(ch,0); g.rotate(Math.PI/2); }
+  g.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch);
+  return cv;
+}
+async function decodePhoto(file){
+  const img = await loadPhoto(file);
+  if("BarcodeDetector" in window){ try{ const r = await new BarcodeDetector({formats:["ean_13","ean_8","code_128"]}).detect(img); if(r[0]) return {text:r[0].rawValue, via:"barcode"}; }catch(e){} }
+  try{
+    await ensureZXing();
+    const hints=new Map(); hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.EAN_13,ZXing.BarcodeFormat.EAN_8,ZXing.BarcodeFormat.CODE_128]);
+    const reader=new ZXing.MultiFormatReader(); reader.setHints(hints);
+    const tries=[[1800,.3,0],[2400,.25,0],[1280,0,0],[1800,.3,1],[2400,.25,1],[1280,.45,0],[900,0,0],[3000,.2,0]];
+    for(const [max,band,rot] of tries){
+      const cv=cropCanvas(img,max,band,rot);
+      for(const Bin of [ZXing.HybridBinarizer, ZXing.GlobalHistogramBinarizer]){
+        try{ const r=reader.decode(new ZXing.BinaryBitmap(new Bin(new ZXing.HTMLCanvasElementLuminanceSource(cv)))); if(r) return {text:r.getText(), via:"barcode"}; }catch(e){}
+      }
+      await new Promise(r=>setTimeout(r,0)); // não travar a tela
+    }
+  }catch(e){ console.warn(e); }
+  throw new Error("não lido");
+}
+
+/* ================== Bandeja: vincular ao pedido ================== */
+const TRAY_TIED = ["separando","lavagem","mesa"];
+function trayBusy(v, exceptId){ return ORDERS.find(o=>o.id!==exceptId && o.tray===v && TRAY_TIED.includes(o.trayStatus)); }
+function unlinkTray(o){
+  const now=Date.now();
+  patchOrder(o.id, {trayStatus:"livre", trayFreedAt:now, trayFreedBy:ME.id||"",
+    ...(o.status==="lavagem" ? {status: o.mode==="aguarda" ? "na_mesa" : "pronto_envio", remessa:o.remessa||1, atMesaAt:o.atMesaAt||now} : {})});
+  feedback(true); toast(`Bandeja ${o.tray} desvinculada do pedido ${o.num} · livre para o próximo`); render();
+}
+function renderTray(){
+  const o = ORDERS.find(x=>x.id===state.oid); if(!o){ state.view="orders"; return render(); }
+  const free = TRAYS.find(t=>!trayBusy(t, o.id));
+  app.innerHTML = `
+    <header class="bar">${BACK_BTN}<div class="grow"><h1>#${esc(o.num)}</h1><div class="sub">${esc(o.client)} · ${MODES[o.mode].t.toLowerCase()}</div></div></header>
+    <div class="phases three"><div class="phase on"><span class="n">1</span>Bandeja</div><div class="phase"><span class="n">2</span>Coleta</div><div class="phase"><span class="n">3</span>Mesa</div></div>
+    <div class="product">
+      <div class="eyebrow">Antes de começar</div>
+      <div class="name">Pegue uma bandeja vazia</div>
+      <div class="instr">${ICON_SCAN}<div>Bipe a etiqueta da bandeja (ex.: <b>BJ-07</b>). As peças deste pedido vão nela até a mesa de expedição.</div></div>
+      <div class="meta tnum"><span>${pickList(o).length} ref. · ${pickList(o).reduce((a,x)=>a+x.need,0)} pç a separar</span></div>
+      ${free?`<button class="demo" id="sim">Simular leitura da bandeja ${free} (demo)</button>`:""}
+    </div>`;
+  document.getElementById("back").onclick = ()=>{ state.view="orders"; render(); };
+  const sim=document.getElementById("sim"); if(sim) sim.onclick=()=>handleScan(free);
+  setMsg("Aguardando etiqueta da bandeja","info");
+  focusScan();
+}
+function scanTray(v){
+  const o = ORDERS.find(x=>x.id===state.oid); if(!o) return;
+  if(!/^BJ-\d{2}$/.test(v)){ feedback(false); return setMsg(`Código ${v} não é uma bandeja.`,"bad"); }
+  const other = trayBusy(v, o.id);
+  if(other){ feedback(false); return setMsg(other.trayStatus==="separando" ? `Bandeja ${v} está em uso no pedido ${other.num}. Pegue outra.` : `Bandeja ${v} ainda está vinculada ao pedido ${other.num}. Desvincule antes em Bandejas.`,"bad"); }
+  feedback(true);
+  patchOrder(o.id, {tray:v, trayStatus:"separando", status:"separando", startedAt:o.startedAt||Date.now(), res:res(o)});
+  toast(`Bandeja ${v} vinculada ao pedido ${o.num}`);
+  const pl=pickList(o), r=res(o), k=pl.findIndex(x=>r[x.i].status==="pend");
+  if(k<0) return finishPick(o);
+  state.idx=k; state.phase=startPhase(o); state.count=0; state.view="pick"; render(); scrollTo(0,0);
+}
+function finishPick(o){
+  const r=res(o), got=pickList(o).reduce((a,x)=>a+(r[x.i].got||0),0);
+  if(!got){ // nenhuma peça coletada
+    patchOrder(o.id, {status:"pronto_envio", remessa:1, pickedAt:Date.now(), semPecas:true, trayStatus:hasTray(o)?"livre":(o.trayStatus||""), res:r});
+    toast(`Pedido ${o.num} sem peças coletadas · avise o comercial`); state.view="orders"; return render();
+  }
+  patchOrder(o.id, {status:"lavagem", trayStatus: hasTray(o) ? "lavagem" : "", pickedAt:Date.now(), pickedBy:ME.id||"", res:r});
+  state.view="done"; render(); scrollTo(0,0);
+}
+
+/* ================== Mesa de expedição ================== */
+function renderMesa(){
+  const washing = ORDERS.filter(o=>o.status==="lavagem").sort((a,b)=>(a.pickedAt||0)-(b.pickedAt||0));
+  const toHive = ORDERS.filter(o=>o.status==="na_mesa");
+  const last = ORDERS.find(o=>o.id===state.mesaLast);
+  app.innerHTML = `
+    <header class="bar">${BACK_BTN}<div class="grow"><h1>Mesa de expedição</h1><div class="sub">Receber os pedidos separados</div></div></header>
+    ${last?mesaCard(last):""}
+    <div class="product">
+      <div class="instr">${ICON_SCAN}<div>Quando o pedido chegar na mesa, toque em <b>Receber</b>${washing.some(o=>o.trayStatus==="lavagem")?" ou bipe a bandeja":""}.</div></div>
+      <div class="eyebrow">A caminho da mesa · ${washing.length}</div>
+      ${toHive.length?`<div class="eyebrow">Na mesa · guardar na colmeia · ${toHive.length}</div><div class="list" style="margin-top:0">${toHive.map(o=>`<div class="li" style="cursor:default"><span class="lc tnum">${esc(o.colmeia)}</span><span class="ln">#${esc(o.num)} · ${esc(o.client)}</span><button class="mini" data-hive="${esc(o.id)}">Guardar</button></div>`).join("")}</div>`:""}
+      ${washing.length?`<div class="list" style="margin-top:0">${washing.map(o=>`<div class="li" style="cursor:default"><span class="lc tnum">${o.trayStatus==="lavagem"?esc(o.tray):"#"+esc(o.num)}</span><span class="ln">${o.trayStatus==="lavagem"?"#"+esc(o.num)+" · ":""}${esc(o.client)}</span><button class="mini" data-recv="${esc(o.id)}">Receber</button></div>`).join("")}</div>`:`<div class="empty">Nenhum pedido a caminho da mesa.</div>`}
+    </div>`;
+  document.getElementById("back").onclick = ()=>{ state.view="orders"; state.mesaLast=null; state.mesaListOk=true; render(); };
+  app.querySelectorAll("[data-hive]").forEach(b=>b.onclick=()=>{ state.oid=b.dataset.hive; state.fromMesa=true; state.view="store"; render(); scrollTo(0,0); });
+  app.querySelectorAll("[data-recv]").forEach(b=>b.onclick=()=>{ const o=ORDERS.find(x=>x.id===b.dataset.recv); if(o) receiveMesa(o); });
+  setMsg(washing.some(o=>o.trayStatus==="lavagem") ? "Aguardando bandeja" : "Toque em Receber quando o pedido chegar","info");
+  focusScan();
+}
+function mesaCard(o){
+  const r=res(o), pl=pickList(o), enc=o.items.filter(i=>i.qtyEnc>0);
+  const dest = o.mode==="aguarda" ? `Guardado na colmeia <b>${esc(o.colmeia)}</b> · aguardando encomenda`
+    : o.mode==="parcial" ? `Conferir e embalar o <b>1º envio</b>. ${enc.reduce((s,i)=>s+i.qtyEnc,0)} pç seguem no 2º envio.`
+    : `Conferir e embalar para <b>envio ao cliente</b>.`;
+  return `<div class="product" style="border-color:var(--ok)">
+    <div class="locok"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>${o.tray&&o.trayStatus==="livre"?`Bandeja <b>${esc(o.tray)}</b> recebida e liberada`:`Pedido recebido na mesa`}</div>
+    <div><div class="name">#${esc(o.num)} · ${esc(o.client)}</div><div class="ids">${esc(o.city)} · ${esc(o.obs)}</div></div>
+    <div class="want">${dest}</div>
+    <details><summary class="eyebrow" style="cursor:pointer">Tempos do pedido</summary>${timelineHTML(o)}</details>
+    <div class="list" style="margin-top:0">${pl.map(x=>`<div class="li" style="cursor:default"><span class="st ${r[x.i].status}">${r[x.i].status==="ok"?"✓":r[x.i].got}</span><span class="ln">${esc(x.name)}</span><span class="tnum">${r[x.i].got}/${x.need}</span></div>`).join("")}</div>
+  </div>`;
+}
+function scanMesa(v){
+  if(!/^BJ-\d{2}$/.test(v)){ feedback(false); return setMsg(`Código ${v} não é uma bandeja.`,"bad"); }
+  const o = ORDERS.find(x=>x.tray===v && x.status==="lavagem");
+  if(!o){ const sep=ORDERS.find(x=>x.tray===v && x.trayStatus==="separando"); feedback(false);
+    return setMsg(sep ? `Bandeja ${v} ainda está em separação (pedido ${sep.num}).` : `Bandeja ${v} não está vinculada a nenhum pedido a caminho da mesa.`,"bad"); }
+  feedback(true); receiveMesa(o);
+}
+function receiveMesa(o){
+  if(o.mode==="aguarda"){ state.oid=o.id; state.fromMesa=true; state.view="store"; render(); scrollTo(0,0); setMsg(`Pedido ${o.num} recebido. Guarde na colmeia ${o.colmeia}.`,"good"); return; }
+  patchOrder(o.id, {status:"pronto_envio", remessa:1, trayStatus: o.trayStatus==="lavagem" ? "livre" : (o.trayStatus||""), atMesaAt:Date.now(), receivedBy:ME.id||""});
+  state.mesaLast=o.id; render(); setMsg(`Pedido ${o.num} recebido na mesa`,"good");
+}
+
+/* ================== ESTOQUE: endereços, produtos/EAN, etiquetas ================== */
+function locProduct(lc){ return Object.values(PRODUCTS).find(p=>p.loc===lc); }
+function eanState(e){ if(!e) return {t:"Sem EAN", c:"norm"}; if(/^\d{13}$/.test(e)) return validEan(e)?{t:"EAN-13 ok",c:"done"}:{t:"Dígito inválido",c:"bad"}; if(/^\d{8}$/.test(e)) return ean8ok(e)?{t:"EAN-8 ok",c:"done"}:{t:"Dígito inválido",c:"bad"}; return {t:"Formato inválido",c:"bad"}; }
+function ean8ok(e){ let s=0; [...e.slice(0,7)].forEach((c,i)=>s+=(+c)*(i%2?1:3)); return (10-s%10)%10===+e[7]; }
+
+function renderEstoque(){
+  const tab = state.etab;
+  app.innerHTML = topnav() + `
+    <header class="bar"><div class="grow"><h1>Locais</h1><div class="sub">Endereços dos puxadores, cadastro de EAN e impressão de etiquetas</div></div></header>
+    <div class="seg subtabs" role="tablist">
+      <button data-etab="enderecos" aria-pressed="${tab==="enderecos"}">Endereços</button>
+      <button data-etab="produtos" aria-pressed="${tab==="produtos"}">Produtos e EAN</button>
+      <button data-etab="etiquetas" aria-pressed="${tab==="etiquetas"}">Etiquetas</button>
+    </div>
+    <div id="etab">${tab==="produtos"?produtosHTML():tab==="etiquetas"?etiquetasHTML():enderecosHTML()}</div>`;
+  bindNav();
+  app.querySelectorAll("[data-etab]").forEach(b=>b.onclick=()=>{ state.etab=b.dataset.etab; render(); });
+  tab==="produtos" ? bindProdutos() : tab==="etiquetas" ? bindEtiquetas() : bindEnderecos();
+}
+
+/* ---- Endereços ---- */
+function enderecosHTML(){
+  const rs = ruas(); if(!rs.includes(state.rua)) state.rua = rs[0] || 1;
+  const r = state.rua, lado = state.lado || "A", sel = state.selLoc;
+  const used = {}; Object.values(PRODUCTS).forEach(p=>{ if(p.loc) used[p.loc]=p; });
+  const blocksHere = Object.entries(BLOCKS).filter(([,b])=>b.r===r && b.l===lado);
+  const nMax = Math.max(0, ...blocksHere.map(([,b])=>b.n2)), cMax = Math.max(-1, ...blocksHere.map(([,b])=>colIdx(b.c2)));
+  const cellAt = (n,ci) => { const hit = blocksHere.find(([,b])=>n>=b.n1 && n<=b.n2 && ci>=colIdx(b.c1) && ci<=colIdx(b.c2)); return hit ? hit[1].t : null; };
+  const countR = rr => { const all=allLocs().filter(lc=>parseCode(lc).r===rr); return `${all.filter(lc=>used[lc]).length}/${all.length}`; };
+  const grid = nMax ? `<div class="rackgrid" style="grid-template-columns:30px repeat(${cMax+1},minmax(54px,1fr))">
+      <div></div>${Array.from({length:cMax+1},(_,ci)=>`<div class="rh">${colName(ci)}</div>`).join("")}
+      ${Array.from({length:nMax},(_,k)=>{ const n=nMax-k; return `<div class="rh">N${n}</div>`+Array.from({length:cMax+1},(_,ci)=>{
+        const t=cellAt(n,ci); if(!t) return `<div class="cell void"></div>`;
+        const lc=code({r, l:lado, t, n, c:colName(ci)}), p=used[lc];
+        return `<button class="cell ${p?"busy":""} ${sel===lc?"sel":""}" data-lc="${lc}" title="${lc}${p?" · "+esc(p.name):""}"><span><em class="ty">${t}</em> ${n}.${colName(ci)}</span>${p?`<b>${esc(p.code)}</b>`:`<i>livre</i>`}</button>`; }).join(""); }).join("")}
+    </div>` : `<div class="empty">Nenhum local cadastrado no lado ${lado} da rua R${r}. Crie a estrutura ao lado.</div>`;
+  return `<div class="cgrid">
+    <section class="panel">
+      <div class="filters" style="justify-content:space-between">
+        <div class="ruas" style="grid-template-columns:repeat(${Math.max(1,Math.min(6,rs.length))},minmax(90px,1fr));flex:1">${rs.map(x=>`<button class="ruabtn" data-rua="${x}" aria-pressed="${x===r}"><b>Rua R${x}</b><small class="tnum">${countR(x)} ocupados</small></button>`).join("") || `<div class="empty">Nenhuma rua cadastrada.</div>`}</div>
+        <div class="seg">${["A","B"].map(x=>`<button data-lado="${x}" aria-pressed="${x===lado}">Lado ${x}</button>`).join("")}</div>
+      </div>
+      <div class="rackwrap"><div class="rack" style="min-width:${Math.max(320,(cMax+2)*58)}px"><div class="eyebrow">R${r} · lado ${lado} · níveis de baixo (1) para cima, colunas da esquerda (A) para a direita</div>${grid}</div></div>
+      ${blocksHere.length?`<div><h3>Estruturas deste lado</h3><div class="qlist" style="margin-top:6px">${blocksHere.map(([id,b])=>{ const locs=blockLocs(b), occ=locs.filter(lc=>used[lc]).length;
+        return `<div class="urow" style="border:1px solid var(--line);border-radius:10px"><span class="ttag" style="font-size:12px">${b.t}</span><div class="grow"><b>${LOC_TYPES[b.t]} · níveis ${b.n1}–${b.n2} · colunas ${b.c1}–${b.c2}</b><small>${locs.length} locais · ${occ} com produto</small></div><button class="mini" data-delblock="${esc(id)}" ${occ?"disabled title=\"Retire os produtos antes de remover\"":""}>Remover</button></div>`; }).join("")}</div></div>`:""}
+      <p class="hint">Endereço = Rua-Lado-Tipo-Nível.Coluna, ex.: <b>R1-LB-BIN-8.M</b> (rua 1, lado B, bin, nível 8, coluna M). Tipos: GAV gaveta, COL colmeia, BIN bin.</p>
+    </section>
+    <aside class="panel" id="locpanel">${state.selLoc && parseLoc(state.selLoc) ? locPanelHTML() : blockFormHTML()}</aside>
+  </div>`;
+}
+function blockFormHTML(){
+  const f = state.bf || (state.bf = {r: state.rua||1, l: state.lado||"A", t:"GAV", n1:1, n2:4, c1:"A", c2:"F"});
+  const prev = blockPreview(f);
+  return `<h2>Criar estrutura</h2>
+    <p class="hint">Cadastre um móvel ou bloco de locais de uma vez: escolha a rua, o lado, o tipo e a faixa de níveis e colunas.</p>
+    <form id="bform" class="bform" autocomplete="off">
+      <label>Rua<input class="tin mono" id="bf-r" type="number" min="1" max="99" value="${f.r}"></label>
+      <label>Lado<select class="tin" id="bf-l">${["A","B"].map(x=>`<option ${f.l===x?"selected":""}>${x}</option>`).join("")}</select></label>
+      <label style="grid-column:1/-1">Tipo<div class="types" id="bf-t">${Object.entries(LOC_TYPES).map(([k,t])=>`<button type="button" data-bft="${k}" aria-pressed="${f.t===k}">${k} · ${t}</button>`).join("")}</div></label>
+      <label>Nível de<input class="tin mono" id="bf-n1" type="number" min="1" max="99" value="${f.n1}"></label>
+      <label>até<input class="tin mono" id="bf-n2" type="number" min="1" max="99" value="${f.n2}"></label>
+      <label>Coluna de<input class="tin mono" id="bf-c1" maxlength="2" value="${esc(f.c1)}"></label>
+      <label>até<input class="tin mono" id="bf-c2" maxlength="2" value="${esc(f.c2)}"></label>
+    </form>
+    <div class="${prev.err?"err":"warn"}" id="bf-prev">${esc(prev.err || `${prev.count} locais: de ${prev.first} até ${prev.last}`)}</div>
+    <div><button class="btn dark" id="bf-go" ${prev.err?"disabled":""}>Criar locais</button></div>
+    <p class="hint">Depois de criar, clique em um local da grade para colocar o produto e imprimir a etiqueta.</p>`;
+}
+function blockPreview(f){
+  const b = {r:+f.r, l:String(f.l).toUpperCase(), t:f.t, n1:+f.n1, n2:+f.n2, c1:String(f.c1||"").toUpperCase(), c2:String(f.c2||"").toUpperCase()};
+  if(!(b.r>=1 && b.r<=99)) return {err:"Informe a rua (1 a 99)."};
+  if(!(b.n1>=1 && b.n2>=b.n1 && b.n2<=99)) return {err:"Faixa de níveis inválida."};
+  if(!/^[A-Z]{1,2}$/.test(b.c1) || !/^[A-Z]{1,2}$/.test(b.c2) || colIdx(b.c2)<colIdx(b.c1)) return {err:"Faixa de colunas inválida (letras, ex.: A até M)."};
+  const locs = blockLocs(b);
+  if(locs.length>600) return {err:`São ${locs.length} locais de uma vez. Divida em blocos menores (até 600).`};
+  const clash = allLocs().map(parseCode).find(x=>x.r===b.r && x.l===b.l && x.n>=b.n1 && x.n<=b.n2 && x.ci>=colIdx(b.c1) && x.ci<=colIdx(b.c2));
+  if(clash) return {err:`Essa faixa já tem locais cadastrados (ex.: ${code(clash)}).`};
+  return {b, count:locs.length, first:locs[0], last:locs[locs.length-1]};
+}
+function locPanelHTML(){
+  const lc = state.selLoc, l=parseLoc(lc), p=locProduct(lc), q=(state.locQ||"").trim().toUpperCase();
+  const matches = q ? Object.values(PRODUCTS).filter(x=>x.code.includes(q) || x.name.toUpperCase().includes(q) || (x.ean||"").includes(q)).slice(0,8) : [];
+  return `<div class="filters" style="justify-content:space-between"><h2>Local</h2><button class="mini" id="newBlock">+ Criar estrutura</button></div>
+    <div class="store-code" style="font-size:30px">${lc}</div>
+    <div class="meta"><span>Rua R${l.r}</span><span>Lado ${l.l}</span><span>${LOC_TYPES[l.t]}</span><span>Nível ${l.n}</span><span>Coluna ${l.c}</span></div>
+    ${locLabelHTML(locLabelData(lc))}
+    ${p?`<div class="qcard"><div class="eyebrow">Produto neste local</div><div class="cl">${esc(p.name)}</div><div class="meta tnum"><span>Cód. ${esc(p.code)}</span><span>${p.ean?"EAN "+esc(p.ean):"sem EAN"}</span></div><div><button class="mini" id="unassign">Remover do local</button></div></div>`
+      :`<div class="empty">Local livre.</div>`}
+    <div><label class="eyebrow" for="locQ">${p?"Trocar por outro produto":"Colocar um produto aqui"}</label>
+      <input class="tin" id="locQ" placeholder="Código, descrição ou EAN" value="${esc(state.locQ||"")}" autocomplete="off"></div>
+    <div class="qlist" id="locMatches">${matches.map(x=>`<button class="match" data-assign="${esc(x.code)}"><b>${esc(x.code)}</b> ${esc(x.name)}<small>${x.loc?(x.loc===lc?"já está aqui":"move de "+x.loc):"sem local"}</small></button>`).join("") || (q?`<div class="empty">Nenhum produto encontrado. Cadastre em Produtos e EAN.</div>`:"")}</div>
+    <div><button class="mini" id="printOne">Gerar etiqueta deste local (PDF)</button></div>`;
+}
+function bindEnderecos(){
+  app.querySelectorAll("[data-rua]").forEach(b=>b.onclick=()=>{ state.rua=+b.dataset.rua; state.selLoc=null; state.bf=null; render(); });
+  app.querySelectorAll("[data-lado]").forEach(b=>b.onclick=()=>{ state.lado=b.dataset.lado; state.selLoc=null; state.bf=null; render(); });
+  app.querySelectorAll("[data-lc]").forEach(b=>b.onclick=()=>{ state.selLoc=b.dataset.lc; state.locQ=""; render(); });
+  app.querySelectorAll("[data-delblock]").forEach(b=>b.onclick=()=>{
+    if(!b.dataset.confirm){ b.dataset.confirm="1"; b.textContent="Confirmar"; b.classList.add("danger"); return; }
+    const id=b.dataset.delblock; delete BLOCKS[id]; if(blockCol) queueWrite("b:"+id, ()=>blockCol.doc(id).delete()); state.selLoc=null; toast("Estrutura removida"); render();
+  });
+  if(state.selLoc && parseLoc(state.selLoc)) bindLocPanel(); else bindBlockForm();
+}
+function bindBlockForm(){
+  const f=state.bf, upd=()=>{ const pv=blockPreview(f), el=document.getElementById("bf-prev"); el.className=pv.err?"err":"warn"; el.textContent=pv.err||`${pv.count} locais: de ${pv.first} até ${pv.last}`; document.getElementById("bf-go").disabled=!!pv.err; };
+  [["bf-r","r"],["bf-l","l"],["bf-n1","n1"],["bf-n2","n2"],["bf-c1","c1"],["bf-c2","c2"]].forEach(([id,k])=>{ const el=document.getElementById(id); el.oninput=el.onchange=()=>{ f[k]= /c\d/.test(k)? el.value.toUpperCase() : el.value; upd(); }; });
+  app.querySelectorAll("[data-bft]").forEach(b=>b.onclick=()=>{ f.t=b.dataset.bft; app.querySelectorAll("[data-bft]").forEach(x=>x.setAttribute("aria-pressed", x===b)); upd(); });
+  document.getElementById("bf-go").onclick=()=>{
+    const pv=blockPreview(f); if(pv.err) return toast(pv.err);
+    const id = `R${pv.b.r}-L${pv.b.l}-${pv.b.t}-${pv.b.n1}-${pv.b.n2}-${pv.b.c1}-${pv.b.c2}`;
+    BLOCKS[id]=pv.b; if(blockCol) queueWrite("b:"+id, ()=>blockCol.doc(id).set(pv.b));
+    state.rua=pv.b.r; state.lado=pv.b.l; toast(`${pv.count} locais criados (${pv.first} … ${pv.last})`); render();
+  };
+}
+function bindLocPanel(){
+  drawBarcodes(document.getElementById("locpanel"));
+  const lc=state.selLoc; if(!lc) return;
+  document.getElementById("newBlock").onclick=()=>{ state.selLoc=null; state.bf=null; render(); };
+  const q=document.getElementById("locQ");
+  q.oninput=()=>{ state.locQ=q.value; const pos=q.selectionStart; document.getElementById("locpanel").innerHTML=locPanelHTML(); bindLocPanel(); const n=document.getElementById("locQ"); n.focus(); n.setSelectionRange(pos,pos); };
+  const un=document.getElementById("unassign"); if(un) un.onclick=()=>{ const p=locProduct(lc); saveProduct({...p, loc:""}); toast(`${p.code} removido de ${lc}`); };
+  app.querySelectorAll("[data-assign]").forEach(b=>b.onclick=()=>{
+    const p=PRODUCTS[b.dataset.assign], prev=locProduct(lc);
+    if(prev && prev.code!==p.code) saveProduct({...prev, loc:""});
+    saveProduct({...p, loc:lc}); state.locQ=""; toast(`${p.code} agora está em ${lc}`);
+  });
+  document.getElementById("printOne").onclick=()=>makePdf(locLabels([lc]), state.locFmt||"loc3", `etiqueta-${lc}.pdf`);
+}
+
+/* ---- Produtos e EAN ---- */
+function produtosHTML(){
+  const q=(state.prodQ||"").trim().toUpperCase(), f=state.prodF||"todos";
+  const all=Object.values(PRODUCTS).sort((a,b)=>a.code.localeCompare(b.code));
+  const noEan=all.filter(p=>!p.ean).length, noLoc=all.filter(p=>!p.loc).length;
+  const list=all.filter(p=>(!q || p.code.includes(q) || p.name.toUpperCase().includes(q) || (p.ean||"").includes(q)) && (f==="todos" || (f==="sem-ean"&&!p.ean) || (f==="sem-end"&&!p.loc)));
+  return `<section class="panel" style="margin-top:14px">
+    ${csvPanelHTML()}
+    <form class="newprod" id="newprod" autocomplete="off">
+      <h3 style="grid-column:1/-1">Novo produto</h3>
+      <input class="tin" id="np-code" placeholder="Código" required>
+      <input class="tin" id="np-name" placeholder="Descrição" required>
+      <input class="tin mono" id="np-ean" placeholder="EAN (bipe ou digite)" inputmode="numeric">
+      <input class="tin mono" id="np-loc" placeholder="Local ex.: R1-LB-BIN-8.M">
+      <button class="btn dark" type="submit" style="min-height:40px;padding:8px 16px">Adicionar</button>
+    </form>
+    ${state.prodErr?`<div class="err">${esc(state.prodErr)}</div>`:""}
+    <div class="filters">
+      <input class="tin" id="prodQ" placeholder="Buscar por código, descrição ou EAN" value="${esc(state.prodQ||"")}" style="flex:1;min-width:200px">
+      <div class="seg">${[["todos",`Todos · ${all.length}`],["sem-ean",`Sem EAN · ${noEan}`],["sem-end",`Sem endereço · ${noLoc}`]].map(([k,t])=>`<button data-pf="${k}" aria-pressed="${f===k}">${t}</button>`).join("")}</div>
+    </div>
+    <p class="hint">Para cadastrar o EAN: clique no campo do produto, bipe a embalagem com o leitor (ele digita e dá Enter) e o cadastro é salvo na hora.</p>
+    <div class="tablewrap"><table class="items">
+      <thead><tr><th>Cód.</th><th>Descrição</th><th>EAN</th><th>Situação</th><th>Endereço</th><th></th></tr></thead>
+      <tbody>${list.map(p=>{ const st=eanState(p.ean); return `<tr data-row="${esc(p.code)}">
+        <td class="code">${esc(p.code)}</td><td class="desc">${esc(p.name)}</td>
+        <td><input class="tin mono sm" data-ean="${esc(p.code)}" value="${esc(p.ean||"")}" placeholder="bipe o EAN" inputmode="numeric" aria-label="EAN de ${esc(p.code)}"></td>
+        <td><span class="chip ${st.c==="bad"?"bad":st.c}">${st.t}</span></td>
+        <td><input class="tin mono sm" data-loc="${esc(p.code)}" value="${esc(p.loc||"")}" placeholder="R1-LB-BIN-8.M" aria-label="Endereço de ${esc(p.code)}" style="width:110px"></td>
+        <td><button class="mini" data-save="${esc(p.code)}">Salvar</button></td></tr>`; }).join("") || `<tr><td colspan="6" class="empty">Nenhum produto.</td></tr>`}</tbody>
+    </table></div>
+  </section>`;
+}
+function validateProduct(p){
+  if(p.ean){ const st=eanState(p.ean); if(st.c==="bad") return `EAN ${p.ean}: ${st.t.toLowerCase()}. Confira o código.`;
+    const dup=Object.values(PRODUCTS).find(x=>x.code!==p.code && x.ean===p.ean); if(dup) return `EAN ${p.ean} já está cadastrado no produto ${dup.code}.`; }
+  if(p.loc){ if(!parseCode(p.loc)) return `Local ${p.loc} inválido. Use Rua-Lado-Tipo-Nível.Coluna, ex.: R1-LB-BIN-8.M.`;
+    if(!parseLoc(p.loc)) return `O local ${p.loc} não está cadastrado. Crie a estrutura em Locais → Endereços.`;
+    const occ=locProduct(p.loc); if(occ && occ.code!==p.code) return `O local ${p.loc} já está ocupado pelo produto ${occ.code}. Libere em Endereços primeiro.`; }
+  return "";
+}
+function saveRow(codeV){
+  const p=PRODUCTS[codeV]; if(!p) return;
+  const ean=(app.querySelector(`[data-ean="${codeV}"]`)?.value||"").replace(/\D/g,""), loc=normLoc(app.querySelector(`[data-loc="${codeV}"]`)?.value);
+  const np={...p, ean, loc}; const err=validateProduct(np);
+  state.prodErr=err; if(err){ render(); return; }
+  saveProduct(np); toast(`Produto ${codeV} salvo`);
+}
+function bindProdutos(){
+  bindCsv();
+  const q=document.getElementById("prodQ");
+  q.oninput=()=>{ state.prodQ=q.value; const pos=q.selectionStart; render(); const n=document.getElementById("prodQ"); n.focus(); n.setSelectionRange(pos,pos); };
+  app.querySelectorAll("[data-pf]").forEach(b=>b.onclick=()=>{ state.prodF=b.dataset.pf; render(); });
+  app.querySelectorAll("[data-save]").forEach(b=>b.onclick=()=>saveRow(b.dataset.save));
+  app.querySelectorAll("[data-ean],[data-loc]").forEach(inp=>inp.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); saveRow(inp.dataset.ean||inp.dataset.loc); } });
+  document.getElementById("newprod").onsubmit=e=>{
+    e.preventDefault();
+    const p={ code:document.getElementById("np-code").value.trim().toUpperCase(), name:document.getElementById("np-name").value.trim().toUpperCase(),
+      ean:document.getElementById("np-ean").value.replace(/\D/g,""), loc:normLoc(document.getElementById("np-loc").value) };
+    if(!p.code || !p.name){ state.prodErr="Informe código e descrição."; return render(); }
+    if(!/^[A-Z0-9._-]{1,40}$/.test(p.code)){ state.prodErr="O código pode ter só letras, números, ponto, hífen e sublinhado."; return render(); }
+    if(PRODUCTS[p.code]){ state.prodErr=`O código ${p.code} já existe. Edite na tabela.`; return render(); }
+    const err=validateProduct(p); state.prodErr=err; if(err) return render();
+    saveProduct(p); toast(`Produto ${p.code} cadastrado`);
+  };
+  document.getElementById("np-ean").onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); document.getElementById("np-loc").focus(); } };
+}
+
+/* ---- Importação de produtos por CSV ---- */
+function parseCSV(text){
+  text = text.replace(/^﻿/, "");
+  const first = text.split(/\r?\n/)[0] || "";
+  const sep = (first.match(/;/g)||[]).length >= (first.match(/,/g)||[]).length ? ";" : ((first.match(/\t/g)||[]).length > (first.match(/,/g)||[]).length ? "\t" : ",");
+  const rows=[]; let row=[], cell="", q=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(q){ if(ch==='"'){ if(text[i+1]==='"'){ cell+='"'; i++; } else q=false; } else cell+=ch; continue; }
+    if(ch==='"') q=true;
+    else if(ch===sep){ row.push(cell); cell=""; }
+    else if(ch==="\n"||ch==="\r"){ if(ch==="\r" && text[i+1]==="\n") i++; row.push(cell); rows.push(row); row=[]; cell=""; }
+    else cell+=ch;
+  }
+  if(cell!=="" || row.length){ row.push(cell); rows.push(row); }
+  return rows.filter(r=>r.some(c=>String(c).trim()!==""));
+}
+const normH = h => String(h||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z]/g,"");
+const CSV_COLS = {
+  code:["codigo","cod","codproduto","codigoproduto","sku","referencia","ref"],
+  name:["descricao","produto","nome","descricaoproduto","desc"],
+  ean:["ean","codigodebarras","codbarras","gtin","ean13","barras"],
+  loc:["local","localizacao","endereco","posicao","locacao"],
+};
+async function readCsvFile(file){
+  const buf = await file.arrayBuffer();
+  try{ return new TextDecoder("utf-8",{fatal:true}).decode(buf); }catch(e){ return new TextDecoder("windows-1252").decode(buf); }
+}
+function analyzeCsv(rows, update){
+  if(rows.length<2) return {err:"O arquivo está vazio ou só tem o cabeçalho."};
+  const head=rows[0].map(normH), idx={};
+  for(const [k,names] of Object.entries(CSV_COLS)){ const i=head.findIndex(h=>names.includes(h)); if(i>=0) idx[k]=i; }
+  if(idx.code===undefined) return {err:"Não encontrei a coluna de código. Use o modelo: codigo; descricao; ean; local."};
+  const seenCode=new Set(), eanInFile={}, locInFile={}, out=[];
+  rows.slice(1).forEach((r,n)=>{
+    const g=k=> idx[k]===undefined ? "" : String(r[idx[k]]??"").trim();
+    const line=n+2, code=g("code").toUpperCase(), name=g("name").toUpperCase(), ean=g("ean").replace(/\D/g,""), locRaw=g("loc");
+    const loc = locRaw ? normLoc(locRaw) : "";
+    const ex = PRODUCTS[code], msgs=[]; let status = ex ? "upd" : "new";
+    if(!code){ out.push({line, status:"err", msgs:["sem código"]}); return; }
+    if(!/^[A-Z0-9._-]{1,40}$/.test(code)){ out.push({line, code, status:"err", msgs:["código com caracteres inválidos"]}); return; }
+    if(seenCode.has(code)){ out.push({line, code, status:"err", msgs:["código repetido no arquivo"]}); return; }
+    seenCode.add(code);
+    if(ex && !update){ out.push({line, code, name:ex.name, status:"skip", msgs:["já cadastrado"]}); return; }
+    if(!ex && !name){ out.push({line, code, status:"err", msgs:["sem descrição"]}); return; }
+    const p = {code, name: name || ex?.name || "", ean: ex?.ean || "", loc: ex?.loc || ""};
+    if(ean){
+      const st=eanState(ean), dup=Object.values(PRODUCTS).find(x=>x.code!==code && x.ean===ean) || (eanInFile[ean] && eanInFile[ean]!==code);
+      if(st.c==="bad") msgs.push(`EAN ${ean} inválido (ignorado)`);
+      else if(dup) msgs.push(`EAN ${ean} já usado em outro produto (ignorado)`);
+      else { p.ean=ean; eanInFile[ean]=code; }
+    }
+    if(loc){
+      const occ = locProduct(loc), occFile = locInFile[loc];
+      if(!parseCode(loc)) msgs.push(`local "${locRaw}" inválido (ignorado)`);
+      else if(!parseLoc(loc)) msgs.push(`local ${loc} não cadastrado em Endereços (ignorado)`);
+      else if((occ && occ.code!==code) || (occFile && occFile!==code)) msgs.push(`local ${loc} já ocupado (ignorado)`);
+      else { p.loc=loc; locInFile[loc]=code; }
+    }
+    if(ex && p.name===ex.name && p.ean===(ex.ean||"") && p.loc===(ex.loc||"")) status="same";
+    out.push({line, code, name:p.name, ean:p.ean, loc:p.loc, p, status, msgs});
+  });
+  const c = s => out.filter(x=>x.status===s).length;
+  return {rows:out, cols:Object.keys(idx), n:{new:c("new"), upd:c("upd"), same:c("same"), skip:c("skip"), err:c("err"), warn:out.filter(x=>x.msgs?.length && x.p).length}};
+}
+function csvPanelHTML(){
+  const c=state.csv;
+  if(!c) return `<div class="csvbar">
+      <div class="grow"><b>Importar produtos por CSV</b><small>Colunas: código, descrição, EAN e local (as duas últimas são opcionais). Separador ; ou , · aceita o arquivo salvo pelo Excel.</small></div>
+      <label class="btn dark sm" for="csvIn" style="display:inline-flex;align-items:center;cursor:pointer">Escolher arquivo CSV</label>
+      <input type="file" id="csvIn" accept=".csv,text/csv,text/plain" hidden>
+      <button class="mini" id="csvModel">Baixar modelo</button>
+    </div>`;
+  if(c.err) return `<div class="csvbar"><div class="grow"><div class="err">${esc(c.err)}</div></div><button class="mini" id="csvCancel">Fechar</button></div>`;
+  const a=c.res, todo=a.rows.filter(x=>x.status==="new"||x.status==="upd").length;
+  const tag = s => ({new:`<span class="chip done">Novo</span>`, upd:`<span class="chip prog">Atualizar</span>`, same:`<span class="chip norm">Sem mudança</span>`, skip:`<span class="chip norm">Já existe</span>`, err:`<span class="chip bad">Erro</span>`})[s];
+  return `<div class="csvprev">
+    <div class="filters" style="justify-content:space-between"><div><b>${esc(c.name)}</b> <small class="hint">· ${a.rows.length} linhas · colunas lidas: ${a.cols.map(k=>({code:"código",name:"descrição",ean:"EAN",loc:"local"})[k]).join(", ")}</small></div><button class="mini" id="csvCancel">Cancelar</button></div>
+    <div class="kpis" style="grid-template-columns:repeat(4,1fr)"><div><small>Novos</small><b class="tnum">${a.n.new}</b></div><div><small>Atualizar</small><b class="tnum">${a.n.upd}</b></div><div><small>Com aviso</small><b class="tnum">${a.n.warn}</b></div><div><small>Erros</small><b class="tnum" style="color:${a.n.err?"var(--bad)":"inherit"}">${a.n.err}</b></div></div>
+    <label class="chk"><input type="checkbox" id="csvUpd" ${c.update?"checked":""}> Atualizar produtos que já existem (descrição, EAN e local que vierem preenchidos)</label>
+    <div class="tablewrap" style="max-height:320px;overflow:auto"><table class="items">
+      <thead><tr><th>Linha</th><th>Cód.</th><th>Descrição</th><th>EAN</th><th>Local</th><th>Situação</th></tr></thead>
+      <tbody>${a.rows.slice(0,300).map(x=>`<tr><td class="tnum">${x.line}</td><td class="code">${esc(x.code||"—")}</td><td class="desc">${esc(x.name||"")}${x.msgs?.length?`<small style="color:${x.status==="err"?"var(--bad)":"var(--accent-ink)"}">${esc(x.msgs.join(" · "))}</small>`:""}</td><td class="code" style="font-weight:500">${esc(x.ean||"")}</td><td class="code" style="font-weight:500">${esc(x.loc||"")}</td><td>${tag(x.status)}</td></tr>`).join("")}</tbody>
+    </table></div>
+    ${a.rows.length>300?`<p class="hint">Mostrando as primeiras 300 linhas.</p>`:""}
+    <div class="sumbar"><div class="totals"><div><small>Serão gravados</small><b class="tnum">${todo}</b> produtos</div></div>
+      <button class="btn dark" id="csvGo" ${todo&&!c.busy?"":"disabled"}>${c.busy?`Importando ${c.done||0} de ${todo}…`:`Importar ${todo} produtos`}</button></div>
+  </div>`;
+}
+function bindCsv(){
+  const inp=document.getElementById("csvIn");
+  if(inp) inp.onchange=async ()=>{ const f=inp.files[0]; if(!f) return;
+    try{ const txt=await readCsvFile(f); const rows=parseCSV(txt); state.csv={name:f.name, rows, update:true}; const r=analyzeCsv(rows,true); if(r.err) state.csv.err=r.err; else state.csv.res=r; }
+    catch(e){ state.csv={err:"Não foi possível ler o arquivo."}; }
+    render(); };
+  const m=document.getElementById("csvModel"); if(m) m.onclick=async ()=>{
+    const csv="codigo;descricao;ean;local\r\n18337;ITALY - AURI IL1690 37MM - BROWN;7895887303077;R1-LA-GAV-3.C\r\n19139;ITALY - ZIGRINATO IL1582 20MM - BROWN;;R1-LA-GAV-1.D\r\n";
+    try{ downloadsCap ??= window.claude?.use ? await window.claude.use("downloads") : null;
+      if(!downloadsCap) return toast("Download indisponível nesta visualização.");
+      await downloadsCap.save({filename:"modelo-produtos.csv", data:"﻿"+csv}); toast("Modelo salvo"); }
+    catch(e){ if(e?.code!=="declined") toast("Não foi possível baixar o modelo."); } };
+  const cc=document.getElementById("csvCancel"); if(cc) cc.onclick=()=>{ state.csv=null; render(); };
+  const up=document.getElementById("csvUpd"); if(up) up.onchange=()=>{ state.csv.update=up.checked; state.csv.res=analyzeCsv(state.csv.rows, up.checked); render(); };
+  const go=document.getElementById("csvGo"); if(go) go.onclick=()=>importCsv();
+}
+async function importCsv(){
+  const c=state.csv; if(!c?.res || c.busy) return;
+  const list=c.res.rows.filter(x=>x.status==="new"||x.status==="upd").map(x=>x.p);
+  c.busy=true; c.done=0; render();
+  list.forEach(p=>{ PRODUCTS[p.code]={code:p.code, name:p.name, ean:p.ean||"", loc:p.loc||""}; });
+  let fail=0;
+  if(prodCol){
+    let i=0; const worker=async()=>{ while(i<list.length){ const p=list[i++];
+      try{ await prodCol.doc(p.code).set({code:p.code, name:p.name, ean:p.ean||"", loc:p.loc||""}); }
+      catch(e){ if(e?.code==="unavailable"){ await new Promise(r=>setTimeout(r,400+Math.random()*400)); try{ await prodCol.doc(p.code).set({code:p.code, name:p.name, ean:p.ean||"", loc:p.loc||""}); }catch(e2){ fail++; } } else fail++; }
+      c.done++; const b=document.getElementById("csvGo"); if(b) b.textContent=`Importando ${c.done} de ${list.length}…`; } };
+    await Promise.all([worker(),worker(),worker()]);
+  }
+  state.csv=null; toast(fail ? `${list.length-fail} produtos importados · ${fail} falharam (tente de novo)` : `${list.length} produtos importados`); render();
+}
+
+/* ---- Etiquetas ---- */
+function locDet(l){ return `Rua ${l.r} · Lado ${l.l} · ${LOC_TYPES[l.t]} · Nível ${l.n} · Coluna ${l.c}`; }
+function locLabelData(lc){ const l=parseLoc(lc), p=locProduct(lc), e=p?.ean && eanState(p.ean).c==="done";
+  return {kind:"loc", lc, type:l.t, head:`R${l.r}-L${l.l}-${l.t}`, pos:`${l.n}.${l.c}`, value: p ? (e ? p.ean : p.code) : "", bcf: e ? (p.ean.length===8?"EAN8":"EAN13") : "CODE128", code:p?.code||"", name:p?.name||"", ean:p?.ean||"", det:locDet(l)}; }
+function locLabelHTML(d){
+  return `<div class="loclabel" role="img" aria-label="Etiqueta do endereço ${d.lc}">
+    <div class="ll-cap">CÓD. PRODUTO</div><div class="ll-code" style="${(()=>{ const f=Math.min(21.9, 52/(Math.max(1,(d.code||"LIVRE").length)*0.6)); return `font-size:${f.toFixed(1)}cqw;top:${(25-f*0.8).toFixed(1)}cqw`; })()}">${esc(d.code||"LIVRE")}</div>
+    <div class="ll-box two"><span class="hd">${d.head}</span><b>${d.pos}</b></div>
+    <div class="ll-rule"></div>
+    <div class="ll-desc">${esc(d.name||"Endereço livre · sem produto cadastrado")}</div>
+    <div class="ll-bc">${d.value?`<svg class="bc-loc" data-v="${esc(d.value)}" data-f="${d.bcf}"></svg>`:""}</div>
+    <div class="ll-ean">${d.value?(d.ean?"EAN DO PRODUTO":"CÓD. DO PRODUTO"):""}<b>${esc(d.value||"")}</b></div>
+  </div>`;
+}
+function drawLocLabel(doc, x, y, l, bc){ // 100 × 50 mm
+  const W=100, M=4, fit=(t,size,maxW)=>{ let s=size; doc.setFontSize(s); while(s>5 && doc.getTextWidth(t)>maxW){ s-=.5; doc.setFontSize(s); } return s; };
+  doc.setTextColor(0,0,0); doc.setDrawColor(0,0,0);
+  doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.text("CÓD. PRODUTO", x+M, y+6);
+  doc.setFont("helvetica","bold"); const big=l.code||"LIVRE"; fit(big,62,52); doc.text(big, x+M, y+25);
+  doc.setLineWidth(.5); doc.roundedRect(x+58, y+3, 38, 21.5, 1.5, 1.5);
+  doc.setFont("helvetica","bold"); fit(l.head,16,34); doc.text(l.head, x+77, y+8.6, {align:"center", baseline:"middle"});
+  doc.setLineWidth(.2); doc.line(x+61, y+12, x+93, y+12);
+  fit(l.pos,34,34); doc.text(l.pos, x+77, y+18.6, {align:"center", baseline:"middle"});
+  doc.setLineWidth(.25); doc.line(x+M, y+27.5, x+W-M, y+27.5);
+  doc.setFont("helvetica","bold"); doc.setFontSize(10);
+  doc.splitTextToSize(l.name||"Endereço livre · sem produto cadastrado", W-2*M).slice(0,2).forEach((t,i)=>doc.text(t, x+M, y+32.1+i*3.9));
+  if(bc){ doc.addImage(bc, "PNG", x+M, y+37.8, 60, 10.2);
+    doc.setFont("helvetica","normal"); doc.setFontSize(6); doc.text(l.ean ? "EAN DO PRODUTO" : "CÓD. DO PRODUTO", x+67, y+42.3);
+    doc.setFont("courier","bold"); fit(l.value,9.5,29); doc.text(l.value, x+67, y+47.3);
+  } else { doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.text("Local sem produto", x+M, y+45); }
+}
+function locLabels(list){ return list.map(locLabelData); }
+function labelSet(){
+  const t=state.lblType||"enderecos";
+  if(t==="bandejas") return TRAYS.map(v=>({value:v, big:v, small:"Bandeja de separação", sub:"", fmt:"CODE128"}));
+  if(t==="colmeias") return HIVE.map(v=>({value:v, big:v, small:"Colmeia de expedição", sub:"", fmt:"CODE128"}));
+  if(t==="produtos") return Object.values(PRODUCTS).sort((a,b)=>a.code.localeCompare(b.code)).filter(p=>state.lblOnlyNoEan ? !p.ean : true)
+    .map(p=>{ const e=p.ean && eanState(p.ean).c==="done"; return {value:e?p.ean:p.code, big:p.code, small:p.name, sub:e?"":"sem EAN · código interno", fmt:e?(p.ean.length===8?"EAN8":"EAN13"):"CODE128"}; });
+  const rua=state.lblRua||"todas", lado=state.lblLado||"todos", only=state.lblOnlyUsed, ty=state.lblLocType||"todos";
+  return locLabels(allLocs().filter(lc=>{ const x=parseCode(lc); return (rua==="todas"||x.r===+rua) && (lado==="todos"||x.l===lado) && (!only || locProduct(lc)) && (ty==="todos" || x.t===ty); }));
+}
+function etiquetasHTML(){
+  const t=state.lblType||"enderecos", isLoc=t==="enderecos", fmt=isLoc?(state.locFmt||"loc3"):(state.lblFmt||"termica"), set=labelSet();
+  return `<div class="cgrid">
+    <section class="panel">
+      <div><h3>O que imprimir</h3><div class="seg" style="margin-top:8px;flex-wrap:wrap">${[["enderecos","Endereços"],["produtos","Produtos"],["bandejas","Bandejas"],["colmeias","Colmeias"]].map(([k,v])=>`<button data-lt="${k}" aria-pressed="${t===k}">${v}</button>`).join("")}</div></div>
+      ${t==="enderecos"?`<div class="filters"><label class="eyebrow">Rua <select id="lblRua" class="tin" style="width:auto">${["todas",...ruas().map(String)].map(a=>`<option value="${a}" ${String(state.lblRua||"todas")===a?"selected":""}>${a==="todas"?"Todas":"R"+a}</option>`).join("")}</select></label>
+        <label class="eyebrow">Lado <select id="lblLado" class="tin" style="width:auto">${["todos","A","B"].map(a=>`<option value="${a}" ${(state.lblLado||"todos")===a?"selected":""}>${a==="todos"?"Ambos":a}</option>`).join("")}</select></label>
+        <label class="eyebrow">Tipo <select id="lblLocType" class="tin" style="width:auto">${[["todos","Todos"],...Object.entries(LOC_TYPES).map(([k,t])=>[k,`${k} · ${t}`])].map(([k,t])=>`<option value="${k}" ${(state.lblLocType||"todos")===k?"selected":""}>${t}</option>`).join("")}</select></label>
+        <label class="chk"><input type="checkbox" id="lblUsed" ${state.lblOnlyUsed?"checked":""}> Só endereços com produto</label></div>`:""}
+      ${t==="produtos"?`<div class="filters"><label class="chk"><input type="checkbox" id="lblNoEan" ${state.lblOnlyNoEan?"checked":""}> Só produtos sem EAN (etiqueta com código interno)</label></div>`:""}
+      <div><h3>Formato</h3><div class="modes" style="margin-top:8px;grid-template-columns:1fr 1fr">
+        ${isLoc?`<label class="mode"><input type="radio" name="fmt" value="loc3" ${fmt==="loc3"?"checked":""}><span><b>Térmica 10 × 15 cm · 3 por etiqueta</b><small>Cada etiqueta de 10 × 15 cm sai com 3 endereços de 10 × 5 cm, com linha de corte.</small></span></label>
+        <label class="mode"><input type="radio" name="fmt" value="loca4" ${fmt==="loca4"?"checked":""}><span><b>Folha A4 · 10 por folha</b><small>Endereços de 10 × 5 cm em impressora comum, para recortar.</small></span></label>`:`
+        <label class="mode"><input type="radio" name="fmt" value="termica" ${fmt==="termica"?"checked":""}><span><b>Térmica 100 × 50 mm</b><small>Uma etiqueta por página, para impressoras de rolo (Zebra, Argox, Elgin).</small></span></label>
+        <label class="mode"><input type="radio" name="fmt" value="a4" ${fmt==="a4"?"checked":""}><span><b>Folha A4 · 3 × 8</b><small>24 etiquetas de 70 × 37 mm por folha, impressora comum.</small></span></label>`}
+      </div></div>
+      <div class="sumbar"><div class="totals"><div><small>Etiquetas</small><b class="tnum">${set.length}</b></div>${fmt==="a4"?`<div><small>Folhas A4</small><b class="tnum">${Math.ceil(set.length/24)}</b></div>`:fmt==="loca4"?`<div><small>Folhas A4</small><b class="tnum">${Math.ceil(set.length/10)}</b></div>`:fmt==="loc3"?`<div><small>Etiquetas 10 × 15</small><b class="tnum">${Math.ceil(set.length/3)}</b></div>`:""}</div>
+        <button class="btn dark" id="genPdf" ${set.length?"":"disabled"}>Gerar PDF para imprimir</button></div>
+      <p class="hint">O PDF é baixado para o seu computador. Abra e imprima em tamanho real (100%), sem "ajustar à página".</p>
+    </section>
+    <aside class="panel"><h3>Prévia · ${Math.min(6,set.length)} de ${set.length}</h3>
+      ${isLoc?`<p class="hint">Cada local: 10 × 5 cm (3 por etiqueta de 10 × 15 cm). O código de barras é o do produto (EAN, ou o código interno quando não há EAN), que o separador bipa no local.</p><div class="llgrid">${set.slice(0,4).map(locLabelHTML).join("")}</div>`:`<div class="labels" style="grid-template-columns:1fr">${set.slice(0,6).map(l=>`<div class="label"><div class="lb">${esc(l.big)}</div><div class="lt">${esc(l.small)}</div>${l.sub?`<div class="lt" style="font-weight:400">${esc(l.sub)}</div>`:""}<svg class="bc" data-v="${esc(l.value)}" data-f="${l.fmt}"></svg></div>`).join("")}</div>`}
+    </aside></div>`;
+}
+function bindEtiquetas(){
+  drawBarcodes(app);
+  app.querySelectorAll("[data-lt]").forEach(b=>b.onclick=()=>{ state.lblType=b.dataset.lt; render(); });
+  const r=document.getElementById("lblRua"); if(r) r.onchange=()=>{ state.lblRua=r.value; render(); };
+  const u=document.getElementById("lblUsed"); if(u) u.onchange=()=>{ state.lblOnlyUsed=u.checked; render(); };
+  const ld=document.getElementById("lblLado"); if(ld) ld.onchange=()=>{ state.lblLado=ld.value; render(); };
+  const lt=document.getElementById("lblLocType"); if(lt) lt.onchange=()=>{ state.lblLocType=lt.value; render(); };
+  const ne=document.getElementById("lblNoEan"); if(ne) ne.onchange=()=>{ state.lblOnlyNoEan=ne.checked; render(); };
+  app.querySelectorAll("input[name=fmt]").forEach(x=>x.onchange=()=>{ if((state.lblType||"enderecos")==="enderecos") state.locFmt=x.value; else state.lblFmt=x.value; render(); });
+  document.getElementById("genPdf").onclick=()=>{ const isLoc=(state.lblType||"enderecos")==="enderecos"; makePdf(labelSet(), isLoc?(state.locFmt||"loc3"):(state.lblFmt||"termica"), `etiquetas-${state.lblType||"enderecos"}.pdf`); };
+}
+function drawBarcodes(root){ if(!root) return; if(!window.JsBarcode){ ensureBarcode().then(()=>drawBarcodes(root), ()=>{}); return; }
+  root.querySelectorAll("svg.bc-loc").forEach(s=>{ try{ JsBarcode(s, s.dataset.v, {format:s.dataset.f||"CODE128", height:60, width:2, margin:0, displayValue:false, background:"#FFFFFF", lineColor:"#000000"}); s.setAttribute("preserveAspectRatio","none"); }catch(e){} }); root.querySelectorAll("svg.bc").forEach(s=>{ try{ JsBarcode(s, s.dataset.v, {format:s.dataset.f, height:50, width:2, margin:4, fontSize:13, displayValue:/^EAN/.test(s.dataset.f), background:"#FFFFFF", lineColor:"#000000"}); }catch(e){} }); }
+
+let jspdfReady=null, downloadsCap;
+function loadJsPdf(){ if(jspdfReady) return jspdfReady;
+  jspdfReady=new Promise((ok,ko)=>{ const s=document.createElement("script"); s.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"; s.onload=ok; s.onerror=()=>{ jspdfReady=null; ko(new Error("lib")); }; document.head.appendChild(s); });
+  return jspdfReady; }
+function bcPng(l){ const c=document.createElement("canvas"); JsBarcode(c, l.value, {format:l.fmt, width:3, height:110, margin:0, displayValue:/^EAN/.test(l.fmt), fontSize:30, background:"#FFFFFF", lineColor:"#000000"}); return {url:c.toDataURL("image/png"), r:c.height/c.width}; }
+async function makePdf(labels, fmt, filename){
+  if(!labels.length) return;
+  toast("Gerando PDF…");
+  try{
+    if(downloadsCap===undefined) downloadsCap = window.claude?.use ? await window.claude.use("downloads") : null;
+    if(!downloadsCap){ toast("Não foi possível baixar o arquivo neste navegador."); return; }
+    await Promise.all([loadJsPdf(), ensureBarcode()]); const { jsPDF } = window.jspdf;
+    const fit = (doc, txt, size, maxW) => { let s=size; doc.setFontSize(s); while(s>6 && doc.getTextWidth(txt)>maxW){ s-=.5; doc.setFontSize(s); } return s; };
+    let doc;
+    if(fmt==="loc3" || fmt==="loca4"){
+      const a4 = fmt==="loca4", per = a4 ? 10 : 3;
+      doc = a4 ? new jsPDF({unit:"mm", format:"a4"}) : new jsPDF({unit:"mm", format:[100,150], orientation:"portrait"});
+      labels.forEach((l,i)=>{
+        if(i && i%per===0) a4 ? doc.addPage() : doc.addPage([100,150],"portrait");
+        const k=i%per, x = a4 ? 5+(k%2)*100 : 0, y = a4 ? 23.5+Math.floor(k/2)*50 : k*50;
+        let bc=null; if(l.value){ const c=document.createElement("canvas"); JsBarcode(c, l.value, {format:l.bcf||"CODE128", width:3, height:110, margin:0, displayValue:false, flat:true, background:"#FFFFFF", lineColor:"#000000"}); bc=c.toDataURL("image/png"); }
+        drawLocLabel(doc, x, y, l, bc);
+        // linhas de corte
+        doc.setDrawColor(170); doc.setLineWidth(.15); doc.setLineDashPattern([1.5,1.5],0);
+        if(a4) doc.rect(x, y, 100, 50); else if(k<2 && i<labels.length-1) doc.line(0, y+50, 100, y+50);
+        doc.setLineDashPattern([],0);
+      });
+    } else if(fmt==="a4"){
+      doc=new jsPDF({unit:"mm", format:"a4"}); const W=70, H=297/8;
+      labels.forEach((l,i)=>{ if(i && i%24===0) doc.addPage(); const k=i%24, x=(k%3)*W, y=Math.floor(k/3)*H;
+        doc.setFont("helvetica","bold"); fit(doc,l.big,15,W-8); doc.text(l.big, x+4, y+8);
+        doc.setFont("helvetica","normal"); fit(doc,l.small,7,W-8); doc.text(l.small, x+4, y+12);
+        if(l.sub){ fit(doc,l.sub,6,W-8); doc.text(l.sub, x+4, y+15.5); }
+        const b=bcPng(l), bw=W-8, bh=Math.min(17, bw*b.r); doc.addImage(b.url,"PNG",x+4,y+H-bh-3,bw,bh); });
+    } else {
+      doc=new jsPDF({unit:"mm", format:[100,50], orientation:"landscape"});
+      labels.forEach((l,i)=>{ if(i) doc.addPage([100,50],"landscape");
+        doc.setFont("helvetica","bold"); fit(doc,l.big,24,90); doc.text(l.big, 5, 11);
+        doc.setFont("helvetica","normal"); fit(doc,l.small,9,90); doc.text(l.small, 5, 16.5);
+        if(l.sub){ fit(doc,l.sub,8,90); doc.text(l.sub, 5, 21); }
+        const b=bcPng(l), bh=Math.min(22, 90*b.r); doc.addImage(b.url,"PNG",5,47-bh,90,bh); });
+    }
+    await downloadsCap.save({filename, data:doc.output("arraybuffer")});
+    toast(`PDF com ${labels.length} etiqueta(s) salvo`);
+  }catch(e){
+    if(e?.code==="declined") return toast("Download cancelado.");
+    console.warn(e); toast(e?.message==="lib" ? "Não foi possível carregar o gerador de PDF. Verifique a conexão." : "Não foi possível gerar o PDF.");
+  }
+}
+
+/* ================== Usuários e níveis de acesso ================== */
+const PERMS = {
+  comercial:"Integrar pré-vendas e registrar envios",
+  coleta:"Separar pedidos (coleta no celular)",
+  mesa:"Mesa de expedição e colmeias",
+  estoque:"Endereços, EAN e etiquetas",
+  usuarios:"Gerenciar usuários e acessos",
+};
+const ROLES = {
+  admin:     {t:"Administrador", d:"Acesso total, inclusive gestão de usuários", p:["comercial","coleta","mesa","estoque","usuarios"]},
+  supervisor:{t:"Supervisor",    d:"Todas as operações, sem gestão de usuários", p:["comercial","coleta","mesa","estoque"]},
+  comercial: {t:"Comercial",     d:"Importa pré-vendas, define o tipo de envio e registra envios", p:["comercial"]},
+  estoque:   {t:"Estoque",       d:"Cadastra endereços e EANs e imprime etiquetas", p:["estoque"]},
+  separador: {t:"Separador",     d:"Faz a coleta dos pedidos no celular", p:["coleta"]},
+  conferente:{t:"Conferente",    d:"Recebe as bandejas na mesa de expedição e guarda nas colmeias", p:["mesa"]},
+};
+const SECTOR_PERM = { comercial:["comercial"], expedicao:["coleta","mesa"], estoque:["estoque"], usuarios:["usuarios"] };
+let USERS = {}, usersCol = null, userCap = null, ME = {id:null, name:"", isOwner:false, avatarUrl:""}, authReady = !window.claude?.use;
+
+function myRole(){
+  if(state.viewAs) return state.viewAs;
+  if(!db) return "admin";                 // modo local (sem conta): demonstração completa
+  if(ME.isOwner) return "admin";           // o proprietário da página é sempre administrador
+  const u = ME.id && USERS[ME.id];
+  return u && u.active!==false && ROLES[u.role] ? u.role : null;
+}
+const can = p => !!ROLES[myRole()]?.p.includes(p);
+const canSector = s => (SECTOR_PERM[s]||[]).some(can);
+function allowedSectors(){ return ["comercial","expedicao","estoque","usuarios"].filter(canSector); }
+
+// Nomes e fotos: guardamos só o id; o nome é resolvido na hora de mostrar
+async function fillNames(root){
+  if(!userCap || !root) return;
+  const els=[...root.querySelectorAll("[data-uid]")]; if(!els.length) return;
+  const ps = await userCap.profiles([...new Set(els.map(e=>e.dataset.uid))]);
+  els.forEach(e=>{ const p=ps[e.dataset.uid]; if(!p) return;
+    if(e.tagName==="IMG"){ e.src=p.avatarUrl; e.style.background=p.color; }
+    else e.textContent = (p.isMe ? (p.name||"Você")+" (você)" : p.name) || e.dataset.fallback || "Usuário sem nome visível"; });
+}
+function userChip(){
+  const r=myRole(); if(!r) return "";
+  return `<div class="me">${ME.id?`<img class="av" data-uid="${esc(ME.id)}" alt="">`:""}<span><b>${ME.id?`<span data-uid="${esc(ME.id)}" data-fallback="Você"></span>`:"Modo local"}</b><small>${ROLES[r].t}${state.viewAs?" (simulação)":""}${window.psLogout?` · <a href="#" class="logout" onclick="event.preventDefault();window.psLogout()">Sair</a>`:""}</small></span></div>`;
+}
+
+function renderNoAccess(){
+  app.innerHTML = `<nav class="topnav"><div class="brand">Picking <span>Serena</span></div></nav>
+    <div class="done" style="max-width:520px;margin:0 auto">
+      <div class="big" style="background:var(--accent-soft);color:var(--accent-ink)"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div>
+      <h2>Acesso ainda não liberado</h2>
+      <div class="want">${ME.id?`Olá, <b data-uid="${esc(ME.id)}" data-fallback="você"></b>. `:""}Seu usuário não tem um nível de acesso no Picking Serena. Peça ao administrador para cadastrar você na aba Usuários.</div>
+      ${!ME.id?`<div class="meta">Entre na sua conta para ser identificado.</div>`:""}${window.psLogout?`<div><button class="mini" onclick="window.psLogout()">Sair e entrar com outra conta</button></div>`:""}
+    </div>`;
+  fillNames(app);
+}
+function renderLoading(){ app.innerHTML = `<nav class="topnav"><div class="brand">Picking <span>Serena</span></div></nav><div class="done"><div class="want">Carregando usuários e pedidos…</div></div>`; }
+
+function renderUsuarios(){
+  const ids = Object.keys(USERS).sort((a,b)=>(USERS[a].addedAt||0)-(USERS[b].addedAt||0));
+  const roleSel = (id, cur) => `<select class="tin" data-role="${esc(id)}" aria-label="Nível de acesso">${Object.entries(ROLES).map(([k,r])=>`<option value="${k}" ${cur===k?"selected":""}>${r.t}</option>`).join("")}</select>`;
+  app.innerHTML = topnav() + `
+    <header class="bar"><div class="grow"><h1>Usuários</h1><div class="sub">Quem usa o Picking Serena e o que cada um pode fazer</div></div></header>
+    <div class="cgrid">
+      <section class="panel">
+        <h2>Pessoas com acesso</h2>
+        <div class="ulist">
+          ${ME.isOwner?`<div class="urow"><img class="av" data-uid="${esc(ME.id)}" alt=""><div class="grow"><b data-uid="${esc(ME.id)}" data-fallback="Você"></b><small>Proprietário da página · sempre Administrador</small></div><span class="chip done">Administrador</span></div>`:""}
+          ${ids.filter(id=>!(ME.isOwner && id===ME.id)).map(id=>{ const u=USERS[id]; return `<div class="urow ${u.active===false?"off":""}">
+            <img class="av" data-uid="${esc(id)}" alt=""><div class="grow"><b data-uid="${esc(id)}"></b><small>${ROLES[u.role]?.d||""}</small></div>
+            ${roleSel(id,u.role)}
+            <label class="chk"><input type="checkbox" data-active="${esc(id)}" ${u.active!==false?"checked":""}> Ativo</label>
+            <button class="mini" data-del="${esc(id)}" aria-label="Remover usuário">Remover</button></div>`; }).join("") || (!ME.isOwner?`<div class="empty">Nenhum usuário cadastrado.</div>`:"")}
+        </div>
+        <h2 style="margin-top:6px">Adicionar pessoa</h2>
+        <div class="filters">
+          <input class="tin" id="uq" placeholder="Buscar colega pelo nome" autocomplete="off" style="flex:1;min-width:200px">
+          <label class="eyebrow">Nível <select class="tin" id="newRole">${Object.entries(ROLES).map(([k,r])=>`<option value="${k}" ${k==="separador"?"selected":""}>${r.t}</option>`).join("")}</select></label>
+        </div>
+        <div class="qlist" id="uhits"></div>
+        <p class="hint">Antes, a pessoa cria a conta dela no Picking Serena (botão "Criar conta" na tela de login). Depois você a encontra aqui pelo nome e define o nível de acesso.</p>
+      </section>
+      <aside class="panel">
+        <h2>Níveis de acesso</h2>
+        <div class="tablewrap"><table class="items matrix">
+          <thead><tr><th>Permissão</th>${Object.values(ROLES).map(r=>`<th title="${esc(r.d)}">${r.t}</th>`).join("")}</tr></thead>
+          <tbody>${Object.entries(PERMS).map(([k,t])=>`<tr><td>${t}</td>${Object.values(ROLES).map(r=>`<td class="c">${r.p.includes(k)?`<span class="yes">✓</span>`:`<span class="no">–</span>`}</td>`).join("")}</tr>`).join("")}</tbody>
+        </table></div>
+        <h3>Configuração da separação</h3>
+        <p class="hint">O separador vê o local, bipa o código do produto na etiqueta do local e conta a quantidade na mão.</p>
+        <label class="chk"><input type="checkbox" id="cfgTray" ${CONFIG.useTray?"checked":""}> Usar bandeja (bipar no 1º item e desvincular na mesa depois da conferência)</label>
+        <p class="hint">Uma bandeja vinculada não pode ser usada em outro pedido até ser desvinculada.</p>
+        <h3>Simular um nível</h3>
+        <p class="hint">Veja o sistema como outro nível de acesso, para testar. Só muda a sua tela.</p>
+        <div class="filters"><select class="tin" id="viewAs"><option value="">Escolha um nível…</option>${Object.entries(ROLES).filter(([k])=>k!=="admin").map(([k,r])=>`<option value="${k}">${r.t}</option>`).join("")}</select><button class="mini" id="viewAsBtn">Simular</button></div>
+      </aside>
+    </div>`;
+  bindNav(); fillNames(app);
+  app.querySelectorAll("[data-role]").forEach(s=>s.onchange=()=>saveUser(s.dataset.role, {role:s.value}));
+  app.querySelectorAll("[data-active]").forEach(c=>c.onchange=()=>saveUser(c.dataset.active, {active:c.checked}));
+  app.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{
+    if(b.dataset.confirm){ deleteUser(b.dataset.del); return; }
+    b.dataset.confirm="1"; b.textContent="Confirmar remoção"; b.classList.add("danger"); setTimeout(()=>{ if(b.isConnected){ delete b.dataset.confirm; b.textContent="Remover"; b.classList.remove("danger"); } },4000);
+  });
+  const uq=document.getElementById("uq"), hits=document.getElementById("uhits");
+  uq.onfocus=uq.oninput=async ()=>{
+    if(!userCap){ hits.innerHTML=`<div class="empty">Não foi possível buscar usuários agora.</div>`; return; }
+    const res = await userCap.search(uq.value.trim());
+    hits.innerHTML="";
+    if(!res.length){ hits.innerHTML=`<div class="empty">${uq.value.trim()?"Ninguém encontrado com esse nome.":"Digite o nome de um colega."}</div>`; return; }
+    res.slice(0,8).forEach(p=>{ const b=document.createElement("button"); b.className="match"; const already=USERS[p.id];
+      const nm=document.createElement("b"); nm.textContent=p.name; const sm=document.createElement("small"); sm.textContent = already ? `já cadastrado como ${ROLES[already.role]?.t}` : p.guest ? "convidado de fora da organização" : "clique para adicionar";
+      b.append(nm, sm); b.disabled=!!already || p.isMe&&ME.isOwner;
+      b.onclick=()=>{ const role=document.getElementById("newRole").value; saveUser(p.id, {role, active:true, addedAt:Date.now(), addedBy:ME.id||""}, true); toast(`${p.name} adicionado como ${ROLES[role].t}`); };
+      hits.appendChild(b); });
+  };
+  document.getElementById("cfgTray").onchange=e=>{ CONFIG={...CONFIG, useTray:e.target.checked}; if(cfgDoc) queueWrite("cfg", ()=>cfgDoc.set({useTray:CONFIG.useTray})); toast(CONFIG.useTray?"Bandeja ligada na separação":"Bandeja desligada na separação"); };
+  document.getElementById("viewAsBtn").onclick=()=>{ const v=document.getElementById("viewAs").value; if(!v) return; state.viewAs=v; state.sector=allowedSectors()[0]||"expedicao"; state.view="orders"; render(); toast(`Simulando: ${ROLES[v].t}`); };
+}
+function saveUser(id, patch, create){
+  const cur = USERS[id] || {};
+  const doc = {...cur, ...patch}; USERS[id]=doc;
+  if(usersCol) queueWrite("u:"+id, ()=> create || !cur.role ? usersCol.doc(id).set(doc) : usersCol.doc(id).update(patch))
+    .then(()=>{}, ()=>{});
+  render();
+}
+function deleteUser(id){ delete USERS[id]; if(usersCol) queueWrite("u:"+id, ()=>usersCol.doc(id).delete()); toast("Usuário removido"); render(); }
+
+/* ================== Render ================== */
+/* ================== Alerta de novo pedido ================== */
+let seenOrders = null, newIds = new Set(), alertQueue = [];
+let SOUND = true; try{ SOUND = localStorage.getItem("ps-sound")!=="0"; }catch(e){}
+const unlockAudio = () => { try{ audioCtx ||= new (window.AudioContext||window.webkitAudioContext)(); audioCtx.resume?.(); }catch(e){} };
+document.addEventListener("pointerdown", unlockAudio, {once:true}); document.addEventListener("keydown", unlockAudio, {once:true});
+function chime(){
+  if(!SOUND) return;
+  try{ unlockAudio(); const c=audioCtx, t0=c.currentTime;
+    [[880,0],[1175,.16],[1568,.32]].forEach(([f,dt])=>{ const o=c.createOscillator(), g=c.createGain(); o.type="sine"; o.frequency.value=f;
+      g.gain.setValueAtTime(0.0001,t0+dt); g.gain.exponentialRampToValueAtTime(.18,t0+dt+.02); g.gain.exponentialRampToValueAtTime(.0001,t0+dt+.28);
+      o.connect(g); g.connect(c.destination); o.start(t0+dt); o.stop(t0+dt+.3); }); }catch(e){}
+}
+function checkNewOrders(){
+  const open = ORDERS.filter(o=>o.status==="aguardando" && pickList(o).length);
+  if(seenOrders===null){ seenOrders = new Set(ORDERS.map(o=>o.id+":"+(o.createdAt||0))); return; } // carga inicial: sem alerta
+  const fresh = open.filter(o=>!seenOrders.has(o.id+":"+(o.createdAt||0)));
+  ORDERS.forEach(o=>seenOrders.add(o.id+":"+(o.createdAt||0)));
+  const forMe = fresh.filter(o=>!(ME.id && o.createdBy===ME.id));
+  if(!forMe.length || !myRole() || !can("coleta")) return;
+  forMe.forEach(o=>{ newIds.add(o.id); alertQueue.push(o.id); });
+  showAlert();
+  chime(); try{ navigator.vibrate && navigator.vibrate([200,100,200,100,300]); }catch(e){}
+}
+function showAlert(){
+  const bar=document.getElementById("alertbar");
+  const list=alertQueue.map(id=>ORDERS.find(o=>o.id===id)).filter(Boolean);
+  if(!list.length){ bar.hidden=true; return; }
+  const o=list[list.length-1], pl=pickList(o), more=list.length-1;
+  bar.innerHTML = `<div class="ab-in"><span class="ab-ic" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span>
+    <div class="ab-tx"><b>Novo pedido para separar${more?` (+${more})`:""}</b><span>#${esc(o.num)} · ${esc(o.client)} · ${pl.length} ref. · ${MODES[o.mode].t.toLowerCase()}</span></div>
+    <div class="ab-act">${state.view==="pick"||state.view==="tray"?"":`<button class="mini" id="abOpen">Separar</button>`}<button class="mini" id="abOk">Ok</button></div></div>`;
+  bar.hidden=false;
+  const close=()=>{ alertQueue=[]; bar.hidden=true; };
+  document.getElementById("abOk").onclick=close;
+  const op=document.getElementById("abOpen"); if(op) op.onclick=()=>{ close(); state.sector="expedicao"; openOrder(o.id); };
+}
+function setSound(on){ SOUND=on; try{ localStorage.setItem("ps-sound", on?"1":"0"); }catch(e){} if(on){ unlockAudio(); chime(); } toast(on?"Som de alerta ligado":"Som de alerta desligado"); render(); }
+
+let tt; function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.hidden=false; clearTimeout(tt); tt=setTimeout(()=>t.hidden=true,2400); }
+let pendingRender=false;
+function rerender(){
+  // Não redesenha a tela do comercial enquanto há uma pré-venda em edição (só a lateral)
+  if(state.sector==="comercial" && state.view==="orders" && state.draft){
+    const a=document.getElementById("aside"); if(a){ a.innerHTML=asideHTML(); bindAside(); const t=document.getElementById("totals"); if(t) t.innerHTML=totalsHTML(draftTotals(state.draft),state.draft); return; }
+  }
+  if(state.view==="pick" && state.phase==="qty") return; // não interrompe a contagem
+  const ae=document.activeElement;
+  if((state.sector==="estoque"||state.sector==="usuarios") && ae && /INPUT|SELECT/.test(ae.tagName) && app.contains(ae)){ pendingRender=true; return; } // não apaga o que está sendo digitado
+  render();
+}
+app.addEventListener("focusout", ()=>{ if(pendingRender) setTimeout(()=>{ const ae=document.activeElement; if(pendingRender && !(ae && /INPUT|SELECT/.test(ae.tagName) && app.contains(ae))){ pendingRender=false; render(); } }, 250); });
+function render(){
+  pendingRender=false;
+  keepAwake(state.sector==="expedicao" && ["pick","tray","tomesa","store","mesa","trays"].includes(state.view));
+  if(!authReady){ scanbar.hidden=true; return renderLoading(); }
+  if(!myRole()){ scanbar.hidden=true; app.classList.remove("picking"); return renderNoAccess(); }
+  if(!canSector(state.sector)){ const al=allowedSectors(); state.sector = al.includes("expedicao") && innerWidth<900 ? "expedicao" : al[0]; state.view="orders"; }
+  if(state.sector==="expedicao"){
+    if(["pick","tray","done","tomesa"].includes(state.view) && !can("coleta")) state.view="orders";
+    if(state.view==="store" && !can("mesa") && !can("coleta")) state.view="orders";
+    if(state.view==="mesa" && !can("mesa")) state.view="orders";
+    if(state.view==="orders" && !can("coleta") && can("mesa") && !state.mesaListOk) state.view="mesa";
+  }
+  const scanning = state.sector==="expedicao" && SCAN_VIEWS.includes(state.view);
+  scanbar.hidden = !scanning;
+  app.classList.toggle("picking", scanning);
+  app.classList.toggle("wide", state.sector!=="expedicao" || state.view==="labels");
+  if(state.view==="labels") return renderLabels();
+  if(state.sector==="comercial") return renderComercial();
+  if(state.sector==="estoque") return renderEstoque();
+  if(state.sector==="usuarios") return renderUsuarios();
+  if(state.view==="tray") return renderTray();
+  if(state.view==="mesa") return renderMesa();
+  if(state.view==="pick") return renderPick();
+  if(state.view==="store") return renderStore();
+  if(state.view==="done") return renderDone();
+  if(state.view==="tomesa") return renderToMesa();
+  if(state.view==="trays") return renderTrays();
+  renderOrders();
+}
+render();
+(async ()=>{
+  try{ db = window.claude?.use ? await window.claude.use("db") : null; }catch(e){ db=null; }
+  try{ userCap = window.claude?.use ? await window.claude.use("user") : null; }catch(e){ userCap=null; }
+  if(userCap){ const me = await userCap.me(); ME = {id:me.id, name:me.name, isOwner:me.isOwner, avatarUrl:me.avatarUrl}; }
+  if(!db){ synced=false; authReady=true; rerender(); return; }
+  cfgDoc = db.doc("config/picking");
+  cfgDoc.onSnapshot(snap=>{ const d=snap.exists?snap.data():null; CONFIG = {requireLoc:false, useTray: d?.useTray ?? true}; rerender(); }, ()=>{ cfgDoc=null; });
+  usersCol = db.collection("users");
+  usersCol.onSnapshot(snap=>{ USERS = Object.fromEntries(snap.docs.map(d=>[d.id, JSON.parse(JSON.stringify(d.data()))])); authReady=true; rerender(); }, e=>{ usersCol=null; authReady=true; rerender(); });
+  blockCol = db.collection("blocks");
+  blockCol.onSnapshot(snap=>{ BLOCKS = Object.fromEntries(snap.docs.map(d=>[d.id, JSON.parse(JSON.stringify(d.data()))])); rerender(); }, e=>{ blockCol=null; });
+  prodCol = db.collection("products");
+  prodCol.onSnapshot(snap=>{ PRODUCTS = Object.fromEntries(snap.docs.map(d=>[d.id, JSON.parse(JSON.stringify(d.data()))])); rerender(); }, e=>{ prodCol=null; });
+  col = db.collection("orders");
+  col.onSnapshot(snap=>{
+    ORDERS = snap.docs.map(d=>normalize(JSON.parse(JSON.stringify(d.data()))));
+    if(authReady) checkNewOrders(); else seenOrders = null;
+    synced = true; rerender();
+  }, e=>{ col=null; synced=false; rerender(); });
+})();
+</script>
+
+</body>
+</html>
