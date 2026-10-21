@@ -158,8 +158,13 @@
   window.psLogout = async () => { await sb.auth.signOut(); location.reload(); };
 
   /* ---------- tela de login ---------- */
+  const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))]);
   async function loadProfile(){
-    const { data } = await sb.from("profiles").select("*").eq("id", session.user.id).maybeSingle();
+    let data = null;
+    for(let i = 0; i < 3 && !data; i++){
+      try{ ({ data } = await withTimeout(sb.from("profiles").select("*").eq("id", session.user.id).maybeSingle(), 8000)); }
+      catch(e){ await new Promise(r => setTimeout(r, 1000)); }
+    }
     profile = data || { id:session.user.id, email:session.user.email, role:null };
   }
   function loginHTML(mode, msg, err){
@@ -216,18 +221,35 @@
   }
   function hideLogin(){ document.getElementById("lgOverlay")?.remove(); }
 
-  let started = false;
-  async function start(s){
-    session = s; await loadProfile(); hideLogin();
-    if(!started){ started = true; readyResolve(); } else location.reload();
+  /* Início único: mesmo que o Supabase avise várias vezes (abrir, voltar ao app,
+     renovar o acesso), o sistema só inicia uma vez e nunca fica esperando. */
+  let starting = null, recovering = /type=recovery/.test(location.hash);
+  const whenDom = fn => document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", fn) : fn();
+  function start(s){
+    if(starting){ if(session && s && s.user.id !== session.user.id) location.reload(); else session = s || session; return starting; }
+    session = s;
+    starting = (async () => { await loadProfile(); whenDom(hideLogin); readyResolve(); })();
+    return starting;
   }
   sb.auth.onAuthStateChange((ev, s) => {
-    if(ev === "PASSWORD_RECOVERY"){ session = s; showLogin("newpass"); return; }
-    if(ev === "SIGNED_IN" && s && !started) start(s);
-    if(ev === "SIGNED_OUT"){ location.reload(); }
+    /* nada de esperar o Supabase aqui dentro (evita a trava): agenda para depois */
+    setTimeout(() => {
+      if(ev === "PASSWORD_RECOVERY"){ recovering = true; session = s; whenDom(() => showLogin("newpass")); return; }
+      if(ev === "SIGNED_OUT"){ if(starting) location.reload(); else whenDom(() => showLogin()); return; }
+      if(recovering) return;
+      if(s) start(s);
+      else if(ev === "INITIAL_SESSION") whenDom(() => showLogin());
+    }, 0);
   });
-  sb.auth.getSession().then(({ data }) => {
-    if(data.session && !/type=recovery/.test(location.hash)) start(data.session);
-    else if(!/type=recovery/.test(location.hash)) document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", () => showLogin()) : showLogin();
-  });
+
+  /* Rede de segurança: se em 20 s nada carregou, oferece tentar de novo ou sair. */
+  setTimeout(() => {
+    const w = document.querySelector(".done .want");
+    if(document.getElementById("lgOverlay") || !w || !/Carregando/.test(w.textContent)) return;
+    {
+      document.body.insertAdjacentHTML("beforeend", `<div id="psStuck" style="position:fixed;left:16px;right:16px;bottom:24px;z-index:99999;background:#1b2330;color:#e8edf3;border:1px solid #33404f;border-radius:12px;padding:14px 16px;font:14px system-ui;box-shadow:0 8px 24px rgba(0,0,0,.4)">
+        Está demorando para carregar. Verifique a internet.
+        <div style="display:flex;gap:8px;margin-top:10px"><button onclick="location.reload()" style="flex:1;padding:10px;border-radius:8px;border:0;background:#2f6fed;color:#fff;font-weight:600">Tentar de novo</button><button onclick="psLogout()" style="flex:1;padding:10px;border-radius:8px;border:1px solid #33404f;background:transparent;color:#e8edf3">Sair</button></div></div>`);
+    }
+  }, 20000);
 })();
