@@ -603,6 +603,7 @@ body.pda .keyhint{display:block}
 .pshead .pv{font-family:var(--mono);font-size:24px;font-weight:700}
 .fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px 16px;margin:0}
 .fields div{min-width:0}
+.tinput{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);padding:6px 8px;font:inherit;font-size:14px}
 .fields dt{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
 .fields dd{margin:2px 0 0;font-weight:600;overflow-wrap:anywhere}
 .modes{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
@@ -1029,6 +1030,7 @@ function draftHTML(d){
       <div><dt>Cidade</dt><dd>${esc(d.city)||"—"}</dd></div>
       <div><dt>Vendedor</dt><dd>${esc(d.seller)||"—"}</dd></div>
       <div><dt>Transporte / observações</dt><dd>${esc(d.obs)||"—"}</dd></div>
+      <div><dt>Transportadora</dt><dd><input id="dTransp" class="tinput" list="transpList" value="${esc(d.transportadora ?? carrierFromObs(d.obs))}" placeholder="Não identificada · digite"><datalist id="transpList">${[...new Set([...ORDERS.map(transpOf).filter(Boolean),...Object.keys(TRANSP),...CARRIER_ALIAS.map(x=>x[1])])].sort().map(n=>`<option value="${esc(n)}">`).join("")}</datalist></dd></div>
       <div><dt>Valor total</dt><dd class="tnum">${money(d.total)}</dd></div>
     </dl>
     <div><h2 style="margin-bottom:10px">2. Tipo de envio</h2>
@@ -1075,6 +1077,7 @@ function bindDraft(){
   const d = state.draft;
   document.getElementById("cancelDraft").onclick=()=>{ state.draft=null; state.draftErr=""; render(); };
   app.querySelectorAll('input[name=mode]').forEach(r=>r.onchange=()=>{ d.mode=r.value; state.draftErr=""; render(); });
+  const dt=document.getElementById("dTransp"); if(dt) dt.oninput=()=>{ d.transportadora=dt.value.trim(); };
   const rc=document.getElementById("retiraChk"); if(rc) rc.onchange=()=>{ d.retira=rc.checked; render(); };
   const refresh = i => {
     const it=d.items[i], enc=it.qtyEnc||0;
@@ -1118,7 +1121,7 @@ function sendDraft(){
   const slot = m==="aguarda" ? ((prev && usesHive(prev) && prev.colmeia) || freeSlot()) : null;
   if(m==="aguarda" && !slot){ state.draftErr="Todas as colmeias estão ocupadas. Libere uma colmeia antes de integrar este pedido."; return render(); }
   const o = { id:d.id, num:d.num, date:d.date, time:d.time, clientCode:d.clientCode, client:d.client, city:d.city, seller:d.seller, obs:d.obs, total:d.total,
-    mode:m, v2:true, items, remessa:1, status: hasPick ? "aguardando" : "na_colmeia", createdAt: Date.now(), createdBy: ME.id||"", canal:"consultiva", retira: !!d.retira };
+    mode:m, v2:true, items, remessa:1, status: hasPick ? "aguardando" : "na_colmeia", createdAt: Date.now(), createdBy: ME.id||"", canal:"consultiva", retira: !!d.retira, transportadora: (d.transportadora ?? carrierFromObs(d.obs)) || "" };
   if(slot) o.colmeia = slot;
   res(o);
   state.draft=null; state.draftErr="";
@@ -1216,7 +1219,7 @@ function renderOrders(){
           <div class="row"><span class="num">#${esc(o.num)}${newIds.has(o.id)&&o.status==="aguardando"?` <span class="chip newc">Novo</span>`:""}</span>${o.status==="separando"?`<span class="chip prog">Em separação</span>`:isEco(o)?`<span class="chip eco">${esc(o.origem||"Site")}</span>`:`<span class="chip ${MODES[o.mode].c}">${MODES[o.mode].t}</span>`}</div>
           ${o.mzCancelado?`<div class="mzcancel">CANCELADO na Magazord · não enviar</div>`:o.mzMudou?`<div class="mzcancel warn">Situação mudou na Magazord: ${esc(o.mzSituacaoDesc||o.mzSituacao)} · confirme antes de enviar</div>`:""}
           <div class="client">${esc(o.client)}</div>
-          <div class="meta tnum"><span>${pl.length} ref. · ${pl.reduce((a,x)=>a+x.need,0)} pç</span>${aisles?`<span>Ruas ${aisles}</span>`:""}${semLoc?`<span style="color:var(--bad)">${semLoc} sem local</span>`:""}${o.status==="separando"&&o.startedAt?`<span>Separando há ${since(o.startedAt)}</span>`:`<span>Na fila há ${since(o.createdAt)}</span>`}${o.tray&&o.status==="separando"?`<span>Bandeja ${esc(o.tray)}</span>`:""}${isEco(o)?transpBadge(o.transportadora):o.mode==="aguarda"?`<span>Colmeia ${esc(o.colmeia)}</span>`:`<span>Destino: mesa de expedição</span>`}${enc?`<span>${enc} ref. sob encomenda</span>`:""}</div>
+          <div class="meta tnum"><span>${pl.length} ref. · ${pl.reduce((a,x)=>a+x.need,0)} pç</span>${aisles?`<span>Ruas ${aisles}</span>`:""}${semLoc?`<span style="color:var(--bad)">${semLoc} sem local</span>`:""}${o.status==="separando"&&o.startedAt?`<span>Separando há ${since(o.startedAt)}</span>`:`<span>Na fila há ${since(o.createdAt)}</span>`}${o.tray&&o.status==="separando"?`<span>Bandeja ${esc(o.tray)}</span>`:""}${isEco(o)?transpBadge(o.transportadora):`${transpOf(o)?transpBadge(transpOf(o)):""}`+(o.mode==="aguarda"?`<span>Colmeia ${esc(o.colmeia)}</span>`:`<span>Destino: mesa de expedição</span>`)}${enc?`<span>${enc} ref. sob encomenda</span>`:""}</div>
           ${done?`<div class="prog-bar"><i style="width:${done/pl.length*100}%"></i></div>`:""}
         </button>${acts?`<div class="ord-acts">${o.status==="separando"?`<button class="icbtn" data-restart="${esc(o.id)}" aria-label="Reiniciar separação" title="Reiniciar separação">${ICON_RESTART}</button>`:""}<button class="icbtn del" data-delord="${esc(o.id)}" aria-label="Excluir separação" title="Excluir separação">${ICON_TRASH}</button></div>`:""}</div>`;}).join("") + pgQ.pager : `<div class="empty">Nenhum pedido aguardando separação.</div>`}
     </div>
@@ -1437,7 +1440,7 @@ function tvColumn(canal, title){
     <h3>Aguardando separação · ${queue.length}${canal==="ecommerce" && queue.length ? (()=>{ const m={}; queue.forEach(o=>{ const v=o.origem||"Site"; m[v]=(m[v]||0)+1; });
       return ` <span class="tvcanais">(${Object.entries(m).sort((a,b)=>b[1]-a[1]).map(([v,n])=>`${esc(v)} ${n}`).join(" - ")})</span>`; })() : ""}</h3>
     <div class="tvlist fit" data-total="${queue.length}">${queue.slice(0,MAXQ).map((o,k)=>`<div class="tvrow ${o.retira?"tvurg":lvl(wait(o))}"><span class="tvpos tnum">${k+1}</span><span class="tvnum">#${esc(o.num)}${o.retira?` <em class="tvurgtag">URGENTE · RETIRA NA LOJA</em>`:""}${now-(o.createdAt||0)<5*60e3?` <em class="tvnew">NOVO</em>`:""}</span>
-        <span class="tvcli">${esc(o.client)}<small>${pickList(o).length} ref. · ${units(o)} pç · ${isEco(o) ? esc((o.origem||"Site")+(o.transportadora?" · "+o.transportadora:"")) : esc(MODES[o.mode]?.t||"")}</small></span>
+        <span class="tvcli">${esc(o.client)}<small>${pickList(o).length} ref. · ${units(o)} pç · ${isEco(o) ? esc((o.origem||"Site")+(o.transportadora?" · "+o.transportadora:"")) : esc(MODES[o.mode]?.t||"")+(transpOf(o)?" · "+esc(transpOf(o)):"")}</small></span>
         <span class="tvtime tnum"><span data-since="${o.createdAt}">${fmtDur(wait(o))}</span></span></div>`).join("") || `<div class="tvnone ok">Fila vazia</div>`}
 </div><div class="tvmore" data-more>${queue.length>MAXQ?`+ ${queue.length-MAXQ} pedidos na fila`:""}</div>
     ${done.length?`<div class="tvdone"><h3>Últimos separados</h3><div class="tvlist small">${done.slice(0,MAXF).map(o=>`<div class="tvrow fin"><span class="tvnum">#${esc(o.num)}</span><span class="tvcli">${esc(o.client)}</span><span class="tvtime tnum">${fmtClock(o.pickedAt)}${o.startedAt?` · ${fmtDur(o.pickedAt-o.startedAt).replace(/ \d+s$/,"")}`:""}</span></div>`).join("")}</div></div>`:""}`}
@@ -1630,6 +1633,7 @@ function renderPick(){
     ${o.mzCancelado?`<div class="mzcancel big">Pedido CANCELADO na Magazord · pare a separação e devolva as peças</div>`:o.mzMudou?`<div class="mzcancel big warn">A situação deste pedido mudou na Magazord para "${esc(o.mzSituacaoDesc||o.mzSituacao)}" · confirme com o responsável antes de continuar</div>`:""}
     ${o.retira?`<div class="retirabar" style="margin-top:8px">URGENTE · RETIRA NA LOJA</div>`:""}
     ${state.lote && loteMatch(o) ? `<div class="lotebadge">Lote · ${esc(state.lote.vals.join(" · "))} · ${lotePending().length} restante(s)</div>` : ""}
+    ${!isEco(o)&&transpOf(o)?`<div class="ecoinfo">${transpBadge(transpOf(o))}</div>`:""}
     ${isEco(o)?`<div class="ecoinfo"><span class="chip eco">${esc(o.origem||"Site")}</span>${transpBadge(o.transportadora)}${o.servico&&o.servico!==o.transportadora?`<span class="muted-s">${esc(o.servico)}</span>`:""}</div>`:""}
     <div class="steps">${pl.map((x,k)=>{ const s=r[x.i].status; return `<i class="${s==="ok"||s==="part"?"ok":s==="miss"?"miss":k===state.idx?"cur":""}"></i>`; }).join("")}</div>
     ${l ? `<div class="loc">
@@ -2781,6 +2785,20 @@ function renderUsuarios(){
   bindMz(); bindTransp();
   document.getElementById("viewAsBtn").onclick=()=>{ const v=document.getElementById("viewAs").value; if(!v) return; state.viewAs=v; state.sector=allowedSectors()[0]||"expedicao"; state.view="orders"; render(); toast(`Simulando: ${ROLES[v].t}`); };
 }
+/* ---- Transportadora da venda consultiva: lida do campo "Observações" da pré-venda ---- */
+const CARRIER_ALIAS = [["AZUL","Azul Cargo"],["DAYTONA","Daytona Express"],["DISK TENHA","Disk Tenha"],["JADLOG","Jadlog"],["CORREIOS","Correios"],["SEDEX","Correios"],
+  ["BRASPRESS","Braspress"],["JAMEF","Jamef"],["RODONAVES","Rodonaves"],["PATRUS","Patrus"],["TOTAL EXPRESS","Total Express"],["TNT","TNT"],["ATUAL CARGAS","Atual Cargas"]];
+const normTx = t => String(t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim();
+function carrierFromObs(obs){
+  const t=" "+normTx(obs)+" "; if(!t.trim()) return "";
+  const known=[...new Set([...Object.keys(TRANSP), ...ORDERS.map(o=>o.transportadora).filter(Boolean)])].sort((a,b)=>b.length-a.length);
+  for(const n of known){ const k=normTx(n); if(k && t.includes(" "+k+" ")) return n; }
+  for(const [a,n] of CARRIER_ALIAS){ if(t.includes(" "+a+" ")) return known.find(k=>normTx(k)===normTx(n)) || n; }
+  const m=String(obs).match(/^\s*([^\-–(]{3,30}?)\s+[-–]\s+(DE\s+)?\d/i);  // "TRANSPORTADORA - DE 5 À 6 DIAS"
+  return m ? m[1].trim().toLowerCase().replace(/(^|\s)\S/g,c=>c.toUpperCase()) : "";
+}
+const transpOf = o => o.transportadora!=null ? o.transportadora : (isEco(o) ? "" : carrierFromObs(o.obs));
+
 /* ---- Logotipos das transportadoras (enviados pelo administrador) ---- */
 let TRANSP = {}, transpDoc = null;
 function transpBadge(name){
@@ -2788,7 +2806,7 @@ function transpBadge(name){
   return t?.logo ? `<span class="tlogo-w" title="${esc(n)}"><img class="tlogo" src="${t.logo}" alt="${esc(n)}"></span>` : `<span class="transp">${esc(n)}</span>`;
 }
 function transpHTML(){
-  const names=[...new Set([...ORDERS.filter(isEco).map(o=>o.transportadora).filter(Boolean), ...Object.keys(TRANSP)])].sort();
+  const names=[...new Set([...ORDERS.map(transpOf).filter(Boolean), ...Object.keys(TRANSP)])].sort();
   return `<div class="mzbox"><h3>Logotipos das transportadoras</h3>
     <p class="hint">Envie o logotipo de cada transportadora (PNG ou JPG; de preferência com fundo transparente). Ele aparece no lugar do nome na lista de pedidos do e-commerce.</p>
     <div class="qlist" style="margin-top:6px">${names.map(n=>`<div class="mrow trow"><div class="tprev">${TRANSP[n]?.logo?`<img class="tlogo" src="${TRANSP[n].logo}" alt="${esc(n)}">`:`<span class="muted-s">sem logotipo</span>`}</div><b>${esc(n)}</b>
