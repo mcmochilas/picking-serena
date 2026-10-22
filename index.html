@@ -131,6 +131,7 @@ button:focus-visible{outline:3px solid var(--route);outline-offset:2px}
 .chip.eco{background:var(--route-soft,rgba(111,155,255,.16));color:var(--route,#2A5BC8)}
 .transp{font-weight:600;color:var(--ink)}
 .mzcancel{background:var(--bad);color:#fff;font-weight:700;border-radius:8px;padding:6px 10px;font-size:13px;letter-spacing:.02em}
+.mzcancel.warn{background:var(--accent);color:#111}
 .mzcancel.big{margin:10px 0;font-size:15px;padding:10px 12px}
 .ecoinfo{display:flex;align-items:center;gap:8px;margin:8px 0 2px;font-size:14px;font-weight:600}
 .mzsync{margin-top:12px}
@@ -1189,7 +1190,7 @@ function renderOrders(){
         const acts = can("coleta") ? (o.status==="separando"?2:1) : 0;
         return `<div class="ordwrap acts${acts}"><button class="order ${o.mode==="aguarda"?"urgent":""}" data-oid="${esc(o.id)}">
           <div class="row"><span class="num">#${esc(o.num)}${newIds.has(o.id)&&o.status==="aguardando"?` <span class="chip newc">Novo</span>`:""}</span>${o.status==="separando"?`<span class="chip prog">Em separação</span>`:isEco(o)?`<span class="chip eco">${esc(o.origem||"Site")}</span>`:`<span class="chip ${MODES[o.mode].c}">${MODES[o.mode].t}</span>`}</div>
-          ${o.mzCancelado?`<div class="mzcancel">CANCELADO na Magazord · não enviar</div>`:""}
+          ${o.mzCancelado?`<div class="mzcancel">CANCELADO na Magazord · não enviar</div>`:o.mzMudou?`<div class="mzcancel warn">Situação mudou na Magazord: ${esc(o.mzSituacaoDesc||o.mzSituacao)} · confirme antes de enviar</div>`:""}
           <div class="client">${esc(o.client)}</div>
           <div class="meta tnum"><span>${pl.length} ref. · ${pl.reduce((a,x)=>a+x.need,0)} pç</span>${aisles?`<span>Ruas ${aisles}</span>`:""}${semLoc?`<span style="color:var(--bad)">${semLoc} sem local</span>`:""}${o.status==="separando"&&o.startedAt?`<span>Separando há ${since(o.startedAt)}</span>`:`<span>Na fila há ${since(o.createdAt)}</span>`}${o.tray&&o.status==="separando"?`<span>Bandeja ${esc(o.tray)}</span>`:""}${isEco(o)?transpBadge(o.transportadora):o.mode==="aguarda"?`<span>Colmeia ${esc(o.colmeia)}</span>`:`<span>Destino: mesa de expedição</span>`}${enc?`<span>${enc} ref. sob encomenda</span>`:""}</div>
           ${done?`<div class="prog-bar"><i style="width:${done/pl.length*100}%"></i></div>`:""}
@@ -1428,7 +1429,7 @@ const LOTE_BY = { canal:{t:"Canal", f:"origem"}, transportadora:{t:"Transportado
 const loteVal = (o, by) => o[LOTE_BY[by].f] || (by==="canal" ? "Site" : "Sem transportadora");
 const loteMatch = (o, L=state.lote) => !!L && isEco(o) && L.vals.includes(loteVal(o, L.by));
 function lotePending(L=state.lote){ // pedidos do lote ainda por separar (os meus em andamento primeiro)
-  return ORDERS.filter(o=>loteMatch(o,L) && pickList(o).length && !o.mzCancelado &&
+  return ORDERS.filter(o=>loteMatch(o,L) && pickList(o).length && !o.mzCancelado && !o.mzMudou &&
       (o.status==="aguardando" || (o.status==="separando" && (!o.startedBy || o.startedBy===ME.id))))
     .sort((a,b)=>((b.status==="separando")-(a.status==="separando")) || (a.createdAt||0)-(b.createdAt||0));
 }
@@ -1451,7 +1452,7 @@ function bindLote(){
   const en=document.getElementById("loteEnd"); if(en) en.onclick=()=>{ state.lote=null; saveLote(); toast("Lote encerrado"); render(); };
 }
 function openLoteModal(){
-  const avail = ORDERS.filter(o=>isEco(o) && ecoOk(o) && pickList(o).length && !o.mzCancelado && (o.status==="aguardando" || (o.status==="separando" && o.startedBy===ME.id)));
+  const avail = ORDERS.filter(o=>isEco(o) && ecoOk(o) && pickList(o).length && !o.mzCancelado && !o.mzMudou && (o.status==="aguardando" || (o.status==="separando" && o.startedBy===ME.id)));
   let by="transportadora", sel=new Set();
   const ov=document.createElement("div"); ov.className="modal"; document.body.appendChild(ov); scanbar.hidden=true;
   const close=()=>{ ov.remove(); render(); };
@@ -1570,7 +1571,7 @@ function renderPick(){
       <span class="timer" title="Tempo de picking">⏱ ${since(o.startedAt)}</span>
       <span class="badge tnum">${state.idx+1}/${pl.length}</span>
     </header>
-    ${o.mzCancelado?`<div class="mzcancel big">Pedido CANCELADO na Magazord · pare a separação e devolva as peças</div>`:""}
+    ${o.mzCancelado?`<div class="mzcancel big">Pedido CANCELADO na Magazord · pare a separação e devolva as peças</div>`:o.mzMudou?`<div class="mzcancel big warn">A situação deste pedido mudou na Magazord para "${esc(o.mzSituacaoDesc||o.mzSituacao)}" · confirme com o responsável antes de continuar</div>`:""}
     ${state.lote && loteMatch(o) ? `<div class="lotebadge">Lote · ${esc(state.lote.vals.join(" · "))} · ${lotePending().length} restante(s)</div>` : ""}
     ${isEco(o)?`<div class="ecoinfo"><span class="chip eco">${esc(o.origem||"Site")}</span>${transpBadge(o.transportadora)}${o.servico&&o.servico!==o.transportadora?`<span class="muted-s">${esc(o.servico)}</span>`:""}</div>`:""}
     <div class="steps">${pl.map((x,k)=>{ const s=r[x.i].status; return `<i class="${s==="ok"||s==="part"?"ok":s==="miss"?"miss":k===state.idx?"cur":""}"></i>`; }).join("")}</div>
@@ -2747,8 +2748,8 @@ function mzHTML(){
     ${R?.ok?`<div class="okbox">Conexão OK · ${R.count} pedido(s) recente(s) lido(s) da Magazord.</div>
       ${groups.length?`<details class="mzdist" open><summary class="eyebrow">O que encontrei nos pedidos recentes</summary>${groups.map(([k,v])=>`<div><b class="mono">${esc(k)}</b><span>${Object.entries(v).slice(0,10).map(([x,n])=>`${esc(x)} <small>(${n})</small>`).join(" · ")}</span></div>`).join("")}</details>`:""}`:""}
     ${st?.configured?`<div class="mzsync"><h3>Importação automática</h3>
-      <p class="hint">A cada 2 minutos entram os pedidos na situação <b>5 · Crédito e Cadastro Aprovados</b> feitos nas <b>últimas 72 horas</b> (site e marketplaces, sem o Mercado Livre Full). Pedidos cancelados na Magazord saem da fila sozinhos.</p>
-      ${MZSYNC?.lastRun?`<div class="mzlast">Última importação: <b>${fmtClock(MZSYNC.lastRun)}</b> · ${MZSYNC.found} pedido(s) aprovados · ${MZSYNC.imported} novo(s)${MZSYNC.cancelled?` · ${MZSYNC.cancelled} cancelado(s)`:""}${MZSYNC.errors?.length?`<div class="err">${MZSYNC.errors.map(esc).join("<br>")}</div>`:""}</div>`:`<div class="mzlast">Ainda não rodou.</div>`}
+      <p class="hint">A cada 2 minutos entram os pedidos na situação <b>5 · Crédito e Cadastro Aprovados</b> feitos nas <b>últimas 72 horas</b> (site e marketplaces, sem o Mercado Livre Full). Se a situação mudar na Magazord, o pedido sai da fila sozinho (se voltar para a 5, volta para a fila).</p>
+      ${MZSYNC?.lastRun?`<div class="mzlast">Última importação: <b>${fmtClock(MZSYNC.lastRun)}</b> · ${MZSYNC.found} pedido(s) aprovados · ${MZSYNC.imported} novo(s)${MZSYNC.cancelled?` · ${MZSYNC.cancelled} cancelado(s)`:""}${MZSYNC.changed?` · ${MZSYNC.changed} com situação alterada (saíram da fila)`:""}${MZSYNC.restored?` · ${MZSYNC.restored} voltaram para a fila`:""}${MZSYNC.errors?.length?`<div class="err">${MZSYNC.errors.map(esc).join("<br>")}</div>`:""}</div>`:`<div class="mzlast">Ainda não rodou.</div>`}
       <div class="mzbtns"><button class="btn ghost" type="button" id="mzSync" ${MZ.busy?"disabled":""}>Importar agora</button>
       <button class="btn ghost danger-t" type="button" id="mzReset" ${MZ.busy?"disabled":""}>Apagar importados e reimportar (últimas 24 h)</button></div></div>`:""}
     <p class="hint">A senha fica guardada no servidor e não aparece mais na tela. O Picking Serena só <b>lê</b> os pedidos da Magazord.</p>
