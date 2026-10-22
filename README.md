@@ -11,6 +11,9 @@ index.html              o sistema (telas e regras)
 js/config.js            URL e chave pública do Supabase  ← você preenche
 js/backend.js           login + ligação com o Supabase
 supabase/schema.sql     tabelas, regras de acesso (RLS) e tempo real
+supabase/push.sql       notificações push (inscrições + gatilho de novo pedido)
+supabase/functions/push função que envia o push (Supabase Edge Function)
+sw.js                   service worker: mostra a notificação com o app fechado
 supabase/seed-exemplo.sql  dados de exemplo (opcional)
 vercel.json             cabeçalhos (libera a câmera no próprio site)
 manifest.webmanifest    instalação como app no celular/coletor
@@ -89,6 +92,15 @@ A partir daqui, cada `git push` na `main` publica sozinho.
 - **Instalar como app:** abra o endereço no **Chrome** e use **Adicionar à tela inicial**. O sistema abre em tela cheia, como um aplicativo.
 - **Leitura pela câmera:** fora do Claude, o botão **Câmera** abre o leitor **ao vivo**. Basta apontar para o código de barras.
 - **Coletor Android com leitor embutido:** configure o leitor em modo **teclado (keyboard wedge)**, com sufixo **Enter**, e deixe ligados **EAN-13** e **Code 128**. O sistema detecta o coletor e ativa o modo compacto sozinho.
+
+## Notificação de novo pedido
+
+- **Quem recebe:** Administrador, Supervisor e Separador, exceto quem integrou o pedido.
+- **Som no app:** toca enquanto o sistema está aberto. Liga e desliga no card **Alerta de novo pedido**, na aba Separação.
+- **Push no celular:** chega mesmo com o app fechado. Cada pessoa toca em **Ativar notificações no celular** uma vez em cada aparelho.
+  - **Android:** pelo Chrome. Pode ser no navegador ou no app instalado.
+  - **iPhone (iOS 16.4 ou mais novo):** primeiro **Adicionar à Tela de Início** e abrir pelo ícone, depois ativar.
+- **Como funciona:** quando entra um pedido para separar, o banco chama a função `push` (gatilho em `supabase/push.sql`). Ela envia para todos os aparelhos inscritos. As chaves do push são criadas e guardadas no próprio Supabase, na tabela `app_secrets`, que fica fechada para o app.
 
 ## Observações
 

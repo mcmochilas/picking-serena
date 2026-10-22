@@ -252,4 +252,64 @@
         <div style="display:flex;gap:8px;margin-top:10px"><button onclick="location.reload()" style="flex:1;padding:10px;border-radius:8px;border:0;background:#2f6fed;color:#fff;font-weight:600">Tentar de novo</button><button onclick="psLogout()" style="flex:1;padding:10px;border-radius:8px;border:1px solid #33404f;background:transparent;color:#e8edf3">Sair</button></div></div>`);
     }
   }, 20000);
+
+  /* ---------- Notificações push (novo pedido para separar) ---------- */
+  const FN = cfg.SUPABASE_URL.replace(/\/$/, "") + "/functions/v1/push";
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  const pushSupported = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  const swReady = "serviceWorker" in navigator ? navigator.serviceWorker.register("/sw.js").then(() => navigator.serviceWorker.ready).catch(() => null) : Promise.resolve(null);
+  const b64ToBytes = s => { const p = "=".repeat((4 - s.length % 4) % 4), b = atob((s + p).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from(b, c => c.charCodeAt(0)); };
+  let pushState = !pushSupported ? (isIOS && !standalone ? "ios-install" : "unsupported") : Notification.permission === "denied" ? "denied" : "checking";
+  const setState = s => { pushState = s; window.dispatchEvent(new Event("pspush")); };
+
+  async function saveSub(sub){
+    const j = sub.toJSON();
+    const { error } = await sb.from("push_subscriptions").upsert({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, user_id: session.user.id, ua: navigator.userAgent.slice(0, 200) }, { onConflict: "endpoint" });
+    if(error) throw error;
+  }
+  async function refreshPush(){
+    if(!pushSupported || !session) return;
+    if(Notification.permission === "denied") return setState("denied");
+    const reg = await swReady; if(!reg) return setState("unsupported");
+    const sub = await reg.pushManager.getSubscription();
+    if(sub && Notification.permission === "granted"){ try{ await saveSub(sub); }catch(e){} return setState("on"); }
+    setState("off");
+  }
+  ready.then(() => refreshPush());
+
+  window.psPush = {
+    get state(){ return pushState; },
+    isIOS,
+    async enable(){
+      if(!pushSupported) return pushState;
+      const perm = await Notification.requestPermission();
+      if(perm !== "granted"){ setState(perm === "denied" ? "denied" : "off"); return pushState; }
+      const reg = await swReady; if(!reg){ setState("unsupported"); return pushState; }
+      const { publicKey } = await (await fetch(FN)).json();
+      let sub = await reg.pushManager.getSubscription();
+      if(sub && sub.options?.applicationServerKey){ // inscrição antiga com outra chave: refaz
+        const cur = new Uint8Array(sub.options.applicationServerKey), want = b64ToBytes(publicKey);
+        if(cur.length !== want.length || cur.some((v, i) => v !== want[i])){ await sub.unsubscribe(); sub = null; }
+      }
+      if(!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(publicKey) });
+      await saveSub(sub);
+      setState("on");
+      return pushState;
+    },
+    async disable(){
+      const reg = await swReady, sub = reg && await reg.pushManager.getSubscription();
+      if(sub){ await sb.from("push_subscriptions").delete().eq("endpoint", sub.endpoint); await sub.unsubscribe(); }
+      setState("off"); return pushState;
+    },
+    async test(){
+      const { data } = await sb.auth.getSession();
+      const r = await fetch(FN, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + (data.session?.access_token || "") }, body: JSON.stringify({ action: "test" }) });
+      return r.json();
+    }
+  };
+  /* Toque na notificação com o app aberto: vai para a Separação */
+  if("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", e => {
+    if(e.data?.type === "ps-open") window.dispatchEvent(new CustomEvent("psopen", { detail: e.data.url }));
+  });
 })();

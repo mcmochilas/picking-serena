@@ -107,6 +107,15 @@ button:focus-visible{outline:3px solid var(--route);outline-offset:2px}
 .loc-code span{color:var(--muted);font-weight:500}
 .noloc .loc-code{font-family:var(--display);font-size:clamp(20px,6vw,28px);color:var(--warn,#C27C0E)}
 .spotbtn{width:100%;margin-top:8px}
+.alerts{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:10px 12px;margin:10px 0 4px}
+.alerts .al-h{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.alerts .al-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:13px}
+.alerts .al-ok{color:var(--ok);font-weight:600}
+.alerts .al-bad{color:var(--bad);line-height:1.4}
+.alerts .al-mute{color:var(--muted)}
+.alerts.compact{padding:6px 12px}
+.alerts.compact .al-h{display:none}
+.alerts.compact .al-row{margin-top:0}
 .spotline{margin-top:8px;font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .spotline.on{color:var(--ink);background:var(--accent-soft);border-radius:8px;padding:8px 10px}
 .noloc-t{font-size:13px;color:var(--muted);margin-top:6px;line-height:1.4}
@@ -1000,7 +1009,7 @@ function renderOrders(){
   let body = "";
   const pgQ = pageOf(queue, "fila", 20), pgP = pageOf(parked, "mesa", 20), pgH = pageOf(hist, "hist", 25);
   if(tab==="fila"){
-    body = `
+    body = (can("coleta") ? alertsHTML() : "") + `
     <div class="shift">
       <div><b class="tnum">${queue.length}</b><span class="eyebrow">Pedidos</span></div>
       <div><b class="tnum">${queue.reduce((s,o)=>s+pickList(o).length,0)}</b><span class="eyebrow">Referências</span></div>
@@ -1038,7 +1047,7 @@ function renderOrders(){
     <header class="bar"><div class="grow"><h1>${tab==="fila"?"Pedidos para separar":tab==="colmeias"?"Encomendas":"Pedidos separados"}</h1><div class="sub">CD Porto Belo${can("coleta")?"":" · somente consulta"}</div></div></header>
     ${!synced ? `<div class="banner">Sem conexão com o banco de dados. Verifique a internet ou a configuração do Supabase.</div>`:""}
     ${body}`;
-  bindNav();
+  bindNav(); bindAlerts();
   if(can("coleta")) app.querySelectorAll(".order").forEach(b=>b.onclick=()=>openOrder(b.dataset.oid));
   else app.querySelectorAll(".order").forEach(b=>{ b.style.cursor="default"; b.tabIndex=-1; });
   app.querySelectorAll("[data-free]").forEach(b=>b.onclick=()=>{ if(!b.dataset.c){ b.dataset.c="1"; b.textContent="Confirmar liberação"; b.classList.add("danger"); return; } const o=ORDERS.find(x=>x.id===b.dataset.free); if(o){ unlinkTray(o); toast(`${spotsTxt(o)} liberada · pedido ${o.num} foi para ${inHive(o)?"Encomendas":"Separados"}`); } });
@@ -2245,8 +2254,8 @@ document.addEventListener("pointerdown", unlockAudio, {once:true}); document.add
 function chime(){
   if(!SOUND) return;
   try{ unlockAudio(); const c=audioCtx, t0=c.currentTime;
-    [[880,0],[1175,.16],[1568,.32]].forEach(([f,dt])=>{ const o=c.createOscillator(), g=c.createGain(); o.type="sine"; o.frequency.value=f;
-      g.gain.setValueAtTime(0.0001,t0+dt); g.gain.exponentialRampToValueAtTime(.18,t0+dt+.02); g.gain.exponentialRampToValueAtTime(.0001,t0+dt+.28);
+    [[880,0],[1175,.16],[1568,.32],[880,.9],[1175,1.06],[1568,1.22]].forEach(([f,dt])=>{ const o=c.createOscillator(), g=c.createGain(); o.type="triangle"; o.frequency.value=f;
+      g.gain.setValueAtTime(0.0001,t0+dt); g.gain.exponentialRampToValueAtTime(.45,t0+dt+.02); g.gain.exponentialRampToValueAtTime(.0001,t0+dt+.28);
       o.connect(g); g.connect(c.destination); o.start(t0+dt); o.stop(t0+dt+.3); }); }catch(e){}
 }
 function checkNewOrders(){
@@ -2273,6 +2282,30 @@ function showAlert(){
   document.getElementById("abOk").onclick=close;
   const op=document.getElementById("abOpen"); if(op) op.onclick=()=>{ close(); state.sector="expedicao"; openOrder(o.id); };
 }
+/* Card "Alertas de novo pedido": som no app + notificação push no celular */
+function alertsHTML(){
+  const P = window.psPush, st = P ? P.state : "unsupported";
+  const push = st==="on" ? `<span class="al-ok">Notificações no celular ligadas</span><button class="mini" id="pushTest">Testar</button><button class="linkbtn" id="pushOff">Desligar</button>`
+    : st==="off" ? `<button class="btn primary sm" id="pushOn">Ativar notificações no celular</button>`
+    : st==="denied" ? `<span class="al-bad">Notificações bloqueadas. Libere em Configurações do navegador → Notificações → picking-serena.vercel.app.</span>`
+    : st==="ios-install" ? `<span class="al-bad">No iPhone: toque em <b>Compartilhar → Adicionar à Tela de Início</b>, abra o Picking Serena pelo ícone e ative aqui.</span>`
+    : st==="checking" ? `<span class="al-mute">Verificando notificações…</span>`
+    : `<span class="al-bad">Este navegador não recebe notificações. Use o Chrome no Android.</span>`;
+  return `<div class="alerts ${st==="on"&&SOUND?"compact":""}">
+    <div class="al-h"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>Alerta de novo pedido</div>
+    <div class="al-row"><label class="chk"><input type="checkbox" id="sndChk" ${SOUND?"checked":""}> Som no app</label>${push}</div>
+  </div>`;
+}
+function bindAlerts(){
+  const sc=document.getElementById("sndChk"); if(sc) sc.onchange=()=>setSound(sc.checked);
+  const on=document.getElementById("pushOn"); if(on) on.onclick=async()=>{ on.disabled=true; on.textContent="Ativando…"; unlockAudio();
+    try{ const st=await window.psPush.enable(); toast(st==="on"?"Notificações ligadas neste celular":st==="denied"?"Notificações bloqueadas no navegador":"Notificações não ativadas"); if(st==="on") window.psPush.test().catch(()=>{}); }
+    catch(e){ toast("Não foi possível ativar: "+(e?.message||e)); } render(); };
+  const off=document.getElementById("pushOff"); if(off) off.onclick=async()=>{ await window.psPush.disable(); toast("Notificações desligadas neste celular"); render(); };
+  const t=document.getElementById("pushTest"); if(t) t.onclick=async()=>{ t.disabled=true; try{ const r=await window.psPush.test(); toast(r.sent?"Notificação de teste enviada":"Não foi possível enviar ("+(r.error||r.errors?.join(", ")||"sem inscrição")+")"); }catch(e){ toast("Falha no teste"); } t.disabled=false; };
+}
+window.addEventListener("pspush", ()=>{ if(state.sector==="expedicao" && state.view==="orders") rerender(); });
+window.addEventListener("psopen", ()=>{ if(["pick","tray","store","tomesa"].includes(state.view)) return; state.sector="expedicao"; state.sepTab="fila"; state.view="orders"; render(); scrollTo(0,0); });
 function setSound(on){ SOUND=on; try{ localStorage.setItem("ps-sound", on?"1":"0"); }catch(e){} if(on){ unlockAudio(); chime(); } toast(on?"Som de alerta ligado":"Som de alerta desligado"); render(); }
 
 let tt; function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.hidden=false; clearTimeout(tt); tt=setTimeout(()=>t.hidden=true,2400); }
