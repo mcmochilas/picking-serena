@@ -244,7 +244,7 @@ html.tvmode body{background:var(--bg);color:var(--ink);overflow:hidden}
 .loc-parts b{font-family:var(--display);font-size:20px;line-height:1.1}
 
 .map-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:10px;margin-top:12px;position:relative}
-.map-card svg{display:block;width:100%;height:auto;max-width:100%}
+.map-card svg{display:block;width:100%;height:auto;max-width:100%;max-height:440px;margin:0 auto}
 .map-tools{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:2px 4px 8px}
 .legend{display:flex;gap:12px;font-size:12px;color:var(--muted);flex-wrap:wrap}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
@@ -252,6 +252,9 @@ html.tvmode body{background:var(--bg);color:var(--ink);overflow:hidden}
 
 .m-floor{fill:var(--floor)}
 .m-cell{fill:var(--rack)}
+.m-rack{fill:var(--rack)}
+.m-rua{fill:var(--muted);font-family:var(--display);font-weight:700;font-size:12px;letter-spacing:.06em;opacity:.75}
+.m-wall{fill:none;stroke:var(--muted);stroke-width:2;stroke-linejoin:round;opacity:.6}
 .m-cell.target{fill:var(--accent)}
 .m-lane{fill:var(--accent);opacity:0}
 .m-txt{fill:var(--muted);font-family:var(--mono);font-size:10px}
@@ -783,16 +786,21 @@ const LOC_TYPES = { GAV:"Gaveta", COL:"Colmeia", BIN:"Bin" };
 let BLOCKS = {}, blockCol = null; // estruturas: {r, l, t, n1, n2, c1, c2} geram os locais
 const colIdx = c => c.length===1 ? c.charCodeAt(0)-65 : (c.charCodeAt(0)-64)*26 + (c.charCodeAt(1)-65);
 const colName = i => i<26 ? String.fromCharCode(65+i) : String.fromCharCode(64+Math.floor(i/26)) + String.fromCharCode(65+i%26);
-const LOC_RE = /^R(\d{1,2})-L([A-Z])-(GAV|COL|BIN)-(\d{1,2})\.([A-Z]{1,2})$/;
-function parseCode(s){ const m=String(s||"").toUpperCase().match(LOC_RE); return m ? {r:+m[1], l:m[2], t:m[3], n:+m[4], c:m[5], ci:colIdx(m[5])} : null; }
+/* Rua: número (R1…R99) ou letra (RA, RB — ruas do fundo do estoque) */
+const LOC_RE = /^R(\d{1,2}|[A-Z])-L([A-Z])-(GAV|COL|BIN)-(\d{1,2})\.([A-Z]{1,2})$/;
+const ruaKey = v => { const s=String(v??"").trim().toUpperCase().replace(/^R/,""); return /^\d{1,2}$/.test(s) && +s>=1 ? +s : /^[A-Z]$/.test(s) ? s : null; };
+const ruaSort = (a,b) => (typeof a==="number"?0:1)-(typeof b==="number"?0:1) || (typeof a==="number" ? a-b : String(a).localeCompare(String(b)));
+function parseCode(s){ const m=String(s||"").toUpperCase().match(LOC_RE); return m ? {r:ruaKey(m[1]), l:m[2], t:m[3], n:+m[4], c:m[5], ci:colIdx(m[5])} : null; }
 const inBlock = (b,x) => b.r===x.r && b.l===x.l && b.t===x.t && x.n>=b.n1 && x.n<=b.n2 && x.ci>=colIdx(b.c1) && x.ci<=colIdx(b.c2);
 function parseLoc(s){ const x=parseCode(s); return x && Object.values(BLOCKS).some(b=>inBlock(b,x)) ? x : null; } // válido e cadastrado
 function blockLocs(b){ const out=[]; for(let n=b.n1;n<=b.n2;n++) for(let ci=colIdx(b.c1);ci<=colIdx(b.c2);ci++) out.push(`R${b.r}-L${b.l}-${b.t}-${n}.${colName(ci)}`); return out; }
-function allLocs(){ return Object.values(BLOCKS).flatMap(blockLocs).sort((a,b)=>{ const x=parseCode(a), y=parseCode(b); return x.r-y.r || x.l.localeCompare(y.l) || x.n-y.n || x.ci-y.ci; }); }
-const ruas = () => [...new Set(Object.values(BLOCKS).map(b=>b.r))].sort((a,b)=>a-b);
+function allLocs(){ return Object.values(BLOCKS).flatMap(blockLocs).sort((a,b)=>{ const x=parseCode(a), y=parseCode(b); return ruaSort(x.r,y.r) || x.l.localeCompare(y.l) || x.n-y.n || x.ci-y.ci; }); }
+const ruas = () => [...new Set(Object.values(BLOCKS).map(b=>b.r))].sort(ruaSort);
 const locType = lc => parseCode(lc)?.t || "";
 const fullLoc = lc => lc;
-function normLoc(s){ s=String(s||"").trim().toUpperCase().replace(/\s+/g,"-"); const m=s.match(/^R?(\d{1,2})-?L?([A-Z])-?(GAV|COL|BIN)-?(\d{1,2})[.\-]?([A-Z]{1,2})$/); return m ? `R${+m[1]}-L${m[2]}-${m[3]}-${+m[4]}.${m[5]}` : s; }
+function normLoc(s){ s=String(s||"").trim().toUpperCase().replace(/\s+/g,"-");
+  let m=s.match(/^R?(\d{1,2})-?L?([A-Z])-?(GAV|COL|BIN)-?(\d{1,2})[.\-]?([A-Z]{1,2})$/); if(m) return `R${+m[1]}-L${m[2]}-${m[3]}-${+m[4]}.${m[5]}`;
+  m=s.match(/^R([A-Z])-?L([A-Z])-?(GAV|COL|BIN)-?(\d{1,2})[.\-]?([A-Z]{1,2})$/); return m ? `R${m[1]}-L${m[2]}-${m[3]}-${+m[4]}.${m[5]}` : s; }
 function locFor(c){ return parseLoc(PRODUCTS[c]?.loc); }
 const liveLoc = it => locFor(it.code) || (typeof it.loc==="string" ? parseLoc(it.loc) : null);
 const liveEan = it => PRODUCTS[it.code]?.ean || it.ean || "";
@@ -1269,44 +1277,76 @@ function renderLabels(){
 
 /* ================== Mapa do estoque ================== */
 let animToken = 0, lastAnimKey = null;
-function mapGeom(){
-  const rs = ruas(); const n = Math.max(1, rs.length);
-  const rows = Math.max(6, ...Object.values(BLOCKS).map(b=>colIdx(b.c2)+1));
-  const W = 360, unit = Math.min(120, 316/n), x0 = (W - n*unit)/2 + 8;
-  const rw = Math.max(9, Math.min(26, unit*0.22)), cw = Math.min(46, unit*0.38), rh = 240/rows;
-  const laneX = r => x0 + rs.indexOf(r)*unit + unit/2;
-  return { rs, W, rows, rh, rw, cw, laneX, rackX: (r,l) => l==="A" ? laneX(r) - cw/2 - rw : laneX(r) + cw/2, rowY: ci => 300 - (ci+0.5)*rh };
+/* Layout real do estoque (vista de cima, mesa de separação embaixo):
+   ruas 1–4 em pé (corredor à direita de cada estante: lado A = estante da esquerda, lado B = da direita),
+   ruas A e B deitadas no fundo (lado A = estante mais perto da mesa, lado B = mais ao fundo),
+   o corredor da rua 4 sobe até o fundo, ao lado da estante pequena (rua 4, lado B). */
+const MAP = (()=>{
+  const W=320, H=484, rackW=22, aisle=40, x0=14;
+  const vx = k => x0 + (k-1)*(rackW+aisle);            // estante em pé k (1..4)
+  const aisleX = r => vx(r) + rackW + aisle/2;          // centro do corredor da rua r
+  const vTop=180, vBot=394, front=416;
+  const hW = vx(4) + rackW - x0;
+  const H2 = {x:x0, y:44, w:hW, h:20}, H1 = {x:x0, y:110, w:hW, h:20};
+  const ruaB = (H2.y+H2.h+H1.y)/2, ruaA = (H1.y+H1.h+vTop)/2;
+  const small = {x:aisleX(4)+aisle/2-2, y:50, w:20, h:118};
+  const mesa = {x:52, y:436, w:216, h:28};
+  return {W,H,rackW,aisle,x0,vx,aisleX,vTop,vBot,front,H1,H2,ruaA,ruaB,small,mesa,start:{x:160,y:front}};
+})();
+function mapTarget(l){
+  const M=MAP, cols=Math.max(1, l.ci+1, ...Object.values(BLOCKS).filter(b=>b.r===l.r && b.l===l.l).map(b=>colIdx(b.c2)+1));
+  const f=(l.ci+0.5)/cols;
+  if(typeof l.r==="number" && l.r>=1 && l.r<=4){
+    const ax=M.aisleX(l.r);
+    if(l.l==="B" && l.r===4){ const seg=M.small.h/cols, y=M.small.y+M.small.h-(l.ci+1)*seg; return {kind:"v", aisle:4, x:ax, y:y+seg/2, cell:{x:M.small.x, y:y+1, w:M.small.w, h:Math.max(3,seg-2)}}; }
+    const L=M.vBot-M.vTop, seg=L/cols, y=M.vBot-(l.ci+1)*seg, rx = l.l==="A" ? M.vx(l.r) : M.vx(l.r+1);
+    return {kind:"v", aisle:l.r, x:ax, y:y+seg/2, cell:{x:rx, y:y+1, w:M.rackW, h:Math.max(3,seg-2)}};
+  }
+  if(l.r==="A" || l.r==="B"){
+    const seg=M.H1.w/cols, x=M.H1.x+l.ci*seg;
+    const y = l.r==="A" ? M.ruaA : M.ruaB;
+    const face = l.r==="A" ? (l.l==="B" ? M.H1 : {y:M.vTop-6, h:6}) : (l.l==="A" ? M.H1 : M.H2);
+    return {kind:l.r, x:x+seg/2, y, cell:{x:x+1, y:face.y, w:Math.max(3,seg-2), h:face.h}};
+  }
+  return {kind:"x", x:M.start.x, y:M.start.y, cell:null};
 }
-const CROSS_Y = 325;
-function routePts(g, from, l){
-  const to = {x:g.laneX(l.r), y:g.rowY(l.ci)};
-  if(from.lane!==undefined && from.x===to.x) return [from,to];
-  const pts=[from,{x:from.x,y:CROSS_Y},{x:to.x,y:CROSS_Y},to];
-  return pts.filter((p,i)=>!i || p.x!==pts[i-1].x || p.y!==pts[i-1].y);
+function mapRoute(a, b){ // caminho pelos corredores (a = item anterior ou null = mesa)
+  const M=MAP, N={S:M.start}, E=[];
+  for(let k=1;k<=4;k++){ N["f"+k]={x:M.aisleX(k),y:M.front}; N["t"+k]={x:M.aisleX(k),y:M.ruaA}; E.push(["S","f"+k],["f"+k,"t"+k]); if(k<4) E.push(["f"+k,"f"+(k+1)],["t"+k,"t"+(k+1)]); }
+  N.b4={x:M.aisleX(4),y:M.ruaB}; E.push(["t4","b4"]);
+  if(a && ((a.kind==="v" && b.kind==="v" && a.aisle===b.aisle) || (a.kind===b.kind && (b.kind==="A"||b.kind==="B")))) return [a,b];
+  const att = t => t.kind==="v" ? ["f"+t.aisle,"t"+t.aisle] : t.kind==="A" ? [1,2,3,4].map(k=>"t"+k) : t.kind==="B" ? ["b4"] : ["S"];
+  N.src = a ? {x:a.x,y:a.y} : M.start; N.dst = {x:b.x,y:b.y};
+  const adj={}, add=(u,v)=>{ (adj[u]||=[]).push(v); (adj[v]||=[]).push(u); };
+  E.forEach(([u,v])=>add(u,v)); (a?att(a):["S"]).forEach(n=>add("src",n)); att(b).forEach(n=>add("dst",n));
+  const d=(p,q)=>Math.abs(p.x-q.x)+Math.abs(p.y-q.y), dist={src:0}, prev={}, Q=new Set(Object.keys(N));
+  while(Q.size){ let u=null; for(const q of Q) if(dist[q]!=null && (u===null || dist[q]<dist[u])) u=q; if(u===null || u==="dst") break; Q.delete(u);
+    for(const v of adj[u]||[]){ const nd=dist[u]+d(N[u],N[v]); if(dist[v]==null || nd<dist[v]){ dist[v]=nd; prev[v]=u; } } }
+  const path=[]; for(let u="dst"; u; u=prev[u]) path.unshift(N[u]);
+  return path.filter((p,i)=>!i || p.x!==path[i-1].x || p.y!==path[i-1].y);
 }
 function mapSVG(item, prevItem){
-  const g = mapGeom(), l = item.loc, W = g.W;
-  const from = prevItem?.loc ? {x:g.laneX(prevItem.loc.r), y:g.rowY(prevItem.loc.ci), lane:1} : {x:W/2, y:372};
-  const pts = routePts(g, from, l), t = {x:g.laneX(l.r), y:g.rowY(l.ci)};
-  const d = "M"+pts.map(p=>`${p.x} ${p.y}`).join(" L");
-  let s = `<svg viewBox="0 0 ${W} 410" role="img" aria-label="Mapa do estoque: vá até a rua ${l.r}, lado ${l.l}, coluna ${l.c}, nível ${l.n}">`;
-  s += `<rect class="m-floor" x="0" y="0" width="${W}" height="410" rx="12"/>`;
-  s += `<rect class="m-lane" x="${g.laneX(l.r)-g.cw/2}" y="60" width="${g.cw}" height="240" rx="3"/>`;
-  for(const r of g.rs) for(const side of ["A","B"]){
-    const bl = Object.values(BLOCKS).filter(b=>b.r===r && b.l===side);
-    for(let ci=0; ci<g.rows; ci++){
-      const has = bl.some(b=>ci>=colIdx(b.c1) && ci<=colIdx(b.c2)), tgt = r===l.r && side===l.l && ci===l.ci;
-      if(has) s += `<rect class="m-cell${tgt?" target":""}" x="${g.rackX(r,side)}" y="${300-(ci+1)*g.rh+1}" width="${g.rw}" height="${Math.max(2,g.rh-2)}" rx="1.5"/>`;
-    }
-    s += `<text class="m-txt" x="${g.rackX(r,side)+g.rw/2}" y="316" text-anchor="middle">${side}</text>`;
-  }
-  for(const r of g.rs) s += `<text class="m-ais" x="${g.laneX(r)}" y="52" text-anchor="middle">R${r}</text>`;
-  const step = g.rows>16 ? 2 : 1;
-  for(let ci=0; ci<g.rows; ci+=step) s += `<text class="m-txt" x="10" y="${g.rowY(ci)+3}" text-anchor="middle">${colName(ci)}</text>`;
-  s += `<rect class="m-dock" x="${W/2-110}" y="362" width="220" height="34" rx="6"/><text class="m-dock-t" x="${W/2}" y="383" text-anchor="middle">MESA DE EXPEDIÇÃO · COLMEIAS</text>`;
-  if(prevItem) s += `<circle class="m-prev" cx="${from.x}" cy="${from.y}" r="4"/>`;
-  s += `<path id="route" class="m-route" d="${d}"/><circle class="m-ring" cx="${t.x}" cy="${t.y}" r="9"/><circle class="m-pin" cx="${t.x}" cy="${t.y}" r="6.5"/><circle id="op" class="m-op" cx="${from.x}" cy="${from.y}" r="6"/>`;
-  return s + `</svg>`;
+  const M=MAP, l=item.loc, t=mapTarget(l), pv=prevItem?.loc ? mapTarget(prevItem.loc) : null;
+  const pts=mapRoute(pv, t), d="M"+pts.map(p=>`${p.x} ${p.y}`).join(" L"), from=pts[0];
+  const R=(r,cls)=>`<rect class="${cls}" x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" rx="2"/>`;
+  let s=`<svg viewBox="0 0 ${M.W} ${M.H}" role="img" aria-label="Mapa do estoque: vá até a rua ${l.r}, lado ${l.l}, coluna ${l.c}, nível ${l.n}">`;
+  s+=`<rect class="m-floor" x="0" y="0" width="${M.W}" height="${M.H}" rx="12"/>`;
+  // corredor de destino destacado
+  if(t.kind==="v") s+=`<rect class="m-lane" x="${M.aisleX(t.aisle)-M.aisle/2}" y="${t.aisle===4?M.H2.y:M.vTop}" width="${M.aisle}" height="${(t.aisle===4?M.vBot-M.H2.y:M.vBot-M.vTop)}"/>`;
+  if(t.kind==="A"||t.kind==="B") s+=`<rect class="m-lane" x="${M.x0}" y="${(t.kind==="A"?M.H1.y+M.H1.h:M.H2.y+M.H2.h)}" width="${M.H1.w}" height="${t.kind==="A"?M.vTop-M.H1.y-M.H1.h:M.H1.y-M.H2.y-M.H2.h}"/>`;
+  // paredes
+  s+=`<path class="m-wall" d="M8 38 H${M.small.x+M.small.w+4} V${M.vTop+8} H${M.W-8} V${M.H-12} H8 Z"/>`;
+  // estantes
+  for(let k=1;k<=4;k++) s+=R({x:M.vx(k),y:M.vTop,w:M.rackW,h:M.vBot-M.vTop},"m-rack");
+  s+=R(M.H1,"m-rack")+R(M.H2,"m-rack")+R(M.small,"m-rack");
+  if(t.cell) s+=R(t.cell,"m-cell target");
+  // nomes das ruas
+  for(let k=1;k<=4;k++){ const x=M.aisleX(k)+4, y=M.vBot-6; s+=`<text class="m-rua" x="${x}" y="${y}" transform="rotate(-90 ${x} ${y})">RUA ${k}</text>`; }
+  s+=`<text class="m-rua" x="${M.x0+6}" y="${M.ruaA+4}">RUA A</text><text class="m-rua" x="${M.x0+6}" y="${M.ruaB+4}">RUA B</text>`;
+  s+=`<rect class="m-dock" x="${M.mesa.x}" y="${M.mesa.y}" width="${M.mesa.w}" height="${M.mesa.h}" rx="6"/><text class="m-dock-t" x="${M.mesa.x+M.mesa.w/2}" y="${M.mesa.y+18}" text-anchor="middle">MESA DE SEPARAÇÃO</text>`;
+  if(pv) s+=`<circle class="m-prev" cx="${from.x}" cy="${from.y}" r="4"/>`;
+  s+=`<path id="route" class="m-route" d="${d}"/><circle class="m-ring" cx="${t.x}" cy="${t.y}" r="9"/><circle class="m-pin" cx="${t.x}" cy="${t.y}" r="6.5"/><circle id="op" class="m-op" cx="${from.x}" cy="${from.y}" r="6"/>`;
+  return s+`</svg>`;
 }
 function animateRoute(force){
   const card = document.getElementById("map"); if(!card) return;
@@ -2114,7 +2154,7 @@ function blockFormHTML(){
   return `<h2>Criar estrutura</h2>
     <p class="hint">Cadastre um móvel ou bloco de locais de uma vez: escolha a rua, o lado, o tipo e a faixa de níveis e colunas.</p>
     <form id="bform" class="bform" autocomplete="off">
-      <label>Rua<input class="tin mono" id="bf-r" type="number" min="1" max="99" value="${f.r}"></label>
+      <label>Rua<input class="tin mono" id="bf-r" maxlength="2" placeholder="1–99, A ou B" value="${esc(String(f.r))}" autocapitalize="characters"></label>
       <label>Lado<select class="tin" id="bf-l">${["A","B"].map(x=>`<option ${f.l===x?"selected":""}>${x}</option>`).join("")}</select></label>
       <label style="grid-column:1/-1">Tipo<div class="types" id="bf-t">${Object.entries(LOC_TYPES).map(([k,t])=>`<button type="button" data-bft="${k}" aria-pressed="${f.t===k}">${k} · ${t}</button>`).join("")}</div></label>
       <label>Nível de<input class="tin mono" id="bf-n1" type="number" min="1" max="99" value="${f.n1}"></label>
@@ -2127,8 +2167,8 @@ function blockFormHTML(){
     <p class="hint">Depois de criar, clique em um local da grade para colocar o produto e imprimir a etiqueta.</p>`;
 }
 function blockPreview(f){
-  const b = {r:+f.r, l:String(f.l).toUpperCase(), t:f.t, n1:+f.n1, n2:+f.n2, c1:String(f.c1||"").toUpperCase(), c2:String(f.c2||"").toUpperCase()};
-  if(!(b.r>=1 && b.r<=99)) return {err:"Informe a rua (1 a 99)."};
+  const b = {r:ruaKey(f.r), l:String(f.l).toUpperCase(), t:f.t, n1:+f.n1, n2:+f.n2, c1:String(f.c1||"").toUpperCase(), c2:String(f.c2||"").toUpperCase()};
+  if(b.r===null) return {err:"Informe a rua: número (1 a 99) ou letra (A, B)."};
   if(!(b.n1>=1 && b.n2>=b.n1 && b.n2<=99)) return {err:"Faixa de níveis inválida."};
   if(!/^[A-Z]{1,2}$/.test(b.c1) || !/^[A-Z]{1,2}$/.test(b.c2) || colIdx(b.c2)<colIdx(b.c1)) return {err:"Faixa de colunas inválida (letras, ex.: A até M)."};
   const locs = blockLocs(b);
@@ -2152,7 +2192,7 @@ function locPanelHTML(){
     <div><button class="mini" id="printOne">Gerar etiqueta deste local (PDF)</button></div>`;
 }
 function bindEnderecos(){
-  app.querySelectorAll("[data-rua]").forEach(b=>b.onclick=()=>{ state.rua=+b.dataset.rua; state.selLoc=null; state.bf=null; render(); });
+  app.querySelectorAll("[data-rua]").forEach(b=>b.onclick=()=>{ state.rua=ruaKey(b.dataset.rua); state.selLoc=null; state.bf=null; render(); });
   app.querySelectorAll("[data-lado]").forEach(b=>b.onclick=()=>{ state.lado=b.dataset.lado; state.selLoc=null; state.bf=null; render(); });
   app.querySelectorAll("[data-lc]").forEach(b=>b.onclick=()=>{ state.selLoc=b.dataset.lc; state.locQ=""; render(); });
   app.querySelectorAll("[data-delblock]").forEach(b=>b.onclick=()=>{
@@ -2418,7 +2458,7 @@ function labelSet(){
   if(t==="produtos") return Object.values(PRODUCTS).sort((a,b)=>a.code.localeCompare(b.code)).filter(p=>state.lblOnlyNoEan ? !p.ean : true)
     .map(p=>{ const e=p.ean && eanState(p.ean).c==="done"; return {value:e?p.ean:p.code, big:p.code, small:p.name, sub:e?"":"sem EAN · código interno", fmt:e?(p.ean.length===8?"EAN8":"EAN13"):"CODE128"}; });
   const rua=state.lblRua||"todas", lado=state.lblLado||"todos", only=state.lblOnlyUsed, ty=state.lblLocType||"todos";
-  return locLabels(allLocs().filter(lc=>{ const x=parseCode(lc); return (rua==="todas"||x.r===+rua) && (lado==="todos"||x.l===lado) && (!only || locProduct(lc)) && (ty==="todos" || x.t===ty); }));
+  return locLabels(allLocs().filter(lc=>{ const x=parseCode(lc); return (rua==="todas"||String(x.r)===rua) && (lado==="todos"||x.l===lado) && (!only || locProduct(lc)) && (ty==="todos" || x.t===ty); }));
 }
 /* Cadastro de mesas e cestas (Locais → Etiquetas) */
 const SPOT_KINDS = {
