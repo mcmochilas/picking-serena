@@ -1228,7 +1228,7 @@ function openOrder(id){
   newIds.delete(id); alertQueue=alertQueue.filter(x=>x!==id); showAlert();
   state.oid=id; state.phase=startPhase(o); state.count=0; state.bigItem=false;
   const r=res(o), pl=pickList(o), k=pl.findIndex(x=>r[x.i].status==="pend");
-  if(k<0){ state.view="tomesa"; render(); scrollTo(0,0); return; }
+  if(k<0){ finishAtMesa(o); scrollTo(0,0); return; }
   if(o.status!=="separando") patchOrder(id, {status:"separando", startedAt:o.startedAt||Date.now(), startedBy:o.startedBy||ME.id||"", res:r});
   state.idx=k; state.view="pick"; render(); scrollTo(0,0);
 }
@@ -1617,7 +1617,7 @@ function commit(status){
   toast(status==="ok" ? `${it.loc?code(it.loc):it.code} coletado · ${it.need} pç` : status==="part" ? `Coleta parcial: ${state.count} de ${it.need} pç` : `Falta registrada em ${it.loc?code(it.loc):it.code}`);
   const next = pl.findIndex((x,k)=>k>state.idx && r[x.i].status==="pend"), any = pl.findIndex(x=>r[x.i].status==="pend");
   const n = next>=0 ? next : any;
-  if(n<0){ state.view="tomesa"; render(); scrollTo(0,0); return; }
+  if(n<0){ finishAtMesa(o); scrollTo(0,0); return; } // último item: conclui o picking direto, sem a tela "leve até a mesa"
   goItem(n);
 }
 
