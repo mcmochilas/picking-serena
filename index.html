@@ -1658,7 +1658,7 @@ function renderPick(){
   const setQ = v => { state.count=Math.max(0,Math.min(it.need,v)); qOut.value=state.count; okQ.textContent=`Confirmar ${state.count} pç`; };
   if(qOut){ document.getElementById("minus").onclick=()=>setQ(state.count-1); document.getElementById("plus").onclick=()=>setQ(state.count+1);
     okQ.onclick=()=> commit(state.count>=it.need ? "ok" : state.count===0 ? "miss" : "part"); }
-  app.querySelectorAll(".li[data-k]").forEach(b=>b.onclick=()=>{ const k=+b.dataset.k; if(r[pl[k].i].status!=="pend"){ toast("Item já finalizado"); return; } goItem(k); });
+  app.querySelectorAll(".li[data-k]").forEach(b=>b.onclick=()=>{ const k=+b.dataset.k; if(r[pl[k].i].status==="ok"){ toast("Item já finalizado"); return; } goItem(k); if(r[pl[k].i].status!=="pend") setMsg("Item com falta: se encontrou a peça, bipe novamente","info"); });
   setMsg(state.phase==="tray" ? "Bipe a bandeja ou a mesa" : state.phase==="qty" ? `Conte ${it.need} pç e confirme` : "Bipe o produto", "info");
   if(l) requestAnimationFrame(()=>animateRoute(false));
   focusScan();
@@ -1725,10 +1725,19 @@ function renderToMesa(){
   document.getElementById("back").onclick = ()=>{ state.view="orders"; render(); };
   document.getElementById("atMesa").onclick = ()=> finishAtMesa(o);
 }
+// Pedido finalizado com falta: o separador encontrou a peça e volta para bipar
+const canRescan = o => ["pronto_envio","na_mesa"].includes(o.status) && (o.remessa||1)===1 && o.status!=="enviado";
+function rescanMiss(o, k){
+  const r=res(o), pl=pickList(o); if(k==null) k=pl.findIndex(x=>r[x.i].status==="miss"||r[x.i].status==="part");
+  if(k<0) return;
+  patchOrder(o.id, {status:"separando", pickedAt:null, atMesaAt:null, semPecas:false, ...(o.trayStatus==="mesa"?{trayStatus:"separando"}:{})});
+  state.view="pick"; goItem(k);
+  setMsg("Bipe a peça que estava em falta","info");
+}
 function finishAtMesa(o){
   if(state.lote && loteMatch(o) && !o.loteCounted){ state.lote.done=(state.lote.done||0)+1; o.loteCounted=true; saveLote(); }
   const r=res(o), got=pickList(o).reduce((a,x)=>a+(r[x.i].got||0),0), now=Date.now();
-  if(!got){ patchOrder(o.id, {status:"pronto_envio", remessa:1, pickedAt:now, semPecas:true, res:r, ...(o.tray?{trayStatus:"livre"}:{})}); toast(`Pedido ${o.num} sem peças coletadas · avise o comercial`); state.view="orders"; return render(); }
+  if(!got){ patchOrder(o.id, {status:"pronto_envio", remessa:1, pickedAt:now, semPecas:true, res:r, ...(o.tray?{trayStatus:"livre"}:{})}); toast(`Pedido ${o.num} sem peças coletadas · avise o comercial`); state.view="done"; render(); scrollTo(0,0); return; }
   if(o.mode==="aguarda"){
     patchOrder(o.id, {status:"na_mesa", pickedAt:now, atMesaAt:now, pickedBy:ME.id||"", res:r, ...(hasTray(o)?{trayStatus:"mesa"}:{})});
     toast(`Picking finalizado em ${fmtDur(now-(o.startedAt||now))}`);
@@ -1771,7 +1780,7 @@ function renderDone(){
     <header class="bar">${BACK_BTN}<div class="grow"><h1>#${esc(o.num)}</h1><div class="sub">${esc(o.client)}</div></div></header>
     <div class="done">
       <div class="big"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
-      <h2>${o.trayStatus==="lavagem" ? "Separação concluída" : o.status==="na_colmeia" ? "Guardado na colmeia "+esc(o.colmeia) : "Picking finalizado na mesa"}</h2>
+      <h2>${o.semPecas ? "Nenhuma peça coletada" : o.trayStatus==="lavagem" ? "Separação concluída" : o.status==="na_colmeia" ? "Guardado na colmeia "+esc(o.colmeia) : "Picking finalizado na mesa"}</h2>
       <div class="want">${o.trayStatus==="lavagem" ? `Leve a bandeja <b>${esc(o.tray||"")}</b> para a <b>mesa de expedição</b>.` : o.status==="na_colmeia" ? `O pedido aguarda a encomenda na colmeia.` : `O pedido está na <b>mesa de expedição</b>.`}</div>
       <div class="meta" style="justify-content:center">${o.status==="na_colmeia" ? "" : o.mode==="aguarda" ? `Na mesa: guardar na colmeia ${esc(o.colmeia)} até chegar a encomenda (${enc.reduce((s,i)=>s+i.qtyEnc,0)} pç)`
         : o.mode==="parcial" ? `Na mesa: 1º envio. ${enc.reduce((s,i)=>s+i.qtyEnc,0)} pç seguem no 2º envio.` : `Na mesa: conferir e embalar para envio`}</div>
@@ -1786,6 +1795,7 @@ function renderDone(){
         <div class="do">${ICON_SCAN}<span>Depois da conferência no packing, <b>bipe a ${esc(trayLabel(o.tray))}</b> para desvinculá-la deste pedido.</span></div>
         <button class="btn ghost sm" id="unlinkBtn">Desvincular ${esc(spotsTxt(o))}</button></div>`
       : o.tray && o.trayStatus==="livre" ? `<div class="ok-line" style="justify-content:center">${esc(spotsTxt(o))} liberada</div>` : ""}
+      ${miss && canRescan(o) ? `<div class="actions" style="width:100%;margin-top:14px"><button class="btn ghost" id="rescanMiss">Encontrou? Voltar e bipar ${miss>1?"itens em falta":"o item em falta"}</button></div>` : ""}
       ${state.lote && loteMatch(o) ? (()=>{ const n=lotePending().length; return `<div class="actions" style="width:100%;margin-top:14px;flex-direction:column"><button class="btn primary" id="nextOrder">${n?`Próximo do lote · ${n} restante(s)`:"Concluir lote"}</button><button class="btn ghost sm" id="loteStop">Encerrar lote</button></div>`; })()
         : `<div class="actions" style="width:100%;margin-top:14px"><button class="btn primary" id="nextOrder">Próximo pedido</button></div>`}
     </div>`;
@@ -1793,6 +1803,7 @@ function renderDone(){
   const ub=document.getElementById("unlinkBtn"); if(ub) ub.onclick=()=>{ if(!ub.dataset.c){ ub.dataset.c="1"; ub.textContent="Confirmar: peças já saíram da bandeja"; ub.classList.add("danger"); return; } unlinkTray(o); };
   if(o.tray && o.trayStatus==="mesa") setMsg(`Bipe a ${trayLabel(o.tray)} para desvincular`,"info");
   const ls=document.getElementById("loteStop"); if(ls) ls.onclick=()=>{ state.lote=null; saveLote(); toast("Lote encerrado"); state.view="orders"; render(); };
+  const rs=document.getElementById("rescanMiss"); if(rs) rs.onclick=()=>rescanMiss(o);
   document.getElementById("nextOrder").onclick = ()=>{
     if(state.lote && loteMatch(o)) return loteNext();
     const nx = ORDERS.filter(x=>(x.status==="aguardando"||x.status==="separando") && pickList(x).length).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0))[0];
@@ -1842,7 +1853,10 @@ function handleScan(raw){
   if(state.view==="tray") return scanTray(v);
   if(state.view==="mesa") return scanMesa(v);
   if(state.view==="trays") return scanUnlink(v);
-  if(state.view==="done"){ const o=ORDERS.find(x=>x.id===state.oid); if(o?.tray && o.trayStatus==="mesa") return scanUnlink(v, o.id); return; }
+  if(state.view==="done"){ const o=ORDERS.find(x=>x.id===state.oid);
+    if(o && canRescan(o)){ const r0=res(o), pl0=pickList(o), k=pl0.findIndex(x=>(r0[x.i].status==="miss"||r0[x.i].status==="part") && ((!!x.ean && v===x.ean) || v===x.code));
+      if(k>=0){ rescanMiss(o, k); if(state.phase!=="tray"){ state.phase="qty"; state.count=pl0[k].need; render(); } feedback(true); return setMsg(state.phase==="tray" ? "Item em falta encontrado. Bipe a bandeja e depois a peça." : `Item que estava em falta encontrado. Conte ${pl0[k].need} pç no total e confirme.`,"good"); } }
+    if(o?.tray && o.trayStatus==="mesa") return scanUnlink(v, o.id); return; }
   if(state.view==="store"){
     const o=ORDERS.find(x=>x.id===state.oid); if(!o) return;
     if(v===o.colmeia){ feedback(true); setMsg(`Colmeia ${v} confirmada`,"good"); return finishStore(o); }
@@ -1851,6 +1865,11 @@ function handleScan(raw){
   if(state.view!=="pick") return;
   const c = cur(); if(!c) return; const {o, it} = c;
   const isLoc = LOC_RE.test(v), isProd = (!!it.ean && v===it.ean) || v===it.code;
+  if(!isProd && !isLoc && state.phase!=="tray"){ // achou um item que tinha ficado em falta: volta para ele
+    const r0=res(o), pl0=pickList(o), k=pl0.findIndex((x,j)=>j!==state.idx && (r0[x.i].status==="miss"||r0[x.i].status==="part") && ((!!x.ean && v===x.ean) || v===x.code));
+    if(k>=0){ feedback(true); state.bigItem=false; state.idx=k; state.phase="qty"; state.count=pl0[k].need; render(); scrollTo({top:0,behavior:"smooth"});
+      return setMsg(`Item que estava em falta encontrado. Conte ${pl0[k].need} pç no total e confirme.`,"good"); }
+  }
   if(state.phase==="loc" && !it.loc) state.phase = startPhase(o);
   if(state.phase==="loc"){
     if(v===code(it.loc)){ feedback(true); state.count=0;
