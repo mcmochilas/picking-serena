@@ -180,6 +180,7 @@ html.tvmode body{background:var(--bg);color:var(--ink);overflow:hidden}
 .tvprog small{position:relative;display:block;text-align:center;line-height:1.6em;font-size:.8em;font-weight:700}
 .tvnew{font-style:normal;font-family:var(--display);font-size:.75em;background:var(--accent);color:#111;border-radius:.3em;padding:.05em .35em;margin-left:.3em;animation:tvblink 1.2s ease-in-out infinite}
 @keyframes tvblink{50%{opacity:.35}}
+.tvsound{font-size:.9em;color:var(--ok);font-weight:600}
 .tvcanais{color:var(--ink);letter-spacing:.04em;margin-left:.3em}
 .tvnone{color:var(--muted);padding:.6em .2em}.tvnone.ok{color:var(--ok);font-weight:600}
 .tvmore{color:var(--muted);font-size:.9em;padding:.2em .3em}
@@ -1375,13 +1376,15 @@ function renderTV(){
       <div class="brand">Picking <span>Serena</span><small>Painel da separação</small></div>
       <div class="tvclock"><b class="tnum" id="tvClock">${d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</b><small>${d.toLocaleDateString("pt-BR",{weekday:"long", day:"2-digit", month:"long"})}</small></div>
       <div class="tvtools"><div class="sync ${synced?"":"local"}"><i></i>${synced?"Ao vivo":"Sem conexão"}</div>
+        ${audioCtx && audioCtx.state==="running" ? `<span class="tvsound" title="Aviso sonoro de novo pedido ligado">🔊 Som ligado</span>` : `<button class="refbtn" id="tvSound" title="A TV só toca som depois de um toque na tela">🔇 Ativar som</button>`}
         ${document.fullscreenElement?"":`<button class="refbtn" id="tvFull">Tela cheia</button>`}
         ${painel?`<button class="refbtn" onclick="psLogout&&psLogout()">Sair</button>`:`<a class="refbtn" href="/#expedicao" id="tvExit">Voltar ao sistema</a>`}</div>
     </header>
     ${!synced?`<div class="banner">Sem conexão com o banco de dados. Os dados podem estar desatualizados.</div>`:""}
     <div class="tvgrid">${TV_CANAIS.map(([c,t])=>tvColumn(c,t)).join("")}</div>`;
   fillNames(app); tvFit();
-  const f=document.getElementById("tvFull"); if(f) f.onclick=()=>document.documentElement.requestFullscreen?.().then(()=>render()).catch(()=>{});
+  const snd=document.getElementById("tvSound"); if(snd) snd.onclick=()=>{ unlockAudio(); chime(true); setTimeout(render, 300); };
+  const f=document.getElementById("tvFull"); if(f) f.onclick=()=>{ unlockAudio(); document.documentElement.requestFullscreen?.().then(()=>render()).catch(()=>{}); };
   const ex=document.getElementById("tvExit"); if(ex) ex.onclick=e=>{ e.preventDefault(); history.replaceState(null,"","/#expedicao"); state.view="orders"; state.sector="expedicao"; document.documentElement.classList.remove("tvmode"); render(); };
   // a cada minuto: busca tudo de novo (garante a fila mesmo se o tempo real cair) e redesenha
   if(!tvRefreshT) tvRefreshT=setInterval(()=>{ if(state.view!=="tv" && myRole()!=="painel"){ clearInterval(tvRefreshT); tvRefreshT=null; return; }
@@ -2797,18 +2800,20 @@ let seenOrders = null, newIds = new Set(), alertQueue = [];
 let SOUND = true; try{ SOUND = localStorage.getItem("ps-sound")!=="0"; }catch(e){}
 const unlockAudio = () => { try{ audioCtx ||= new (window.AudioContext||window.webkitAudioContext)(); audioCtx.resume?.(); }catch(e){} };
 document.addEventListener("pointerdown", unlockAudio, {once:true}); document.addEventListener("keydown", unlockAudio, {once:true});
-function chime(){
-  if(!SOUND) return;
+function chime(force){
+  if(!SOUND && !force) return;
   try{ unlockAudio(); const c=audioCtx, t0=c.currentTime;
     [[880,0],[1175,.16],[1568,.32],[880,.9],[1175,1.06],[1568,1.22]].forEach(([f,dt])=>{ const o=c.createOscillator(), g=c.createGain(); o.type="triangle"; o.frequency.value=f;
       g.gain.setValueAtTime(0.0001,t0+dt); g.gain.exponentialRampToValueAtTime(.45,t0+dt+.02); g.gain.exponentialRampToValueAtTime(.0001,t0+dt+.28);
       o.connect(g); g.connect(c.destination); o.start(t0+dt); o.stop(t0+dt+.3); }); }catch(e){}
 }
 function checkNewOrders(){
-  const open = ORDERS.filter(o=>o.status==="aguardando" && pickList(o).length && ecoOk(o));
+  const tv = state.view==="tv" || myRole()==="painel"; // painel da TV: todos os canais, só som (sem janela de aviso)
+  const open = ORDERS.filter(o=>o.status==="aguardando" && pickList(o).length && (tv || ecoOk(o)));
   if(seenOrders===null){ seenOrders = new Set(ORDERS.map(o=>o.id+":"+(o.createdAt||0))); return; } // carga inicial: sem alerta
   const fresh = open.filter(o=>!seenOrders.has(o.id+":"+(o.createdAt||0)));
   ORDERS.forEach(o=>seenOrders.add(o.id+":"+(o.createdAt||0)));
+  if(tv){ if(fresh.length) chime(true); return; }
   const forMe = fresh.filter(o=>!(ME.id && o.createdBy===ME.id));
   if(!forMe.length || !myRole() || !can("coleta")) return;
   forMe.forEach(o=>{ newIds.add(o.id); alertQueue.push(o.id); });
