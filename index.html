@@ -118,7 +118,7 @@ button:focus-visible{outline:3px solid var(--route);outline-offset:2px}
 .mzcancel{background:var(--bad);color:#fff;font-weight:700;border-radius:8px;padding:6px 10px;font-size:13px;letter-spacing:.02em}
 .mzcancel.big{margin:10px 0;font-size:15px;padding:10px 12px}
 .ecoinfo{display:flex;align-items:center;gap:8px;margin:8px 0 2px;font-size:14px;font-weight:600}
-.mzsync{margin-top:12px}.mzlast{font-size:13px;margin:6px 0 10px}
+.mzsync{margin-top:12px}.danger-t{color:var(--bad)}.mzlast{font-size:13px;margin:6px 0 10px}
 .mzbox{margin-top:16px;border-top:1px solid var(--line);padding-top:6px}
 .mzform{display:grid;gap:8px;margin:8px 0}.mzform .tin{width:100%;box-sizing:border-box}
 .mzbtns{display:flex;gap:8px;flex-wrap:wrap}
@@ -2606,9 +2606,10 @@ function mzHTML(){
     ${R?.ok?`<div class="okbox">Conexão OK · ${R.count} pedido(s) recente(s) lido(s) da Magazord.</div>
       ${groups.length?`<details class="mzdist" open><summary class="eyebrow">O que encontrei nos pedidos recentes</summary>${groups.map(([k,v])=>`<div><b class="mono">${esc(k)}</b><span>${Object.entries(v).slice(0,10).map(([x,n])=>`${esc(x)} <small>(${n})</small>`).join(" · ")}</span></div>`).join("")}</details>`:""}`:""}
     ${st?.configured?`<div class="mzsync"><h3>Importação automática</h3>
-      <p class="hint">A cada 2 minutos entram os pedidos na situação <b>5 · Crédito e Cadastro Aprovados</b> (site e marketplaces, sem o Mercado Livre Full). Os pedidos cancelados saem da fila sozinhos.</p>
+      <p class="hint">A cada 2 minutos entram os pedidos na situação <b>5 · Crédito e Cadastro Aprovados</b> feitos nas <b>últimas 72 horas</b> (site e marketplaces, sem o Mercado Livre Full). Pedidos cancelados na Magazord saem da fila sozinhos.</p>
       ${MZSYNC?.lastRun?`<div class="mzlast">Última importação: <b>${fmtClock(MZSYNC.lastRun)}</b> · ${MZSYNC.found} pedido(s) aprovados · ${MZSYNC.imported} novo(s)${MZSYNC.cancelled?` · ${MZSYNC.cancelled} cancelado(s)`:""}${MZSYNC.errors?.length?`<div class="err">${MZSYNC.errors.map(esc).join("<br>")}</div>`:""}</div>`:`<div class="mzlast">Ainda não rodou.</div>`}
-      <button class="btn ghost" type="button" id="mzSync" ${MZ.busy?"disabled":""}>Importar agora</button></div>`:""}
+      <div class="mzbtns"><button class="btn ghost" type="button" id="mzSync" ${MZ.busy?"disabled":""}>Importar agora</button>
+      <button class="btn ghost danger-t" type="button" id="mzReset" ${MZ.busy?"disabled":""}>Apagar importados e reimportar (últimas 24 h)</button></div></div>`:""}
     <p class="hint">A senha fica guardada no servidor e não aparece mais na tela. O Picking Serena só <b>lê</b> os pedidos da Magazord.</p>
   </div>`;
 }
@@ -2629,6 +2630,12 @@ function bindMz(){
     MZ.busy=false; render(); };
   f.onsubmit=e=>{ e.preventDefault(); run(true); };
   const t=document.getElementById("mzTest"); if(t) t.onclick=()=>run(false);
+  const rs=document.getElementById("mzReset"); if(rs) rs.onclick=async()=>{
+    const ok=await askModal({title:"Apagar e reimportar?", okText:"Apagar e reimportar", danger:true,
+      text:"Todos os pedidos do e-commerce no Picking Serena são apagados, inclusive os em separação, e entram de novo só os pedidos feitos nas <b>últimas 24 horas</b>. Daí em diante a importação automática nunca busca nada anterior a esse ponto. Nada muda na Magazord."});
+    if(!ok) return; MZ.busy=true; MZ.err=""; render();
+    try{ const r=await window.psMagazord({action:"reset", horas:24}); MZSYNC=r; toast(`${r.removed} apagado(s) · ${r.imported} pedido(s) das últimas 24 h importado(s)`); }catch(e){ MZ.err=e.message||String(e); }
+    MZ.busy=false; render(); };
   const sy=document.getElementById("mzSync"); if(sy) sy.onclick=async()=>{ MZ.busy=true; MZ.err=""; render();
     try{ const r=await window.psMagazord({action:"sync"}); MZSYNC=r; toast(`Importação concluída · ${r.imported} pedido(s) novo(s)`); }catch(e){ MZ.err=e.message||String(e); }
     MZ.busy=false; render(); };

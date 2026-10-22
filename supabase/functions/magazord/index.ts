@@ -76,6 +76,7 @@ function distinct(list: any[]) {
 /* ================== Importação dos pedidos ================== */
 const SITUACAO_IMPORTAR = 5;             // Crédito e Cadastro Aprovados
 const IGNORAR_CANAL = /full/i;           // Mercado Livre Full: sai do armazém do Mercado Livre
+const JANELA_HORAS = 72;                 // só entram pedidos feitos nas últimas 72 h (pendências antigas da loja ficam de fora)
 const eanNorm = (e: unknown) => { let s = String(e ?? "").replace(/\D/g, ""); while (s.length > 13 && s.startsWith("0")) s = s.slice(1); return s; };
 const toMs = (d: unknown) => { const t = Date.parse(String(d || "").replace(" ", "T").replace(/([+-]\d\d)$/, "$1:00")); return isNaN(t) ? Date.now() : t; };
 
@@ -114,7 +115,7 @@ function mapOrder(d: any, idx: { byEan: Map<string, any>; byId: Map<string, any>
 async function patchOrder(id: string, data: any, patch: Record<string, unknown>) {
   await sb.from("orders").update({ data: { ...data, ...patch }, updated_at: new Date().toISOString() }).eq("id", id);
 }
-async function sync() {
+async function sync(horas = JANELA_HORAS) {
   const t0 = Date.now(), idx = await productIndex();
   const fetched: any[] = [];
   for (let page = 1; page <= 5; page++) {
@@ -123,7 +124,9 @@ async function sync() {
     fetched.push(...listOf(r.body));
     if (!(r.body as any)?.data?.has_more) break;
   }
-  const eligible = fetched.filter((o) => !IGNORAR_CANAL.test(String(o.lojaDoMarketplaceNome || "")));
+  const inicio = Number(await getSecret("magazord_inicio")) || 0; // ponto de partida da integração
+  const corte = Math.max(Date.now() - horas * 36e5, inicio);
+  const eligible = fetched.filter((o) => !IGNORAR_CANAL.test(String(o.lojaDoMarketplaceNome || "")) && toMs(o.dataHora) >= corte);
   const ids = eligible.map((o) => "MZ-" + o.id);
   const have = new Set<string>();
   for (let i = 0; i < ids.length; i += 200) { const { data } = await sb.from("orders").select("id").in("id", ids.slice(i, i + 200)); (data || []).forEach((x) => have.add(x.id)); }
@@ -141,7 +144,7 @@ async function sync() {
     } catch (e) { errors.push(`${o.codigo}: ${(e as Error).message}`); }
   }
   // pedidos do e-commerce ainda na fila que saíram da situação 5: cancelados saem da fila
-  const elig = new Set(ids);
+  const elig = new Set(fetched.map((o) => "MZ-" + o.id)); // ainda na situação 5 (mesmo fora da janela de dias)
   const { data: active } = await sb.from("orders").select("id,data").like("id", "MZ-%").filter("data->>status", "in", "(aguardando,separando)");
   for (const row of (active || [])) {
     if (elig.has(row.id)) continue;
@@ -156,7 +159,8 @@ async function sync() {
       } else if (row.data.mzSituacao !== sit) await patchOrder(row.id, row.data, { mzSituacao: sit, mzSituacaoDesc: desc });
     } catch (e) { errors.push(`${row.data.num}: ${(e as Error).message}`); }
   }
-  const info = { lastRun: Date.now(), ms: Date.now() - t0, found: eligible.length, full: fetched.length - eligible.length, imported, cancelled, errors: errors.slice(0, 5) };
+  const full = fetched.filter((o) => IGNORAR_CANAL.test(String(o.lojaDoMarketplaceNome || ""))).length;
+  const info = { lastRun: Date.now(), ms: Date.now() - t0, horas, found: eligible.length, full, old: fetched.length - eligible.length - full, imported, cancelled, errors: errors.slice(0, 5) };
   await sb.from("config").upsert({ id: "magazord_sync", data: info, updated_at: new Date().toISOString() }, { onConflict: "id" });
   return info;
 }
@@ -187,7 +191,16 @@ Deno.serve(async (req) => {
       const url = await getSecret("magazord_url"), token = await getSecret("magazord_token"), senha = await getSecret("magazord_senha");
       return json({ configured: !!(url && token && senha), url: url || "", token: token ? token.slice(0, 4) + "…" : "", senha: !!senha });
     }
-    if (b.action === "sync") return json({ ok: true, ...(await sync()) });
+    if (b.action === "reset") { // só Administrador (pela tela): apaga os pedidos importados e importa de novo
+      if (internal) return json({ error: "Ação só pela tela do Administrador." }, 403);
+      const { error, count } = await sb.from("orders").delete({ count: "exact" }).like("id", "MZ-%");
+      if (error) throw error;
+      const h = Math.min(Math.max(Number(b.horas) || 24, 1), 24 * 30);
+      await setSecret("magazord_inicio", String(Date.now() - h * 36e5)); // daqui pra frente nada antes disso entra
+      const info = await sync(h);
+      return json({ ok: true, removed: count || 0, ...info });
+    }
+    if (b.action === "sync") return json({ ok: true, ...(await sync(Math.min(Math.max(Number(b.horas) || JANELA_HORAS, 1), 24 * 30))) });
     if (b.action === "meta" && internal) { // diagnóstico: paginação e filtros, sem dados pessoais
       const out: Record<string, unknown> = {};
       for (const q of (b.queries || ["?limit=5&page=1"])) {
