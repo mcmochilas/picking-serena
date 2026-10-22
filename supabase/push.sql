@@ -62,3 +62,17 @@ create policy config_mesas_write on public.config for all
   with check (id = 'mesas' and public.app_role() in ('admin','supervisor','estoque'));
 insert into public.config (id, data) values ('mesas', '{"list":[{"code":"MESA-001","desc":"Itens grandes / sem bandeja"}]}'::jsonb)
   on conflict (id) do nothing;
+
+-- ---------- E-commerce (Magazord) ----------
+alter table public.profiles add column if not exists ecommerce boolean not null default false; -- quem separa e-commerce
+insert into public.config (id, data) values ('magazord_sync', '{}'::jsonb) on conflict (id) do nothing;
+create extension if not exists pg_cron;
+-- importação automática a cada 2 minutos (função supabase/functions/magazord)
+select cron.schedule('magazord-sync', '*/2 * * * *', $$
+  select net.http_post(
+    url := 'https://dtrfujxhfcyefbipkcwz.supabase.co/functions/v1/magazord',
+    headers := jsonb_build_object('Content-Type','application/json',
+                 'x-push-secret', (select value from public.app_secrets where name = 'push_webhook')),
+    body := '{"action":"sync"}'::jsonb,
+    timeout_milliseconds := 120000);
+$$);
