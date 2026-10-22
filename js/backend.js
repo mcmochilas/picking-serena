@@ -322,6 +322,15 @@
     }
   };
   /* Administrador: criar usuários e trocar senhas sem e-mail */
+  const callFn = async (fn, body) => {
+    const { data } = await sb.auth.getSession();
+    const r = await fetch(cfg.SUPABASE_URL.replace(/\/$/,"") + "/functions/v1/" + fn, { method:"POST",
+      headers:{ "Content-Type":"application/json", Authorization:"Bearer " + (data.session?.access_token || "") }, body: JSON.stringify(body) });
+    const j = await r.json().catch(() => ({ error:"Falha de conexão" }));
+    if(!r.ok || j.error) throw new Error(j.error || "Falha");
+    return j;
+  };
+  window.psMagazord = body => callFn("magazord", body);
   const adminFn = async body => {
     const { data } = await sb.auth.getSession();
     const r = await fetch(cfg.SUPABASE_URL.replace(/\/$/,"") + "/functions/v1/admin-users", { method:"POST",

@@ -107,6 +107,11 @@ button:focus-visible{outline:3px solid var(--route);outline-offset:2px}
 .loc-code span{color:var(--muted);font-weight:500}
 .noloc .loc-code{font-family:var(--display);font-size:clamp(20px,6vw,28px);color:var(--warn,#C27C0E)}
 .spotbtn{width:100%;margin-top:8px}
+.mzbox{margin-top:16px;border-top:1px solid var(--line);padding-top:6px}
+.mzform{display:grid;gap:8px;margin:8px 0}.mzform .tin{width:100%;box-sizing:border-box}
+.mzbtns{display:flex;gap:8px;flex-wrap:wrap}
+.mzdist div{display:grid;gap:2px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px}
+.mzdist small{color:var(--muted)}
 a.refbtn{text-decoration:none}
 @media (max-width:600px){ .tvlink{display:none} }
 /* ---- Painel TV ---- */
@@ -2501,6 +2506,7 @@ function renderUsuarios(){
         <h3>Simular um nível</h3>
         <p class="hint">Veja o sistema como outro nível de acesso, para testar. Só muda a sua tela.</p>
         <div class="filters"><select class="tin" id="viewAs"><option value="">Escolha um nível…</option>${Object.entries(ROLES).filter(([k])=>k!=="admin").map(([k,r])=>`<option value="${k}">${r.t}</option>`).join("")}</select><button class="mini" id="viewAsBtn">Simular</button></div>
+        ${window.psMagazord && ME.isOwner ? mzHTML() : ""}
       </aside>
     </div>`;
   bindNav(); fillNames(app);
@@ -2539,7 +2545,40 @@ function renderUsuarios(){
       hits.appendChild(b); });
   };
   document.getElementById("cfgTray").onchange=e=>{ CONFIG={...CONFIG, useTray:e.target.checked}; if(cfgDoc) queueWrite("cfg", ()=>cfgDoc.set({useTray:CONFIG.useTray})); toast(CONFIG.useTray?"Bandeja ligada na separação":"Bandeja desligada na separação"); };
+  bindMz();
   document.getElementById("viewAsBtn").onclick=()=>{ const v=document.getElementById("viewAs").value; if(!v) return; state.viewAs=v; state.sector=allowedSectors()[0]||"expedicao"; state.view="orders"; render(); toast(`Simulando: ${ROLES[v].t}`); };
+}
+/* ---- Integração Magazord (só Administrador) ---- */
+const MZ = { loaded:false, loading:false, status:null, busy:false, result:null, err:"" };
+function mzHTML(){
+  if(!MZ.loaded && !MZ.loading){ MZ.loading=true; window.psMagazord({action:"status"}).then(r=>{ MZ.status=r; }, e=>{ MZ.err=e.message; }).finally(()=>{ MZ.loaded=true; MZ.loading=false; if(state.sector==="usuarios") render(); }); }
+  const st=MZ.status, R=MZ.result;
+  const groups = R?.distinct ? Object.entries(R.distinct).slice(0,12) : [];
+  return `<div class="mzbox"><h3>Integração Magazord · e-commerce</h3>
+    <p class="hint">${!MZ.loaded ? "Verificando…" : st?.configured ? `<span class="al-ok">Configurada</span> · ${esc(st.url)} · token ${esc(st.token)}` : "Ainda não configurada. Peça o <b>token</b> e a <b>senha</b> da API ao suporte da Magazord (com permissão de leitura em /api/v2/site/pedido)."}</p>
+    <form id="mzForm" class="mzform" autocomplete="off">
+      <input class="tin" id="mzUrl" placeholder="Endereço do painel · ex.: https://sualoja.painel.magazord.com.br" value="${esc(st?.url||"")}" required>
+      <input class="tin" id="mzToken" placeholder="${st?.configured?"Token (deixe em branco para manter)":"Token da API"}" autocomplete="off" spellcheck="false">
+      <input class="tin" id="mzSenha" type="password" placeholder="${st?.configured?"Senha (deixe em branco para manter)":"Senha da API"}" autocomplete="new-password">
+      <div class="mzbtns"><button class="btn dark" type="submit" ${MZ.busy?"disabled":""}>${MZ.busy?"Aguarde…":"Salvar e testar"}</button>${st?.configured?`<button class="btn ghost" type="button" id="mzTest" ${MZ.busy?"disabled":""}>Só testar</button>`:""}</div>
+    </form>
+    ${MZ.err?`<div class="err">${esc(MZ.err)}</div>`:""}
+    ${R?.ok?`<div class="okbox">Conexão OK · ${R.count} pedido(s) recente(s) lido(s) da Magazord.</div>
+      ${groups.length?`<details class="mzdist" open><summary class="eyebrow">O que encontrei nos pedidos recentes</summary>${groups.map(([k,v])=>`<div><b class="mono">${esc(k)}</b><span>${Object.entries(v).slice(0,10).map(([x,n])=>`${esc(x)} <small>(${n})</small>`).join(" · ")}</span></div>`).join("")}</details>`:""}`:""}
+    <p class="hint">A senha fica guardada no servidor e não aparece mais na tela. O Picking Serena só <b>lê</b> os pedidos da Magazord.</p>
+  </div>`;
+}
+function bindMz(){
+  const f=document.getElementById("mzForm"); if(!f) return;
+  const run=async(save)=>{ MZ.busy=true; MZ.err=""; MZ.result=null; render();
+    try{
+      if(save) await window.psMagazord({action:"config", url:document.getElementById("mzUrl").value, token:document.getElementById("mzToken").value, senha:document.getElementById("mzSenha").value});
+      MZ.status=await window.psMagazord({action:"status"});
+      const r=await window.psMagazord({action:"test"}); if(r.ok) MZ.result=r; else MZ.err=r.error||"Falha no teste";
+    }catch(e){ MZ.err=e.message||String(e); }
+    MZ.busy=false; render(); };
+  f.onsubmit=e=>{ e.preventDefault(); run(true); };
+  const t=document.getElementById("mzTest"); if(t) t.onclick=()=>run(false);
 }
 function saveUser(id, patch, create){
   const cur = USERS[id] || {};
