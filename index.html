@@ -107,6 +107,15 @@ button:focus-visible{outline:3px solid var(--route);outline-offset:2px}
 .loc-code span{color:var(--muted);font-weight:500}
 .noloc .loc-code{font-family:var(--display);font-size:clamp(20px,6vw,28px);color:var(--warn,#C27C0E)}
 .spotbtn{width:100%;margin-top:8px}
+.lotebox{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+.lotebox b{display:block;font-size:15px}.lotebox small{display:block;color:var(--muted);font-size:13px;margin-top:2px}
+.lotebox.on{border-color:var(--accent);background:var(--accent-soft)}
+.lotebtns{display:flex;gap:6px;flex:none}
+.lotem .lotetype{display:flex}.lotem .lotetype button{flex:1}
+.lotelist{display:flex;flex-direction:column;gap:6px;max-height:46vh;overflow:auto}
+.loteopt{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;font-weight:600}
+.loteopt span{flex:1}.loteopt b{color:var(--muted)}.loteopt input{width:20px;height:20px;accent-color:var(--accent)}
+.lotebadge{background:var(--accent-soft);color:var(--ink);border-radius:8px;padding:6px 10px;font-size:13px;font-weight:700;margin:8px 0 0}
 .canalseg{display:flex;margin:12px 0 8px}.canalseg button{flex:1}.canalseg b{margin-left:4px;opacity:.75}
 .ecofil{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
 .ecofil .chips{display:flex;gap:6px;overflow-x:auto;align-items:center;padding-bottom:2px;scrollbar-width:none}
@@ -1115,10 +1124,7 @@ function renderOrders(){
   const canal = eco ? (state.canal || "consultiva") : "consultiva";
   const allQ = VIS.filter(o=>(o.status==="aguardando"||o.status==="separando") && pickList(o).length).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
   const qCons = allQ.filter(o=>!isEco(o)), qEco = allQ.filter(isEco);
-  let fOrig = state.ecoOrig || "", fTransp = state.ecoTransp || "";
-  if(fOrig && !qEco.some(o=>o.origem===fOrig)) fOrig = state.ecoOrig = "";        // filtro sem pedidos: volta para Todos
-  if(fTransp && !qEco.some(o=>o.transportadora===fTransp)) fTransp = state.ecoTransp = "";
-  const queue = canal==="ecommerce" ? qEco.filter(o=>(!fOrig || o.origem===fOrig) && (!fTransp || o.transportadora===fTransp)) : qCons;
+  const queue = canal==="ecommerce" ? qEco : qCons;
   const parked = VIS.filter(isSeparated).sort((a,b)=>(a.pickedAt||0)-(b.pickedAt||0));
   const hive = VIS.filter(inHive).sort((a,b)=>(a.colmeia||"").localeCompare(b.colmeia||""));
   const hist = [...VIS.filter(inHistory), ...DELETED.filter(ecoOk)].sort((a,b)=>(b.deletedAt||b.pickedAt||0)-(a.deletedAt||a.pickedAt||0));
@@ -1130,10 +1136,7 @@ function renderOrders(){
   const canalBar = eco ? `<div class="seg canalseg" role="group" aria-label="Canal">
       <button data-canal="consultiva" aria-pressed="${canal==="consultiva"}">Venda Consultiva <b class="tnum">${qCons.length}</b></button>
       <button data-canal="ecommerce" aria-pressed="${canal==="ecommerce"}">E-commerce <b class="tnum">${qEco.length}</b></button></div>
-    ${canal==="ecommerce" ? `<div class="ecofil">
-      <div class="chips"><span class="eyebrow">Canal</span><button class="fchip" data-forig="" aria-pressed="${!fOrig}">Todos</button>${count(qEco,"origem").map(([v,n])=>`<button class="fchip" data-forig="${esc(v)}" aria-pressed="${fOrig===v}">${esc(v)} <b>${n}</b></button>`).join("")}</div>
-      <div class="chips"><span class="eyebrow">Transportadora</span><button class="fchip" data-ftransp="" aria-pressed="${!fTransp}">Todas</button>${count(qEco,"transportadora").map(([v,n])=>`<button class="fchip" data-ftransp="${esc(v)}" aria-pressed="${fTransp===v}">${esc(v)} <b>${n}</b></button>`).join("")}</div>
-    </div>`:""}` : "";
+    ${canal==="ecommerce" && can("coleta") ? loteBoxHTML() : ""}` : "";
   if(tab==="fila"){
     body = canalBar + `
     <div class="shift">
@@ -1180,8 +1183,7 @@ function renderOrders(){
   bindNav();
   const rq=document.getElementById("refreshQ"); if(rq) rq.onclick=refreshQueue;
   app.querySelectorAll("[data-canal]").forEach(b=>b.onclick=()=>{ state.canal=b.dataset.canal; resetPage("fila"); try{ localStorage.setItem("ps-canal", state.canal); }catch(e){} render(); });
-  app.querySelectorAll("[data-forig]").forEach(b=>b.onclick=()=>{ state.ecoOrig=b.dataset.forig; resetPage("fila"); render(); });
-  app.querySelectorAll("[data-ftransp]").forEach(b=>b.onclick=()=>{ state.ecoTransp=b.dataset.ftransp; resetPage("fila"); render(); });
+  bindLote();
   app.querySelectorAll("[data-restart]").forEach(b=>b.onclick=()=>restartOrder(b.dataset.restart, false));
   app.querySelectorAll("[data-delord]").forEach(b=>b.onclick=()=>deleteOrder(b.dataset.delord));
   if(can("coleta")) app.querySelectorAll(".order").forEach(b=>b.onclick=()=>openOrder(b.dataset.oid));
@@ -1375,6 +1377,61 @@ function tvFit(){ document.querySelectorAll(".tvlist.fit").forEach(l=>{
 window.addEventListener("resize", ()=>{ if(document.querySelector(".tvgrid")) tvFit(); });
 setInterval(()=>{ const c=document.getElementById("tvClock"); if(c) c.textContent=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}); }, 5000);
 
+/* ================== Separação em lote (e-commerce) ==================
+   O separador escolhe "por canal" ou "por transportadora" e marca quais; o sistema abre
+   o pedido mais antigo do grupo e, ao concluir na mesa, oferece o próximo até acabar. */
+const LOTE_KEY="ps-lote";
+state.lote = (()=>{ try{ return JSON.parse(localStorage.getItem(LOTE_KEY)||"null"); }catch(e){ return null; } })();
+const saveLote = () => { try{ state.lote ? localStorage.setItem(LOTE_KEY, JSON.stringify(state.lote)) : localStorage.removeItem(LOTE_KEY); }catch(e){} };
+const LOTE_BY = { canal:{t:"Canal", f:"origem"}, transportadora:{t:"Transportadora", f:"transportadora"} };
+const loteVal = (o, by) => o[LOTE_BY[by].f] || (by==="canal" ? "Site" : "Sem transportadora");
+const loteMatch = (o, L=state.lote) => !!L && isEco(o) && L.vals.includes(loteVal(o, L.by));
+function lotePending(L=state.lote){ // pedidos do lote ainda por separar (os meus em andamento primeiro)
+  return ORDERS.filter(o=>loteMatch(o,L) && pickList(o).length && !o.mzCancelado &&
+      (o.status==="aguardando" || (o.status==="separando" && (!o.startedBy || o.startedBy===ME.id))))
+    .sort((a,b)=>((b.status==="separando")-(a.status==="separando")) || (a.createdAt||0)-(b.createdAt||0));
+}
+function loteNext(){
+  const nx=lotePending()[0];
+  if(nx){ openOrder(nx.id); return true; }
+  toast(`Lote concluído · ${state.lote?.done||0} pedido(s) separados`); state.lote=null; saveLote(); state.view="orders"; render(); return false;
+}
+function loteBoxHTML(){
+  const L=state.lote;
+  if(L){ const n=lotePending().length;
+    return `<div class="lotebox on"><div><div class="eyebrow">Separação em lote · ${esc(LOTE_BY[L.by].t)}</div><b>${L.vals.map(esc).join(" · ")}</b><small>${L.done||0} separado(s) · ${n} restante(s)</small></div>
+      <div class="lotebtns"><button class="btn primary sm" id="loteGo" ${n?"":"disabled"}>${n?"Continuar":"Sem pedidos"}</button><button class="btn ghost sm" id="loteEnd">Encerrar</button></div></div>`; }
+  return `<div class="lotebox"><div><b>Separação em lote</b><small>Escolha por canal ou por transportadora e separe um pedido atrás do outro.</small></div>
+    <button class="btn primary sm" id="loteNew">Iniciar em lote</button></div>`;
+}
+function bindLote(){
+  const nw=document.getElementById("loteNew"); if(nw) nw.onclick=openLoteModal;
+  const go=document.getElementById("loteGo"); if(go) go.onclick=()=>loteNext();
+  const en=document.getElementById("loteEnd"); if(en) en.onclick=()=>{ state.lote=null; saveLote(); toast("Lote encerrado"); render(); };
+}
+function openLoteModal(){
+  const avail = ORDERS.filter(o=>isEco(o) && ecoOk(o) && pickList(o).length && !o.mzCancelado && (o.status==="aguardando" || (o.status==="separando" && o.startedBy===ME.id)));
+  let by="transportadora", sel=new Set();
+  const ov=document.createElement("div"); ov.className="modal"; document.body.appendChild(ov); scanbar.hidden=true;
+  const close=()=>{ ov.remove(); render(); };
+  const draw=()=>{
+    const groups={}; avail.forEach(o=>{ const v=loteVal(o,by); groups[v]=(groups[v]||0)+1; });
+    const list=Object.entries(groups).sort((a,b)=>b[1]-a[1]);
+    ov.innerHTML=`<div class="mbox lotem" role="dialog" aria-modal="true" aria-label="Separação em lote"><h2>Separação em lote</h2>
+      <p>Separar por:</p>
+      <div class="seg lotetype">${Object.entries(LOTE_BY).map(([k,v])=>`<button data-by="${k}" aria-pressed="${by===k}">${v.t}</button>`).join("")}</div>
+      <p style="margin-top:12px">Marque ${by==="canal"?"os canais":"as transportadoras"}:</p>
+      <div class="lotelist">${list.map(([v,n])=>`<label class="loteopt"><input type="checkbox" value="${esc(v)}" ${sel.has(v)?"checked":""}><span>${esc(v)}</span><b class="tnum">${n}</b></label>`).join("") || `<div class="empty">Nenhum pedido do e-commerce para separar.</div>`}</div>
+      <div class="mact"><button class="btn ghost" id="lmNo">Cancelar</button><button class="btn primary" id="lmGo" ${sel.size?"":"disabled"}>Iniciar ${sel.size?`· ${list.filter(([v])=>sel.has(v)).reduce((a,[,n])=>a+n,0)} pedido(s)`:""}</button></div></div>`;
+    ov.querySelectorAll("[data-by]").forEach(b=>b.onclick=()=>{ if(by!==b.dataset.by){ by=b.dataset.by; sel=new Set(); draw(); } });
+    ov.querySelectorAll(".loteopt input").forEach(c=>c.onchange=()=>{ c.checked?sel.add(c.value):sel.delete(c.value); draw(); });
+    ov.querySelector("#lmNo").onclick=close;
+    ov.querySelector("#lmGo").onclick=()=>{ state.lote={by, vals:[...sel], started:Date.now(), done:0}; saveLote(); ov.remove(); toast(`Lote iniciado · ${[...sel].join(", ")}`); loteNext(); };
+  };
+  ov.onclick=e=>{ if(e.target===ov) close(); };
+  draw();
+}
+
 /* Botão "Atualizar" da fila: busca os pedidos de novo no servidor */
 let refreshing=false;
 async function refreshQueue(){
@@ -1471,6 +1528,7 @@ function renderPick(){
       <span class="badge tnum">${state.idx+1}/${pl.length}</span>
     </header>
     ${o.mzCancelado?`<div class="mzcancel big">Pedido CANCELADO na Magazord · pare a separação e devolva as peças</div>`:""}
+    ${state.lote && loteMatch(o) ? `<div class="lotebadge">Lote · ${esc(state.lote.vals.join(" · "))} · ${lotePending().length} restante(s)</div>` : ""}
     ${isEco(o)?`<div class="ecoinfo"><span class="chip eco">${esc(o.origem||"Site")}</span><span>${esc(o.transportadora||"")}${o.servico&&o.servico!==o.transportadora?" · "+esc(o.servico):""}</span></div>`:""}
     <div class="steps">${pl.map((x,k)=>{ const s=r[x.i].status; return `<i class="${s==="ok"||s==="part"?"ok":s==="miss"?"miss":k===state.idx?"cur":""}"></i>`; }).join("")}</div>
     ${l ? `<div class="loc">
@@ -1573,6 +1631,7 @@ function renderToMesa(){
   document.getElementById("atMesa").onclick = ()=> finishAtMesa(o);
 }
 function finishAtMesa(o){
+  if(state.lote && loteMatch(o) && !o.loteCounted){ state.lote.done=(state.lote.done||0)+1; o.loteCounted=true; saveLote(); }
   const r=res(o), got=pickList(o).reduce((a,x)=>a+(r[x.i].got||0),0), now=Date.now();
   if(!got){ patchOrder(o.id, {status:"pronto_envio", remessa:1, pickedAt:now, semPecas:true, res:r, ...(o.tray?{trayStatus:"livre"}:{})}); toast(`Pedido ${o.num} sem peças coletadas · avise o comercial`); state.view="orders"; return render(); }
   if(o.mode==="aguarda"){
@@ -1632,12 +1691,15 @@ function renderDone(){
         <div class="do">${ICON_SCAN}<span>Depois da conferência no packing, <b>bipe a ${esc(trayLabel(o.tray))}</b> para desvinculá-la deste pedido.</span></div>
         <button class="btn ghost sm" id="unlinkBtn">Desvincular ${esc(spotsTxt(o))}</button></div>`
       : o.tray && o.trayStatus==="livre" ? `<div class="ok-line" style="justify-content:center">${esc(spotsTxt(o))} liberada</div>` : ""}
-      <div class="actions" style="width:100%;margin-top:14px"><button class="btn primary" id="nextOrder">Próximo pedido</button></div>
+      ${state.lote && loteMatch(o) ? (()=>{ const n=lotePending().length; return `<div class="actions" style="width:100%;margin-top:14px;flex-direction:column"><button class="btn primary" id="nextOrder">${n?`Próximo do lote · ${n} restante(s)`:"Concluir lote"}</button><button class="btn ghost sm" id="loteStop">Encerrar lote</button></div>`; })()
+        : `<div class="actions" style="width:100%;margin-top:14px"><button class="btn primary" id="nextOrder">Próximo pedido</button></div>`}
     </div>`;
   document.getElementById("back").onclick = ()=>{ state.view="orders"; render(); };
   const ub=document.getElementById("unlinkBtn"); if(ub) ub.onclick=()=>{ if(!ub.dataset.c){ ub.dataset.c="1"; ub.textContent="Confirmar: peças já saíram da bandeja"; ub.classList.add("danger"); return; } unlinkTray(o); };
   if(o.tray && o.trayStatus==="mesa") setMsg(`Bipe a ${trayLabel(o.tray)} para desvincular`,"info");
+  const ls=document.getElementById("loteStop"); if(ls) ls.onclick=()=>{ state.lote=null; saveLote(); toast("Lote encerrado"); state.view="orders"; render(); };
   document.getElementById("nextOrder").onclick = ()=>{
+    if(state.lote && loteMatch(o)) return loteNext();
     const nx = ORDERS.filter(x=>(x.status==="aguardando"||x.status==="separando") && pickList(x).length).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0))[0];
     nx ? openOrder(nx.id) : (state.view="orders", render());
   };
