@@ -107,6 +107,11 @@ button:focus-visible{outline:3px solid var(--route);outline-offset:2px}
 .loc-code span{color:var(--muted);font-weight:500}
 .noloc .loc-code{font-family:var(--display);font-size:clamp(20px,6vw,28px);color:var(--warn,#C27C0E)}
 .spotbtn{width:100%;margin-top:8px}
+.tlogo-w{display:inline-flex;align-items:center;background:#fff;border-radius:6px;padding:2px 6px;height:24px;box-sizing:border-box}
+.tlogo{display:block;max-height:20px;max-width:110px;object-fit:contain}
+.loteopt .tlogo{max-height:24px;max-width:140px;background:#fff;border-radius:4px;padding:2px 4px}
+.trow{align-items:center}.trow b{flex:1;font-size:14px}.tprev{width:120px;height:32px;display:flex;align-items:center;background:#fff;border-radius:6px;padding:0 6px;box-sizing:border-box}
+.tprev .tlogo{max-height:26px;max-width:108px}.tup{cursor:pointer}.muted-s{color:var(--muted);font-size:12px}
 .lotebox{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:12px 14px;margin-bottom:10px}
 .lotebox b{display:block;font-size:15px}.lotebox small{display:block;color:var(--muted);font-size:13px;margin-top:2px}
 .lotebox.on{border-color:var(--accent);background:var(--accent-soft)}
@@ -1168,7 +1173,7 @@ function renderOrders(){
           <div class="row"><span class="num">#${esc(o.num)}${newIds.has(o.id)&&o.status==="aguardando"?` <span class="chip newc">Novo</span>`:""}</span>${o.status==="separando"?`<span class="chip prog">Em separação</span>`:isEco(o)?`<span class="chip eco">${esc(o.origem||"Site")}</span>`:`<span class="chip ${MODES[o.mode].c}">${MODES[o.mode].t}</span>`}</div>
           ${o.mzCancelado?`<div class="mzcancel">CANCELADO na Magazord · não enviar</div>`:""}
           <div class="client">${esc(o.client)}</div>
-          <div class="meta tnum"><span>${pl.length} ref. · ${pl.reduce((a,x)=>a+x.need,0)} pç</span>${aisles?`<span>Ruas ${aisles}</span>`:""}${semLoc?`<span style="color:var(--bad)">${semLoc} sem local</span>`:""}${o.status==="separando"&&o.startedAt?`<span>Separando há ${since(o.startedAt)}</span>`:`<span>Na fila há ${since(o.createdAt)}</span>`}${o.tray&&o.status==="separando"?`<span>Bandeja ${esc(o.tray)}</span>`:""}${isEco(o)?`<span class="transp">${esc(o.transportadora||"Sem transportadora")}</span>`:o.mode==="aguarda"?`<span>Colmeia ${esc(o.colmeia)}</span>`:`<span>Destino: mesa de expedição</span>`}${enc?`<span>${enc} ref. sob encomenda</span>`:""}</div>
+          <div class="meta tnum"><span>${pl.length} ref. · ${pl.reduce((a,x)=>a+x.need,0)} pç</span>${aisles?`<span>Ruas ${aisles}</span>`:""}${semLoc?`<span style="color:var(--bad)">${semLoc} sem local</span>`:""}${o.status==="separando"&&o.startedAt?`<span>Separando há ${since(o.startedAt)}</span>`:`<span>Na fila há ${since(o.createdAt)}</span>`}${o.tray&&o.status==="separando"?`<span>Bandeja ${esc(o.tray)}</span>`:""}${isEco(o)?transpBadge(o.transportadora):o.mode==="aguarda"?`<span>Colmeia ${esc(o.colmeia)}</span>`:`<span>Destino: mesa de expedição</span>`}${enc?`<span>${enc} ref. sob encomenda</span>`:""}</div>
           ${done?`<div class="prog-bar"><i style="width:${done/pl.length*100}%"></i></div>`:""}
         </button>${acts?`<div class="ord-acts">${o.status==="separando"?`<button class="icbtn" data-restart="${esc(o.id)}" aria-label="Reiniciar separação" title="Reiniciar separação">${ICON_RESTART}</button>`:""}<button class="icbtn del" data-delord="${esc(o.id)}" aria-label="Excluir separação" title="Excluir separação">${ICON_TRASH}</button></div>`:""}</div>`;}).join("") + pgQ.pager : `<div class="empty">Nenhum pedido aguardando separação.</div>`}
     </div>
@@ -1437,7 +1442,7 @@ function openLoteModal(){
       <p>Separar por:</p>
       <div class="seg lotetype">${Object.entries(LOTE_BY).map(([k,v])=>`<button data-by="${k}" aria-pressed="${by===k}">${v.t}</button>`).join("")}</div>
       <p style="margin-top:12px">Marque ${by==="canal"?"os canais":"as transportadoras"}:</p>
-      <div class="lotelist">${list.map(([v,n])=>`<label class="loteopt"><input type="checkbox" value="${esc(v)}" ${sel.has(v)?"checked":""}><span>${esc(v)}</span><b class="tnum">${n}</b></label>`).join("") || `<div class="empty">Nenhum pedido do e-commerce para separar.</div>`}</div>
+      <div class="lotelist">${list.map(([v,n])=>`<label class="loteopt"><input type="checkbox" value="${esc(v)}" ${sel.has(v)?"checked":""}><span>${by==="transportadora"&&TRANSP[v]?.logo?`<img class="tlogo" src="${TRANSP[v].logo}" alt="${esc(v)}" title="${esc(v)}">`:esc(v)}</span><b class="tnum">${n}</b></label>`).join("") || `<div class="empty">Nenhum pedido do e-commerce para separar.</div>`}</div>
       <div class="mact"><button class="btn ghost" id="lmNo">Cancelar</button><button class="btn primary" id="lmGo" ${sel.size?"":"disabled"}>Iniciar ${sel.size?`· ${list.filter(([v])=>sel.has(v)).reduce((a,[,n])=>a+n,0)} pedido(s)`:""}</button></div></div>`;
     ov.querySelectorAll("[data-by]").forEach(b=>b.onclick=()=>{ if(by!==b.dataset.by){ by=b.dataset.by; sel=new Set(); draw(); } });
     ov.querySelectorAll(".loteopt input").forEach(c=>c.onchange=()=>{ c.checked?sel.add(c.value):sel.delete(c.value); draw(); });
@@ -1545,7 +1550,7 @@ function renderPick(){
     </header>
     ${o.mzCancelado?`<div class="mzcancel big">Pedido CANCELADO na Magazord · pare a separação e devolva as peças</div>`:""}
     ${state.lote && loteMatch(o) ? `<div class="lotebadge">Lote · ${esc(state.lote.vals.join(" · "))} · ${lotePending().length} restante(s)</div>` : ""}
-    ${isEco(o)?`<div class="ecoinfo"><span class="chip eco">${esc(o.origem||"Site")}</span><span>${esc(o.transportadora||"")}${o.servico&&o.servico!==o.transportadora?" · "+esc(o.servico):""}</span></div>`:""}
+    ${isEco(o)?`<div class="ecoinfo"><span class="chip eco">${esc(o.origem||"Site")}</span>${transpBadge(o.transportadora)}${o.servico&&o.servico!==o.transportadora?`<span class="muted-s">${esc(o.servico)}</span>`:""}</div>`:""}
     <div class="steps">${pl.map((x,k)=>{ const s=r[x.i].status; return `<i class="${s==="ok"||s==="part"?"ok":s==="miss"?"miss":k===state.idx?"cur":""}"></i>`; }).join("")}</div>
     ${l ? `<div class="loc">
       <div class="grow"><div class="eyebrow">Local</div>
@@ -2622,7 +2627,7 @@ function renderUsuarios(){
         <h3>Simular um nível</h3>
         <p class="hint">Veja o sistema como outro nível de acesso, para testar. Só muda a sua tela.</p>
         <div class="filters"><select class="tin" id="viewAs"><option value="">Escolha um nível…</option>${Object.entries(ROLES).filter(([k])=>k!=="admin").map(([k,r])=>`<option value="${k}">${r.t}</option>`).join("")}</select><button class="mini" id="viewAsBtn">Simular</button></div>
-        ${window.psMagazord && ME.isOwner ? mzHTML() : ""}
+        ${window.psMagazord && ME.isOwner ? mzHTML() + transpHTML() : ""}
       </aside>
     </div>`;
   bindNav(); fillNames(app);
@@ -2665,9 +2670,34 @@ function renderUsuarios(){
       hits.appendChild(b); });
   };
   document.getElementById("cfgTray").onchange=e=>{ CONFIG={...CONFIG, useTray:e.target.checked}; if(cfgDoc) queueWrite("cfg", ()=>cfgDoc.set({useTray:CONFIG.useTray})); toast(CONFIG.useTray?"Bandeja ligada na separação":"Bandeja desligada na separação"); };
-  bindMz();
+  bindMz(); bindTransp();
   document.getElementById("viewAsBtn").onclick=()=>{ const v=document.getElementById("viewAs").value; if(!v) return; state.viewAs=v; state.sector=allowedSectors()[0]||"expedicao"; state.view="orders"; render(); toast(`Simulando: ${ROLES[v].t}`); };
 }
+/* ---- Logotipos das transportadoras (enviados pelo administrador) ---- */
+let TRANSP = {}, transpDoc = null;
+function transpBadge(name){
+  const n=name||"Sem transportadora", t=TRANSP[n];
+  return t?.logo ? `<span class="tlogo-w" title="${esc(n)}"><img class="tlogo" src="${t.logo}" alt="${esc(n)}"></span>` : `<span class="transp">${esc(n)}</span>`;
+}
+function transpHTML(){
+  const names=[...new Set([...ORDERS.filter(isEco).map(o=>o.transportadora).filter(Boolean), ...Object.keys(TRANSP)])].sort();
+  return `<div class="mzbox"><h3>Logotipos das transportadoras</h3>
+    <p class="hint">Envie o logotipo de cada transportadora (PNG ou JPG; de preferência com fundo transparente). Ele aparece no lugar do nome na lista de pedidos do e-commerce.</p>
+    <div class="qlist" style="margin-top:6px">${names.map(n=>`<div class="mrow trow"><div class="tprev">${TRANSP[n]?.logo?`<img class="tlogo" src="${TRANSP[n].logo}" alt="${esc(n)}">`:`<span class="muted-s">sem logotipo</span>`}</div><b>${esc(n)}</b>
+      <label class="mini tup">${TRANSP[n]?.logo?"Trocar":"Enviar logotipo"}<input type="file" accept="image/*" data-tlogo="${esc(n)}" hidden></label>${TRANSP[n]?.logo?`<button class="mini" data-tdel="${esc(n)}">Remover</button>`:""}</div>`).join("") || `<div class="empty">As transportadoras aparecem aqui quando chegarem pedidos do e-commerce.</div>`}</div></div>`;
+}
+function imgToLogo(file){ return new Promise((ok,ko)=>{ const r=new FileReader(); r.onerror=()=>ko(new Error("arquivo"));
+  r.onload=()=>{ const im=new Image(); im.onerror=()=>ko(new Error("imagem inválida")); im.onload=()=>{
+    const k=Math.min(1, 72/im.height, 240/im.width), c=document.createElement("canvas"); c.width=Math.max(1,Math.round(im.width*k)); c.height=Math.max(1,Math.round(im.height*k));
+    c.getContext("2d").drawImage(im,0,0,c.width,c.height); let u=c.toDataURL("image/png"); if(u.length>80000) u=c.toDataURL("image/webp",.85); ok(u); }; im.src=r.result; };
+  r.readAsDataURL(file); }); }
+function saveTransp(){ if(transpDoc) queueWrite("transp", ()=>transpDoc.set({list:TRANSP})); render(); }
+function bindTransp(){
+  app.querySelectorAll("[data-tlogo]").forEach(inp=>inp.onchange=async()=>{ const f=inp.files[0]; if(!f) return;
+    try{ const logo=await imgToLogo(f); TRANSP={...TRANSP, [inp.dataset.tlogo]:{...(TRANSP[inp.dataset.tlogo]||{}), logo}}; saveTransp(); toast("Logotipo salvo"); }catch(e){ toast("Não foi possível ler a imagem"); } });
+  app.querySelectorAll("[data-tdel]").forEach(b=>b.onclick=()=>{ const t={...TRANSP}; delete t[b.dataset.tdel]; TRANSP=t; saveTransp(); toast("Logotipo removido"); });
+}
+
 /* ---- Integração Magazord (só Administrador) ---- */
 let MZSYNC = null; // status da última importação (config/magazord_sync)
 const MZ = { loaded:false, loading:false, status:null, busy:false, result:null, err:"" };
@@ -2893,6 +2923,8 @@ render();
   cfgDoc = db.doc("config/picking");
   cfgDoc.onSnapshot(snap=>{ const d=snap.exists?snap.data():null; CONFIG = {requireLoc:false, useTray: d?.useTray ?? true}; rerender(); }, ()=>{ cfgDoc=null; });
   db.doc("config/magazord_sync").onSnapshot(snap=>{ MZSYNC = snap.exists ? JSON.parse(JSON.stringify(snap.data())) : null; if(state.sector==="usuarios") rerender(); }, ()=>{});
+  transpDoc = db.doc("config/transportadoras");
+  transpDoc.onSnapshot(snap=>{ const l=snap.exists?snap.data()?.list:null; TRANSP = l && typeof l==="object" ? JSON.parse(JSON.stringify(l)) : {}; rerender(); }, ()=>{ transpDoc=null; });
   mesasDoc = db.doc("config/mesas");
   mesasDoc.onSnapshot(snap=>{ const l=snap.exists?snap.data()?.list:null; if(Array.isArray(l) && l.length) MESAS=JSON.parse(JSON.stringify(l)); rerender(); }, ()=>{ mesasDoc=null; });
   usersCol = db.collection("users");

@@ -80,3 +80,9 @@ $$);
 -- ---------- Quem separa Venda Consultiva ----------
 alter table public.profiles add column if not exists consultiva boolean not null default false;
 update public.profiles set consultiva = true where role is not null; -- quem já tinha acesso continua separando
+
+-- ---------- Logotipos das transportadoras ----------
+create policy config_transportadoras_write on public.config for all
+  using (id = 'transportadoras' and public.app_role() in ('admin','supervisor','estoque'))
+  with check (id = 'transportadoras' and public.app_role() in ('admin','supervisor','estoque'));
+insert into public.config (id, data) values ('transportadoras', '{"list":{}}'::jsonb) on conflict (id) do nothing;
