@@ -131,6 +131,13 @@ button:focus-visible{outline:3px solid var(--route);outline-offset:2px}
 .chip.eco{background:var(--route-soft,rgba(111,155,255,.16));color:var(--route,#2A5BC8)}
 .transp{font-weight:600;color:var(--ink)}
 .mzcancel{background:var(--bad);color:#fff;font-weight:700;border-radius:8px;padding:6px 10px;font-size:13px;letter-spacing:.02em}
+.retira{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:10px;cursor:pointer}
+.retira input{width:22px;height:22px;accent-color:var(--bad);flex:none;margin-top:1px}.retira b{display:block}.retira small{color:var(--muted);font-size:13px}
+.retira.on{border-color:var(--bad);background:var(--bad-soft)}
+.order.retira{border-color:var(--bad);box-shadow:0 0 0 1px var(--bad) inset}
+.retirabar{background:var(--bad);color:#fff;font-weight:800;font-size:12px;letter-spacing:.08em;border-radius:6px;padding:4px 8px;align-self:flex-start}
+.tvrow.tvurg{border-left-color:var(--bad);background:var(--bad-soft)}
+.tvurgtag{font-style:normal;font-family:var(--display);font-size:.72em;background:var(--bad);color:#fff;border-radius:.3em;padding:.1em .4em;margin-left:.4em;animation:tvblink 1s ease-in-out infinite}
 .mzcancel.warn{background:var(--accent);color:#111}
 .mzcancel.big{margin:10px 0;font-size:15px;padding:10px 12px}
 .ecoinfo{display:flex;align-items:center;gap:8px;margin:8px 0 2px;font-size:14px;font-weight:600}
@@ -1016,7 +1023,8 @@ function draftHTML(d){
       <label class="mode"><input type="radio" name="mode" value="total" ${d.mode==="total"?"checked":""}><span><b>Envio total</b><small>Todas as peças têm pronta entrega. A expedição separa tudo e o pedido vai direto para o envio.</small></span></label>
       <label class="mode"><input type="radio" name="mode" value="parcial" ${d.mode==="parcial"?"checked":""}><span><b>Envio parcial</b><small>Envia agora o que tem em estoque. As peças encomendadas seguem depois, em um 2º envio.</small></span></label>
       <label class="mode"><input type="radio" name="mode" value="aguarda" ${d.mode==="aguarda"?"checked":""}><span><b>Aguarda encomenda</b><small>Separa o que tem em estoque e guarda na colmeia até chegar o restante. Envio único.</small></span></label>
-    </div></div>
+    </div>
+    <label class="retira ${d.retira?"on":""}"><input type="checkbox" id="retiraChk" ${d.retira?"checked":""}><span><b>Retira na Loja</b><small>O cliente vem buscar: o pedido vai para o topo da fila de separação e aparece como <b>URGENTE</b> na TV.</small></span></label></div>
     <div><h2 style="margin-bottom:10px">3. Itens ${par?"· marque o que é sob encomenda":""}</h2>
     <div class="tablewrap"><table class="items">
       <thead><tr><th>Cód.</th><th>Descrição</th><th>Endereço</th><th class="num">Qtd</th>${par?`<th>Sob encomenda</th><th>Previsão de chegada</th>`:""}<th class="num">Separar agora</th></tr></thead>
@@ -1054,6 +1062,7 @@ function bindDraft(){
   const d = state.draft;
   document.getElementById("cancelDraft").onclick=()=>{ state.draft=null; state.draftErr=""; render(); };
   app.querySelectorAll('input[name=mode]').forEach(r=>r.onchange=()=>{ d.mode=r.value; state.draftErr=""; render(); });
+  const rc=document.getElementById("retiraChk"); if(rc) rc.onchange=()=>{ d.retira=rc.checked; render(); };
   const refresh = i => {
     const it=d.items[i], enc=it.qtyEnc||0;
     document.getElementById("now-"+i).textContent = it.qty-enc;
@@ -1096,7 +1105,7 @@ function sendDraft(){
   const slot = m==="aguarda" ? ((prev && usesHive(prev) && prev.colmeia) || freeSlot()) : null;
   if(m==="aguarda" && !slot){ state.draftErr="Todas as colmeias estão ocupadas. Libere uma colmeia antes de integrar este pedido."; return render(); }
   const o = { id:d.id, num:d.num, date:d.date, time:d.time, clientCode:d.clientCode, client:d.client, city:d.city, seller:d.seller, obs:d.obs, total:d.total,
-    mode:m, v2:true, items, remessa:1, status: hasPick ? "aguardando" : "na_colmeia", createdAt: Date.now(), createdBy: ME.id||"", canal:"consultiva" };
+    mode:m, v2:true, items, remessa:1, status: hasPick ? "aguardando" : "na_colmeia", createdAt: Date.now(), createdBy: ME.id||"", canal:"consultiva", retira: !!d.retira };
   if(slot) o.colmeia = slot;
   res(o);
   state.draft=null; state.draftErr="";
@@ -1124,7 +1133,7 @@ function asideHTML(){
       const pl=pickList(o), done=pl.filter(x=>r[x.i].status!=="pend").length;
       return `<div class="qcard">
         <div class="row"><span class="pvn">${esc(o.num)}${o.mode==="aguarda"?" · "+esc(o.colmeia):""}</span><span class="chip ${st.c}">${st.t}</span></div>
-        <div class="cl">${esc(o.client)}</div>
+        <div class="cl">${esc(o.client)}</div>${o.retira?`<div class="retirabar">URGENTE · RETIRA NA LOJA</div>`:""}
         ${o.status==="excluido"?`<div class="delnote">Excluído às ${fmtClock(o.deletedAt)}${USERS_NAME(o.deletedBy)} · motivo: ${esc(o.deleteReason||"")}</div>`:""}
         <div class="meta tnum"><span>${MODES[o.mode]?.t||""}</span>${pl.length?`<span>Separado ${done}/${pl.length} ref.</span>`:""}${(o.tray&&["separando","mesa"].includes(o.trayStatus))||bigOnMesa(o)&&o.trayStatus!=="livre"?`<span>${esc(spotsTxt(o))}</span>`:""}${falt.length?`<span style="color:var(--bad)">${falt.length} com falta</span>`:""}</div>
         <div class="meta tnum"><span>⏱ ${o.status==="excluido" ? `excluído ${fmtDur((o.deletedAt||0)-(o.createdAt||0))} após a integração` : finished(o)&&(o.atMesaAt||o.pickedAt) ? `picking em ${fmtDur((o.atMesaAt||o.pickedAt)-o.createdAt)}` : `${since(o.createdAt)} desde a integração`}</span>${o.status==="separando"&&o.startedAt?`<span>separando há ${since(o.startedAt)}</span>`:""}</div>
@@ -1159,7 +1168,7 @@ function renderOrders(){
   const tab = state.sepTab || "fila", eco = canEco(), cons = canCons();
   const VIS = ORDERS.filter(ecoOk);
   const canal = eco && cons ? (state.canal || "consultiva") : eco ? "ecommerce" : "consultiva";
-  const allQ = VIS.filter(o=>(o.status==="aguardando"||o.status==="separando") && pickList(o).length).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+  const allQ = VIS.filter(o=>(o.status==="aguardando"||o.status==="separando") && pickList(o).length).sort(byUrg);
   const qCons = allQ.filter(o=>!isEco(o)), qEco = allQ.filter(isEco);
   const queue = canal==="ecommerce" ? qEco : qCons;
   const parked = VIS.filter(isSeparated).sort((a,b)=>(a.pickedAt||0)-(b.pickedAt||0));
@@ -1188,7 +1197,8 @@ function renderOrders(){
         const pl=pickList(o), r=res(o), done=pl.filter(x=>r[x.i].status!=="pend").length, enc=o.items.filter(i=>i.qtyEnc>0).length;
         const aisles=[...new Set(pl.filter(x=>x.loc).map(x=>"R"+x.loc.r))].join(" · "), semLoc=pl.filter(x=>!x.loc).length;
         const acts = can("coleta") ? (o.status==="separando"?2:1) : 0;
-        return `<div class="ordwrap acts${acts}"><button class="order ${o.mode==="aguarda"?"urgent":""}" data-oid="${esc(o.id)}">
+        return `<div class="ordwrap acts${acts}"><button class="order ${o.mode==="aguarda"||o.retira?"urgent":""} ${o.retira?"retira":""}" data-oid="${esc(o.id)}">
+          ${o.retira?`<div class="retirabar">URGENTE · RETIRA NA LOJA</div>`:""}
           <div class="row"><span class="num">#${esc(o.num)}${newIds.has(o.id)&&o.status==="aguardando"?` <span class="chip newc">Novo</span>`:""}</span>${o.status==="separando"?`<span class="chip prog">Em separação</span>`:isEco(o)?`<span class="chip eco">${esc(o.origem||"Site")}</span>`:`<span class="chip ${MODES[o.mode].c}">${MODES[o.mode].t}</span>`}</div>
           ${o.mzCancelado?`<div class="mzcancel">CANCELADO na Magazord · não enviar</div>`:o.mzMudou?`<div class="mzcancel warn">Situação mudou na Magazord: ${esc(o.mzSituacaoDesc||o.mzSituacao)} · confirme antes de enviar</div>`:""}
           <div class="client">${esc(o.client)}</div>
@@ -1353,7 +1363,7 @@ let tvRefreshT=null;
 function tvColumn(canal, title){
   const today=new Date().toDateString(), isToday=t=>t && new Date(t).toDateString()===today, now=Date.now();
   const mine = ORDERS.filter(o=>(o.canal||"consultiva")===canal);
-  const queue = mine.filter(o=>o.status==="aguardando" && pickList(o).length).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+  const queue = mine.filter(o=>o.status==="aguardando" && pickList(o).length).sort(byUrg);
   const doing = mine.filter(o=>o.status==="separando").sort((a,b)=>(a.startedAt||0)-(b.startedAt||0));
   const done = mine.filter(o=>isToday(o.pickedAt) && !o.semPecas).sort((a,b)=>(b.pickedAt||0)-(a.pickedAt||0));
   const avgPick = avg(done.filter(o=>o.startedAt).map(o=>o.pickedAt-o.startedAt).filter(x=>x>=0));
@@ -1374,13 +1384,13 @@ function tvColumn(canal, title){
     ${empty && canal==="ecommerce" ? `<div class="tvsoon"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 8H6"/><circle cx="10" cy="20" r="1.3"/><circle cx="17" cy="20" r="1.3"/></svg><b>Pedidos do e-commerce</b><span>Este lado mostra a fila do e-commerce quando o fluxo for integrado.</span></div>` : `
     <h3>Em separação · ${doing.length}</h3>
     <div class="tvlist">${doing.slice(0,MAXD).map(o=>{ const pl=pickList(o), r=res(o), d=pl.filter(x=>r[x.i].status!=="pend").length;
-      return `<div class="tvrow doing"><span class="tvnum">#${esc(o.num)}</span><span class="tvcli">${esc(o.client)}<small><span data-uid="${esc(o.startedBy||"")}" data-fallback="Separador"></span>${o.tray?` · ${esc(spotsTxt(o))}`:""}</small></span>
+      return `<div class="tvrow doing ${o.retira?"tvurg":""}"><span class="tvnum">#${esc(o.num)}${o.retira?` <em class="tvurgtag">URGENTE</em>`:""}</span><span class="tvcli">${esc(o.client)}<small><span data-uid="${esc(o.startedBy||"")}" data-fallback="Separador"></span>${o.tray?` · ${esc(spotsTxt(o))}`:""}</small></span>
         <span class="tvprog"><i style="width:${pl.length?d/pl.length*100:0}%"></i><small class="tnum">${d}/${pl.length} ref.</small></span>
         <span class="tvtime tnum">${o.startedAt?`<span data-since="${o.startedAt}">${fmtDur(now-o.startedAt)}</span>`:"—"}</span></div>`; }).join("") || `<div class="tvnone">Ninguém separando agora</div>`}
       ${doing.length>MAXD?`<div class="tvmore">+ ${doing.length-MAXD} em separação</div>`:""}</div>
     <h3>Aguardando separação · ${queue.length}${canal==="ecommerce" && queue.length ? (()=>{ const m={}; queue.forEach(o=>{ const v=o.origem||"Site"; m[v]=(m[v]||0)+1; });
       return ` <span class="tvcanais">(${Object.entries(m).sort((a,b)=>b[1]-a[1]).map(([v,n])=>`${esc(v)} ${n}`).join(" - ")})</span>`; })() : ""}</h3>
-    <div class="tvlist fit" data-total="${queue.length}">${queue.slice(0,MAXQ).map((o,k)=>`<div class="tvrow ${lvl(wait(o))}"><span class="tvpos tnum">${k+1}</span><span class="tvnum">#${esc(o.num)}${now-(o.createdAt||0)<5*60e3?` <em class="tvnew">NOVO</em>`:""}</span>
+    <div class="tvlist fit" data-total="${queue.length}">${queue.slice(0,MAXQ).map((o,k)=>`<div class="tvrow ${o.retira?"tvurg":lvl(wait(o))}"><span class="tvpos tnum">${k+1}</span><span class="tvnum">#${esc(o.num)}${o.retira?` <em class="tvurgtag">URGENTE · RETIRA NA LOJA</em>`:""}${now-(o.createdAt||0)<5*60e3?` <em class="tvnew">NOVO</em>`:""}</span>
         <span class="tvcli">${esc(o.client)}<small>${pickList(o).length} ref. · ${units(o)} pç · ${isEco(o) ? esc((o.origem||"Site")+(o.transportadora?" · "+o.transportadora:"")) : esc(MODES[o.mode]?.t||"")}</small></span>
         <span class="tvtime tnum"><span data-since="${o.createdAt}">${fmtDur(wait(o))}</span></span></div>`).join("") || `<div class="tvnone ok">Fila vazia</div>`}
 </div><div class="tvmore" data-more>${queue.length>MAXQ?`+ ${queue.length-MAXQ} pedidos na fila`:""}</div>
@@ -1572,6 +1582,7 @@ function renderPick(){
       <span class="badge tnum">${state.idx+1}/${pl.length}</span>
     </header>
     ${o.mzCancelado?`<div class="mzcancel big">Pedido CANCELADO na Magazord · pare a separação e devolva as peças</div>`:o.mzMudou?`<div class="mzcancel big warn">A situação deste pedido mudou na Magazord para "${esc(o.mzSituacaoDesc||o.mzSituacao)}" · confirme com o responsável antes de continuar</div>`:""}
+    ${o.retira?`<div class="retirabar" style="margin-top:8px">URGENTE · RETIRA NA LOJA</div>`:""}
     ${state.lote && loteMatch(o) ? `<div class="lotebadge">Lote · ${esc(state.lote.vals.join(" · "))} · ${lotePending().length} restante(s)</div>` : ""}
     ${isEco(o)?`<div class="ecoinfo"><span class="chip eco">${esc(o.origem||"Site")}</span>${transpBadge(o.transportadora)}${o.servico&&o.servico!==o.transportadora?`<span class="muted-s">${esc(o.servico)}</span>`:""}</div>`:""}
     <div class="steps">${pl.map((x,k)=>{ const s=r[x.i].status; return `<i class="${s==="ok"||s==="part"?"ok":s==="miss"?"miss":k===state.idx?"cur":""}"></i>`; }).join("")}</div>
@@ -2581,6 +2592,7 @@ function canEco(){ if(!db) return true; if(state.viewAs) return false; if(myRole
 /* Venda Consultiva: idem, com a opção "Venda Consultiva" em Usuários */
 function canCons(){ if(!db) return true; if(state.viewAs) return true; if(myRole()==="admin") return true; return !!(ME.id && USERS[ME.id]?.consultiva); }
 const isEco = o => o.canal==="ecommerce";
+const byUrg = (a,b) => (!!b.retira - !!a.retira) || (a.createdAt||0)-(b.createdAt||0); // "Retira na Loja" primeiro
 const ecoOk = o => isEco(o) ? canEco() : canCons();
 function allowedSectors(){ return ["comercial","expedicao","estoque","usuarios"].filter(canSector); }
 
