@@ -31,6 +31,8 @@
   };
   const uid = () => Math.random().toString(36).slice(2);
 
+  const refreshers = new Set();
+  window.psRefresh = async () => { await Promise.all([...refreshers].map(f => f())); };
   async function fetchAll(t, cols="id,data"){
     let out = [], from = 0;
     for(;;){
@@ -49,14 +51,18 @@
       onSnapshot(cb, onErr){
         const rows = new Map(); let loaded = false;
         const emit = () => { if(loaded) cb({ docs: [...rows].map(([id,d]) => ({ id, exists:true, data:()=>d })) }); };
-        const ch = sb.channel(`rt-${t}-${uid()}`)
+        const listen = () => sb.channel(`rt-${t}-${uid()}`)
           .on("postgres_changes", { event:"*", schema:"public", table:t }, p => {
             if(p.eventType === "DELETE") rows.delete(p.old.id); else rows.set(p.new.id, p.new.data);
             emit();
           }).subscribe();
-        fetchAll(t).then(d => { d.forEach(r => rows.set(r.id, r.data)); loaded = true; emit(); })
-                   .catch(e => onErr && onErr(toErr(e)));
-        return () => sb.removeChannel(ch);
+        let ch = listen();
+        const load = () => fetchAll(t).then(d => { rows.clear(); d.forEach(r => rows.set(r.id, r.data)); loaded = true; emit(); });
+        load().catch(e => onErr && onErr(toErr(e)));
+        /* "Atualizar": busca tudo de novo no servidor e reabre o tempo real se ele caiu */
+        const refresh = async () => { if(ch.state !== "joined"){ sb.removeChannel(ch); ch = listen(); } await load(); };
+        refreshers.add(refresh);
+        return () => { refreshers.delete(refresh); sb.removeChannel(ch); };
       },
       doc(id){ return docRef(t, id); }
     };

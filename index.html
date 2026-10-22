@@ -107,6 +107,12 @@ button:focus-visible{outline:3px solid var(--route);outline-offset:2px}
 .loc-code span{color:var(--muted);font-weight:500}
 .noloc .loc-code{font-family:var(--display);font-size:clamp(20px,6vw,28px);color:var(--warn,#C27C0E)}
 .spotbtn{width:100%;margin-top:8px}
+.refbtn{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-weight:600;font-size:14px;cursor:pointer;flex:none}
+.refbtn svg{width:18px;height:18px}
+.refbtn.spin svg{animation:refspin .8s linear infinite}
+.refbtn[disabled]{opacity:.7}
+@keyframes refspin{to{transform:rotate(360deg)}}
+@media (max-width:380px){ .refbtn span{display:none} .refbtn{width:40px;padding:0;justify-content:center} }
 .mesas .mrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
 .mesas .mrow b{min-width:78px}
 .ordwrap{position:relative;display:flex;flex-direction:column}
@@ -1080,10 +1086,12 @@ function renderOrders(){
     </div>`;
   }
   app.innerHTML = topnav() + `
-    <header class="bar"><div class="grow"><h1>${tab==="fila"?"Pedidos para separar":tab==="colmeias"?"Encomendas":"Pedidos separados"}</h1><div class="sub">CD Porto Belo${can("coleta")?"":" · somente consulta"}</div></div></header>
+    <header class="bar"><div class="grow"><h1>${tab==="fila"?"Pedidos para separar":tab==="colmeias"?"Encomendas":"Pedidos separados"}</h1><div class="sub">CD Porto Belo${can("coleta")?"":" · somente consulta"}</div></div>
+      <button class="refbtn" id="refreshQ" aria-label="Atualizar a fila" title="Atualizar a fila">${ICON_RESTART}<span>Atualizar</span></button></header>
     ${!synced ? `<div class="banner">Sem conexão com o banco de dados. Verifique a internet ou a configuração do Supabase.</div>`:""}
     ${body}`;
   bindNav(); bindAlerts();
+  const rq=document.getElementById("refreshQ"); if(rq) rq.onclick=refreshQueue;
   app.querySelectorAll("[data-restart]").forEach(b=>b.onclick=()=>restartOrder(b.dataset.restart, false));
   app.querySelectorAll("[data-delord]").forEach(b=>b.onclick=()=>deleteOrder(b.dataset.delord));
   if(can("coleta")) app.querySelectorAll(".order").forEach(b=>b.onclick=()=>openOrder(b.dataset.oid));
@@ -1208,6 +1216,20 @@ function askModal({title, text, okText="Confirmar", danger=false, input=null}){
   });
 }
 const USERS_NAME = id => { const n = id && document.querySelector(`[data-uid="${id}"]`)?.textContent; return n ? " por "+esc(n) : ""; };
+/* Botão "Atualizar" da fila: busca os pedidos de novo no servidor */
+let refreshing=false;
+async function refreshQueue(){
+  if(refreshing) return; refreshing=true;
+  const b=document.getElementById("refreshQ"); if(b){ b.classList.add("spin"); b.disabled=true; }
+  try{
+    if(!window.psRefresh){ location.reload(); return; }
+    await Promise.race([window.psRefresh(), new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),15000))]);
+    synced=true; checkNewOrders();
+    const q=ORDERS.filter(o=>(o.status==="aguardando"||o.status==="separando") && pickList(o).length).length;
+    render(); toast(`Fila atualizada · ${q} pedido${q===1?"":"s"} para separar`);
+  }catch(e){ toast("Não foi possível atualizar. Verifique a internet."); render(); }
+  finally{ refreshing=false; }
+}
 async function restartOrder(id, reopen){
   const o=ORDERS.find(x=>x.id===id); if(!o) return;
   const r=res(o), pl=pickList(o), done=pl.filter(x=>r[x.i].status!=="pend").length;
