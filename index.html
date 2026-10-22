@@ -561,7 +561,8 @@ function parsePresale(raw){
   [...cells].sort((a,b)=>b.y-a.y||a.x-b.x).forEach(c=>{ let L=lines.find(l=>Math.abs(l.y-c.y)<2.5); if(!L){ L={y:c.y,cells:[]}; lines.push(L); } L.cells.push(c); });
   const all = lines.map(l=>l.cells.sort((a,b)=>a.x-b.x).map(c=>c.s).join(" ")).join("\n");
   const m = re => { const r=all.match(re); return r ? r.slice(1).map(x=>x && x.trim()) : null; };
-  const num = m(/Pr[ée]-venda\s*-\s*(\d+)/)?.[0];
+  // número: "Pré-venda - 123" ou "Orçamento - 123" (também aceita "Orçamento nº 123", "ORÇAMENTO: 123")
+  const num = m(/(?:Pr[ée]\s*-?\s*venda|Or[çc]amento)\s*(?:n[º°o.]*\s*)?[-–:#]?\s*(\d+)/i)?.[0];
   const dt = m(/Data:\s*([\d/]+)\s*Hora:\s*([\d:]+)/) || [];
   const cli = m(/Cliente:\s*(\d+)\s*-\s*(.+?)(?:\s+CPF\/CNPJ:.*)?$/m) || [];
   const end = m(/Endere[çc]o:\s*(.+)$/m)?.[0] || "";
@@ -807,7 +808,7 @@ function dropHTML(){
     <label class="drop" id="drop" for="pdfIn">
       <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 18v-6M9 15l3-3 3 3"/></svg>
       <b>${state.parsing ? "Lendo pré-venda…" : "Arraste o PDF da pré-venda aqui"}</b>
-      <small>ou clique para escolher o arquivo · formato "Pré-venda - Nº" do sistema</small>
+      <small>ou clique para escolher o arquivo · formato "Pré-venda - Nº" ou "Orçamento - Nº" do sistema</small>
     </label>
     <input type="file" id="pdfIn" accept="application/pdf" hidden>
     ${state.draftErr ? `<div class="err">${esc(state.draftErr)}</div>` : ""}
@@ -842,7 +843,7 @@ async function importPdf(file){
     state.parsing=false; startDraft(p);
   }catch(e){
     console.warn(e); state.parsing=false;
-    state.draftErr = e?.message==="formato"||e?.message==="sem itens" ? "Não reconheci este PDF como uma pré-venda (não achei o número ou a tabela de itens)." : "Não foi possível ler o PDF. Tente de novo ou use outro arquivo.";
+    state.draftErr = e?.message==="formato"||e?.message==="sem itens" ? "Não reconheci este PDF como uma pré-venda ou orçamento (não achei o número ou a tabela de itens)." : "Não foi possível ler o PDF. Tente de novo ou use outro arquivo.";
     render();
   }
 }
