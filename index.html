@@ -128,7 +128,8 @@ button:focus-visible{outline:3px solid var(--route);outline-offset:2px}
 .mzcancel{background:var(--bad);color:#fff;font-weight:700;border-radius:8px;padding:6px 10px;font-size:13px;letter-spacing:.02em}
 .mzcancel.big{margin:10px 0;font-size:15px;padding:10px 12px}
 .ecoinfo{display:flex;align-items:center;gap:8px;margin:8px 0 2px;font-size:14px;font-weight:600}
-.mzsync{margin-top:12px}.danger-t{color:var(--bad)}.mzlast{font-size:13px;margin:6px 0 10px}
+.mzsync{margin-top:12px}
+.nuchk{grid-column:1/-1;display:flex;gap:14px;align-items:center;flex-wrap:wrap}.danger-t{color:var(--bad)}.mzlast{font-size:13px;margin:6px 0 10px}
 .mzbox{margin-top:16px;border-top:1px solid var(--line);padding-top:6px}
 .mzform{display:grid;gap:8px;margin:8px 0}.mzform .tin{width:100%;box-sizing:border-box}
 .mzbtns{display:flex;gap:8px;flex-wrap:wrap}
@@ -1120,9 +1121,9 @@ const inHistory = o => !!o.pickedAt && !isSeparated(o) && !inHive(o) && !["aguar
 function sepTab(o){ return isSeparated(o) ? "fila" : inHive(o) ? "colmeias" : inHistory(o) ? "historico" : "fila"; }
 
 function renderOrders(){
-  const tab = state.sepTab || "fila", eco = canEco();
+  const tab = state.sepTab || "fila", eco = canEco(), cons = canCons();
   const VIS = ORDERS.filter(ecoOk);
-  const canal = eco ? (state.canal || "consultiva") : "consultiva";
+  const canal = eco && cons ? (state.canal || "consultiva") : eco ? "ecommerce" : "consultiva";
   const allQ = VIS.filter(o=>(o.status==="aguardando"||o.status==="separando") && pickList(o).length).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
   const qCons = allQ.filter(o=>!isEco(o)), qEco = allQ.filter(isEco);
   const queue = canal==="ecommerce" ? qEco : qCons;
@@ -1134,11 +1135,13 @@ function renderOrders(){
   let body = "";
   const pgQ = pageOf(queue, "fila", 20), pgP = pageOf(parked, "mesa", 20), pgH = pageOf(hist, "hist", 25);
   const count = (list, k) => { const m={}; list.forEach(o=>{ const v=o[k]||"—"; m[v]=(m[v]||0)+1; }); return Object.entries(m).sort((a,b)=>b[1]-a[1]); };
-  const canalBar = eco ? `<div class="seg canalseg" role="group" aria-label="Canal">
+  const canalBar = eco && cons ? `<div class="seg canalseg" role="group" aria-label="Canal">
       <button data-canal="consultiva" aria-pressed="${canal==="consultiva"}">Venda Consultiva <b class="tnum">${qCons.length}</b></button>
       <button data-canal="ecommerce" aria-pressed="${canal==="ecommerce"}">E-commerce <b class="tnum">${qEco.length}</b></button></div>
-    ${canal==="ecommerce" && can("coleta") ? loteBoxHTML() : ""}` : "";
-  if(tab==="fila"){
+    ${canal==="ecommerce" && can("coleta") ? loteBoxHTML() : ""}` : (canal==="ecommerce" && can("coleta") ? loteBoxHTML() : "");
+  if(tab==="fila" && !eco && !cons){
+    body = `<div class="empty" style="margin-top:16px">Você ainda não está liberado para separar nenhum canal. Peça ao administrador para ligar <b>Venda Consultiva</b> e/ou <b>E-commerce</b> no seu usuário.</div>`;
+  } else if(tab==="fila"){
     body = canalBar + `
     <div class="shift">
       <div><b class="tnum">${queue.length}</b><span class="eyebrow">Pedidos</span></div>
@@ -2527,8 +2530,10 @@ const can = p => !!ROLES[myRole()]?.p.includes(p);
 const canSector = s => (SECTOR_PERM[s]||[]).some(can);
 /* E-commerce: Administrador sempre; demais só com a opção "E-commerce" ligada em Usuários */
 function canEco(){ if(!db) return true; if(state.viewAs) return false; if(myRole()==="admin") return true; return !!(ME.id && USERS[ME.id]?.ecommerce); }
+/* Venda Consultiva: idem, com a opção "Venda Consultiva" em Usuários */
+function canCons(){ if(!db) return true; if(state.viewAs) return true; if(myRole()==="admin") return true; return !!(ME.id && USERS[ME.id]?.consultiva); }
 const isEco = o => o.canal==="ecommerce";
-const ecoOk = o => !isEco(o) || canEco();
+const ecoOk = o => isEco(o) ? canEco() : canCons();
 function allowedSectors(){ return ["comercial","expedicao","estoque","usuarios"].filter(canSector); }
 
 // Nomes e fotos: guardamos só o id; o nome é resolvido na hora de mostrar
@@ -2572,7 +2577,7 @@ function renderUsuarios(){
             <img class="av" data-uid="${esc(id)}" alt=""><div class="grow"><b data-uid="${esc(id)}"></b><small>${u.login?`Login: <span class="mono">${esc(u.login)}</span> · `:""}${ROLES[u.role]?.d||""}</small></div>
             ${roleSel(id,u.role)}
             <label class="chk"><input type="checkbox" data-active="${esc(id)}" ${u.active!==false?"checked":""}> Ativo</label>
-            ${["separador","supervisor","conferente"].includes(u.role)?`<label class="chk" title="Pode ver e separar os pedidos do e-commerce"><input type="checkbox" data-eco="${esc(id)}" ${u.ecommerce?"checked":""}> E-commerce</label>`:""}
+            ${["separador","supervisor","conferente"].includes(u.role)?`<label class="chk" title="Pode ver e separar as vendas consultivas"><input type="checkbox" data-cons="${esc(id)}" ${u.consultiva?"checked":""}> Venda Consultiva</label><label class="chk" title="Pode ver e separar os pedidos do e-commerce"><input type="checkbox" data-eco="${esc(id)}" ${u.ecommerce?"checked":""}> E-commerce</label>`:""}
             ${window.psAdmin && ME.isOwner ? `<span class="pwbox" data-pwbox="${esc(id)}"><button class="mini" data-pw="${esc(id)}">Nova senha</button></span>` : ""}
             <button class="mini" data-del="${esc(id)}" aria-label="Remover usuário">Remover</button></div>`; }).join("") || (!ME.isOwner?`<div class="empty">Nenhum usuário cadastrado.</div>`:"")}
         </div>${pgU.pager}
@@ -2583,6 +2588,7 @@ function renderUsuarios(){
           <input class="tin" id="nuPass" placeholder="Senha inicial (mín. 6)" required minlength="6">
           <select class="tin" id="nuRole" aria-label="Nível de acesso">${Object.entries(ROLES).map(([k,r])=>`<option value="${k}" ${k==="separador"?"selected":""}>${r.t}</option>`).join("")}</select>
           <button class="btn dark" type="submit" id="nuBtn" style="min-height:40px;padding:8px 16px">Criar</button>
+          <div class="nuchk"><span class="eyebrow">Separa</span><label class="chk"><input type="checkbox" id="nuCons" checked> Venda Consultiva</label><label class="chk"><input type="checkbox" id="nuEco"> E-commerce</label></div>
         </form>
         ${state.nuMsg?`<div class="${state.nuMsg.ok?"okbox":"err"}">${state.nuMsg.t}</div>`:""}
         <p class="hint">A conta já nasce liberada, sem e-mail de confirmação. Quem não tem e-mail entra com o usuário (ex.: <b>joao.silva</b>) e a senha. Esqueceu a senha? Use <b>Nova senha</b> ao lado do nome.</p>` : ""}
@@ -2613,6 +2619,7 @@ function renderUsuarios(){
   bindNav(); fillNames(app);
   app.querySelectorAll("[data-role]").forEach(s=>s.onchange=()=>saveUser(s.dataset.role, {role:s.value}));
   app.querySelectorAll("[data-active]").forEach(c=>c.onchange=()=>saveUser(c.dataset.active, {active:c.checked}));
+  app.querySelectorAll("[data-cons]").forEach(c=>c.onchange=()=>{ saveUser(c.dataset.cons, {consultiva:c.checked}); toast(c.checked?"Liberado para separar Venda Consultiva":"Venda Consultiva bloqueada para esta pessoa"); });
   app.querySelectorAll("[data-eco]").forEach(c=>c.onchange=()=>{ saveUser(c.dataset.eco, {ecommerce:c.checked}); toast(c.checked?"Liberado para separar e-commerce":"E-commerce bloqueado para esta pessoa"); });
   app.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{
     if(b.dataset.confirm){ deleteUser(b.dataset.del); return; }
@@ -2621,9 +2628,10 @@ function renderUsuarios(){
   const nu=document.getElementById("newUser");
   if(nu) nu.onsubmit=async e=>{ e.preventDefault(); const btn=document.getElementById("nuBtn"); btn.disabled=true; btn.textContent="Criando…";
     const name=document.getElementById("nuName").value.trim(), login=document.getElementById("nuLogin").value.trim(), password=document.getElementById("nuPass").value, role=document.getElementById("nuRole").value;
-    try{ const r=await window.psAdmin.createUser({name, login, password, role});
+    const consultiva=document.getElementById("nuCons").checked, ecommerce=document.getElementById("nuEco").checked;
+    try{ const r=await window.psAdmin.createUser({name, login, password, role, consultiva, ecommerce});
       state.nuMsg={ok:true, t:`${esc(name)} criado como ${ROLES[role].t}. Login: <b class="mono">${esc(r.login)}</b> · senha: a que você definiu.`};
-      USERS[r.id]={role, active:true, addedAt:Date.now(), login:r.login};
+      USERS[r.id]={role, active:true, addedAt:Date.now(), login:r.login, consultiva, ecommerce};
     }catch(ex){ state.nuMsg={ok:false, t:esc(ex.message||ex)}; }
     render(); };
   app.querySelectorAll("[data-pw]").forEach(b=>b.onclick=()=>{ const id=b.dataset.pw, box=b.closest(".pwbox");

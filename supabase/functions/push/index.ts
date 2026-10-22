@@ -77,9 +77,9 @@ Deno.serve(async (req) => {
       if (req.headers.get("x-push-secret") !== await secret("push_webhook")) return json({ error: "não autorizado" }, 401);
       const o = body.order;
       const eco = o.canal === "ecommerce";
-      const { data: people } = await sb.from("profiles").select("id,ecommerce").eq("active", true).in("role", NOTIFY_ROLES);
-      // pedido do e-commerce: só avisa quem está liberado para separar e-commerce
-      const ids = (people || []).filter((p) => !eco || p.ecommerce).map((p) => p.id as string).filter((id) => id !== o.createdBy);
+      const { data: people } = await sb.from("profiles").select("id,role,ecommerce,consultiva").eq("active", true).in("role", NOTIFY_ROLES);
+      // só avisa quem está liberado para separar aquele canal (Administrador recebe os dois)
+      const ids = (people || []).filter((p) => p.role === "admin" || (eco ? p.ecommerce : p.consultiva)).map((p) => p.id as string).filter((id) => id !== o.createdBy);
       const r = await sendTo(ids, {
         title: eco ? `Novo pedido e-commerce · ${o.origem || "Site"}` : "Novo pedido para separar",
         body: eco ? `#${o.num}${o.transportadora ? ` · ${o.transportadora}` : ""}${o.refs ? ` · ${o.refs} ref.` : ""}`

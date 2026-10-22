@@ -76,3 +76,7 @@ select cron.schedule('magazord-sync', '*/2 * * * *', $$
     body := '{"action":"sync"}'::jsonb,
     timeout_milliseconds := 120000);
 $$);
+
+-- ---------- Quem separa Venda Consultiva ----------
+alter table public.profiles add column if not exists consultiva boolean not null default false;
+update public.profiles set consultiva = true where role is not null; -- quem já tinha acesso continua separando

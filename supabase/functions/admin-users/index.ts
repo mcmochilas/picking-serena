@@ -1,5 +1,5 @@
 // Picking Serena · gestão de usuários pelo Administrador (sem depender de e-mail)
-//  POST {action:"create", name, login, password, role} -> cria a conta já confirmada e com nível
+//  POST {action:"create", name, login, password, role, consultiva, ecommerce} -> cria a conta já confirmada e com nível
 //  POST {action:"password", id, password}             -> define uma nova senha para a pessoa
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
 
@@ -15,7 +15,7 @@ const USER_DOMAIN = "usuarios.picking-serena.invalid"; // domínio reservado: nu
 const toEmail = (login: string) => {
   const l = String(login || "").trim().toLowerCase();
   if (l.includes("@")) return l;
-  const slug = l.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9._-]+/g, ".").replace(/^\.+|\.+$/g, "");
+  const slug = l.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9._-]+/g, ".").replace(/^\.+|\.+$/g, "");
   return slug ? `${slug}@${USER_DOMAIN}` : "";
 };
 const PT: [RegExp, string][] = [
@@ -44,8 +44,8 @@ Deno.serve(async (req) => {
       const { data, error } = await sb.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { name } });
       if (error) return json({ error: pt(error.message) }, 400);
       const id = data.user!.id;
-      // o gatilho do banco cria o perfil; aqui definimos nome e nível
-      const { error: e2 } = await sb.from("profiles").upsert({ id, email, name, role: b.role, active: true }, { onConflict: "id" });
+      // o gatilho do banco cria o perfil; aqui definimos nome, nível e canais que a pessoa separa
+      const { error: e2 } = await sb.from("profiles").upsert({ id, email, name, role: b.role, active: true, consultiva: b.consultiva !== false, ecommerce: !!b.ecommerce }, { onConflict: "id" });
       if (e2) return json({ error: e2.message }, 500);
       return json({ id, email, login: email.endsWith("@" + USER_DOMAIN) ? email.split("@")[0] : email });
     }
