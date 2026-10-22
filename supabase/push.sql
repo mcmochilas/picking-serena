@@ -54,3 +54,11 @@ revoke execute on function public.notify_new_order() from public, anon, authenti
 drop trigger if exists on_new_order_push on public.orders;
 create trigger on_new_order_push after insert or update on public.orders
   for each row execute function public.notify_new_order();
+
+-- ---------- Mesas (locais para itens grandes) ----------
+-- Estoque e gestão cadastram as mesas no documento config/mesas
+create policy config_mesas_write on public.config for all
+  using (id = 'mesas' and public.app_role() in ('admin','supervisor','estoque'))
+  with check (id = 'mesas' and public.app_role() in ('admin','supervisor','estoque'));
+insert into public.config (id, data) values ('mesas', '{"list":[{"code":"MESA-001","desc":"Itens grandes / sem bandeja"}]}'::jsonb)
+  on conflict (id) do nothing;

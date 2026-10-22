@@ -107,6 +107,8 @@ button:focus-visible{outline:3px solid var(--route);outline-offset:2px}
 .loc-code span{color:var(--muted);font-weight:500}
 .noloc .loc-code{font-family:var(--display);font-size:clamp(20px,6vw,28px);color:var(--warn,#C27C0E)}
 .spotbtn{width:100%;margin-top:8px}
+.mesas .mrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.mesas .mrow b{min-width:78px}
 .ordwrap{position:relative;display:flex;flex-direction:column}
 .ordwrap.acts1 .order .meta{padding-right:48px}
 .ordwrap.acts2 .order .meta{padding-right:96px}
@@ -640,12 +642,19 @@ function normalize(o){ // compatibilidade com pedidos gravados na versão anteri
 }
 // Cadastro de endereços de estoque (no sistema real vem do ERP/WMS)
 const TRAYS = Array.from({length:30},(_,i)=>"BJ-"+String(i+1).padStart(2,"0"));
-/* Mesa-001: local compartilhado para itens grandes que não cabem na bandeja, ou para o pedido inteiro quando não há bandeja livre */
-const MESA_SPOT = "MESA-001";
-const normSpot = v => /^MESA-?0*1$/.test(v) ? MESA_SPOT : v;
-const isTrayCode = v => /^BJ-\d{2}$/.test(v) || v===MESA_SPOT;
-const bigOnMesa = o => (o.res||[]).some(x=>x && x.spot===MESA_SPOT) && o.tray!==MESA_SPOT;
-function spotsTxt(o){ const a=[]; if(o.tray) a.push(o.tray===MESA_SPOT?"Mesa-001":"Bandeja "+o.tray); if(bigOnMesa(o)) a.push("Mesa-001"); return a.join(" + "); }
+/* Mesas (MESA-001, MESA-002…): locais compartilhados para itens grandes que não cabem na bandeja,
+   ou para o pedido inteiro quando não há bandeja livre. Cadastradas em Locais → Etiquetas → Mesas. */
+let MESAS = [{code:"MESA-001", desc:"Itens grandes / sem bandeja"}], mesasDoc = null;
+const isMesaCode = v => /^MESA-\d{3}$/.test(String(v||""));
+const isMesa = v => MESAS.some(m=>m.code===v);
+const defMesa = () => MESAS[0]?.code || "MESA-001";
+const mesaName = c => "Mesa-"+String(c||"").slice(5);
+const normSpot = v => { const m=/^MESA-?0*(\d{1,3})$/.exec(v); return m ? "MESA-"+m[1].padStart(3,"0") : v; };
+const isTrayCode = v => /^BJ-\d{2}$/.test(v) || isMesa(v);
+const bigSpots = o => [...new Set((o.res||[]).map(x=>x&&x.spot).filter(sp=>sp && sp!==o.tray))];
+const bigOnMesa = o => bigSpots(o).length>0;
+const trayLabel = t => isMesaCode(t) ? mesaName(t) : "bandeja "+t;
+function spotsTxt(o){ const a=[]; if(o.tray) a.push(isMesaCode(o.tray)?mesaName(o.tray):"Bandeja "+o.tray); bigSpots(o).forEach(sp=>a.push(mesaName(sp))); return a.join(" + "); }
 let PRODUCTS = {}; // cadastro: código -> {code, name, ean, loc}
 const LOC_TYPES = { GAV:"Gaveta", COL:"Colmeia", BIN:"Bin" };
 let BLOCKS = {}, blockCol = null; // estruturas: {r, l, t, n1, n2, c1, c2} geram os locais
@@ -1053,8 +1062,8 @@ function renderOrders(){
           ${done?`<div class="prog-bar"><i style="width:${done/pl.length*100}%"></i></div>`:""}
         </button>${acts?`<div class="ord-acts">${o.status==="separando"?`<button class="icbtn" data-restart="${esc(o.id)}" aria-label="Reiniciar separação" title="Reiniciar separação">${ICON_RESTART}</button>`:""}<button class="icbtn del" data-delord="${esc(o.id)}" aria-label="Excluir separação" title="Excluir separação">${ICON_TRASH}</button></div>`:""}</div>`;}).join("") + pgQ.pager : `<div class="empty">Nenhum pedido aguardando separação.</div>`}
     </div>
-    ${parked.length?`<div class="section"><div class="eyebrow">Separados · na mesa com bandeja ou Mesa-001 · ${parked.length}</div>${pgP.top}<div class="list" style="margin-top:0">${pgP.items.map(o=>
-      `<div class="li sep" style="cursor:default"><span class="lc tnum">${esc(o.tray)}</span><span class="ln">#${esc(o.num)} · ${esc(o.client)}<small>${o.mode==="aguarda"?"Vai para a colmeia "+esc(o.colmeia||""):"Mesa"}${bigOnMesa(o)?" · itens grandes na Mesa-001":""}</small></span>${can("coleta")||can("mesa") ? `<button class="mini" data-free="${esc(o.id)}">${o.tray===MESA_SPOT?"Liberar Mesa-001":bigOnMesa(o)?"Liberar bandeja e Mesa-001":"Liberar bandeja"}</button>` : ""}</div>`).join("")}</div>${pgP.pager}</div>`:""}`;
+    ${parked.length?`<div class="section"><div class="eyebrow">Separados · com bandeja ou mesa · ${parked.length}</div>${pgP.top}<div class="list" style="margin-top:0">${pgP.items.map(o=>
+      `<div class="li sep" style="cursor:default"><span class="lc tnum">${esc(o.tray)}</span><span class="ln">#${esc(o.num)} · ${esc(o.client)}<small>${o.mode==="aguarda"?"Vai para a colmeia "+esc(o.colmeia||""):"Mesa"}${bigOnMesa(o)?" · itens grandes na "+bigSpots(o).map(mesaName).join(", "):""}</small></span>${can("coleta")||can("mesa") ? `<button class="mini" data-free="${esc(o.id)}">${isMesaCode(o.tray)?"Liberar "+mesaName(o.tray):bigOnMesa(o)?"Liberar bandeja e mesa":"Liberar bandeja"}</button>` : ""}</div>`).join("")}</div>${pgP.pager}</div>`:""}`;
   } else if(tab==="colmeias"){
     body = `
     <div class="section"><div class="eyebrow">Mapa das colmeias</div>${hiveHTML(null)}</div>
@@ -1101,7 +1110,7 @@ function renderLabels(){
     <header class="bar"><button class="back" id="back" aria-label="Voltar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button><div class="grow"><h1>Etiquetas de teste</h1><div class="sub">Abra no computador e aponte o celular ou o leitor para a tela</div></div></header>
     <div class="section"><div class="eyebrow">Endereços · ${locs.size}</div><div class="labels">${[...locs].sort().map(([v,t])=>card(v,t,"CODE128",true)).join("")||`<div class="empty">Sem pedidos abertos.</div>`}</div></div>
     <div class="section"><div class="eyebrow">Produtos · ${prods.size}</div><div class="labels">${[...prods].map(([v,p])=>card(v,p.t,p.f,p.f!=="EAN13")).join("")}</div></div>
-    <div class="section"><div class="eyebrow">Bandejas · ${TRAYS.length}</div><div class="labels">${TRAYS.slice(0,8).map(s=>card(s,"Bandeja de separação","CODE128",true)).join("")}${card(MESA_SPOT,"Itens grandes / sem bandeja","CODE128",true)}</div></div>
+    <div class="section"><div class="eyebrow">Bandejas · ${TRAYS.length}</div><div class="labels">${TRAYS.slice(0,8).map(s=>card(s,"Bandeja de separação","CODE128",true)).join("")}${MESAS.map(m=>card(m.code,m.desc||"Itens grandes","CODE128",true)).join("")}</div></div>
     <div class="section"><div class="eyebrow">Colmeias · ${HIVE.length}</div><div class="labels">${HIVE.map(s=>card(s,"Colmeia de separação","CODE128",true)).join("")}</div></div>`;
   bindNav();
   document.getElementById("back").onclick=()=>{ state.view="orders"; render(); };
@@ -1203,7 +1212,7 @@ async function restartOrder(id, reopen){
   const o=ORDERS.find(x=>x.id===id); if(!o) return;
   const r=res(o), pl=pickList(o), done=pl.filter(x=>r[x.i].status!=="pend").length;
   const ok=await askModal({title:`Reiniciar a separação #${o.num}?`, okText:"Reiniciar",
-    text:`O que já foi coletado (${done} de ${pl.length} itens) volta a zero e o tempo de picking recomeça.${o.tray&&o.trayStatus==="separando"?` A ${o.tray===MESA_SPOT?"Mesa-001":"bandeja "+esc(o.tray)} é liberada; bipe a bandeja de novo.`:""} Devolva as peças já coletadas aos locais.`});
+    text:`O que já foi coletado (${done} de ${pl.length} itens) volta a zero e o tempo de picking recomeça.${o.tray&&o.trayStatus==="separando"?` A ${esc(trayLabel(o.tray))} é liberada; bipe a bandeja de novo.`:""} Devolva as peças já coletadas aos locais.`});
   if(!ok) return;
   patchOrder(o.id, {status:"aguardando", res:o.items.map(()=>({status:"pend",got:0})), startedAt:null, startedBy:"",
     ...(o.tray&&o.trayStatus==="separando"?{tray:"", trayStatus:""}:{}),
@@ -1241,14 +1250,15 @@ function taskCard(it){
   if(state.phase==="tray"){ const o=ORDERS.find(x=>x.id===state.oid), ft=o&&freeTray(o); return `
     <div class="task">${head}
       <div class="row"><div class="do">${ICON_SCAN}Bipe uma bandeja vazia</div><button class="btn ghost sm" id="miss">Falta</button></div>
-      ${ft?`<button class="demo" id="sim">Simular bandeja ${ft} (demo)</button>`:`<div class="err">Todas as bandejas estão em uso. Use a Mesa-001.</div>`}
-      <button class="btn ghost sm spotbtn" id="useMesa">Sem bandeja ou peças grandes · usar a Mesa-001</button>
+      ${ft?`<button class="demo" id="sim">Simular bandeja ${ft} (demo)</button>`:`<div class="err">Todas as bandejas estão em uso. Use uma mesa.</div>`}
+      <button class="btn ghost sm spotbtn" id="useMesa">Sem bandeja ou peças grandes · usar a ${mesaName(defMesa())}</button>
+      ${MESAS.length>1?`<div class="spotline">Ou bipe a etiqueta de outra mesa (${MESAS.map(m=>mesaName(m.code)).join(", ")}).</div>`:""}
     </div>`; }
   const o=ORDERS.find(x=>x.id===state.oid);
-  const big = o && o.tray && o.tray!==MESA_SPOT ? (state.bigItem
-      ? `<div class="spotline on">Este item vai na <b>Mesa-001</b> <button class="linkbtn" id="bigOff">desfazer</button></div>`
-      : `<button class="btn ghost sm spotbtn" id="bigOn">Não cabe na bandeja · colocar na Mesa-001</button>`)
-    : o && o.tray===MESA_SPOT ? `<div class="spotline">Pedido na <b>Mesa-001</b></div>` : "";
+  const big = o && o.tray && !isMesaCode(o.tray) ? (state.bigItem
+      ? `<div class="spotline on">Este item vai na <b>${mesaName(state.bigItem)}</b> <button class="linkbtn" id="bigOff">desfazer</button></div>`
+      : `<button class="btn ghost sm spotbtn" id="bigOn">Não cabe na bandeja · colocar na ${mesaName(defMesa())}</button>${MESAS.length>1?`<div class="spotline">Ou bipe a etiqueta de outra mesa.</div>`:""}`)
+    : o && isMesaCode(o.tray) ? `<div class="spotline">Pedido na <b>${mesaName(o.tray)}</b></div>` : "";
   if(state.phase==="qty") return `
     <div class="task">
       <div class="ok-line"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Produto confirmado</div>
@@ -1297,15 +1307,15 @@ function renderPick(){
     <div class="eyebrow" style="margin-top:14px">Itens · ${done} de ${pl.length}</div>
     <div class="list" style="margin-top:6px">
       ${pl.map((x,k)=>{ const s=r[x.i].status; const ic = s==="ok"?"✓":s==="miss"?"!":s==="part"?r[x.i].got:"";
-        return `<button class="li ${k===state.idx?"cur":""}" data-k="${k}"><span class="st ${s}">${ic}</span><span class="ln"><b class="tnum">${esc(x.code)}</b> <small>${x.loc ? `${x.loc.n}.${x.loc.c} · R${x.loc.r}-L${x.loc.l}` : "sem local"}</small></span><span class="tnum">${r[x.i].spot?"Mesa-001 · ":""}${x.need} pç</span></button>`;}).join("")}
+        return `<button class="li ${k===state.idx?"cur":""}" data-k="${k}"><span class="st ${s}">${ic}</span><span class="ln"><b class="tnum">${esc(x.code)}</b> <small>${x.loc ? `${x.loc.n}.${x.loc.c} · R${x.loc.r}-L${x.loc.l}` : "sem local"}</small></span><span class="tnum">${r[x.i].spot?mesaName(r[x.i].spot)+" · ":""}${x.need} pç</span></button>`;}).join("")}
     </div>`;
   document.getElementById("back").onclick = ()=>{ state.view="orders"; render(); };
   document.getElementById("restartPick").onclick = ()=>restartOrder(o.id, true);
   document.getElementById("deletePick").onclick = ()=>deleteOrder(o.id);
   const rp=document.getElementById("replay"); if(rp) rp.onclick = ()=>animateRoute(true);
   const sim=document.getElementById("sim"); if(sim) sim.onclick = ()=> handleScan(state.phase==="tray" ? freeTray(o) : scanCode(it));
-  const um=document.getElementById("useMesa"); if(um) um.onclick = ()=> handleScan(MESA_SPOT);
-  const bOn=document.getElementById("bigOn"); if(bOn) bOn.onclick = ()=> handleScan(MESA_SPOT);
+  const um=document.getElementById("useMesa"); if(um) um.onclick = ()=> handleScan(defMesa());
+  const bOn=document.getElementById("bigOn"); if(bOn) bOn.onclick = ()=> handleScan(defMesa());
   const bOff=document.getElementById("bigOff"); if(bOff) bOff.onclick = ()=>{ state.bigItem=false; render(); };
   const miss=document.getElementById("miss"); if(miss) miss.onclick = ()=>{ if(state.phase!=="qty") state.count=0; commit(state.count===0 ? "miss" : state.count>=it.need ? "ok" : "part"); };
   const qOut=document.getElementById("q"), okQ=document.getElementById("okQty");
@@ -1313,7 +1323,7 @@ function renderPick(){
   if(qOut){ document.getElementById("minus").onclick=()=>setQ(state.count-1); document.getElementById("plus").onclick=()=>setQ(state.count+1);
     okQ.onclick=()=> commit(state.count>=it.need ? "ok" : state.count===0 ? "miss" : "part"); }
   app.querySelectorAll(".li[data-k]").forEach(b=>b.onclick=()=>{ const k=+b.dataset.k; if(r[pl[k].i].status!=="pend"){ toast("Item já finalizado"); return; } goItem(k); });
-  setMsg(state.phase==="tray" ? "Bipe a bandeja ou a Mesa-001" : state.phase==="qty" ? `Conte ${it.need} pç e confirme` : "Bipe o produto", "info");
+  setMsg(state.phase==="tray" ? "Bipe a bandeja ou a mesa" : state.phase==="qty" ? `Conte ${it.need} pç e confirme` : "Bipe o produto", "info");
   if(l) requestAnimationFrame(()=>animateRoute(false));
   focusScan();
 }
@@ -1326,7 +1336,7 @@ function updateCount(){
 }
 function commit(status){
   const {o, r, pl, it} = cur();
-  r[it.i] = {status, got: state.count, ...(state.bigItem && status!=="miss" ? {spot:MESA_SPOT} : {})};
+  r[it.i] = {status, got: state.count, ...(state.bigItem && status!=="miss" ? {spot:state.bigItem} : {})};
   patchOrder(o.id, {res:r});
   toast(status==="ok" ? `${it.loc?code(it.loc):it.code} coletado · ${it.need} pç` : status==="part" ? `Coleta parcial: ${state.count} de ${it.need} pç` : `Falta registrada em ${it.loc?code(it.loc):it.code}`);
   const next = pl.findIndex((x,k)=>k>state.idx && r[x.i].status==="pend"), any = pl.findIndex(x=>r[x.i].status==="pend");
@@ -1394,12 +1404,12 @@ function renderTrays(){
   const tied = ORDERS.filter(o=>o.tray && TRAY_TIED.includes(o.trayStatus)).sort((a,b)=>a.tray.localeCompare(b.tray));
   const free = TRAYS.filter(t=>!trayBusy(t,null));
   app.innerHTML = `
-    <header class="bar">${BACK_BTN}<div class="grow"><h1>Bandejas</h1><div class="sub">${tied.length} vinculadas · ${free.length} livres · Mesa-001 sempre disponível</div></div></header>
+    <header class="bar">${BACK_BTN}<div class="grow"><h1>Bandejas</h1><div class="sub">${tied.length} vinculadas · ${free.length} livres · mesas sempre disponíveis</div></div></header>
     <div class="task">
       <div class="do">${ICON_SCAN}<span>Bipe a bandeja para desvinculá-la do pedido depois da conferência.</span></div>
     </div>
     <div class="eyebrow" style="margin-top:14px">Vinculadas a pedidos</div>
-    <div class="list" style="margin-top:6px">${tied.map(o=>`<div class="li" style="cursor:default"><span class="lc tnum">${esc(o.tray)}</span><span class="ln">#${esc(o.num)} <small>${o.trayStatus==="separando"?"em separação":"na mesa"}${bigOnMesa(o)?" · + Mesa-001":""}</small></span>${o.trayStatus==="separando"?"":`<button class="mini" data-unlink="${esc(o.id)}">Desvincular</button>`}</div>`).join("") || `<div class="li" style="cursor:default"><span class="ln">Nenhuma bandeja vinculada.</span></div>`}</div>`;
+    <div class="list" style="margin-top:6px">${tied.map(o=>`<div class="li" style="cursor:default"><span class="lc tnum">${esc(o.tray)}</span><span class="ln">#${esc(o.num)} <small>${o.trayStatus==="separando"?"em separação":"na mesa"}${bigOnMesa(o)?" · + "+bigSpots(o).map(mesaName).join(", "):""}</small></span>${o.trayStatus==="separando"?"":`<button class="mini" data-unlink="${esc(o.id)}">Desvincular</button>`}</div>`).join("") || `<div class="li" style="cursor:default"><span class="ln">Nenhuma bandeja vinculada.</span></div>`}</div>`;
   document.getElementById("back").onclick = ()=>{ state.view="orders"; render(); };
   app.querySelectorAll("[data-unlink]").forEach(b=>b.onclick=()=>{ if(!b.dataset.c){ b.dataset.c="1"; b.textContent="Confirmar"; b.classList.add("danger"); return; } const o=ORDERS.find(x=>x.id===b.dataset.unlink); if(o) unlinkTray(o); });
   setMsg("Bipe a bandeja para desvincular","info");
@@ -1407,8 +1417,8 @@ function renderTrays(){
 }
 function scanUnlink(v, onlyOrder){
   if(!isTrayCode(v)){ feedback(false); return setMsg(`Código ${v} não é uma bandeja.`,"bad"); }
-  if(v===MESA_SPOT && !onlyOrder){ const on=ORDERS.filter(x=>x.tray===MESA_SPOT && x.trayStatus==="mesa");
-    if(on.length!==1){ feedback(false); return setMsg(on.length ? `Há ${on.length} pedidos na Mesa-001. Toque em Desvincular no pedido certo.` : "Nenhum pedido na Mesa-001.","bad"); } }
+  if(isMesa(v) && !onlyOrder){ const on=ORDERS.filter(x=>x.tray===v && x.trayStatus==="mesa");
+    if(on.length!==1){ feedback(false); return setMsg(on.length ? `Há ${on.length} pedidos na ${mesaName(v)}. Toque em Desvincular no pedido certo.` : `Nenhum pedido na ${mesaName(v)}.`,"bad"); } }
   const o = ORDERS.find(x=>x.tray===v && TRAY_TIED.includes(x.trayStatus) && (!onlyOrder || x.id===onlyOrder));
   if(!o){ feedback(false); return setMsg(onlyOrder ? `Bandeja ${v} não é a deste pedido.` : `Bandeja ${v} já está livre.`,"bad"); }
   if(o.trayStatus==="separando"){ feedback(false); return setMsg(`Bandeja ${v} está em separação no pedido ${o.num}. Finalize o picking antes.`,"bad"); }
@@ -1435,15 +1445,15 @@ function renderDone(){
       </div>
       <div class="summary" style="grid-template-columns:1fr 1fr"><div><b class="tnum">${fmtDur(pickMs)}</b><small>tempo de picking</small></div><div><b class="tnum">${fmtDur(leadMs)}</b><small>desde a integração</small></div></div>
       ${o.tray && o.trayStatus==="mesa" ? `<div class="unlink">
-        ${bigOnMesa(o)?`<div class="spotline on">Itens grandes deste pedido estão na <b>Mesa-001</b></div>`:""}
-        <div class="do">${ICON_SCAN}<span>Depois da conferência no packing, <b>bipe ${o.tray===MESA_SPOT?"a Mesa-001":"a bandeja "+esc(o.tray)}</b> para desvinculá-la deste pedido.</span></div>
+        ${bigOnMesa(o)?`<div class="spotline on">Itens grandes deste pedido estão na <b>${bigSpots(o).map(mesaName).join(", ")}</b></div>`:""}
+        <div class="do">${ICON_SCAN}<span>Depois da conferência no packing, <b>bipe a ${esc(trayLabel(o.tray))}</b> para desvinculá-la deste pedido.</span></div>
         <button class="btn ghost sm" id="unlinkBtn">Desvincular ${esc(spotsTxt(o))}</button></div>`
       : o.tray && o.trayStatus==="livre" ? `<div class="ok-line" style="justify-content:center">${esc(spotsTxt(o))} liberada</div>` : ""}
       <div class="actions" style="width:100%;margin-top:14px"><button class="btn primary" id="nextOrder">Próximo pedido</button></div>
     </div>`;
   document.getElementById("back").onclick = ()=>{ state.view="orders"; render(); };
   const ub=document.getElementById("unlinkBtn"); if(ub) ub.onclick=()=>{ if(!ub.dataset.c){ ub.dataset.c="1"; ub.textContent="Confirmar: peças já saíram da bandeja"; ub.classList.add("danger"); return; } unlinkTray(o); };
-  if(o.tray && o.trayStatus==="mesa") setMsg(`Bipe ${o.tray===MESA_SPOT?"a Mesa-001":"a bandeja "+o.tray} para desvincular`,"info");
+  if(o.tray && o.trayStatus==="mesa") setMsg(`Bipe a ${trayLabel(o.tray)} para desvincular`,"info");
   document.getElementById("nextOrder").onclick = ()=>{
     const nx = ORDERS.filter(x=>(x.status==="aguardando"||x.status==="separando") && pickList(x).length).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0))[0];
     nx ? openOrder(nx.id) : (state.view="orders", render());
@@ -1517,15 +1527,15 @@ function handleScan(raw){
     feedback(false); return setMsg(`Local errado: ${v}. O produto está em ${code(it.loc)}.`,"bad");
   }
   if(state.phase==="tray"){
-    if(!isTrayCode(v)){ feedback(false); return setMsg(isProd ? "Bipe primeiro a bandeja (ou a Mesa-001), depois as peças." : `Código ${v} não é uma bandeja.`,"bad"); }
+    if(!isTrayCode(v)){ feedback(false); return setMsg(isProd ? "Bipe primeiro a bandeja (ou a mesa), depois as peças." : `Código ${v} não é uma bandeja.`,"bad"); }
     const other = trayBusy(v, o.id);
     if(other){ feedback(false); return setMsg(other.trayStatus==="separando" ? `Bandeja ${v} está em uso no pedido ${other.num}. Pegue outra.` : `Bandeja ${v} ainda está vinculada ao pedido ${other.num}. Desvincule antes em Bandejas.`,"bad"); }
     feedback(true); patchOrder(o.id, {tray:v, trayStatus:"separando"});
-    state.phase="prod"; state.count=0; render(); setMsg(v===MESA_SPOT ? "Pedido vai na Mesa-001. Bipe o produto." : `Bandeja ${v} vinculada. Bipe o produto.`,"good"); return;
+    state.phase="prod"; state.count=0; render(); setMsg(isMesa(v) ? `Pedido vai na ${mesaName(v)}. Bipe o produto.` : `Bandeja ${v} vinculada. Bipe o produto.`,"good"); return;
   }
-  if(v===MESA_SPOT){
-    if(o.tray===MESA_SPOT){ feedback(true); return setMsg("Este pedido já está todo na Mesa-001. Bipe o produto.","info"); }
-    feedback(true); state.bigItem=true; render(); setMsg("Este item vai na Mesa-001. "+(state.phase==="qty"?"Conte e confirme.":"Bipe o produto."),"good"); return;
+  if(isMesa(v)){
+    if(isMesaCode(o.tray)){ feedback(true); return setMsg(`Este pedido já está todo na ${mesaName(o.tray)}. Bipe o produto.`,"info"); }
+    feedback(true); state.bigItem=v; render(); setMsg(`Este item vai na ${mesaName(v)}. `+(state.phase==="qty"?"Conte e confirme.":"Bipe o produto."),"good"); return;
   }
   if(isProd){
     if(state.phase==="qty"){ feedback(true); return setMsg("Produto já confirmado. Conte e confirme a quantidade.","info"); }
@@ -1654,7 +1664,7 @@ async function decodePhoto(file){
 
 /* ================== Bandeja: vincular ao pedido ================== */
 const TRAY_TIED = ["separando","lavagem","mesa"];
-function trayBusy(v, exceptId){ if(v===MESA_SPOT) return null; return ORDERS.find(o=>o.id!==exceptId && o.tray===v && TRAY_TIED.includes(o.trayStatus)); }
+function trayBusy(v, exceptId){ if(isMesaCode(v)) return null; return ORDERS.find(o=>o.id!==exceptId && o.tray===v && TRAY_TIED.includes(o.trayStatus)); }
 function unlinkTray(o){
   const now=Date.now();
   patchOrder(o.id, {trayStatus:"livre", trayFreedAt:now, trayFreedBy:ME.id||"",
@@ -2101,28 +2111,62 @@ function drawLocLabel(doc, x, y, l, bc){ // 100 × 50 mm
 function locLabels(list){ return list.map(locLabelData); }
 function labelSet(){
   const t=state.lblType||"enderecos";
-  if(t==="bandejas") return [...TRAYS.map(v=>({value:v, big:v, small:"Bandeja de separação", sub:"", fmt:"CODE128"})), {value:MESA_SPOT, big:MESA_SPOT, small:"Itens grandes / sem bandeja", sub:"", fmt:"CODE128"}];
+  if(t==="bandejas") return TRAYS.map(v=>({value:v, big:v, small:"Bandeja de separação", sub:"", fmt:"CODE128"}));
+  if(t==="mesas") return MESAS.filter(m=>!state.mesaSel || state.mesaSel===m.code).map(m=>({value:m.code, big:mesaName(m.code).toUpperCase(), small:m.desc||"Itens grandes / sem bandeja", sub:"", fmt:"CODE128"}));
   if(t==="colmeias") return HIVE.map(v=>({value:v, big:v, small:"Colmeia de expedição", sub:"", fmt:"CODE128"}));
   if(t==="produtos") return Object.values(PRODUCTS).sort((a,b)=>a.code.localeCompare(b.code)).filter(p=>state.lblOnlyNoEan ? !p.ean : true)
     .map(p=>{ const e=p.ean && eanState(p.ean).c==="done"; return {value:e?p.ean:p.code, big:p.code, small:p.name, sub:e?"":"sem EAN · código interno", fmt:e?(p.ean.length===8?"EAN8":"EAN13"):"CODE128"}; });
   const rua=state.lblRua||"todas", lado=state.lblLado||"todos", only=state.lblOnlyUsed, ty=state.lblLocType||"todos";
   return locLabels(allLocs().filter(lc=>{ const x=parseCode(lc); return (rua==="todas"||x.r===+rua) && (lado==="todos"||x.l===lado) && (!only || locProduct(lc)) && (ty==="todos" || x.t===ty); }));
 }
+function mesasAdminHTML(){
+  const next = "MESA-"+String(Math.max(0,...MESAS.map(m=>+m.code.slice(5)||0))+1).padStart(3,"0");
+  const inUse = c => ORDERS.some(o=>(o.tray===c && ["separando","mesa"].includes(o.trayStatus)) || (o.trayStatus!=="livre" && bigSpots(o).includes(c)));
+  return `<div class="mesas">
+    <h3>Mesas cadastradas · ${MESAS.length}</h3>
+    <div class="qlist" style="margin-top:6px">${MESAS.map(m=>`<div class="mrow"><b class="mono">${esc(mesaName(m.code))}</b>
+      <input class="tin sm" data-mdesc="${esc(m.code)}" value="${esc(m.desc||"")}" placeholder="Descrição" style="flex:1;width:auto">
+      <button class="mini" data-mprint="${esc(m.code)}" aria-pressed="${state.mesaSel===m.code}">${state.mesaSel===m.code?"Só esta ✓":"Imprimir só esta"}</button>
+      ${MESAS.length>1?`<button class="mini" data-mdel="${esc(m.code)}" ${inUse(m.code)?`disabled title="Em uso por um pedido"`:""}>Remover</button>`:""}</div>`).join("")}</div>
+    <form class="filters" id="mesaNew" autocomplete="off"><input class="tin" id="mesaDesc" placeholder="Descrição da nova mesa (ex.: Itens grandes · corredor 2)" style="flex:1;min-width:200px"><button class="btn dark" type="submit" style="min-height:40px;padding:8px 16px">Criar ${esc(mesaName(next))}</button></form>
+    <p class="hint">Cole a etiqueta na mesa. Na separação, o separador bipa a etiqueta da mesa no lugar da bandeja (pedido inteiro) ou durante a coleta (só o item grande).</p>
+  </div>`;
+}
+function saveMesas(list){
+  MESAS = list;
+  if(mesasDoc) queueWrite("mesas", ()=>mesasDoc.set({list}));
+  render();
+}
+function bindMesasAdmin(){
+  const f=document.getElementById("mesaNew"); if(!f) return;
+  f.onsubmit=e=>{ e.preventDefault();
+    const code="MESA-"+String(Math.max(0,...MESAS.map(m=>+m.code.slice(5)||0))+1).padStart(3,"0");
+    const desc=document.getElementById("mesaDesc").value.trim() || "Itens grandes / sem bandeja";
+    state.mesaSel=code; saveMesas([...MESAS, {code, desc}]); toast(`${mesaName(code)} criada · gere o PDF para imprimir a etiqueta`); };
+  app.querySelectorAll("[data-mdesc]").forEach(i=>i.onchange=()=>{ saveMesas(MESAS.map(m=>m.code===i.dataset.mdesc?{...m, desc:i.value.trim()}:m)); toast("Descrição salva"); });
+  app.querySelectorAll("[data-mprint]").forEach(b=>b.onclick=()=>{ state.mesaSel = state.mesaSel===b.dataset.mprint ? null : b.dataset.mprint; render(); });
+  app.querySelectorAll("[data-mdel]").forEach(b=>b.onclick=()=>{ if(!b.dataset.c){ b.dataset.c="1"; b.textContent="Confirmar"; b.classList.add("danger"); return; }
+    if(state.mesaSel===b.dataset.mdel) state.mesaSel=null; saveMesas(MESAS.filter(m=>m.code!==b.dataset.mdel)); toast("Mesa removida"); });
+}
 function etiquetasHTML(){
-  const t=state.lblType||"enderecos", isLoc=t==="enderecos", fmt=isLoc?(state.locFmt||"loc3"):(state.lblFmt||"termica"), set=labelSet();
+  const t=state.lblType||"enderecos", isLoc=t==="enderecos";
+  if(t!=="mesas" && state.lblFmt==="placa") state.lblFmt="termica";
+  const fmt=isLoc?(state.locFmt||"loc3"):(state.lblFmt||"termica"), set=labelSet();
   return `<div class="cgrid">
     <section class="panel">
-      <div><h3>O que imprimir</h3><div class="seg" style="margin-top:8px;flex-wrap:wrap">${[["enderecos","Endereços"],["produtos","Produtos"],["bandejas","Bandejas"],["colmeias","Colmeias"]].map(([k,v])=>`<button data-lt="${k}" aria-pressed="${t===k}">${v}</button>`).join("")}</div></div>
+      <div><h3>O que imprimir</h3><div class="seg" style="margin-top:8px;flex-wrap:wrap">${[["enderecos","Endereços"],["produtos","Produtos"],["bandejas","Bandejas"],["mesas","Mesas"],["colmeias","Colmeias"]].map(([k,v])=>`<button data-lt="${k}" aria-pressed="${t===k}">${v}</button>`).join("")}</div></div>
       ${t==="enderecos"?`<div class="filters"><label class="eyebrow">Rua <select id="lblRua" class="tin" style="width:auto">${["todas",...ruas().map(String)].map(a=>`<option value="${a}" ${String(state.lblRua||"todas")===a?"selected":""}>${a==="todas"?"Todas":"R"+a}</option>`).join("")}</select></label>
         <label class="eyebrow">Lado <select id="lblLado" class="tin" style="width:auto">${["todos","A","B"].map(a=>`<option value="${a}" ${(state.lblLado||"todos")===a?"selected":""}>${a==="todos"?"Ambos":a}</option>`).join("")}</select></label>
         <label class="eyebrow">Tipo <select id="lblLocType" class="tin" style="width:auto">${[["todos","Todos"],...Object.entries(LOC_TYPES).map(([k,t])=>[k,`${k} · ${t}`])].map(([k,t])=>`<option value="${k}" ${(state.lblLocType||"todos")===k?"selected":""}>${t}</option>`).join("")}</select></label>
         <label class="chk"><input type="checkbox" id="lblUsed" ${state.lblOnlyUsed?"checked":""}> Só endereços com produto</label></div>`:""}
+      ${t==="mesas"?mesasAdminHTML():""}
       ${t==="produtos"?`<div class="filters"><label class="chk"><input type="checkbox" id="lblNoEan" ${state.lblOnlyNoEan?"checked":""}> Só produtos sem EAN (etiqueta com código interno)</label></div>`:""}
       <div><h3>Formato</h3><div class="modes" style="margin-top:8px;grid-template-columns:1fr 1fr">
         ${isLoc?`<label class="mode"><input type="radio" name="fmt" value="loc3" ${fmt==="loc3"?"checked":""}><span><b>Térmica 10 × 15 cm · 3 por etiqueta</b><small>Cada etiqueta de 10 × 15 cm sai com 3 endereços de 10 × 5 cm, com linha de corte.</small></span></label>
         <label class="mode"><input type="radio" name="fmt" value="loca4" ${fmt==="loca4"?"checked":""}><span><b>Folha A4 · 10 por folha</b><small>Endereços de 10 × 5 cm em impressora comum, para recortar.</small></span></label>`:`
         <label class="mode"><input type="radio" name="fmt" value="termica" ${fmt==="termica"?"checked":""}><span><b>Térmica 100 × 50 mm</b><small>Uma etiqueta por página, para impressoras de rolo (Zebra, Argox, Elgin).</small></span></label>
-        <label class="mode"><input type="radio" name="fmt" value="a4" ${fmt==="a4"?"checked":""}><span><b>Folha A4 · 3 × 8</b><small>24 etiquetas de 70 × 37 mm por folha, impressora comum.</small></span></label>`}
+        <label class="mode"><input type="radio" name="fmt" value="a4" ${fmt==="a4"?"checked":""}><span><b>Folha A4 · 3 × 8</b><small>24 etiquetas de 70 × 37 mm por folha, impressora comum.</small></span></label>
+        ${t==="mesas"?`<label class="mode"><input type="radio" name="fmt" value="placa" ${fmt==="placa"?"checked":""}><span><b>Placa A4 deitada</b><small>Uma mesa por folha, letra e código de barras grandes, para fixar na mesa.</small></span></label>`:""}`}
       </div></div>
       <div class="sumbar"><div class="totals"><div><small>Etiquetas</small><b class="tnum">${set.length}</b></div>${fmt==="a4"?`<div><small>Folhas A4</small><b class="tnum">${Math.ceil(set.length/24)}</b></div>`:fmt==="loca4"?`<div><small>Folhas A4</small><b class="tnum">${Math.ceil(set.length/10)}</b></div>`:fmt==="loc3"?`<div><small>Etiquetas 10 × 15</small><b class="tnum">${Math.ceil(set.length/3)}</b></div>`:""}</div>
         <button class="btn dark" id="genPdf" ${set.length?"":"disabled"}>Gerar PDF para imprimir</button></div>
@@ -2140,6 +2184,7 @@ function bindEtiquetas(){
   const ld=document.getElementById("lblLado"); if(ld) ld.onchange=()=>{ state.lblLado=ld.value; render(); };
   const lt=document.getElementById("lblLocType"); if(lt) lt.onchange=()=>{ state.lblLocType=lt.value; render(); };
   const ne=document.getElementById("lblNoEan"); if(ne) ne.onchange=()=>{ state.lblOnlyNoEan=ne.checked; render(); };
+  bindMesasAdmin();
   app.querySelectorAll("input[name=fmt]").forEach(x=>x.onchange=()=>{ if((state.lblType||"enderecos")==="enderecos") state.locFmt=x.value; else state.lblFmt=x.value; render(); });
   document.getElementById("genPdf").onclick=()=>{ const isLoc=(state.lblType||"enderecos")==="enderecos"; makePdf(labelSet(), isLoc?(state.locFmt||"loc3"):(state.lblFmt||"termica"), `etiquetas-${state.lblType||"enderecos"}.pdf`); };
 }
@@ -2173,6 +2218,15 @@ async function makePdf(labels, fmt, filename){
         if(a4) doc.rect(x, y, 100, 50); else if(k<2 && i<labels.length-1) doc.line(0, y+50, 100, y+50);
         doc.setLineDashPattern([],0);
       });
+    } else if(fmt==="placa"){ // A4 deitada, uma mesa por folha
+      doc=new jsPDF({unit:"mm", format:"a4", orientation:"landscape"});
+      labels.forEach((l,i)=>{ if(i) doc.addPage("a4","landscape");
+        doc.setDrawColor(0); doc.setLineWidth(1.2); doc.rect(8, 8, 281, 194);
+        doc.setFont("helvetica","bold"); fit(doc,l.big,110,260); doc.text(l.big, 148.5, 62, {align:"center"});
+        doc.setFont("helvetica","normal"); fit(doc,l.small,26,250); doc.text(l.small, 148.5, 86, {align:"center"});
+        const b=bcPng(l), bw=200, bh=Math.min(70, bw*b.r); doc.addImage(b.url,"PNG",148.5-bw/2,100,bw,bh);
+        doc.setFont("courier","bold"); doc.setFontSize(22); doc.text(l.value, 148.5, 100+bh+12, {align:"center"});
+        doc.setFont("helvetica","normal"); doc.setFontSize(12); doc.text("Picking Serena · bipe este código para colocar o pedido ou o item grande nesta mesa", 148.5, 196, {align:"center"}); });
     } else if(fmt==="a4"){
       doc=new jsPDF({unit:"mm", format:"a4"}); const W=70, H=297/8;
       labels.forEach((l,i)=>{ if(i && i%24===0) doc.addPage(); const k=i%24, x=(k%3)*W, y=Math.floor(k/3)*H;
@@ -2464,6 +2518,8 @@ render();
   if(!db){ synced=false; authReady=true; rerender(); return; }
   cfgDoc = db.doc("config/picking");
   cfgDoc.onSnapshot(snap=>{ const d=snap.exists?snap.data():null; CONFIG = {requireLoc:false, useTray: d?.useTray ?? true}; rerender(); }, ()=>{ cfgDoc=null; });
+  mesasDoc = db.doc("config/mesas");
+  mesasDoc.onSnapshot(snap=>{ const l=snap.exists?snap.data()?.list:null; if(Array.isArray(l) && l.length) MESAS=JSON.parse(JSON.stringify(l)); rerender(); }, ()=>{ mesasDoc=null; });
   usersCol = db.collection("users");
   usersCol.onSnapshot(snap=>{ USERS = Object.fromEntries(snap.docs.map(d=>[d.id, JSON.parse(JSON.stringify(d.data()))])); authReady=true; rerender(); }, e=>{ usersCol=null; authReady=true; rerender(); });
   blockCol = db.collection("blocks");
