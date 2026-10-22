@@ -107,6 +107,19 @@ button:focus-visible{outline:3px solid var(--route);outline-offset:2px}
 .loc-code span{color:var(--muted);font-weight:500}
 .noloc .loc-code{font-family:var(--display);font-size:clamp(20px,6vw,28px);color:var(--warn,#C27C0E)}
 .spotbtn{width:100%;margin-top:8px}
+.ordwrap{display:flex;flex-direction:column}
+.ord-acts{display:flex;justify-content:flex-end;gap:6px;margin-top:6px}
+.ord-acts .mini{display:inline-flex;align-items:center;gap:5px}
+.ord-acts svg,.mini svg{width:14px;height:14px}
+.back.del{color:var(--bad)}
+.modal{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.55);display:grid;place-items:center;padding:16px}
+.mbox{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:14px;padding:18px;width:min(440px,100%);box-shadow:0 12px 40px rgba(0,0,0,.4)}
+.mbox h2{margin:0 0 8px;font-size:20px}
+.mbox p{margin:0 0 10px;font-size:14px;color:var(--muted);line-height:1.45}
+.mbox textarea{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:10px;background:var(--bg,transparent);color:var(--ink);padding:10px;font:inherit;font-size:15px;resize:vertical}
+.mbox .merr{color:var(--bad);font-size:13px;min-height:18px;margin-top:4px}
+.mbox .mact{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
+.delnote{font-size:12px;color:var(--bad);line-height:1.4}
 .newuser{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}
 .newuser .tin{width:100%}
 @media (min-width:900px){ .newuser{grid-template-columns:1.2fr 1.4fr 1fr 1fr auto} }
@@ -609,6 +622,7 @@ function statusInfo(o){
     case "na_colmeia": return {t:"Na colmeia · aguardando encomenda", c:"enc"};
     case "na_mesa": return {t:`Na mesa · guardar na colmeia ${o.colmeia||""}`, c:"prog"};
     case "lavagem": return o.trayStatus==="lavagem" ? {t:`A caminho da mesa · bandeja ${o.tray||""}`, c:"prog"} : {t:"A caminho da mesa", c:"prog"};
+    case "excluido": return {t:"Excluído", c:"bad"};
     default: return {t:"Finalizado", c:"sent"};
   }
 }
@@ -698,7 +712,7 @@ function kpisHTML(){
 setInterval(()=>{ const n=Date.now(); document.querySelectorAll("[data-since]").forEach(e=>{ e.textContent=fmtDur(n-(+e.dataset.since)); }); }, 1000);
 
 /* ================== Armazenamento compartilhado ================== */
-let ORDERS = [], db = null, col = null, synced = false;
+let ORDERS = [], DELETED = [], db = null, col = null, synced = false;
 const writeQ = {};
 function queueWrite(id, fn){
   writeQ[id] = (writeQ[id]||Promise.resolve()).then(fn).catch(e=>{ console.warn(e); toast(e?.code==="quota_exceeded" ? "Limite de armazenamento atingido" : "Não foi possível salvar. Verifique a conexão."); });
@@ -965,7 +979,7 @@ function hiveHTML(target){
 function asideHTML(){
   const today=new Date().toDateString();
   const finished = o => o.status==="enviado" || (o.status==="pronto_envio" && o.mode!=="aguarda");
-  const list = [...ORDERS].filter(o=>!finished(o) || new Date(o.atMesaAt||o.pickedAt||o.sentAt||0).toDateString()===today).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const list = [...ORDERS, ...DELETED.filter(o=>new Date(o.deletedAt||0).toDateString()===today)].filter(o=>o.status==="excluido" || !finished(o) || new Date(o.atMesaAt||o.pickedAt||o.sentAt||0).toDateString()===today).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   const pg = pageOf(list, "aside", 10);
   return `<h2>Pedidos na expedição</h2>
     ${kpisHTML()}${pg.top}
@@ -976,8 +990,9 @@ function asideHTML(){
       return `<div class="qcard">
         <div class="row"><span class="pvn">${esc(o.num)}${o.mode==="aguarda"?" · "+esc(o.colmeia):""}</span><span class="chip ${st.c}">${st.t}</span></div>
         <div class="cl">${esc(o.client)}</div>
+        ${o.status==="excluido"?`<div class="delnote">Excluído às ${fmtClock(o.deletedAt)}${USERS_NAME(o.deletedBy)} · motivo: ${esc(o.deleteReason||"")}</div>`:""}
         <div class="meta tnum"><span>${MODES[o.mode]?.t||""}</span>${pl.length?`<span>Separado ${done}/${pl.length} ref.</span>`:""}${(o.tray&&["separando","mesa"].includes(o.trayStatus))||bigOnMesa(o)&&o.trayStatus!=="livre"?`<span>${esc(spotsTxt(o))}</span>`:""}${falt.length?`<span style="color:var(--bad)">${falt.length} com falta</span>`:""}</div>
-        <div class="meta tnum"><span>⏱ ${finished(o)&&(o.atMesaAt||o.pickedAt) ? `picking em ${fmtDur((o.atMesaAt||o.pickedAt)-o.createdAt)}` : `${since(o.createdAt)} desde a integração`}</span>${o.status==="separando"&&o.startedAt?`<span>separando há ${since(o.startedAt)}</span>`:""}</div>
+        <div class="meta tnum"><span>⏱ ${o.status==="excluido" ? `excluído ${fmtDur((o.deletedAt||0)-(o.createdAt||0))} após a integração` : finished(o)&&(o.atMesaAt||o.pickedAt) ? `picking em ${fmtDur((o.atMesaAt||o.pickedAt)-o.createdAt)}` : `${since(o.createdAt)} desde a integração`}</span>${o.status==="separando"&&o.startedAt?`<span>separando há ${since(o.startedAt)}</span>`:""}</div>
         <details><summary>Tempos</summary>${timelineHTML(o)}</details>
         ${enc.length?`<details><summary>${enc.length} ref. sob encomenda</summary><ul>${enc.map(i=>`<li>${esc(i.code)} · ${i.qtyEnc} pç · chega ${fmtDate(i.eta)||"—"}</li>`).join("")}</ul></details>`:""}
         ${o.status==="na_colmeia"||o.status==="enc_pendente"||(o.status==="pronto_envio"&&o.mode==="parcial"&&o.remessa!==2&&enc.length)?`<div><button class="mini" data-arrived="${esc(o.id)}">Encomenda chegou</button></div>`:""}
@@ -1010,7 +1025,7 @@ function renderOrders(){
   const queue = ORDERS.filter(o=>(o.status==="aguardando"||o.status==="separando") && pickList(o).length).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
   const parked = ORDERS.filter(isSeparated).sort((a,b)=>(a.pickedAt||0)-(b.pickedAt||0));
   const hive = ORDERS.filter(inHive).sort((a,b)=>(a.colmeia||"").localeCompare(b.colmeia||""));
-  const hist = ORDERS.filter(inHistory).sort((a,b)=>(b.pickedAt||0)-(a.pickedAt||0));
+  const hist = [...ORDERS.filter(inHistory), ...DELETED].sort((a,b)=>(b.deletedAt||b.pickedAt||0)-(a.deletedAt||a.pickedAt||0));
   const units = queue.reduce((s,o)=>s+pickList(o).reduce((a,x)=>a+x.need,0),0);
   const tabs = [["fila","Separação",queue.length+parked.length],["colmeias","Colmeias · encomenda",hive.length],["historico","Histórico",hist.length]];
   let body = "";
@@ -1026,12 +1041,12 @@ function renderOrders(){
       ${queue.length ? pgQ.items.map(o=>{
         const pl=pickList(o), r=res(o), done=pl.filter(x=>r[x.i].status!=="pend").length, enc=o.items.filter(i=>i.qtyEnc>0).length;
         const aisles=[...new Set(pl.filter(x=>x.loc).map(x=>"R"+x.loc.r))].join(" · "), semLoc=pl.filter(x=>!x.loc).length;
-        return `<button class="order ${o.mode==="aguarda"?"urgent":""}" data-oid="${esc(o.id)}">
+        return `<div class="ordwrap"><button class="order ${o.mode==="aguarda"?"urgent":""}" data-oid="${esc(o.id)}">
           <div class="row"><span class="num">#${esc(o.num)}${newIds.has(o.id)&&o.status==="aguardando"?` <span class="chip newc">Novo</span>`:""}</span>${o.status==="separando"?`<span class="chip prog">Em separação</span>`:`<span class="chip ${MODES[o.mode].c}">${MODES[o.mode].t}</span>`}</div>
           <div class="client">${esc(o.client)}</div>
           <div class="meta tnum"><span>${pl.length} ref. · ${pl.reduce((a,x)=>a+x.need,0)} pç</span>${aisles?`<span>Ruas ${aisles}</span>`:""}${semLoc?`<span style="color:var(--bad)">${semLoc} sem local</span>`:""}${o.status==="separando"&&o.startedAt?`<span>Separando há ${since(o.startedAt)}</span>`:`<span>Na fila há ${since(o.createdAt)}</span>`}${o.tray&&o.status==="separando"?`<span>Bandeja ${esc(o.tray)}</span>`:""}${o.mode==="aguarda"?`<span>Colmeia ${esc(o.colmeia)}</span>`:`<span>Destino: mesa de expedição</span>`}${enc?`<span>${enc} ref. sob encomenda</span>`:""}</div>
           ${done?`<div class="prog-bar"><i style="width:${done/pl.length*100}%"></i></div>`:""}
-        </button>`;}).join("") + pgQ.pager : `<div class="empty">Nenhum pedido aguardando separação.</div>`}
+        </button>${can("coleta")?`<div class="ord-acts">${o.status==="separando"?`<button class="mini" data-restart="${esc(o.id)}">${ICON_RESTART}Reiniciar</button>`:""}<button class="mini" data-delord="${esc(o.id)}">${ICON_TRASH}Excluir</button></div>`:""}</div>`;}).join("") + pgQ.pager : `<div class="empty">Nenhum pedido aguardando separação.</div>`}
     </div>
     ${parked.length?`<div class="section"><div class="eyebrow">Separados · na mesa com bandeja ou Mesa-001 · ${parked.length}</div>${pgP.top}<div class="list" style="margin-top:0">${pgP.items.map(o=>
       `<div class="li sep" style="cursor:default"><span class="lc tnum">${esc(o.tray)}</span><span class="ln">#${esc(o.num)} · ${esc(o.client)}<small>${o.mode==="aguarda"?"Vai para a colmeia "+esc(o.colmeia||""):"Mesa"}${bigOnMesa(o)?" · itens grandes na Mesa-001":""}</small></span>${can("coleta")||can("mesa") ? `<button class="mini" data-free="${esc(o.id)}">${o.tray===MESA_SPOT?"Liberar Mesa-001":bigOnMesa(o)?"Liberar bandeja e Mesa-001":"Liberar bandeja"}</button>` : ""}</div>`).join("")}</div>${pgP.pager}</div>`:""}`;
@@ -1047,7 +1062,7 @@ function renderOrders(){
     body = `
     <div class="section"><div class="eyebrow">Pedidos separados · ${hist.length}</div>${pgH.top}
       ${hist.length ? `<div class="list" style="margin-top:0">${pgH.items.map(o=>{ const st=statusInfo(o), pk=o.pickedAt&&o.startedAt?o.pickedAt-o.startedAt:null;
-        return `<div class="li sep" style="cursor:default"><span class="lc tnum">#${esc(o.num)}</span><span class="ln">${esc(o.client)}<small>${fmtClock(o.pickedAt)}${pk!=null?" · picking "+fmtDur(pk).replace(/ \d+s$/,""):""}${o.tray||bigOnMesa(o)?" · "+esc(spotsTxt(o)):""}</small></span><span class="chip ${st.c}">${st.t.split(" · ")[0]}</span></div>`; }).join("")}</div>${pgH.pager}` : `<div class="empty">Nenhum pedido separado ainda.</div>`}
+        return `<div class="li sep" style="cursor:default"><span class="lc tnum">#${esc(o.num)}</span><span class="ln">${esc(o.client)}<small>${o.status==="excluido"?`Excluído ${fmtClock(o.deletedAt)} · motivo: ${esc(o.deleteReason||"")}`:""}${o.status==="excluido"?"":fmtClock(o.pickedAt)}${pk!=null?" · picking "+fmtDur(pk).replace(/ \d+s$/,""):""}${o.tray||bigOnMesa(o)?" · "+esc(spotsTxt(o)):""}</small></span><span class="chip ${st.c}">${st.t.split(" · ")[0]}</span></div>`; }).join("")}</div>${pgH.pager}` : `<div class="empty">Nenhum pedido separado ainda.</div>`}
     </div>`;
   }
   app.innerHTML = topnav() + `
@@ -1055,6 +1070,8 @@ function renderOrders(){
     ${!synced ? `<div class="banner">Sem conexão com o banco de dados. Verifique a internet ou a configuração do Supabase.</div>`:""}
     ${body}`;
   bindNav(); bindAlerts();
+  app.querySelectorAll("[data-restart]").forEach(b=>b.onclick=()=>restartOrder(b.dataset.restart, false));
+  app.querySelectorAll("[data-delord]").forEach(b=>b.onclick=()=>deleteOrder(b.dataset.delord));
   if(can("coleta")) app.querySelectorAll(".order").forEach(b=>b.onclick=()=>openOrder(b.dataset.oid));
   else app.querySelectorAll(".order").forEach(b=>{ b.style.cursor="default"; b.tabIndex=-1; });
   app.querySelectorAll("[data-free]").forEach(b=>b.onclick=()=>{ if(!b.dataset.c){ b.dataset.c="1"; b.textContent="Confirmar liberação"; b.classList.add("danger"); return; } const o=ORDERS.find(x=>x.id===b.dataset.free); if(o){ unlinkTray(o); toast(`${spotsTxt(o)} liberada · pedido ${o.num} foi para ${inHive(o)?"Encomendas":"Separados"}`); } });
@@ -1157,6 +1174,51 @@ function elevSVG(l){
   return s+`</svg>`;
 }
 
+/* ================== Reiniciar / excluir separação ================== */
+const ICON_RESTART = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>`;
+const ICON_TRASH = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>`;
+/* Janela simples de confirmação, com campo de texto opcional (obrigatório quando input.min) */
+function askModal({title, text, okText="Confirmar", danger=false, input=null}){
+  return new Promise(resolve=>{
+    const ov=document.createElement("div"); ov.className="modal";
+    ov.innerHTML=`<div class="mbox" role="dialog" aria-modal="true" aria-label="${esc(title)}"><h2>${esc(title)}</h2>${text?`<p>${text}</p>`:""}
+      ${input?`<textarea id="mIn" rows="3" placeholder="${esc(input.placeholder||"")}"></textarea><div class="merr" id="mErr"></div>`:""}
+      <div class="mact"><button class="btn ghost" id="mNo">Cancelar</button><button class="btn ${danger?"danger":"primary"}" id="mOk">${esc(okText)}</button></div></div>`;
+    document.body.appendChild(ov); scanbar.hidden=true;
+    const done=v=>{ ov.remove(); render(); resolve(v); };
+    const inp=ov.querySelector("#mIn"); (inp||ov.querySelector("#mOk")).focus();
+    ov.querySelector("#mNo").onclick=()=>done(null);
+    ov.onclick=e=>{ if(e.target===ov) done(null); };
+    ov.querySelector("#mOk").onclick=()=>{ if(!input) return done(true); const v=inp.value.trim();
+      if(v.length<(input.min||0)){ ov.querySelector("#mErr").textContent=input.minMsg||"Preencha o campo."; inp.focus(); return; } done(v); };
+  });
+}
+const USERS_NAME = id => { const n = id && document.querySelector(`[data-uid="${id}"]`)?.textContent; return n ? " por "+esc(n) : ""; };
+async function restartOrder(id, reopen){
+  const o=ORDERS.find(x=>x.id===id); if(!o) return;
+  const r=res(o), pl=pickList(o), done=pl.filter(x=>r[x.i].status!=="pend").length;
+  const ok=await askModal({title:`Reiniciar a separação #${o.num}?`, okText:"Reiniciar",
+    text:`O que já foi coletado (${done} de ${pl.length} itens) volta a zero e o tempo de picking recomeça.${o.tray&&o.trayStatus==="separando"?` A ${o.tray===MESA_SPOT?"Mesa-001":"bandeja "+esc(o.tray)} é liberada; bipe a bandeja de novo.`:""} Devolva as peças já coletadas aos locais.`});
+  if(!ok) return;
+  patchOrder(o.id, {status:"aguardando", res:o.items.map(()=>({status:"pend",got:0})), startedAt:null, startedBy:"",
+    ...(o.tray&&o.trayStatus==="separando"?{tray:"", trayStatus:""}:{}),
+    restarts:[...(o.restarts||[]), {at:Date.now(), by:ME.id||"", done}]});
+  toast(`Separação #${o.num} reiniciada`);
+  if(reopen) openOrder(o.id); else { state.view="orders"; render(); }
+}
+async function deleteOrder(id){
+  const o=ORDERS.find(x=>x.id===id); if(!o) return;
+  const reason=await askModal({title:`Excluir a separação #${o.num}?`, okText:"Excluir separação", danger:true,
+    text:`O pedido de <b>${esc(o.client)}</b> sai da fila de separação. Escreva o motivo da exclusão:`,
+    input:{placeholder:"Ex.: pedido cancelado pelo cliente, pré-venda duplicada…", min:5, minMsg:"Escreva o motivo (pelo menos 5 letras)."}});
+  if(!reason) return;
+  patchOrder(o.id, {status:"excluido", deletedAt:Date.now(), deletedBy:ME.id||"", deleteReason:reason,
+    ...(o.tray&&["separando","mesa"].includes(o.trayStatus)?{trayStatus:"livre"}:{})});
+  ORDERS=ORDERS.filter(x=>x.id!==o.id); DELETED=[...DELETED, o];
+  toast(`Separação #${o.num} excluída`);
+  state.view="orders"; render(); scrollTo(0,0);
+}
+
 /* ================== EXPEDIÇÃO: coleta ================== */
 const BACK_BTN = `<button class="back" id="back" aria-label="Voltar aos pedidos"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>`;
 const ICON_SCAN = `<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3M7 8v8M10 8v8M13 8v8M16 8v8"/></svg>`;
@@ -1207,6 +1269,8 @@ function renderPick(){
   app.innerHTML = `
     <header class="bar pickbar">${BACK_BTN}
       <div class="grow"><h1>#${esc(o.num)}</h1></div>
+      <button class="back" id="restartPick" aria-label="Reiniciar separação" title="Reiniciar separação">${ICON_RESTART}</button>
+      <button class="back del" id="deletePick" aria-label="Excluir separação" title="Excluir separação">${ICON_TRASH}</button>
       <span class="timer" title="Tempo de picking">⏱ ${since(o.startedAt)}</span>
       <span class="badge tnum">${state.idx+1}/${pl.length}</span>
     </header>
@@ -1231,6 +1295,8 @@ function renderPick(){
         return `<button class="li ${k===state.idx?"cur":""}" data-k="${k}"><span class="st ${s}">${ic}</span><span class="ln"><b class="tnum">${esc(x.code)}</b> <small>${x.loc ? `${x.loc.n}.${x.loc.c} · R${x.loc.r}-L${x.loc.l}` : "sem local"}</small></span><span class="tnum">${r[x.i].spot?"Mesa-001 · ":""}${x.need} pç</span></button>`;}).join("")}
     </div>`;
   document.getElementById("back").onclick = ()=>{ state.view="orders"; render(); };
+  document.getElementById("restartPick").onclick = ()=>restartOrder(o.id, true);
+  document.getElementById("deletePick").onclick = ()=>deleteOrder(o.id);
   const rp=document.getElementById("replay"); if(rp) rp.onclick = ()=>animateRoute(true);
   const sim=document.getElementById("sim"); if(sim) sim.onclick = ()=> handleScan(state.phase==="tray" ? freeTray(o) : scanCode(it));
   const um=document.getElementById("useMesa"); if(um) um.onclick = ()=> handleScan(MESA_SPOT);
@@ -1408,7 +1474,7 @@ async function keepAwake(on){
 document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible" && SCAN_VIEWS.includes(state.view)) keepAwake(true); });
 // Quantidade pelo teclado físico
 function qtyKey(delta){ if(state.view!=="pick" || state.phase!=="qty") return false; const b=document.getElementById(delta>0?"plus":"minus"); if(b){ b.click(); return true; } return false; }
-function focusScan(){ if(SCAN_VIEWS.includes(state.view) && document.activeElement!==scanIn) try{ scanIn.focus({preventScroll:true}); }catch(e){} }
+function focusScan(){ if(document.querySelector(".modal")) return; if(SCAN_VIEWS.includes(state.view) && document.activeElement!==scanIn) try{ scanIn.focus({preventScroll:true}); }catch(e){} }
 
 function handleScan(raw){
   const v = normSpot(String(raw||"").trim().toUpperCase().replace(/\s+/g,""));
@@ -2345,6 +2411,7 @@ function setSound(on){ SOUND=on; try{ localStorage.setItem("ps-sound", on?"1":"0
 let tt; function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.hidden=false; clearTimeout(tt); tt=setTimeout(()=>t.hidden=true,2400); }
 let pendingRender=false;
 function rerender(){
+  if(document.querySelector(".modal")){ pendingRender=true; return; } // janela aberta: atualiza depois
   // Não redesenha a tela do comercial enquanto há uma pré-venda em edição (só a lateral)
   if(state.sector==="comercial" && state.view==="orders" && state.draft){
     const a=document.getElementById("aside"); if(a){ a.innerHTML=asideHTML(); bindAside(); const t=document.getElementById("totals"); if(t) t.innerHTML=totalsHTML(draftTotals(state.draft),state.draft); return; }
@@ -2400,7 +2467,8 @@ render();
   prodCol.onSnapshot(snap=>{ PRODUCTS = Object.fromEntries(snap.docs.map(d=>[d.id, JSON.parse(JSON.stringify(d.data()))])); rerender(); }, e=>{ prodCol=null; });
   col = db.collection("orders");
   col.onSnapshot(snap=>{
-    ORDERS = snap.docs.map(d=>normalize(JSON.parse(JSON.stringify(d.data()))));
+    const allOrders = snap.docs.map(d=>normalize(JSON.parse(JSON.stringify(d.data()))));
+    ORDERS = allOrders.filter(o=>o.status!=="excluido"); DELETED = allOrders.filter(o=>o.status==="excluido");
     if(authReady) checkNewOrders(); else seenOrders = null;
     synced = true; rerender();
   }, e=>{ col=null; synced=false; rerender(); });
