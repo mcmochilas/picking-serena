@@ -111,6 +111,7 @@ button:focus-visible{outline:3px solid var(--route);outline-offset:2px}
 .lotebox b{display:block;font-size:15px}.lotebox small{display:block;color:var(--muted);font-size:13px;margin-top:2px}
 .lotebox.on{border-color:var(--accent);background:var(--accent-soft)}
 .lotebtns{display:flex;gap:6px;flex:none}
+.playbtn{width:52px;height:52px;min-height:52px;padding:0;border-radius:50%;display:grid;place-items:center;flex:none}
 .lotem .lotetype{display:flex}.lotem .lotetype button{flex:1}
 .lotelist{display:flex;flex-direction:column;gap:6px;max-height:46vh;overflow:auto}
 .loteopt{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;font-weight:600}
@@ -1402,7 +1403,7 @@ function loteBoxHTML(){
     return `<div class="lotebox on"><div><div class="eyebrow">Separação em lote · ${esc(LOTE_BY[L.by].t)}</div><b>${L.vals.map(esc).join(" · ")}</b><small>${L.done||0} separado(s) · ${n} restante(s)</small></div>
       <div class="lotebtns"><button class="btn primary sm" id="loteGo" ${n?"":"disabled"}>${n?"Continuar":"Sem pedidos"}</button><button class="btn ghost sm" id="loteEnd">Encerrar</button></div></div>`; }
   return `<div class="lotebox"><div><b>Separação em lote</b><small>Escolha por canal ou por transportadora e separe um pedido atrás do outro.</small></div>
-    <button class="btn primary sm" id="loteNew">Iniciar em lote</button></div>`;
+    <button class="btn primary playbtn" id="loteNew" aria-label="Iniciar separação em lote" title="Iniciar separação em lote"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg></button></div>`;
 }
 function bindLote(){
   const nw=document.getElementById("loteNew"); if(nw) nw.onclick=openLoteModal;
