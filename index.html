@@ -107,13 +107,25 @@ button:focus-visible{outline:3px solid var(--route);outline-offset:2px}
 .loc-code span{color:var(--muted);font-weight:500}
 .noloc .loc-code{font-family:var(--display);font-size:clamp(20px,6vw,28px);color:var(--warn,#C27C0E)}
 .spotbtn{width:100%;margin-top:8px}
+.canalseg{display:flex;margin:12px 0 8px}.canalseg button{flex:1}.canalseg b{margin-left:4px;opacity:.75}
+.ecofil{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+.ecofil .chips{display:flex;gap:6px;overflow-x:auto;align-items:center;padding-bottom:2px;scrollbar-width:none}
+.ecofil .eyebrow{flex:none;margin-right:2px}
+.fchip{flex:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 12px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.fchip b{opacity:.6;margin-left:2px}.fchip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip.eco{background:var(--route-soft,rgba(111,155,255,.16));color:var(--route,#2A5BC8)}
+.transp{font-weight:600;color:var(--ink)}
+.mzcancel{background:var(--bad);color:#fff;font-weight:700;border-radius:8px;padding:6px 10px;font-size:13px;letter-spacing:.02em}
+.mzcancel.big{margin:10px 0;font-size:15px;padding:10px 12px}
+.ecoinfo{display:flex;align-items:center;gap:8px;margin:8px 0 2px;font-size:14px;font-weight:600}
+.mzsync{margin-top:12px}.mzlast{font-size:13px;margin:6px 0 10px}
 .mzbox{margin-top:16px;border-top:1px solid var(--line);padding-top:6px}
 .mzform{display:grid;gap:8px;margin:8px 0}.mzform .tin{width:100%;box-sizing:border-box}
 .mzbtns{display:flex;gap:8px;flex-wrap:wrap}
 .mzdist div{display:grid;gap:2px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px}
 .mzdist small{color:var(--muted)}
 a.refbtn{text-decoration:none}
-@media (max-width:600px){ .tvlink{display:none} }
+@media (max-width:600px){ .refbtn.tvlink{display:none} }
 /* ---- Painel TV ---- */
 html.tvmode{--bg:#0B1117; --surface:#151E28; --ink:#EEF3F8; --muted:#93A2B2; --line:#26323F; --accent:#F5B71A; --accent-soft:#3A2F12; --ok:#3CC488; --ok-soft:#163327; --bad:#F06A5B; --bad-soft:#3A1D1A; color-scheme:dark; background:var(--bg)}
 html.tvmode body{background:var(--bg);color:var(--ink);overflow:hidden}
@@ -830,7 +842,7 @@ document.addEventListener("click", e => {
   const t = document.getElementById("pgtop-"+key);
   if(t){ const y = t.getBoundingClientRect().top; if(y < 0 || y > innerHeight*0.6) t.scrollIntoView({block:"start"}); }
 });
-const state = { sector:null, view:"orders", oid:null, idx:0, phase:"loc", count:0, draft:null, draftErr:"", parsing:false, etab:"enderecos", rua:1, lado:"A", selLoc:null, mesaLast:null };
+const state = { canal:(()=>{ try{ return localStorage.getItem("ps-canal")||"consultiva"; }catch(e){ return "consultiva"; } })(), sector:null, view:"orders", oid:null, idx:0, phase:"loc", count:0, draft:null, draftErr:"", parsing:false, etab:"enderecos", rua:1, lado:"A", selLoc:null, mesaLast:null };
 if(location.hash==="#tv") state.view="tv";
 window.addEventListener("hashchange", ()=>{ if(location.hash==="#tv"){ state.view="tv"; render(); } else if(state.view==="tv"){ state.view="orders"; render(); } });
 function initialSector(){ const h=location.hash.slice(1); if(["comercial","expedicao","estoque","usuarios"].includes(h)) return h; return innerWidth>=900 ? "comercial" : "expedicao"; }
@@ -1056,7 +1068,7 @@ function hiveHTML(target){
 function asideHTML(){
   const today=new Date().toDateString();
   const finished = o => o.status==="enviado" || (o.status==="pronto_envio" && o.mode!=="aguarda");
-  const list = [...ORDERS, ...DELETED.filter(o=>new Date(o.deletedAt||0).toDateString()===today)].filter(o=>o.status==="excluido" || !finished(o) || new Date(o.atMesaAt||o.pickedAt||o.sentAt||0).toDateString()===today).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const list = [...ORDERS, ...DELETED.filter(o=>new Date(o.deletedAt||0).toDateString()===today)].filter(o=>!isEco(o)).filter(o=>o.status==="excluido" || !finished(o) || new Date(o.atMesaAt||o.pickedAt||o.sentAt||0).toDateString()===today).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   const pg = pageOf(list, "aside", 10);
   return `<h2>Pedidos na expedição</h2>
     ${kpisHTML()}${pg.top}
@@ -1098,17 +1110,32 @@ const inHistory = o => !!o.pickedAt && !isSeparated(o) && !inHive(o) && !["aguar
 function sepTab(o){ return isSeparated(o) ? "fila" : inHive(o) ? "colmeias" : inHistory(o) ? "historico" : "fila"; }
 
 function renderOrders(){
-  const tab = state.sepTab || "fila";
-  const queue = ORDERS.filter(o=>(o.status==="aguardando"||o.status==="separando") && pickList(o).length).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
-  const parked = ORDERS.filter(isSeparated).sort((a,b)=>(a.pickedAt||0)-(b.pickedAt||0));
-  const hive = ORDERS.filter(inHive).sort((a,b)=>(a.colmeia||"").localeCompare(b.colmeia||""));
-  const hist = [...ORDERS.filter(inHistory), ...DELETED].sort((a,b)=>(b.deletedAt||b.pickedAt||0)-(a.deletedAt||a.pickedAt||0));
+  const tab = state.sepTab || "fila", eco = canEco();
+  const VIS = ORDERS.filter(ecoOk);
+  const canal = eco ? (state.canal || "consultiva") : "consultiva";
+  const allQ = VIS.filter(o=>(o.status==="aguardando"||o.status==="separando") && pickList(o).length).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+  const qCons = allQ.filter(o=>!isEco(o)), qEco = allQ.filter(isEco);
+  let fOrig = state.ecoOrig || "", fTransp = state.ecoTransp || "";
+  if(fOrig && !qEco.some(o=>o.origem===fOrig)) fOrig = state.ecoOrig = "";        // filtro sem pedidos: volta para Todos
+  if(fTransp && !qEco.some(o=>o.transportadora===fTransp)) fTransp = state.ecoTransp = "";
+  const queue = canal==="ecommerce" ? qEco.filter(o=>(!fOrig || o.origem===fOrig) && (!fTransp || o.transportadora===fTransp)) : qCons;
+  const parked = VIS.filter(isSeparated).sort((a,b)=>(a.pickedAt||0)-(b.pickedAt||0));
+  const hive = VIS.filter(inHive).sort((a,b)=>(a.colmeia||"").localeCompare(b.colmeia||""));
+  const hist = [...VIS.filter(inHistory), ...DELETED.filter(ecoOk)].sort((a,b)=>(b.deletedAt||b.pickedAt||0)-(a.deletedAt||a.pickedAt||0));
   const units = queue.reduce((s,o)=>s+pickList(o).reduce((a,x)=>a+x.need,0),0);
   const tabs = [["fila","Separação",queue.length+parked.length],["colmeias","Colmeias · encomenda",hive.length],["historico","Histórico",hist.length]];
   let body = "";
   const pgQ = pageOf(queue, "fila", 20), pgP = pageOf(parked, "mesa", 20), pgH = pageOf(hist, "hist", 25);
+  const count = (list, k) => { const m={}; list.forEach(o=>{ const v=o[k]||"—"; m[v]=(m[v]||0)+1; }); return Object.entries(m).sort((a,b)=>b[1]-a[1]); };
+  const canalBar = eco ? `<div class="seg canalseg" role="group" aria-label="Canal">
+      <button data-canal="consultiva" aria-pressed="${canal==="consultiva"}">Venda Consultiva <b class="tnum">${qCons.length}</b></button>
+      <button data-canal="ecommerce" aria-pressed="${canal==="ecommerce"}">E-commerce <b class="tnum">${qEco.length}</b></button></div>
+    ${canal==="ecommerce" ? `<div class="ecofil">
+      <div class="chips"><span class="eyebrow">Canal</span><button class="fchip" data-forig="" aria-pressed="${!fOrig}">Todos</button>${count(qEco,"origem").map(([v,n])=>`<button class="fchip" data-forig="${esc(v)}" aria-pressed="${fOrig===v}">${esc(v)} <b>${n}</b></button>`).join("")}</div>
+      <div class="chips"><span class="eyebrow">Transportadora</span><button class="fchip" data-ftransp="" aria-pressed="${!fTransp}">Todas</button>${count(qEco,"transportadora").map(([v,n])=>`<button class="fchip" data-ftransp="${esc(v)}" aria-pressed="${fTransp===v}">${esc(v)} <b>${n}</b></button>`).join("")}</div>
+    </div>`:""}` : "";
   if(tab==="fila"){
-    body = `
+    body = canalBar + `
     <div class="shift">
       <div><b class="tnum">${queue.length}</b><span class="eyebrow">Pedidos</span></div>
       <div><b class="tnum">${queue.reduce((s,o)=>s+pickList(o).length,0)}</b><span class="eyebrow">Referências</span></div>
@@ -1120,9 +1147,10 @@ function renderOrders(){
         const aisles=[...new Set(pl.filter(x=>x.loc).map(x=>"R"+x.loc.r))].join(" · "), semLoc=pl.filter(x=>!x.loc).length;
         const acts = can("coleta") ? (o.status==="separando"?2:1) : 0;
         return `<div class="ordwrap acts${acts}"><button class="order ${o.mode==="aguarda"?"urgent":""}" data-oid="${esc(o.id)}">
-          <div class="row"><span class="num">#${esc(o.num)}${newIds.has(o.id)&&o.status==="aguardando"?` <span class="chip newc">Novo</span>`:""}</span>${o.status==="separando"?`<span class="chip prog">Em separação</span>`:`<span class="chip ${MODES[o.mode].c}">${MODES[o.mode].t}</span>`}</div>
+          <div class="row"><span class="num">#${esc(o.num)}${newIds.has(o.id)&&o.status==="aguardando"?` <span class="chip newc">Novo</span>`:""}</span>${o.status==="separando"?`<span class="chip prog">Em separação</span>`:isEco(o)?`<span class="chip eco">${esc(o.origem||"Site")}</span>`:`<span class="chip ${MODES[o.mode].c}">${MODES[o.mode].t}</span>`}</div>
+          ${o.mzCancelado?`<div class="mzcancel">CANCELADO na Magazord · não enviar</div>`:""}
           <div class="client">${esc(o.client)}</div>
-          <div class="meta tnum"><span>${pl.length} ref. · ${pl.reduce((a,x)=>a+x.need,0)} pç</span>${aisles?`<span>Ruas ${aisles}</span>`:""}${semLoc?`<span style="color:var(--bad)">${semLoc} sem local</span>`:""}${o.status==="separando"&&o.startedAt?`<span>Separando há ${since(o.startedAt)}</span>`:`<span>Na fila há ${since(o.createdAt)}</span>`}${o.tray&&o.status==="separando"?`<span>Bandeja ${esc(o.tray)}</span>`:""}${o.mode==="aguarda"?`<span>Colmeia ${esc(o.colmeia)}</span>`:`<span>Destino: mesa de expedição</span>`}${enc?`<span>${enc} ref. sob encomenda</span>`:""}</div>
+          <div class="meta tnum"><span>${pl.length} ref. · ${pl.reduce((a,x)=>a+x.need,0)} pç</span>${aisles?`<span>Ruas ${aisles}</span>`:""}${semLoc?`<span style="color:var(--bad)">${semLoc} sem local</span>`:""}${o.status==="separando"&&o.startedAt?`<span>Separando há ${since(o.startedAt)}</span>`:`<span>Na fila há ${since(o.createdAt)}</span>`}${o.tray&&o.status==="separando"?`<span>Bandeja ${esc(o.tray)}</span>`:""}${isEco(o)?`<span class="transp">${esc(o.transportadora||"Sem transportadora")}</span>`:o.mode==="aguarda"?`<span>Colmeia ${esc(o.colmeia)}</span>`:`<span>Destino: mesa de expedição</span>`}${enc?`<span>${enc} ref. sob encomenda</span>`:""}</div>
           ${done?`<div class="prog-bar"><i style="width:${done/pl.length*100}%"></i></div>`:""}
         </button>${acts?`<div class="ord-acts">${o.status==="separando"?`<button class="icbtn" data-restart="${esc(o.id)}" aria-label="Reiniciar separação" title="Reiniciar separação">${ICON_RESTART}</button>`:""}<button class="icbtn del" data-delord="${esc(o.id)}" aria-label="Excluir separação" title="Excluir separação">${ICON_TRASH}</button></div>`:""}</div>`;}).join("") + pgQ.pager : `<div class="empty">Nenhum pedido aguardando separação.</div>`}
     </div>
@@ -1151,6 +1179,9 @@ function renderOrders(){
     ${body}`;
   bindNav();
   const rq=document.getElementById("refreshQ"); if(rq) rq.onclick=refreshQueue;
+  app.querySelectorAll("[data-canal]").forEach(b=>b.onclick=()=>{ state.canal=b.dataset.canal; resetPage("fila"); try{ localStorage.setItem("ps-canal", state.canal); }catch(e){} render(); });
+  app.querySelectorAll("[data-forig]").forEach(b=>b.onclick=()=>{ state.ecoOrig=b.dataset.forig; resetPage("fila"); render(); });
+  app.querySelectorAll("[data-ftransp]").forEach(b=>b.onclick=()=>{ state.ecoTransp=b.dataset.ftransp; resetPage("fila"); render(); });
   app.querySelectorAll("[data-restart]").forEach(b=>b.onclick=()=>restartOrder(b.dataset.restart, false));
   app.querySelectorAll("[data-delord]").forEach(b=>b.onclick=()=>deleteOrder(b.dataset.delord));
   if(can("coleta")) app.querySelectorAll(".order").forEach(b=>b.onclick=()=>openOrder(b.dataset.oid));
@@ -1159,7 +1190,7 @@ function renderOrders(){
   app.querySelectorAll("[data-hive]").forEach(b=>b.onclick=()=>{ state.oid=b.dataset.hive; state.fromMesa=false; state.view="store"; render(); scrollTo(0,0); });
 }
 function openOrder(id){
-  const o=ORDERS.find(x=>x.id===id); if(!o) return;
+  const o=ORDERS.find(x=>x.id===id); if(!o || !ecoOk(o)) return;
   newIds.delete(id); alertQueue=alertQueue.filter(x=>x!==id); showAlert();
   state.oid=id; state.phase=startPhase(o); state.count=0; state.bigItem=false;
   const r=res(o), pl=pickList(o), k=pl.findIndex(x=>r[x.i].status==="pend");
@@ -1308,7 +1339,7 @@ function tvColumn(canal, title){
       ${doing.length>MAXD?`<div class="tvmore">+ ${doing.length-MAXD} em separação</div>`:""}</div>
     <h3>Aguardando separação · ${queue.length}</h3>
     <div class="tvlist fit" data-total="${queue.length}">${queue.slice(0,MAXQ).map((o,k)=>`<div class="tvrow ${lvl(wait(o))}"><span class="tvpos tnum">${k+1}</span><span class="tvnum">#${esc(o.num)}${now-(o.createdAt||0)<5*60e3?` <em class="tvnew">NOVO</em>`:""}</span>
-        <span class="tvcli">${esc(o.client)}<small>${pickList(o).length} ref. · ${units(o)} pç · ${esc(MODES[o.mode]?.t||"")}</small></span>
+        <span class="tvcli">${esc(o.client)}<small>${pickList(o).length} ref. · ${units(o)} pç · ${isEco(o) ? esc((o.origem||"Site")+(o.transportadora?" · "+o.transportadora:"")) : esc(MODES[o.mode]?.t||"")}</small></span>
         <span class="tvtime tnum"><span data-since="${o.createdAt}">${fmtDur(wait(o))}</span></span></div>`).join("") || `<div class="tvnone ok">Fila vazia</div>`}
 </div><div class="tvmore" data-more>${queue.length>MAXQ?`+ ${queue.length-MAXQ} pedidos na fila`:""}</div>
     ${done.length?`<div class="tvdone"><h3>Últimos separados</h3><div class="tvlist small">${done.slice(0,MAXF).map(o=>`<div class="tvrow fin"><span class="tvnum">#${esc(o.num)}</span><span class="tvcli">${esc(o.client)}</span><span class="tvtime tnum">${fmtClock(o.pickedAt)}${o.startedAt?` · ${fmtDur(o.pickedAt-o.startedAt).replace(/ \d+s$/,"")}`:""}</span></div>`).join("")}</div></div>`:""}`}
@@ -1439,6 +1470,8 @@ function renderPick(){
       <span class="timer" title="Tempo de picking">⏱ ${since(o.startedAt)}</span>
       <span class="badge tnum">${state.idx+1}/${pl.length}</span>
     </header>
+    ${o.mzCancelado?`<div class="mzcancel big">Pedido CANCELADO na Magazord · pare a separação e devolva as peças</div>`:""}
+    ${isEco(o)?`<div class="ecoinfo"><span class="chip eco">${esc(o.origem||"Site")}</span><span>${esc(o.transportadora||"")}${o.servico&&o.servico!==o.transportadora?" · "+esc(o.servico):""}</span></div>`:""}
     <div class="steps">${pl.map((x,k)=>{ const s=r[x.i].status; return `<i class="${s==="ok"||s==="part"?"ok":s==="miss"?"miss":k===state.idx?"cur":""}"></i>`; }).join("")}</div>
     ${l ? `<div class="loc">
       <div class="grow"><div class="eyebrow">Local</div>
@@ -2429,6 +2462,10 @@ function myRole(){
 }
 const can = p => !!ROLES[myRole()]?.p.includes(p);
 const canSector = s => (SECTOR_PERM[s]||[]).some(can);
+/* E-commerce: Administrador sempre; demais só com a opção "E-commerce" ligada em Usuários */
+function canEco(){ if(!db) return true; if(state.viewAs) return false; if(myRole()==="admin") return true; return !!(ME.id && USERS[ME.id]?.ecommerce); }
+const isEco = o => o.canal==="ecommerce";
+const ecoOk = o => !isEco(o) || canEco();
 function allowedSectors(){ return ["comercial","expedicao","estoque","usuarios"].filter(canSector); }
 
 // Nomes e fotos: guardamos só o id; o nome é resolvido na hora de mostrar
@@ -2472,6 +2509,7 @@ function renderUsuarios(){
             <img class="av" data-uid="${esc(id)}" alt=""><div class="grow"><b data-uid="${esc(id)}"></b><small>${u.login?`Login: <span class="mono">${esc(u.login)}</span> · `:""}${ROLES[u.role]?.d||""}</small></div>
             ${roleSel(id,u.role)}
             <label class="chk"><input type="checkbox" data-active="${esc(id)}" ${u.active!==false?"checked":""}> Ativo</label>
+            ${["separador","supervisor","conferente"].includes(u.role)?`<label class="chk" title="Pode ver e separar os pedidos do e-commerce"><input type="checkbox" data-eco="${esc(id)}" ${u.ecommerce?"checked":""}> E-commerce</label>`:""}
             ${window.psAdmin && ME.isOwner ? `<span class="pwbox" data-pwbox="${esc(id)}"><button class="mini" data-pw="${esc(id)}">Nova senha</button></span>` : ""}
             <button class="mini" data-del="${esc(id)}" aria-label="Remover usuário">Remover</button></div>`; }).join("") || (!ME.isOwner?`<div class="empty">Nenhum usuário cadastrado.</div>`:"")}
         </div>${pgU.pager}
@@ -2512,6 +2550,7 @@ function renderUsuarios(){
   bindNav(); fillNames(app);
   app.querySelectorAll("[data-role]").forEach(s=>s.onchange=()=>saveUser(s.dataset.role, {role:s.value}));
   app.querySelectorAll("[data-active]").forEach(c=>c.onchange=()=>saveUser(c.dataset.active, {active:c.checked}));
+  app.querySelectorAll("[data-eco]").forEach(c=>c.onchange=()=>{ saveUser(c.dataset.eco, {ecommerce:c.checked}); toast(c.checked?"Liberado para separar e-commerce":"E-commerce bloqueado para esta pessoa"); });
   app.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{
     if(b.dataset.confirm){ deleteUser(b.dataset.del); return; }
     b.dataset.confirm="1"; b.textContent="Confirmar remoção"; b.classList.add("danger"); setTimeout(()=>{ if(b.isConnected){ delete b.dataset.confirm; b.textContent="Remover"; b.classList.remove("danger"); } },4000);
@@ -2549,6 +2588,7 @@ function renderUsuarios(){
   document.getElementById("viewAsBtn").onclick=()=>{ const v=document.getElementById("viewAs").value; if(!v) return; state.viewAs=v; state.sector=allowedSectors()[0]||"expedicao"; state.view="orders"; render(); toast(`Simulando: ${ROLES[v].t}`); };
 }
 /* ---- Integração Magazord (só Administrador) ---- */
+let MZSYNC = null; // status da última importação (config/magazord_sync)
 const MZ = { loaded:false, loading:false, status:null, busy:false, result:null, err:"" };
 function mzHTML(){
   if(!MZ.loaded && !MZ.loading){ MZ.loading=true; window.psMagazord({action:"status"}).then(r=>{ MZ.status=r; }, e=>{ MZ.err=e.message; }).finally(()=>{ MZ.loaded=true; MZ.loading=false; if(state.sector==="usuarios") render(); }); }
@@ -2565,6 +2605,10 @@ function mzHTML(){
     ${MZ.err?`<div class="err">${esc(MZ.err)}</div>`:""}
     ${R?.ok?`<div class="okbox">Conexão OK · ${R.count} pedido(s) recente(s) lido(s) da Magazord.</div>
       ${groups.length?`<details class="mzdist" open><summary class="eyebrow">O que encontrei nos pedidos recentes</summary>${groups.map(([k,v])=>`<div><b class="mono">${esc(k)}</b><span>${Object.entries(v).slice(0,10).map(([x,n])=>`${esc(x)} <small>(${n})</small>`).join(" · ")}</span></div>`).join("")}</details>`:""}`:""}
+    ${st?.configured?`<div class="mzsync"><h3>Importação automática</h3>
+      <p class="hint">A cada 2 minutos entram os pedidos na situação <b>5 · Crédito e Cadastro Aprovados</b> (site e marketplaces, sem o Mercado Livre Full). Os pedidos cancelados saem da fila sozinhos.</p>
+      ${MZSYNC?.lastRun?`<div class="mzlast">Última importação: <b>${fmtClock(MZSYNC.lastRun)}</b> · ${MZSYNC.found} pedido(s) aprovados · ${MZSYNC.imported} novo(s)${MZSYNC.cancelled?` · ${MZSYNC.cancelled} cancelado(s)`:""}${MZSYNC.errors?.length?`<div class="err">${MZSYNC.errors.map(esc).join("<br>")}</div>`:""}</div>`:`<div class="mzlast">Ainda não rodou.</div>`}
+      <button class="btn ghost" type="button" id="mzSync" ${MZ.busy?"disabled":""}>Importar agora</button></div>`:""}
     <p class="hint">A senha fica guardada no servidor e não aparece mais na tela. O Picking Serena só <b>lê</b> os pedidos da Magazord.</p>
   </div>`;
 }
@@ -2585,6 +2629,9 @@ function bindMz(){
     MZ.busy=false; render(); };
   f.onsubmit=e=>{ e.preventDefault(); run(true); };
   const t=document.getElementById("mzTest"); if(t) t.onclick=()=>run(false);
+  const sy=document.getElementById("mzSync"); if(sy) sy.onclick=async()=>{ MZ.busy=true; MZ.err=""; render();
+    try{ const r=await window.psMagazord({action:"sync"}); MZSYNC=r; toast(`Importação concluída · ${r.imported} pedido(s) novo(s)`); }catch(e){ MZ.err=e.message||String(e); }
+    MZ.busy=false; render(); };
 }
 function saveUser(id, patch, create){
   const cur = USERS[id] || {};
@@ -2609,7 +2656,7 @@ function chime(){
       o.connect(g); g.connect(c.destination); o.start(t0+dt); o.stop(t0+dt+.3); }); }catch(e){}
 }
 function checkNewOrders(){
-  const open = ORDERS.filter(o=>o.status==="aguardando" && pickList(o).length);
+  const open = ORDERS.filter(o=>o.status==="aguardando" && pickList(o).length && ecoOk(o));
   if(seenOrders===null){ seenOrders = new Set(ORDERS.map(o=>o.id+":"+(o.createdAt||0))); return; } // carga inicial: sem alerta
   const fresh = open.filter(o=>!seenOrders.has(o.id+":"+(o.createdAt||0)));
   ORDERS.forEach(o=>seenOrders.add(o.id+":"+(o.createdAt||0)));
@@ -2726,6 +2773,7 @@ render();
   if(!db){ synced=false; authReady=true; rerender(); return; }
   cfgDoc = db.doc("config/picking");
   cfgDoc.onSnapshot(snap=>{ const d=snap.exists?snap.data():null; CONFIG = {requireLoc:false, useTray: d?.useTray ?? true}; rerender(); }, ()=>{ cfgDoc=null; });
+  db.doc("config/magazord_sync").onSnapshot(snap=>{ MZSYNC = snap.exists ? JSON.parse(JSON.stringify(snap.data())) : null; if(state.sector==="usuarios") rerender(); }, ()=>{});
   mesasDoc = db.doc("config/mesas");
   mesasDoc.onSnapshot(snap=>{ const l=snap.exists?snap.data()?.list:null; if(Array.isArray(l) && l.length) MESAS=JSON.parse(JSON.stringify(l)); rerender(); }, ()=>{ mesasDoc=null; });
   usersCol = db.collection("users");

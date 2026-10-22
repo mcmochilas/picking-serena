@@ -76,11 +76,14 @@ Deno.serve(async (req) => {
     if (body.order) {
       if (req.headers.get("x-push-secret") !== await secret("push_webhook")) return json({ error: "não autorizado" }, 401);
       const o = body.order;
-      const { data: people } = await sb.from("profiles").select("id").eq("active", true).in("role", NOTIFY_ROLES);
-      const ids = (people || []).map((p) => p.id as string).filter((id) => id !== o.createdBy);
+      const eco = o.canal === "ecommerce";
+      const { data: people } = await sb.from("profiles").select("id,ecommerce").eq("active", true).in("role", NOTIFY_ROLES);
+      // pedido do e-commerce: só avisa quem está liberado para separar e-commerce
+      const ids = (people || []).filter((p) => !eco || p.ecommerce).map((p) => p.id as string).filter((id) => id !== o.createdBy);
       const r = await sendTo(ids, {
-        title: "Novo pedido para separar",
-        body: `#${o.num} · ${o.client}${o.refs ? ` · ${o.refs} ref.` : ""}${MODES[o.mode] ? ` · ${MODES[o.mode]}` : ""}`,
+        title: eco ? `Novo pedido e-commerce · ${o.origem || "Site"}` : "Novo pedido para separar",
+        body: eco ? `#${o.num}${o.transportadora ? ` · ${o.transportadora}` : ""}${o.refs ? ` · ${o.refs} ref.` : ""}`
+                  : `#${o.num} · ${o.client}${o.refs ? ` · ${o.refs} ref.` : ""}${MODES[o.mode] ? ` · ${MODES[o.mode]}` : ""}`,
         tag: `pedido-${o.id}`, url: "/#expedicao",
       });
       return json(r);

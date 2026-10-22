@@ -86,7 +86,7 @@
     return {
       onSnapshot(cb, onErr){
         const rows = new Map(); let loaded = false;
-        const put = r => { if(r.role) rows.set(r.id, { role:r.role, active:r.active, addedAt: Date.parse(r.created_at)||0, login: emailToLogin(r.email) }); else rows.delete(r.id); };
+        const put = r => { if(r.role) rows.set(r.id, { role:r.role, active:r.active, addedAt: Date.parse(r.created_at)||0, login: emailToLogin(r.email), ecommerce: !!r.ecommerce }); else rows.delete(r.id); };
         const emit = () => { if(loaded) cb({ docs: [...rows].map(([id,d]) => ({ id, exists:true, data:()=>d })) }); };
         const ch = sb.channel(`rt-profiles-${uid()}`)
           .on("postgres_changes", { event:"*", schema:"public", table:"profiles" }, p => {
@@ -94,13 +94,13 @@
             if(p.new?.id === session?.user?.id) profile = { ...profile, ...p.new };
             emit();
           }).subscribe();
-        fetchAll("profiles", "id,role,active,created_at,email").then(d => { d.forEach(put); loaded = true; emit(); })
+        fetchAll("profiles", "id,role,active,created_at,email,ecommerce").then(d => { d.forEach(put); loaded = true; emit(); })
           .catch(e => onErr && onErr(toErr(e)));
         return () => sb.removeChannel(ch);
       },
       doc(id){
         const upd = async p => {
-          const patch = {}; if("role" in p) patch.role = p.role; if("active" in p) patch.active = p.active;
+          const patch = {}; if("role" in p) patch.role = p.role; if("active" in p) patch.active = p.active; if("ecommerce" in p) patch.ecommerce = !!p.ecommerce;
           const { error } = await sb.from("profiles").update(patch).eq("id", id); if(error) throw toErr(error);
         };
         return { set: upd, update: upd, async delete(){ const { error } = await sb.from("profiles").update({ role:null }).eq("id", id); if(error) throw toErr(error); } };
