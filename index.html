@@ -175,6 +175,7 @@ html.tvmode body{background:var(--bg);color:var(--ink);overflow:hidden}
 .tvprog small{position:relative;display:block;text-align:center;line-height:1.6em;font-size:.8em;font-weight:700}
 .tvnew{font-style:normal;font-family:var(--display);font-size:.75em;background:var(--accent);color:#111;border-radius:.3em;padding:.05em .35em;margin-left:.3em;animation:tvblink 1.2s ease-in-out infinite}
 @keyframes tvblink{50%{opacity:.35}}
+.tvcanais{color:var(--ink);letter-spacing:.04em;margin-left:.3em}
 .tvnone{color:var(--muted);padding:.6em .2em}.tvnone.ok{color:var(--ok);font-weight:600}
 .tvmore{color:var(--muted);font-size:.9em;padding:.2em .3em}
 .tvsoon{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.6em;color:var(--muted);text-align:center;border:2px dashed var(--line);border-radius:1em;margin-top:1em}
@@ -1353,7 +1354,8 @@ function tvColumn(canal, title){
         <span class="tvprog"><i style="width:${pl.length?d/pl.length*100:0}%"></i><small class="tnum">${d}/${pl.length} ref.</small></span>
         <span class="tvtime tnum">${o.startedAt?`<span data-since="${o.startedAt}">${fmtDur(now-o.startedAt)}</span>`:"—"}</span></div>`; }).join("") || `<div class="tvnone">Ninguém separando agora</div>`}
       ${doing.length>MAXD?`<div class="tvmore">+ ${doing.length-MAXD} em separação</div>`:""}</div>
-    <h3>Aguardando separação · ${queue.length}</h3>
+    <h3>Aguardando separação · ${queue.length}${canal==="ecommerce" && queue.length ? (()=>{ const m={}; queue.forEach(o=>{ const v=o.origem||"Site"; m[v]=(m[v]||0)+1; });
+      return ` <span class="tvcanais">(${Object.entries(m).sort((a,b)=>b[1]-a[1]).map(([v,n])=>`${esc(v)} ${n}`).join(" - ")})</span>`; })() : ""}</h3>
     <div class="tvlist fit" data-total="${queue.length}">${queue.slice(0,MAXQ).map((o,k)=>`<div class="tvrow ${lvl(wait(o))}"><span class="tvpos tnum">${k+1}</span><span class="tvnum">#${esc(o.num)}${now-(o.createdAt||0)<5*60e3?` <em class="tvnew">NOVO</em>`:""}</span>
         <span class="tvcli">${esc(o.client)}<small>${pickList(o).length} ref. · ${units(o)} pç · ${isEco(o) ? esc((o.origem||"Site")+(o.transportadora?" · "+o.transportadora:"")) : esc(MODES[o.mode]?.t||"")}</small></span>
         <span class="tvtime tnum"><span data-since="${o.createdAt}">${fmtDur(wait(o))}</span></span></div>`).join("") || `<div class="tvnone ok">Fila vazia</div>`}
