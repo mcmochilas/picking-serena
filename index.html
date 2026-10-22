@@ -105,6 +105,8 @@ button:focus-visible{outline:3px solid var(--route);outline-offset:2px}
 .loc{display:flex;align-items:center;gap:14px;margin-top:14px}
 .loc-code{font-family:var(--mono);font-weight:700;font-size:clamp(22px,7vw,36px);letter-spacing:.02em;line-height:1}
 .loc-code span{color:var(--muted);font-weight:500}
+.noloc .loc-code{font-family:var(--display);font-size:clamp(20px,6vw,28px);color:var(--warn,#C27C0E)}
+.noloc-t{font-size:13px;color:var(--muted);margin-top:6px;line-height:1.4}
 .loc-parts{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}
 .loc-parts div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:7px 8px}
 .loc-parts small{display:block;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
@@ -720,9 +722,10 @@ function initialSector(){ const h=location.hash.slice(1); if(["comercial","exped
 state.sector = initialSector();
 
 function pickList(o){
-  return o.items.map((it,i)=>({...it, i, need: it.qty-(it.qtyEnc||0), loc: liveLoc(it), ean: liveEan(it)})).filter(x=>x.need>0 && x.loc)
-    .sort((x,y)=> x.loc.r-y.loc.r || x.loc.ci-y.loc.ci || x.loc.l.localeCompare(y.loc.l) || x.loc.n-y.loc.n);
+  return o.items.map((it,i)=>({...it, i, need: it.qty-(it.qtyEnc||0), loc: liveLoc(it), ean: liveEan(it)})).filter(x=>x.need>0)
+    .sort((x,y)=> !x.loc || !y.loc ? (!x.loc) - (!y.loc) : x.loc.r-y.loc.r || x.loc.ci-y.loc.ci || x.loc.l.localeCompare(y.loc.l) || x.loc.n-y.loc.n);
 }
+const locTxt = it => it.loc ? code(it.loc) : "sem local";
 function res(o){ if(!o.res || o.res.length!==o.items.length) o.res = o.items.map(()=>({status:"pend",got:0})); return o.res; }
 
 /* ================== Navegação ================== */
@@ -850,7 +853,7 @@ function draftHTML(d){
         return `<tr class="${par&&enc?"enc":""}">
           <td class="code">${esc(it.code)}</td>
           <td class="desc">${esc(it.name)}<small>${it.ean?("EAN "+esc(it.ean)):"sem EAN · bipar pelo código"}</small></td>
-          <td>${it.loc?`<span class="pill">${fullLoc(code(it.loc))}</span>`:`<div class="setloc"><input class="tin mono sm" id="dl-${i}" placeholder="R1-LB-BIN-8.M" style="width:104px" aria-label="Endereço de ${esc(it.code)}"><button class="mini" data-setloc="${i}">Salvar</button></div><div class="setloc"><small>sem endereço no estoque</small></div>`}</td>
+          <td>${it.loc?`<span class="pill">${fullLoc(code(it.loc))}</span>`:`<div class="setloc"><input class="tin mono sm" id="dl-${i}" placeholder="R1-LB-BIN-8.M" style="width:104px" aria-label="Endereço de ${esc(it.code)}"><button class="mini" data-setloc="${i}">Salvar</button></div><div class="setloc"><small>sem local · pode enviar assim mesmo</small></div>`}</td>
           <td class="num">${it.qty} ${esc(it.un)}</td>
           ${par?`<td><div class="encin"><input type="number" min="0" max="${it.qty}" step="1" value="${enc}" id="enc-${i}" data-i="${i}" aria-label="Quantidade sob encomenda de ${esc(it.code)}"><label><input type="checkbox" data-all="${i}" ${enc===it.qty?"checked":""}>todas</label></div></td>
                  <td><input type="date" id="eta-${i}" data-eta="${i}" value="${esc(it.eta)}" ${enc?"":"disabled"} aria-label="Previsão de chegada de ${esc(it.code)}"></td>`:""}
@@ -914,7 +917,6 @@ function sendDraft(){
   const missing = items.map((it,i)=>it.qtyEnc>0 && !it.eta ? i : -1).filter(i=>i>=0);
   if(missing.length){ missing.forEach(i=>document.getElementById("eta-"+i)?.classList.add("invalid")); state.draftErr=""; toast("Informe a previsão de chegada dos itens sob encomenda."); return; }
   const noLoc = items.filter(it=>it.qty-it.qtyEnc>0 && !it.loc);
-  if(noLoc.length){ state.draftErr=`Sem endereço de estoque: ${noLoc.map(x=>x.code).join(", ")}. Defina o endereço na tabela acima ou na aba Locais.`; return render(); }
   items.forEach(it=>{ const p=PRODUCTS[it.code]; if(!p) saveProduct({code:it.code, name:it.name, ean:it.ean, loc:it.loc?code(it.loc):""}); else if(!p.ean && it.ean && !validateProduct({...p, ean:it.ean})) saveProduct({...p, ean:it.ean}); });
   const prev = ORDERS.find(o=>o.id===d.id);
   const slot = m==="aguarda" ? ((prev && usesHive(prev) && prev.colmeia) || freeSlot()) : null;
@@ -925,7 +927,7 @@ function sendDraft(){
   res(o);
   state.draft=null; state.draftErr="";
   saveOrder(o);
-  toast(m==="aguarda" ? (hasPick ? `Pré-venda ${o.num} enviada para separação · colmeia ${slot}` : `Pré-venda ${o.num} toda sob encomenda · colmeia ${slot} reservada`) : `Pré-venda ${o.num} enviada para separação · ${MODES[m].t.toLowerCase()}`);
+  toast((noLoc.length ? `${noLoc.length} item(ns) sem local · o separador procura no estoque · ` : "") + (m==="aguarda" ? (hasPick ? `Pré-venda ${o.num} enviada para separação · colmeia ${slot}` : `Pré-venda ${o.num} toda sob encomenda · colmeia ${slot} reservada`) : `Pré-venda ${o.num} enviada para separação · ${MODES[m].t.toLowerCase()}`));
 }
 
 function hiveHTML(target){
@@ -998,11 +1000,11 @@ function renderOrders(){
     <div class="section"><div class="eyebrow">Fila de separação</div>${pgQ.top}
       ${queue.length ? pgQ.items.map(o=>{
         const pl=pickList(o), r=res(o), done=pl.filter(x=>r[x.i].status!=="pend").length, enc=o.items.filter(i=>i.qtyEnc>0).length;
-        const aisles=[...new Set(pl.map(x=>"R"+x.loc.r))].join(" · ");
+        const aisles=[...new Set(pl.filter(x=>x.loc).map(x=>"R"+x.loc.r))].join(" · "), semLoc=pl.filter(x=>!x.loc).length;
         return `<button class="order ${o.mode==="aguarda"?"urgent":""}" data-oid="${esc(o.id)}">
           <div class="row"><span class="num">#${esc(o.num)}${newIds.has(o.id)&&o.status==="aguardando"?` <span class="chip newc">Novo</span>`:""}</span>${o.status==="separando"?`<span class="chip prog">Em separação</span>`:`<span class="chip ${MODES[o.mode].c}">${MODES[o.mode].t}</span>`}</div>
           <div class="client">${esc(o.client)}</div>
-          <div class="meta tnum"><span>${pl.length} ref. · ${pl.reduce((a,x)=>a+x.need,0)} pç</span><span>Ruas ${aisles}</span>${o.status==="separando"&&o.startedAt?`<span>Separando há ${since(o.startedAt)}</span>`:`<span>Na fila há ${since(o.createdAt)}</span>`}${o.tray&&o.status==="separando"?`<span>Bandeja ${esc(o.tray)}</span>`:""}${o.mode==="aguarda"?`<span>Colmeia ${esc(o.colmeia)}</span>`:`<span>Destino: mesa de expedição</span>`}${enc?`<span>${enc} ref. sob encomenda</span>`:""}</div>
+          <div class="meta tnum"><span>${pl.length} ref. · ${pl.reduce((a,x)=>a+x.need,0)} pç</span>${aisles?`<span>Ruas ${aisles}</span>`:""}${semLoc?`<span style="color:var(--bad)">${semLoc} sem local</span>`:""}${o.status==="separando"&&o.startedAt?`<span>Separando há ${since(o.startedAt)}</span>`:`<span>Na fila há ${since(o.createdAt)}</span>`}${o.tray&&o.status==="separando"?`<span>Bandeja ${esc(o.tray)}</span>`:""}${o.mode==="aguarda"?`<span>Colmeia ${esc(o.colmeia)}</span>`:`<span>Destino: mesa de expedição</span>`}${enc?`<span>${enc} ref. sob encomenda</span>`:""}</div>
           ${done?`<div class="prog-bar"><i style="width:${done/pl.length*100}%"></i></div>`:""}
         </button>`;}).join("") + pgQ.pager : `<div class="empty">Nenhum pedido aguardando separação.</div>`}
     </div>
@@ -1046,7 +1048,7 @@ function openOrder(id){
 /* ================== Etiquetas de teste ================== */
 function renderLabels(){
   const locs=new Map(), prods=new Map();
-  ORDERS.filter(o=>o.status!=="enviado").forEach(o=>pickList(o).forEach(i=>{ locs.set(code(i.loc), i.name); prods.set(i.ean||i.code, {t:i.name, f: validEan(i.ean)?"EAN13":"CODE128"}); }));
+  ORDERS.filter(o=>o.status!=="enviado").forEach(o=>pickList(o).forEach(i=>{ if(i.loc) locs.set(code(i.loc), i.name); prods.set(i.ean||i.code, {t:i.name, f: validEan(i.ean)?"EAN13":"CODE128"}); }));
   const card = (v,t,fmt,big) => `<div class="label"><div class="lt">${esc(t)}</div>${big?`<div class="lb">${esc(v)}</div>`:""}<svg class="bc" data-v="${esc(v)}" data-f="${fmt}"></svg></div>`;
   app.innerHTML = topnav() + `
     <header class="bar"><button class="back" id="back" aria-label="Voltar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button><div class="grow"><h1>Etiquetas de teste</h1><div class="sub">Abra no computador e aponte o celular ou o leitor para a tela</div></div></header>
@@ -1079,7 +1081,7 @@ function routePts(g, from, l){
 }
 function mapSVG(item, prevItem){
   const g = mapGeom(), l = item.loc, W = g.W;
-  const from = prevItem ? {x:g.laneX(prevItem.loc.r), y:g.rowY(prevItem.loc.ci), lane:1} : {x:W/2, y:372};
+  const from = prevItem?.loc ? {x:g.laneX(prevItem.loc.r), y:g.rowY(prevItem.loc.ci), lane:1} : {x:W/2, y:372};
   const pts = routePts(g, from, l), t = {x:g.laneX(l.r), y:g.rowY(l.ci)};
   const d = "M"+pts.map(p=>`${p.x} ${p.y}`).join(" L");
   let s = `<svg viewBox="0 0 ${W} 410" role="img" aria-label="Mapa do estoque: vá até a rua ${l.r}, lado ${l.l}, coluna ${l.c}, nível ${l.n}">`;
@@ -1176,23 +1178,27 @@ function renderPick(){
       <span class="badge tnum">${state.idx+1}/${pl.length}</span>
     </header>
     <div class="steps">${pl.map((x,k)=>{ const s=r[x.i].status; return `<i class="${s==="ok"||s==="part"?"ok":s==="miss"?"miss":k===state.idx?"cur":""}"></i>`; }).join("")}</div>
-    <div class="loc">
+    ${l ? `<div class="loc">
       <div class="grow"><div class="eyebrow">Local</div>
         <div class="loc-code tnum">R${l.r}<span>-</span>L${l.l}<span>-</span><span class="ttag">${l.t}</span>${l.n}<span>.</span>${l.c}</div></div>
       ${elevSVG(l)}
-    </div>
+    </div>` : `<div class="loc noloc">
+      <div class="grow"><div class="eyebrow">Local</div>
+        <div class="loc-code">Sem local cadastrado</div>
+        <div class="noloc-t">Procure o produto no estoque pelo código <b class="tnum">${esc(it.code)}</b> e bipe a peça normalmente. Depois avise o estoque para cadastrar o local.</div></div>
+    </div>`}
     ${taskCard(it)}
-    <div class="map-card" id="map">
+    ${l ? `<div class="map-card" id="map">
       <button class="replay-ic" id="replay" aria-label="Ver rota de novo" title="Ver rota de novo"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
       ${mapSVG(it, prev)}
-    </div>
+    </div>` : ""}
     <div class="eyebrow" style="margin-top:14px">Itens · ${done} de ${pl.length}</div>
     <div class="list" style="margin-top:6px">
       ${pl.map((x,k)=>{ const s=r[x.i].status; const ic = s==="ok"?"✓":s==="miss"?"!":s==="part"?r[x.i].got:"";
-        return `<button class="li ${k===state.idx?"cur":""}" data-k="${k}"><span class="st ${s}">${ic}</span><span class="ln"><b class="tnum">${esc(x.code)}</b> <small>${x.loc.n}.${x.loc.c} · R${x.loc.r}-L${x.loc.l}</small></span><span class="tnum">${x.need} pç</span></button>`;}).join("")}
+        return `<button class="li ${k===state.idx?"cur":""}" data-k="${k}"><span class="st ${s}">${ic}</span><span class="ln"><b class="tnum">${esc(x.code)}</b> <small>${x.loc ? `${x.loc.n}.${x.loc.c} · R${x.loc.r}-L${x.loc.l}` : "sem local"}</small></span><span class="tnum">${x.need} pç</span></button>`;}).join("")}
     </div>`;
   document.getElementById("back").onclick = ()=>{ state.view="orders"; render(); };
-  document.getElementById("replay").onclick = ()=>animateRoute(true);
+  const rp=document.getElementById("replay"); if(rp) rp.onclick = ()=>animateRoute(true);
   const sim=document.getElementById("sim"); if(sim) sim.onclick = ()=> handleScan(state.phase==="tray" ? freeTray(o) : scanCode(it));
   const miss=document.getElementById("miss"); if(miss) miss.onclick = ()=>{ if(state.phase!=="qty") state.count=0; commit(state.count===0 ? "miss" : state.count>=it.need ? "ok" : "part"); };
   const qOut=document.getElementById("q"), okQ=document.getElementById("okQty");
@@ -1201,7 +1207,7 @@ function renderPick(){
     okQ.onclick=()=> commit(state.count>=it.need ? "ok" : state.count===0 ? "miss" : "part"); }
   app.querySelectorAll(".li[data-k]").forEach(b=>b.onclick=()=>{ const k=+b.dataset.k; if(r[pl[k].i].status!=="pend"){ toast("Item já finalizado"); return; } goItem(k); });
   setMsg(state.phase==="tray" ? "Bipe a bandeja" : state.phase==="qty" ? `Conte ${it.need} pç e confirme` : "Bipe o produto", "info");
-  requestAnimationFrame(()=>animateRoute(false));
+  if(l) requestAnimationFrame(()=>animateRoute(false));
   focusScan();
 }
 function goItem(k){ state.idx=k; state.phase=startPhase(ORDERS.find(x=>x.id===state.oid)); state.count=0; render(); scrollTo({top:0,behavior:"smooth"}); }
@@ -1215,7 +1221,7 @@ function commit(status){
   const {o, r, pl, it} = cur();
   r[it.i] = {status, got: state.count};
   patchOrder(o.id, {res:r});
-  toast(status==="ok" ? `${code(it.loc)} coletado · ${it.need} pç` : status==="part" ? `Coleta parcial: ${state.count} de ${it.need} pç` : `Falta registrada em ${code(it.loc)}`);
+  toast(status==="ok" ? `${it.loc?code(it.loc):it.code} coletado · ${it.need} pç` : status==="part" ? `Coleta parcial: ${state.count} de ${it.need} pç` : `Falta registrada em ${it.loc?code(it.loc):it.code}`);
   const next = pl.findIndex((x,k)=>k>state.idx && r[x.i].status==="pend"), any = pl.findIndex(x=>r[x.i].status==="pend");
   const n = next>=0 ? next : any;
   if(n<0){ state.view="tomesa"; render(); scrollTo(0,0); return; }
@@ -1385,6 +1391,7 @@ function handleScan(raw){
   if(state.view!=="pick") return;
   const c = cur(); if(!c) return; const {o, it} = c;
   const isLoc = LOC_RE.test(v), isProd = (!!it.ean && v===it.ean) || v===it.code;
+  if(state.phase==="loc" && !it.loc) state.phase = startPhase(o);
   if(state.phase==="loc"){
     if(v===code(it.loc)){ feedback(true); state.count=0;
       if(hasTray(o)){ state.phase="prod"; render(); setMsg(`Endereço ${v} confirmado. Bipe as peças.`,"good"); }
@@ -1394,6 +1401,7 @@ function handleScan(raw){
     if(isProd) return setMsg("Bipe primeiro a etiqueta do endereço.","bad");
     return setMsg(isLoc ? `Endereço errado: ${v}. Vá para ${code(it.loc)}.` : `Código ${v} não é um endereço.`, "bad");
   }
+  if(isLoc && !it.loc){ feedback(false); return setMsg(`Este produto não tem local cadastrado. Bipe a peça.`,"bad"); }
   if(isLoc){
     if(v===code(it.loc)){ feedback(true); return setMsg(state.phase==="tray" ? "Local certo. Agora bipe a bandeja." : "Local certo. Agora bipe o produto.","good"); }
     feedback(false); return setMsg(`Local errado: ${v}. O produto está em ${code(it.loc)}.`,"bad");
@@ -1414,7 +1422,7 @@ function handleScan(raw){
   if(isLoc) return setMsg(`Você já está em ${code(it.loc)}. Agora bipe a peça.`,"bad");
   const enc = o.items.find(x=>(x.ean===v||x.code===v) && x.qtyEnc>=x.qty);
   const other = o.items.find(x=>x.ean===v||x.code===v);
-  setMsg(enc ? `${enc.name} é sob encomenda. Não separar.` : other ? `Produto de outro local: ${other.name}. Este item está em ${code(it.loc)}.` : `Código ${v} não é deste produto.`, "bad");
+  setMsg(enc ? `${enc.name} é sob encomenda. Não separar.` : other ? `Produto de outro item: ${other.name}. Este item ${it.loc?"está em "+code(it.loc):"é o "+it.code}.` : `Código ${v} não é deste produto.`, "bad");
 }
 let wedgeT0=0, wedgeN=0, autoT;
 scanIn.addEventListener("keydown", e=>{
