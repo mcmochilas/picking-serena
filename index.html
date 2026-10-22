@@ -536,6 +536,14 @@ body.pda .keyhint{display:block}
 @media (prefers-reduced-motion: reduce){ .alertbar,.ab-ic{animation:none} }
 
 .li.sep .ln{display:flex;flex-direction:column;white-space:normal}
+.li.hrow{align-items:center;gap:10px}
+.hmain{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.htop{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.hnum{font-family:var(--mono);font-size:14px;overflow-wrap:anywhere}
+.hcli{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hmain small{color:var(--muted);font-size:12px}
+.htop .transp{font-size:12px;font-weight:600;border:1px solid var(--line);border-radius:6px;padding:1px 7px;background:var(--bg)}
+.chip.okc{min-width:34px;text-align:center;justify-content:center}
 .li.sep .ln small{font-size:12px;color:var(--muted)}
 .li.sep .mini{flex:none;white-space:nowrap}
 .li.sep .freed{font-size:12px;color:var(--ok);font-weight:600;white-space:nowrap}
@@ -1237,7 +1245,11 @@ function renderOrders(){
     body = `
     <div class="section"><div class="eyebrow">Pedidos separados · ${hist.length}</div>${pgH.top}
       ${hist.length ? `<div class="list" style="margin-top:0">${pgH.items.map(o=>{ const st=statusInfo(o), pk=o.pickedAt&&o.startedAt?o.pickedAt-o.startedAt:null;
-        return `<div class="li sep" style="cursor:default"><span class="lc tnum">#${esc(o.num)}</span><span class="ln">${esc(o.client)}<small>${o.status==="excluido"?`Excluído ${fmtClock(o.deletedAt)} · motivo: ${esc(o.deleteReason||"")}`:""}${o.status==="excluido"?"":fmtClock(o.pickedAt)}${pk!=null?" · picking "+fmtDur(pk).replace(/ \d+s$/,""):""}${o.tray||bigOnMesa(o)?" · "+esc(spotsTxt(o)):""}</small></span><span class="chip ${st.c}">${st.t.split(" · ")[0]}</span></div>`; }).join("")}</div>${pgH.pager}` : `<div class="empty">Nenhum pedido separado ainda.</div>`}
+        const tp=transpOf(o), fin=/^Finalizado/.test(st.t);
+        return `<div class="li hrow" style="cursor:default"><div class="hmain"><div class="htop"><b class="hnum tnum">#${esc(o.num)}</b>${tp?transpBadge(tp):isEco(o)?"":`<span class="muted-s">sem transportadora</span>`}</div>
+          <div class="hcli">${esc(o.client)}</div>
+          <small>${o.status==="excluido"?`Excluído ${fmtClock(o.deletedAt)} · motivo: ${esc(o.deleteReason||"")}`:fmtClock(o.pickedAt)}${pk!=null?" · picking "+fmtDur(pk).replace(/ \d+s$/,""):""}${o.tray||bigOnMesa(o)?" · "+esc(spotsTxt(o)):""}</small></div>
+          <span class="chip ${st.c} ${fin?"okc":""}" title="${esc(st.t)}">${fin?"OK":esc(st.t.split(" · ")[0])}</span></div>`; }).join("")}</div>${pgH.pager}` : `<div class="empty">Nenhum pedido separado ainda.</div>`}
     </div>`;
   }
   app.innerHTML = topnav() + `
