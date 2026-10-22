@@ -106,6 +106,9 @@ button:focus-visible{outline:3px solid var(--route);outline-offset:2px}
 .loc-code{font-family:var(--mono);font-weight:700;font-size:clamp(22px,7vw,36px);letter-spacing:.02em;line-height:1}
 .loc-code span{color:var(--muted);font-weight:500}
 .noloc .loc-code{font-family:var(--display);font-size:clamp(20px,6vw,28px);color:var(--warn,#C27C0E)}
+.spotbtn{width:100%;margin-top:8px}
+.spotline{margin-top:8px;font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.spotline.on{color:var(--ink);background:var(--accent-soft);border-radius:8px;padding:8px 10px}
 .noloc-t{font-size:13px;color:var(--muted);margin-top:6px;line-height:1.4}
 .loc-parts{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}
 .loc-parts div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:7px 8px}
@@ -603,6 +606,12 @@ function normalize(o){ // compatibilidade com pedidos gravados na versão anteri
 }
 // Cadastro de endereços de estoque (no sistema real vem do ERP/WMS)
 const TRAYS = Array.from({length:30},(_,i)=>"BJ-"+String(i+1).padStart(2,"0"));
+/* Mesa-001: local compartilhado para itens grandes que não cabem na bandeja, ou para o pedido inteiro quando não há bandeja livre */
+const MESA_SPOT = "MESA-001";
+const normSpot = v => /^MESA-?0*1$/.test(v) ? MESA_SPOT : v;
+const isTrayCode = v => /^BJ-\d{2}$/.test(v) || v===MESA_SPOT;
+const bigOnMesa = o => (o.res||[]).some(x=>x && x.spot===MESA_SPOT) && o.tray!==MESA_SPOT;
+function spotsTxt(o){ const a=[]; if(o.tray) a.push(o.tray===MESA_SPOT?"Mesa-001":"Bandeja "+o.tray); if(bigOnMesa(o)) a.push("Mesa-001"); return a.join(" + "); }
 let PRODUCTS = {}; // cadastro: código -> {code, name, ean, loc}
 const LOC_TYPES = { GAV:"Gaveta", COL:"Colmeia", BIN:"Bin" };
 let BLOCKS = {}, blockCol = null; // estruturas: {r, l, t, n1, n2, c1, c2} geram os locais
@@ -951,7 +960,7 @@ function asideHTML(){
       return `<div class="qcard">
         <div class="row"><span class="pvn">${esc(o.num)}${o.mode==="aguarda"?" · "+esc(o.colmeia):""}</span><span class="chip ${st.c}">${st.t}</span></div>
         <div class="cl">${esc(o.client)}</div>
-        <div class="meta tnum"><span>${MODES[o.mode]?.t||""}</span>${pl.length?`<span>Separado ${done}/${pl.length} ref.</span>`:""}${falt.length?`<span style="color:var(--bad)">${falt.length} com falta</span>`:""}</div>
+        <div class="meta tnum"><span>${MODES[o.mode]?.t||""}</span>${pl.length?`<span>Separado ${done}/${pl.length} ref.</span>`:""}${(o.tray&&["separando","mesa"].includes(o.trayStatus))||bigOnMesa(o)&&o.trayStatus!=="livre"?`<span>${esc(spotsTxt(o))}</span>`:""}${falt.length?`<span style="color:var(--bad)">${falt.length} com falta</span>`:""}</div>
         <div class="meta tnum"><span>⏱ ${finished(o)&&(o.atMesaAt||o.pickedAt) ? `picking em ${fmtDur((o.atMesaAt||o.pickedAt)-o.createdAt)}` : `${since(o.createdAt)} desde a integração`}</span>${o.status==="separando"&&o.startedAt?`<span>separando há ${since(o.startedAt)}</span>`:""}</div>
         <details><summary>Tempos</summary>${timelineHTML(o)}</details>
         ${enc.length?`<details><summary>${enc.length} ref. sob encomenda</summary><ul>${enc.map(i=>`<li>${esc(i.code)} · ${i.qtyEnc} pç · chega ${fmtDate(i.eta)||"—"}</li>`).join("")}</ul></details>`:""}
@@ -1008,8 +1017,8 @@ function renderOrders(){
           ${done?`<div class="prog-bar"><i style="width:${done/pl.length*100}%"></i></div>`:""}
         </button>`;}).join("") + pgQ.pager : `<div class="empty">Nenhum pedido aguardando separação.</div>`}
     </div>
-    ${parked.length?`<div class="section"><div class="eyebrow">Separados · na mesa com bandeja · ${parked.length}</div>${pgP.top}<div class="list" style="margin-top:0">${pgP.items.map(o=>
-      `<div class="li sep" style="cursor:default"><span class="lc tnum">${esc(o.tray)}</span><span class="ln">#${esc(o.num)} · ${esc(o.client)}<small>${o.mode==="aguarda"?"Vai para a colmeia "+esc(o.colmeia||""):"Mesa"}</small></span>${can("coleta")||can("mesa") ? `<button class="mini" data-free="${esc(o.id)}">Liberar bandeja</button>` : ""}</div>`).join("")}</div>${pgP.pager}</div>`:""}`;
+    ${parked.length?`<div class="section"><div class="eyebrow">Separados · na mesa com bandeja ou Mesa-001 · ${parked.length}</div>${pgP.top}<div class="list" style="margin-top:0">${pgP.items.map(o=>
+      `<div class="li sep" style="cursor:default"><span class="lc tnum">${esc(o.tray)}</span><span class="ln">#${esc(o.num)} · ${esc(o.client)}<small>${o.mode==="aguarda"?"Vai para a colmeia "+esc(o.colmeia||""):"Mesa"}${bigOnMesa(o)?" · itens grandes na Mesa-001":""}</small></span>${can("coleta")||can("mesa") ? `<button class="mini" data-free="${esc(o.id)}">${o.tray===MESA_SPOT?"Liberar Mesa-001":bigOnMesa(o)?"Liberar bandeja e Mesa-001":"Liberar bandeja"}</button>` : ""}</div>`).join("")}</div>${pgP.pager}</div>`:""}`;
   } else if(tab==="colmeias"){
     body = `
     <div class="section"><div class="eyebrow">Mapa das colmeias</div>${hiveHTML(null)}</div>
@@ -1022,7 +1031,7 @@ function renderOrders(){
     body = `
     <div class="section"><div class="eyebrow">Pedidos separados · ${hist.length}</div>${pgH.top}
       ${hist.length ? `<div class="list" style="margin-top:0">${pgH.items.map(o=>{ const st=statusInfo(o), pk=o.pickedAt&&o.startedAt?o.pickedAt-o.startedAt:null;
-        return `<div class="li sep" style="cursor:default"><span class="lc tnum">#${esc(o.num)}</span><span class="ln">${esc(o.client)}<small>${fmtClock(o.pickedAt)}${pk!=null?" · picking "+fmtDur(pk).replace(/ \d+s$/,""):""}${o.tray?" · bandeja "+esc(o.tray):""}</small></span><span class="chip ${st.c}">${st.t.split(" · ")[0]}</span></div>`; }).join("")}</div>${pgH.pager}` : `<div class="empty">Nenhum pedido separado ainda.</div>`}
+        return `<div class="li sep" style="cursor:default"><span class="lc tnum">#${esc(o.num)}</span><span class="ln">${esc(o.client)}<small>${fmtClock(o.pickedAt)}${pk!=null?" · picking "+fmtDur(pk).replace(/ \d+s$/,""):""}${o.tray||bigOnMesa(o)?" · "+esc(spotsTxt(o)):""}</small></span><span class="chip ${st.c}">${st.t.split(" · ")[0]}</span></div>`; }).join("")}</div>${pgH.pager}` : `<div class="empty">Nenhum pedido separado ainda.</div>`}
     </div>`;
   }
   app.innerHTML = topnav() + `
@@ -1032,13 +1041,13 @@ function renderOrders(){
   bindNav();
   if(can("coleta")) app.querySelectorAll(".order").forEach(b=>b.onclick=()=>openOrder(b.dataset.oid));
   else app.querySelectorAll(".order").forEach(b=>{ b.style.cursor="default"; b.tabIndex=-1; });
-  app.querySelectorAll("[data-free]").forEach(b=>b.onclick=()=>{ if(!b.dataset.c){ b.dataset.c="1"; b.textContent="Confirmar liberação"; b.classList.add("danger"); return; } const o=ORDERS.find(x=>x.id===b.dataset.free); if(o){ unlinkTray(o); toast(`Bandeja ${o.tray} liberada · pedido ${o.num} foi para ${inHive(o)?"Encomendas":"Separados"}`); } });
+  app.querySelectorAll("[data-free]").forEach(b=>b.onclick=()=>{ if(!b.dataset.c){ b.dataset.c="1"; b.textContent="Confirmar liberação"; b.classList.add("danger"); return; } const o=ORDERS.find(x=>x.id===b.dataset.free); if(o){ unlinkTray(o); toast(`${spotsTxt(o)} liberada · pedido ${o.num} foi para ${inHive(o)?"Encomendas":"Separados"}`); } });
   app.querySelectorAll("[data-hive]").forEach(b=>b.onclick=()=>{ state.oid=b.dataset.hive; state.fromMesa=false; state.view="store"; render(); scrollTo(0,0); });
 }
 function openOrder(id){
   const o=ORDERS.find(x=>x.id===id); if(!o) return;
   newIds.delete(id); alertQueue=alertQueue.filter(x=>x!==id); showAlert();
-  state.oid=id; state.phase=startPhase(o); state.count=0;
+  state.oid=id; state.phase=startPhase(o); state.count=0; state.bigItem=false;
   const r=res(o), pl=pickList(o), k=pl.findIndex(x=>r[x.i].status==="pend");
   if(k<0){ state.view="tomesa"; render(); scrollTo(0,0); return; }
   if(o.status!=="separando") patchOrder(id, {status:"separando", startedAt:o.startedAt||Date.now(), startedBy:o.startedBy||ME.id||"", res:r});
@@ -1054,7 +1063,7 @@ function renderLabels(){
     <header class="bar"><button class="back" id="back" aria-label="Voltar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button><div class="grow"><h1>Etiquetas de teste</h1><div class="sub">Abra no computador e aponte o celular ou o leitor para a tela</div></div></header>
     <div class="section"><div class="eyebrow">Endereços · ${locs.size}</div><div class="labels">${[...locs].sort().map(([v,t])=>card(v,t,"CODE128",true)).join("")||`<div class="empty">Sem pedidos abertos.</div>`}</div></div>
     <div class="section"><div class="eyebrow">Produtos · ${prods.size}</div><div class="labels">${[...prods].map(([v,p])=>card(v,p.t,p.f,p.f!=="EAN13")).join("")}</div></div>
-    <div class="section"><div class="eyebrow">Bandejas · ${TRAYS.length}</div><div class="labels">${TRAYS.slice(0,8).map(s=>card(s,"Bandeja de separação","CODE128",true)).join("")}</div></div>
+    <div class="section"><div class="eyebrow">Bandejas · ${TRAYS.length}</div><div class="labels">${TRAYS.slice(0,8).map(s=>card(s,"Bandeja de separação","CODE128",true)).join("")}${card(MESA_SPOT,"Itens grandes / sem bandeja","CODE128",true)}</div></div>
     <div class="section"><div class="eyebrow">Colmeias · ${HIVE.length}</div><div class="labels">${HIVE.map(s=>card(s,"Colmeia de separação","CODE128",true)).join("")}</div></div>`;
   bindNav();
   document.getElementById("back").onclick=()=>{ state.view="orders"; render(); };
@@ -1149,8 +1158,14 @@ function taskCard(it){
   if(state.phase==="tray"){ const o=ORDERS.find(x=>x.id===state.oid), ft=o&&freeTray(o); return `
     <div class="task">${head}
       <div class="row"><div class="do">${ICON_SCAN}Bipe uma bandeja vazia</div><button class="btn ghost sm" id="miss">Falta</button></div>
-      ${ft?`<button class="demo" id="sim">Simular bandeja ${ft} (demo)</button>`:`<div class="err">Todas as bandejas estão em uso.</div>`}
+      ${ft?`<button class="demo" id="sim">Simular bandeja ${ft} (demo)</button>`:`<div class="err">Todas as bandejas estão em uso. Use a Mesa-001.</div>`}
+      <button class="btn ghost sm spotbtn" id="useMesa">Sem bandeja ou peças grandes · usar a Mesa-001</button>
     </div>`; }
+  const o=ORDERS.find(x=>x.id===state.oid);
+  const big = o && o.tray && o.tray!==MESA_SPOT ? (state.bigItem
+      ? `<div class="spotline on">Este item vai na <b>Mesa-001</b> <button class="linkbtn" id="bigOff">desfazer</button></div>`
+      : `<button class="btn ghost sm spotbtn" id="bigOn">Não cabe na bandeja · colocar na Mesa-001</button>`)
+    : o && o.tray===MESA_SPOT ? `<div class="spotline">Pedido na <b>Mesa-001</b></div>` : "";
   if(state.phase==="qty") return `
     <div class="task">
       <div class="ok-line"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Produto confirmado</div>
@@ -1160,11 +1175,13 @@ function taskCard(it){
         <button class="btn primary" id="okQty">Confirmar ${state.count} pç</button>
       </div>
       <div class="row"><span class="keyhint">Digite a quantidade e ENTER</span><button class="btn ghost sm" id="miss">Falta</button></div>
+      ${big}
     </div>`;
   return `
     <div class="task">${head}
       <div class="row"><div class="do">${ICON_SCAN}Bipe o produto</div><button class="btn ghost sm" id="miss">Falta</button></div>
       <button class="demo" id="sim">Simular leitura (demo)</button>
+      ${big}
     </div>`;
 }
 function renderPick(){
@@ -1195,22 +1212,25 @@ function renderPick(){
     <div class="eyebrow" style="margin-top:14px">Itens · ${done} de ${pl.length}</div>
     <div class="list" style="margin-top:6px">
       ${pl.map((x,k)=>{ const s=r[x.i].status; const ic = s==="ok"?"✓":s==="miss"?"!":s==="part"?r[x.i].got:"";
-        return `<button class="li ${k===state.idx?"cur":""}" data-k="${k}"><span class="st ${s}">${ic}</span><span class="ln"><b class="tnum">${esc(x.code)}</b> <small>${x.loc ? `${x.loc.n}.${x.loc.c} · R${x.loc.r}-L${x.loc.l}` : "sem local"}</small></span><span class="tnum">${x.need} pç</span></button>`;}).join("")}
+        return `<button class="li ${k===state.idx?"cur":""}" data-k="${k}"><span class="st ${s}">${ic}</span><span class="ln"><b class="tnum">${esc(x.code)}</b> <small>${x.loc ? `${x.loc.n}.${x.loc.c} · R${x.loc.r}-L${x.loc.l}` : "sem local"}</small></span><span class="tnum">${r[x.i].spot?"Mesa-001 · ":""}${x.need} pç</span></button>`;}).join("")}
     </div>`;
   document.getElementById("back").onclick = ()=>{ state.view="orders"; render(); };
   const rp=document.getElementById("replay"); if(rp) rp.onclick = ()=>animateRoute(true);
   const sim=document.getElementById("sim"); if(sim) sim.onclick = ()=> handleScan(state.phase==="tray" ? freeTray(o) : scanCode(it));
+  const um=document.getElementById("useMesa"); if(um) um.onclick = ()=> handleScan(MESA_SPOT);
+  const bOn=document.getElementById("bigOn"); if(bOn) bOn.onclick = ()=> handleScan(MESA_SPOT);
+  const bOff=document.getElementById("bigOff"); if(bOff) bOff.onclick = ()=>{ state.bigItem=false; render(); };
   const miss=document.getElementById("miss"); if(miss) miss.onclick = ()=>{ if(state.phase!=="qty") state.count=0; commit(state.count===0 ? "miss" : state.count>=it.need ? "ok" : "part"); };
   const qOut=document.getElementById("q"), okQ=document.getElementById("okQty");
   const setQ = v => { state.count=Math.max(0,Math.min(it.need,v)); qOut.value=state.count; okQ.textContent=`Confirmar ${state.count} pç`; };
   if(qOut){ document.getElementById("minus").onclick=()=>setQ(state.count-1); document.getElementById("plus").onclick=()=>setQ(state.count+1);
     okQ.onclick=()=> commit(state.count>=it.need ? "ok" : state.count===0 ? "miss" : "part"); }
   app.querySelectorAll(".li[data-k]").forEach(b=>b.onclick=()=>{ const k=+b.dataset.k; if(r[pl[k].i].status!=="pend"){ toast("Item já finalizado"); return; } goItem(k); });
-  setMsg(state.phase==="tray" ? "Bipe a bandeja" : state.phase==="qty" ? `Conte ${it.need} pç e confirme` : "Bipe o produto", "info");
+  setMsg(state.phase==="tray" ? "Bipe a bandeja ou a Mesa-001" : state.phase==="qty" ? `Conte ${it.need} pç e confirme` : "Bipe o produto", "info");
   if(l) requestAnimationFrame(()=>animateRoute(false));
   focusScan();
 }
-function goItem(k){ state.idx=k; state.phase=startPhase(ORDERS.find(x=>x.id===state.oid)); state.count=0; render(); scrollTo({top:0,behavior:"smooth"}); }
+function goItem(k){ state.bigItem=false; state.idx=k; state.phase=startPhase(ORDERS.find(x=>x.id===state.oid)); state.count=0; render(); scrollTo({top:0,behavior:"smooth"}); }
 function updateCount(){
   const {it} = cur();
   const c=document.getElementById("cnt"), b=document.getElementById("cbar"), u=document.getElementById("undo"), m=document.getElementById("miss");
@@ -1219,7 +1239,7 @@ function updateCount(){
 }
 function commit(status){
   const {o, r, pl, it} = cur();
-  r[it.i] = {status, got: state.count};
+  r[it.i] = {status, got: state.count, ...(state.bigItem && status!=="miss" ? {spot:MESA_SPOT} : {})};
   patchOrder(o.id, {res:r});
   toast(status==="ok" ? `${it.loc?code(it.loc):it.code} coletado · ${it.need} pç` : status==="part" ? `Coleta parcial: ${state.count} de ${it.need} pç` : `Falta registrada em ${it.loc?code(it.loc):it.code}`);
   const next = pl.findIndex((x,k)=>k>state.idx && r[x.i].status==="pend"), any = pl.findIndex(x=>r[x.i].status==="pend");
@@ -1287,19 +1307,21 @@ function renderTrays(){
   const tied = ORDERS.filter(o=>o.tray && TRAY_TIED.includes(o.trayStatus)).sort((a,b)=>a.tray.localeCompare(b.tray));
   const free = TRAYS.filter(t=>!trayBusy(t,null));
   app.innerHTML = `
-    <header class="bar">${BACK_BTN}<div class="grow"><h1>Bandejas</h1><div class="sub">${tied.length} vinculadas · ${free.length} livres</div></div></header>
+    <header class="bar">${BACK_BTN}<div class="grow"><h1>Bandejas</h1><div class="sub">${tied.length} vinculadas · ${free.length} livres · Mesa-001 sempre disponível</div></div></header>
     <div class="task">
       <div class="do">${ICON_SCAN}<span>Bipe a bandeja para desvinculá-la do pedido depois da conferência.</span></div>
     </div>
     <div class="eyebrow" style="margin-top:14px">Vinculadas a pedidos</div>
-    <div class="list" style="margin-top:6px">${tied.map(o=>`<div class="li" style="cursor:default"><span class="lc tnum">${esc(o.tray)}</span><span class="ln">#${esc(o.num)} <small>${o.trayStatus==="separando"?"em separação":"na mesa"}</small></span>${o.trayStatus==="separando"?"":`<button class="mini" data-unlink="${esc(o.id)}">Desvincular</button>`}</div>`).join("") || `<div class="li" style="cursor:default"><span class="ln">Nenhuma bandeja vinculada.</span></div>`}</div>`;
+    <div class="list" style="margin-top:6px">${tied.map(o=>`<div class="li" style="cursor:default"><span class="lc tnum">${esc(o.tray)}</span><span class="ln">#${esc(o.num)} <small>${o.trayStatus==="separando"?"em separação":"na mesa"}${bigOnMesa(o)?" · + Mesa-001":""}</small></span>${o.trayStatus==="separando"?"":`<button class="mini" data-unlink="${esc(o.id)}">Desvincular</button>`}</div>`).join("") || `<div class="li" style="cursor:default"><span class="ln">Nenhuma bandeja vinculada.</span></div>`}</div>`;
   document.getElementById("back").onclick = ()=>{ state.view="orders"; render(); };
   app.querySelectorAll("[data-unlink]").forEach(b=>b.onclick=()=>{ if(!b.dataset.c){ b.dataset.c="1"; b.textContent="Confirmar"; b.classList.add("danger"); return; } const o=ORDERS.find(x=>x.id===b.dataset.unlink); if(o) unlinkTray(o); });
   setMsg("Bipe a bandeja para desvincular","info");
   focusScan();
 }
 function scanUnlink(v, onlyOrder){
-  if(!/^BJ-\d{2}$/.test(v)){ feedback(false); return setMsg(`Código ${v} não é uma bandeja.`,"bad"); }
+  if(!isTrayCode(v)){ feedback(false); return setMsg(`Código ${v} não é uma bandeja.`,"bad"); }
+  if(v===MESA_SPOT && !onlyOrder){ const on=ORDERS.filter(x=>x.tray===MESA_SPOT && x.trayStatus==="mesa");
+    if(on.length!==1){ feedback(false); return setMsg(on.length ? `Há ${on.length} pedidos na Mesa-001. Toque em Desvincular no pedido certo.` : "Nenhum pedido na Mesa-001.","bad"); } }
   const o = ORDERS.find(x=>x.tray===v && TRAY_TIED.includes(x.trayStatus) && (!onlyOrder || x.id===onlyOrder));
   if(!o){ feedback(false); return setMsg(onlyOrder ? `Bandeja ${v} não é a deste pedido.` : `Bandeja ${v} já está livre.`,"bad"); }
   if(o.trayStatus==="separando"){ feedback(false); return setMsg(`Bandeja ${v} está em separação no pedido ${o.num}. Finalize o picking antes.`,"bad"); }
@@ -1326,14 +1348,15 @@ function renderDone(){
       </div>
       <div class="summary" style="grid-template-columns:1fr 1fr"><div><b class="tnum">${fmtDur(pickMs)}</b><small>tempo de picking</small></div><div><b class="tnum">${fmtDur(leadMs)}</b><small>desde a integração</small></div></div>
       ${o.tray && o.trayStatus==="mesa" ? `<div class="unlink">
-        <div class="do">${ICON_SCAN}<span>Depois da conferência no packing, <b>bipe a bandeja ${esc(o.tray)}</b> para desvinculá-la deste pedido.</span></div>
-        <button class="btn ghost sm" id="unlinkBtn">Desvincular bandeja ${esc(o.tray)}</button></div>`
-      : o.tray && o.trayStatus==="livre" ? `<div class="ok-line" style="justify-content:center">Bandeja ${esc(o.tray)} liberada</div>` : ""}
+        ${bigOnMesa(o)?`<div class="spotline on">Itens grandes deste pedido estão na <b>Mesa-001</b></div>`:""}
+        <div class="do">${ICON_SCAN}<span>Depois da conferência no packing, <b>bipe ${o.tray===MESA_SPOT?"a Mesa-001":"a bandeja "+esc(o.tray)}</b> para desvinculá-la deste pedido.</span></div>
+        <button class="btn ghost sm" id="unlinkBtn">Desvincular ${esc(spotsTxt(o))}</button></div>`
+      : o.tray && o.trayStatus==="livre" ? `<div class="ok-line" style="justify-content:center">${esc(spotsTxt(o))} liberada</div>` : ""}
       <div class="actions" style="width:100%;margin-top:14px"><button class="btn primary" id="nextOrder">Próximo pedido</button></div>
     </div>`;
   document.getElementById("back").onclick = ()=>{ state.view="orders"; render(); };
   const ub=document.getElementById("unlinkBtn"); if(ub) ub.onclick=()=>{ if(!ub.dataset.c){ ub.dataset.c="1"; ub.textContent="Confirmar: peças já saíram da bandeja"; ub.classList.add("danger"); return; } unlinkTray(o); };
-  if(o.tray && o.trayStatus==="mesa") setMsg(`Bipe a bandeja ${o.tray} para desvincular`,"info");
+  if(o.tray && o.trayStatus==="mesa") setMsg(`Bipe ${o.tray===MESA_SPOT?"a Mesa-001":"a bandeja "+o.tray} para desvincular`,"info");
   document.getElementById("nextOrder").onclick = ()=>{
     const nx = ORDERS.filter(x=>(x.status==="aguardando"||x.status==="separando") && pickList(x).length).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0))[0];
     nx ? openOrder(nx.id) : (state.view="orders", render());
@@ -1372,7 +1395,7 @@ function qtyKey(delta){ if(state.view!=="pick" || state.phase!=="qty") return fa
 function focusScan(){ if(SCAN_VIEWS.includes(state.view) && document.activeElement!==scanIn) try{ scanIn.focus({preventScroll:true}); }catch(e){} }
 
 function handleScan(raw){
-  const v = String(raw||"").trim().toUpperCase().replace(/\s+/g,"");
+  const v = normSpot(String(raw||"").trim().toUpperCase().replace(/\s+/g,""));
   if(state.view==="pick" && state.phase==="qty"){
     const ok=document.getElementById("okQty");
     if(!v && ok){ ok.click(); return; }
@@ -1407,11 +1430,15 @@ function handleScan(raw){
     feedback(false); return setMsg(`Local errado: ${v}. O produto está em ${code(it.loc)}.`,"bad");
   }
   if(state.phase==="tray"){
-    if(!/^BJ-\d{2}$/.test(v)){ feedback(false); return setMsg(isProd ? "Bipe primeiro a bandeja, depois as peças." : `Código ${v} não é uma bandeja.`,"bad"); }
+    if(!isTrayCode(v)){ feedback(false); return setMsg(isProd ? "Bipe primeiro a bandeja (ou a Mesa-001), depois as peças." : `Código ${v} não é uma bandeja.`,"bad"); }
     const other = trayBusy(v, o.id);
     if(other){ feedback(false); return setMsg(other.trayStatus==="separando" ? `Bandeja ${v} está em uso no pedido ${other.num}. Pegue outra.` : `Bandeja ${v} ainda está vinculada ao pedido ${other.num}. Desvincule antes em Bandejas.`,"bad"); }
     feedback(true); patchOrder(o.id, {tray:v, trayStatus:"separando"});
-    state.phase="prod"; state.count=0; render(); setMsg(`Bandeja ${v} vinculada. Bipe o produto.`,"good"); return;
+    state.phase="prod"; state.count=0; render(); setMsg(v===MESA_SPOT ? "Pedido vai na Mesa-001. Bipe o produto." : `Bandeja ${v} vinculada. Bipe o produto.`,"good"); return;
+  }
+  if(v===MESA_SPOT){
+    if(o.tray===MESA_SPOT){ feedback(true); return setMsg("Este pedido já está todo na Mesa-001. Bipe o produto.","info"); }
+    feedback(true); state.bigItem=true; render(); setMsg("Este item vai na Mesa-001. "+(state.phase==="qty"?"Conte e confirme.":"Bipe o produto."),"good"); return;
   }
   if(isProd){
     if(state.phase==="qty"){ feedback(true); return setMsg("Produto já confirmado. Conte e confirme a quantidade.","info"); }
@@ -1540,12 +1567,12 @@ async function decodePhoto(file){
 
 /* ================== Bandeja: vincular ao pedido ================== */
 const TRAY_TIED = ["separando","lavagem","mesa"];
-function trayBusy(v, exceptId){ return ORDERS.find(o=>o.id!==exceptId && o.tray===v && TRAY_TIED.includes(o.trayStatus)); }
+function trayBusy(v, exceptId){ if(v===MESA_SPOT) return null; return ORDERS.find(o=>o.id!==exceptId && o.tray===v && TRAY_TIED.includes(o.trayStatus)); }
 function unlinkTray(o){
   const now=Date.now();
   patchOrder(o.id, {trayStatus:"livre", trayFreedAt:now, trayFreedBy:ME.id||"",
     ...(o.status==="lavagem" ? {status: o.mode==="aguarda" ? "na_mesa" : "pronto_envio", remessa:o.remessa||1, atMesaAt:o.atMesaAt||now} : {})});
-  feedback(true); toast(`Bandeja ${o.tray} desvinculada do pedido ${o.num} · livre para o próximo`); render();
+  feedback(true); toast(`${spotsTxt(o)} desvinculada do pedido ${o.num}`); render();
 }
 function renderTray(){
   const o = ORDERS.find(x=>x.id===state.oid); if(!o){ state.view="orders"; return render(); }
@@ -1987,7 +2014,7 @@ function drawLocLabel(doc, x, y, l, bc){ // 100 × 50 mm
 function locLabels(list){ return list.map(locLabelData); }
 function labelSet(){
   const t=state.lblType||"enderecos";
-  if(t==="bandejas") return TRAYS.map(v=>({value:v, big:v, small:"Bandeja de separação", sub:"", fmt:"CODE128"}));
+  if(t==="bandejas") return [...TRAYS.map(v=>({value:v, big:v, small:"Bandeja de separação", sub:"", fmt:"CODE128"})), {value:MESA_SPOT, big:MESA_SPOT, small:"Itens grandes / sem bandeja", sub:"", fmt:"CODE128"}];
   if(t==="colmeias") return HIVE.map(v=>({value:v, big:v, small:"Colmeia de expedição", sub:"", fmt:"CODE128"}));
   if(t==="produtos") return Object.values(PRODUCTS).sort((a,b)=>a.code.localeCompare(b.code)).filter(p=>state.lblOnlyNoEan ? !p.ean : true)
     .map(p=>{ const e=p.ean && eanState(p.ean).c==="done"; return {value:e?p.ean:p.code, big:p.code, small:p.name, sub:e?"":"sem EAN · código interno", fmt:e?(p.ean.length===8?"EAN8":"EAN13"):"CODE128"}; });
