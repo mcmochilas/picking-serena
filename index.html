@@ -131,7 +131,7 @@ button:focus-visible{outline:3px solid var(--route);outline-offset:2px}
 .chip.eco{background:var(--route-soft,rgba(111,155,255,.16));color:var(--route,#2A5BC8)}
 .transp{font-weight:600;color:var(--ink)}
 .mzcancel{background:var(--bad);color:#fff;font-weight:700;border-radius:8px;padding:6px 10px;font-size:13px;letter-spacing:.02em}
-.retira{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:10px;cursor:pointer}
+.retira{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:10px;cursor:pointer}
 .retira input{width:22px;height:22px;accent-color:var(--bad);flex:none;margin-top:1px}.retira b{display:block}.retira small{color:var(--muted);font-size:13px}
 .retira.on{border-color:var(--bad);background:var(--bad-soft)}
 .order.retira{border-color:var(--bad);box-shadow:0 0 0 1px var(--bad) inset}
@@ -1024,7 +1024,7 @@ function draftHTML(d){
       <label class="mode"><input type="radio" name="mode" value="parcial" ${d.mode==="parcial"?"checked":""}><span><b>Envio parcial</b><small>Envia agora o que tem em estoque. As peças encomendadas seguem depois, em um 2º envio.</small></span></label>
       <label class="mode"><input type="radio" name="mode" value="aguarda" ${d.mode==="aguarda"?"checked":""}><span><b>Aguarda encomenda</b><small>Separa o que tem em estoque e guarda na colmeia até chegar o restante. Envio único.</small></span></label>
     </div>
-    <label class="retira ${d.retira?"on":""}"><input type="checkbox" id="retiraChk" ${d.retira?"checked":""}><span><b>Retira na Loja</b><small>O cliente vem buscar: o pedido vai para o topo da fila de separação e aparece como <b>URGENTE</b> na TV.</small></span></label></div>
+    <label class="retira ${d.retira?"on":""}"><input type="checkbox" id="retiraChk" ${d.retira?"checked":""}><span><b>Retira na Loja</b></span></label></div>
     <div><h2 style="margin-bottom:10px">3. Itens ${par?"· marque o que é sob encomenda":""}</h2>
     <div class="tablewrap"><table class="items">
       <thead><tr><th>Cód.</th><th>Descrição</th><th>Endereço</th><th class="num">Qtd</th>${par?`<th>Sob encomenda</th><th>Previsão de chegada</th>`:""}<th class="num">Separar agora</th></tr></thead>
@@ -1421,7 +1421,7 @@ function renderTV(){
 /* Mostra só as linhas da fila que cabem na tela e conta o resto em "+ N pedidos" */
 function tvFit(){ document.querySelectorAll(".tvlist.fit").forEach(l=>{
   const rows=[...l.querySelectorAll(".tvrow")]; rows.forEach(r=>r.hidden=false); let hid=0;
-  const doneBox=l.closest(".tvcol")?.querySelector(".tvdone"); if(doneBox) doneBox.hidden = l.scrollHeight>l.clientHeight+1; // fila tem prioridade
+  // "Últimos separados" fica sempre visível; a fila mostra as linhas que couberem no espaço restante
   for(let k=rows.length-1; k>0 && l.scrollHeight>l.clientHeight+1; k--){ rows[k].hidden=true; hid++; }
   const total=+l.dataset.total||0, shown=rows.length-hid, more=l.nextElementSibling;
   if(more && more.hasAttribute("data-more")) more.textContent = total>shown ? `+ ${total-shown} pedido${total-shown===1?"":"s"} na fila` : "";
