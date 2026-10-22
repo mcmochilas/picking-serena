@@ -128,11 +128,16 @@ async function sync(horas = JANELA_HORAS) {
   const corte = Math.max(Date.now() - horas * 36e5, inicio);
   const eligible = fetched.filter((o) => !IGNORAR_CANAL.test(String(o.lojaDoMarketplaceNome || "")) && toMs(o.dataHora) >= corte);
   const ids = eligible.map((o) => "MZ-" + o.id);
-  const have = new Set<string>();
-  for (let i = 0; i < ids.length; i += 200) { const { data } = await sb.from("orders").select("id").in("id", ids.slice(i, i + 200)); (data || []).forEach((x) => have.add(x.id)); }
-  let imported = 0, cancelled = 0; const errors: string[] = [];
+  const have = new Map<string, any>();
+  for (let i = 0; i < ids.length; i += 200) { const { data } = await sb.from("orders").select("id,data").in("id", ids.slice(i, i + 200)); (data || []).forEach((x) => have.set(x.id, x.data)); }
+  let imported = 0, cancelled = 0, changed = 0, restored = 0; const errors: string[] = [];
   for (const o of eligible) {
-    if (have.has("MZ-" + o.id)) continue;
+    const cur = have.get("MZ-" + o.id);
+    if (cur) {
+      // saiu da fila sozinho porque a situação mudou e agora voltou para a 5: volta para a fila
+      if (cur.status === "excluido" && cur.mzAuto) { await patchOrder("MZ-" + o.id, cur, { status: "aguardando", mzAuto: false, deletedAt: null, deleteReason: "", mzSituacao: SITUACAO_IMPORTAR, mzSituacaoDesc: "" }); restored++; }
+      continue;
+    }
     try {
       const d = await mz(`/v2/site/pedido/${encodeURIComponent(String(o.codigo))}`);
       const det = (d.body as any)?.data ?? d.body;
@@ -143,7 +148,7 @@ async function sync(horas = JANELA_HORAS) {
       if (error) { if (!/duplicate|unique/i.test(error.message)) throw error; } else imported++;
     } catch (e) { errors.push(`${o.codigo}: ${(e as Error).message}`); }
   }
-  // pedidos do e-commerce ainda na fila que saíram da situação 5: cancelados saem da fila
+  // pedidos do e-commerce ainda na fila cuja situação mudou na Magazord (qualquer situação diferente da 5): saem da fila
   const elig = new Set(fetched.map((o) => "MZ-" + o.id)); // ainda na situação 5 (mesmo fora da janela de dias)
   const { data: active } = await sb.from("orders").select("id,data").like("id", "MZ-%").filter("data->>status", "in", "(aguardando,separando)");
   for (const row of (active || [])) {
@@ -152,15 +157,17 @@ async function sync(horas = JANELA_HORAS) {
       const d = await mz(`/v2/site/pedido/${encodeURIComponent(String(row.data.num))}`);
       const det = (d.body as any)?.data; if (!det) continue;
       const sit = Number(det.pedidoSituacao), desc = det.pedidoSituacaoDescricao || "";
-      if (sit === 2) {
-        cancelled++;
-        if (row.data.status === "aguardando") await patchOrder(row.id, row.data, { status: "excluido", deletedAt: Date.now(), deletedBy: "", deleteReason: "Cancelado na Magazord", mzSituacao: sit });
-        else await patchOrder(row.id, row.data, { mzCancelado: true, mzSituacao: sit, mzSituacaoDesc: desc });
-      } else if (row.data.mzSituacao !== sit) await patchOrder(row.id, row.data, { mzSituacao: sit, mzSituacaoDesc: desc });
+      if (sit === SITUACAO_IMPORTAR) continue;
+      if (sit === 2) cancelled++; else changed++;
+      const motivo = sit === 2 ? "Cancelado na Magazord" : `Situação mudou na Magazord: ${desc || sit}`;
+      if (row.data.status === "aguardando") // ainda não foi separado: sai da fila
+        await patchOrder(row.id, row.data, { status: "excluido", deletedAt: Date.now(), deletedBy: "", deleteReason: motivo, mzAuto: true, mzSituacao: sit, mzSituacaoDesc: desc });
+      else // já em separação: avisa o separador na tela
+        await patchOrder(row.id, row.data, { mzCancelado: sit === 2, mzMudou: true, mzSituacao: sit, mzSituacaoDesc: desc });
     } catch (e) { errors.push(`${row.data.num}: ${(e as Error).message}`); }
   }
   const full = fetched.filter((o) => IGNORAR_CANAL.test(String(o.lojaDoMarketplaceNome || ""))).length;
-  const info = { lastRun: Date.now(), ms: Date.now() - t0, horas, found: eligible.length, full, old: fetched.length - eligible.length - full, imported, cancelled, errors: errors.slice(0, 5) };
+  const info = { lastRun: Date.now(), ms: Date.now() - t0, horas, found: eligible.length, full, old: fetched.length - eligible.length - full, imported, cancelled, changed, restored, errors: errors.slice(0, 5) };
   await sb.from("config").upsert({ id: "magazord_sync", data: info, updated_at: new Date().toISOString() }, { onConflict: "id" });
   return info;
 }
