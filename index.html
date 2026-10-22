@@ -472,6 +472,10 @@ body.pda .keyhint{display:block}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 .sync{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
 .sync i{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+.navright{display:flex;align-items:center;gap:10px}
+.bell{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--muted);display:grid;place-items:center;cursor:pointer;padding:0;flex:none}
+.bell.on{color:var(--accent);border-color:var(--accent)}
+.bell.busy{opacity:.6;pointer-events:none}
 .sync.local i{background:var(--accent)}
 .app.wide{max-width:1240px}
 .app.wide .bar{position:static;border-bottom:0;padding-block:14px 0}
@@ -791,7 +795,7 @@ function topnav(){
   const names = {comercial:"Comercial", expedicao:"Separação", estoque:"Locais", usuarios:"Usuários"};
   return `<nav class="topnav" aria-label="Setores">
     <div class="brand">Picking <span>Serena</span></div>
-    <div class="sync ${synced?"":"local"}" title="${synced?"Dados sincronizados entre os setores":"Sem sincronização: os dados ficam só nesta tela"}"><i></i>${synced?"Sincronizado":"Modo local"}</div>
+    <div class="navright"><div class="sync ${synced?"":"local"}" title="${synced?"Dados sincronizados entre os setores":"Sem sincronização: os dados ficam só nesta tela"}"><i></i>${synced?"Sincronizado":"Modo local"}</div>${bellHTML()}</div>
     <div class="seg mainnav" role="group">${allowedSectors().flatMap(k=> k==="expedicao"
       ? [["fila","Separação"],["historico","Separados"],["colmeias","Encomendas"]].map(([t,n])=>`<button data-sec="expedicao" data-tab="${t}" aria-pressed="${state.sector==="expedicao" && (state.sepTab||"fila")===t}">${n}</button>`)
       : [`<button data-sec="${k}" aria-pressed="${state.sector===k}">${names[k]}</button>`]).join("")}</div>
@@ -802,6 +806,7 @@ function bindNav(){
   app.querySelectorAll("[data-sec]").forEach(b=>b.onclick=()=>{ state.sector=b.dataset.sec; if(b.dataset.tab) state.sepTab=b.dataset.tab; state.view="orders"; render(); scrollTo(0,0); });
   const ex=document.getElementById("exitViewAs"); if(ex) ex.onclick=()=>{ state.viewAs=null; state.sector="usuarios"; state.view="orders"; render(); };
   fillNames(app.querySelector(".topnav"));
+  const bell=document.getElementById("bellBtn"); if(bell) bell.onclick=toggleBell;
 }
 
 /* ================== COMERCIAL ================== */
@@ -1050,7 +1055,7 @@ function renderOrders(){
   let body = "";
   const pgQ = pageOf(queue, "fila", 20), pgP = pageOf(parked, "mesa", 20), pgH = pageOf(hist, "hist", 25);
   if(tab==="fila"){
-    body = (can("coleta") ? alertsHTML() : "") + `
+    body = `
     <div class="shift">
       <div><b class="tnum">${queue.length}</b><span class="eyebrow">Pedidos</span></div>
       <div><b class="tnum">${queue.reduce((s,o)=>s+pickList(o).length,0)}</b><span class="eyebrow">Referências</span></div>
@@ -1090,7 +1095,7 @@ function renderOrders(){
       <button class="refbtn" id="refreshQ" aria-label="Atualizar a fila" title="Atualizar a fila">${ICON_RESTART}<span>Atualizar</span></button></header>
     ${!synced ? `<div class="banner">Sem conexão com o banco de dados. Verifique a internet ou a configuração do Supabase.</div>`:""}
     ${body}`;
-  bindNav(); bindAlerts();
+  bindNav();
   const rq=document.getElementById("refreshQ"); if(rq) rq.onclick=refreshQueue;
   app.querySelectorAll("[data-restart]").forEach(b=>b.onclick=()=>restartOrder(b.dataset.restart, false));
   app.querySelectorAll("[data-delord]").forEach(b=>b.onclick=()=>deleteOrder(b.dataset.delord));
@@ -2463,31 +2468,46 @@ function showAlert(){
   document.getElementById("abOk").onclick=close;
   const op=document.getElementById("abOpen"); if(op) op.onclick=()=>{ close(); state.sector="expedicao"; openOrder(o.id); };
 }
-/* Card "Alertas de novo pedido": som no app + notificação push no celular */
-function alertsHTML(){
-  const P = window.psPush, st = P ? P.state : "unsupported";
-  const push = st==="on" ? `<span class="al-ok">Notificações no celular ligadas</span><button class="mini" id="pushTest">Testar</button><button class="linkbtn" id="pushOff">Desligar</button>`
-    : st==="off" ? `<button class="btn primary sm" id="pushOn">Ativar notificações no celular</button>`
-    : st==="denied" ? `<span class="al-bad">Notificações bloqueadas. Libere em Configurações do navegador → Notificações → picking-serena.vercel.app.</span>`
-    : st==="ios-install" ? `<span class="al-bad">No iPhone: toque em <b>Compartilhar → Adicionar à Tela de Início</b>, abra o Picking Serena pelo ícone e ative aqui.</span>`
-    : st==="checking" ? `<span class="al-mute">Verificando notificações…</span>`
-    : `<span class="al-bad">Este navegador não recebe notificações. Use o Chrome no Android.</span>`;
-  return `<div class="alerts ${st==="on"&&SOUND?"compact":""}">
-    <div class="al-h"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>Alerta de novo pedido</div>
-    <div class="al-row"><label class="chk"><input type="checkbox" id="sndChk" ${SOUND?"checked":""}> Som no app</label>${push}</div>
-  </div>`;
+/* Sininho ao lado de "Sincronizado": liga/desliga o alerta de novo pedido (som no app + push no celular) */
+const BELL = on => `<svg width="18" height="18" viewBox="0 0 24 24" fill="${on?"currentColor":"none"}" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>${on?"":`<path d="M3 3l18 18"/>`}</svg>`;
+function bellState(){ const st=window.psPush?.state||"unsupported";
+  if(st==="on") return SOUND ? "on" : "push";            // push ligado
+  if(st==="off") return "off";                           // push disponível mas desligado
+  return SOUND ? "sound" : "off";                        // sem push neste aparelho: só o som
 }
-function bindAlerts(){
-  const sc=document.getElementById("sndChk"); if(sc) sc.onchange=()=>setSound(sc.checked);
-  const on=document.getElementById("pushOn"); if(on) on.onclick=async()=>{ on.disabled=true; on.textContent="Ativando…"; unlockAudio();
-    try{ const st=await window.psPush.enable(); toast(st==="on"?"Notificações ligadas neste celular":st==="denied"?"Notificações bloqueadas no navegador":"Notificações não ativadas"); if(st==="on") window.psPush.test().catch(()=>{}); }
-    catch(e){ toast("Não foi possível ativar: "+(e?.message||e)); } render(); };
-  const off=document.getElementById("pushOff"); if(off) off.onclick=async()=>{ await window.psPush.disable(); toast("Notificações desligadas neste celular"); render(); };
-  const t=document.getElementById("pushTest"); if(t) t.onclick=async()=>{ t.disabled=true; try{ const r=await window.psPush.test(); toast(r.sent?"Notificação de teste enviada":"Não foi possível enviar ("+(r.error||r.errors?.join(", ")||"sem inscrição")+")"); }catch(e){ toast("Falha no teste"); } t.disabled=false; };
+function bellHTML(){
+  if(!can("coleta")) return "";
+  const b=bellState(), on=b!=="off";
+  const tip = b==="on" ? "Alerta de novo pedido ligado (som e notificação no celular). Toque para desligar."
+    : b==="push" ? "Notificação no celular ligada, som do app desligado. Toque para desligar."
+    : b==="sound" ? "Som de novo pedido ligado (este aparelho não recebe notificação push). Toque para desligar."
+    : "Alerta de novo pedido desligado. Toque para ligar.";
+  return `<button class="bell ${on?"on":""}" id="bellBtn" aria-pressed="${on}" aria-label="${tip}" title="${tip}">${BELL(on)}</button>`;
 }
-window.addEventListener("pspush", ()=>{ if(state.sector==="expedicao" && state.view==="orders") rerender(); });
+async function toggleBell(){
+  const P=window.psPush, st=P?.state||"unsupported", b=bellState();
+  unlockAudio();
+  if(b!=="off"){ // desligar tudo
+    if(st==="on") try{ await P.disable(); }catch(e){}
+    setSound(false, true); toast("Alerta de novo pedido desligado"); return;
+  }
+  setSound(true, true);
+  if(st==="off"){
+    const btn=document.getElementById("bellBtn"); if(btn) btn.classList.add("busy");
+    try{ const r=await P.enable();
+      if(r==="on"){ toast("Alerta ligado · você vai receber uma notificação de teste"); P.test().catch(()=>{}); }
+      else toast(r==="denied" ? "Som ligado. As notificações estão bloqueadas no navegador: libere em Configurações do site." : "Som ligado. Notificação no celular não ativada.");
+    }catch(e){ toast("Som ligado. Não foi possível ativar a notificação: "+(e?.message||e)); }
+    render(); return;
+  }
+  if(st==="ios-install") await askModal({title:"Notificação no iPhone", okText:"Entendi",
+    text:"O som já está ligado. Para receber a notificação com o app fechado, toque em <b>Compartilhar → Adicionar à Tela de Início</b>, abra o Picking Serena pelo ícone e toque no sininho de novo."});
+  else if(st==="denied") toast("Som ligado. As notificações estão bloqueadas no navegador: libere em Configurações do site.");
+  else toast("Som de novo pedido ligado");
+}
+window.addEventListener("pspush", ()=>rerender());
 window.addEventListener("psopen", ()=>{ if(["pick","tray","store","tomesa"].includes(state.view)) return; state.sector="expedicao"; state.sepTab="fila"; state.view="orders"; render(); scrollTo(0,0); });
-function setSound(on){ SOUND=on; try{ localStorage.setItem("ps-sound", on?"1":"0"); }catch(e){} if(on){ unlockAudio(); chime(); } toast(on?"Som de alerta ligado":"Som de alerta desligado"); render(); }
+function setSound(on, quiet){ SOUND=on; try{ localStorage.setItem("ps-sound", on?"1":"0"); }catch(e){} if(on){ unlockAudio(); chime(); } if(!quiet) toast(on?"Som de alerta ligado":"Som de alerta desligado"); render(); }
 
 let tt; function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.hidden=false; clearTimeout(tt); tt=setTimeout(()=>t.hidden=true,2400); }
 let pendingRender=false;
