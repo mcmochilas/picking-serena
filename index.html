@@ -692,10 +692,18 @@ function parsePresale(raw){
 
   const hCod = cells.find(c=>/^C[óo]d/.test(c.s));
   if(!num || !hCod) throw new Error("formato");
-  const yH = hCod.y;
-  const hdr = cells.filter(c=>Math.abs(c.y-yH)<3);
-  const H = re => hdr.find(c=>re.test(c.s));
-  const cols = [["code",hCod],["desc",H(/^Descri/)],["un",H(/^UN$/)],["qty",H(/^Quant/)],["vb",H(/^Valor Bruto/)],["dp",H(/^Desconto/)],["vl",H(/^Valor L/)],["vt",H(/^Valor Total/)]].filter(c=>c[1]);
+  // Cabeçalho da tabela: pode vir em uma linha ("Valor Bruto") ou quebrado em várias ("Valor" / "Bruto").
+  // Junta as palavras que ficam na mesma coluna (mesmo centro) dentro da faixa do cabeçalho.
+  const band = cells.filter(c=>Math.abs(c.y-hCod.y)<=14 && !/\d{3}|,\d|%\d/.test(c.s) && c.s.length<=24);
+  const yH = Math.min(...band.map(c=>c.y));
+  const hcols = [];
+  [...band].sort((a,b)=>b.y-a.y||a.x-b.x).forEach(c=>{
+    const col = hcols.find(h=>Math.abs(h.cx-c.cx)<16 && !h.ys.includes(Math.round(c.y)));
+    if(col){ col.s += " "+c.s; col.ys.push(Math.round(c.y)); col.x=Math.min(col.x,c.x); col.w=Math.max(col.x+col.w,c.x+c.w)-col.x; }
+    else hcols.push({s:c.s, cx:c.cx, x:c.x, w:c.w, ys:[Math.round(c.y)]});
+  });
+  const H = re => hcols.find(h=>re.test(h.s));
+  const cols = [["code",H(/^C[óo]d/)||hCod],["desc",H(/^Descri/)],["un",H(/^UN$/)],["qty",H(/^Quant/)],["vb",H(/^Valor Bruto/)],["dp",H(/^Desconto/)],["vl",H(/^Valor L/)],["vt",H(/^Valor Total/)]].filter(c=>c[1]);
   const ends = cells.filter(c=>/^(SUBTOTAL|QTD\. TOTAL|REFER)/.test(c.s)).map(c=>c.y);
   const yE = ends.length ? Math.max(...ends) : -Infinity;
   const region = cells.filter(c=>c.y<yH-2 && c.y>yE+2).map(c=>{
@@ -915,7 +923,8 @@ function startDraft(p){
   const id = "PV-"+p.num;
   state.draft = { ...p, id, mode:"total", dup: ORDERS.some(o=>o.id===id && o.status!=="enviado"),
     items: p.items.map(it=>({...it, ean: it.ean || PRODUCTS[it.code]?.ean || "", loc:locFor(it.code), qtyEnc:0, eta:""})) };
-  state.draftErr = ""; render();
+  const zero = p.items.filter(it=>!(it.qty>0)).map(it=>it.code);
+  state.draftErr = zero.length ? `Não consegui ler a quantidade de: ${zero.join(", ")}. Confira o PDF antes de enviar.` : ""; render();
 }
 function freeSlot(){ const used=new Set(ORDERS.filter(usesHive).map(o=>o.colmeia)); return HIVE.find(s=>!used.has(s)) || null; }
 
@@ -1067,6 +1076,8 @@ function bindDraft(){
 function sendDraft(){
   const d = state.draft, m = d.mode, enc = m!=="total";
   const items = d.items.map(it=>({code:it.code, name:it.name, ean:it.ean, un:it.un, qty:it.qty, price:it.price, loc:it.loc?code(it.loc):"", qtyEnc: enc?(it.qtyEnc||0):0, eta: enc&&it.qtyEnc?it.eta:""}));
+  const zeroQ = items.filter(it=>!(it.qty>0));
+  if(zeroQ.length){ state.draftErr=`Quantidade zerada em: ${zeroQ.map(x=>x.code).join(", ")}. O PDF não foi lido corretamente; não dá para enviar assim.`; return render(); }
   const hasEnc = items.some(it=>it.qtyEnc>0), hasPick = items.some(it=>it.qty-it.qtyEnc>0);
   if(enc && !hasEnc){ state.draftErr="Informe pelo menos um item sob encomenda, ou escolha Envio total."; return render(); }
   if(m==="parcial" && !hasPick){ state.draftErr="No envio parcial precisa haver peças em estoque para o 1º envio. Se tudo é sob encomenda, use Aguarda encomenda."; return render(); }
