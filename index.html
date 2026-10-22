@@ -2557,8 +2557,8 @@ function mzHTML(){
   return `<div class="mzbox"><h3>Integração Magazord · e-commerce</h3>
     <p class="hint">${!MZ.loaded ? "Verificando…" : st?.configured ? `<span class="al-ok">Configurada</span> · ${esc(st.url)} · token ${esc(st.token)}` : "Ainda não configurada. Peça o <b>token</b> e a <b>senha</b> da API ao suporte da Magazord (com permissão de leitura em /api/v2/site/pedido)."}</p>
     <form id="mzForm" class="mzform" autocomplete="off">
-      <input class="tin" id="mzUrl" placeholder="Endereço do painel · ex.: https://sualoja.painel.magazord.com.br" value="${esc(st?.url||"")}" required>
-      <input class="tin" id="mzToken" placeholder="${st?.configured?"Token (deixe em branco para manter)":"Token da API"}" autocomplete="off" spellcheck="false">
+      <input class="tin" id="mzUrl" placeholder="Endereço do painel · ex.: https://sualoja.painel.magazord.com.br" value="${esc(MZ.form?.url ?? st?.url ?? "")}" required>
+      <input class="tin" id="mzToken" placeholder="${st?.configured?"Token (deixe em branco para manter)":"Token da API"}" value="${esc(MZ.form?.token||"")}" autocomplete="off" spellcheck="false">
       <input class="tin" id="mzSenha" type="password" placeholder="${st?.configured?"Senha (deixe em branco para manter)":"Senha da API"}" autocomplete="new-password">
       <div class="mzbtns"><button class="btn dark" type="submit" ${MZ.busy?"disabled":""}>${MZ.busy?"Aguarde…":"Salvar e testar"}</button>${st?.configured?`<button class="btn ghost" type="button" id="mzTest" ${MZ.busy?"disabled":""}>Só testar</button>`:""}</div>
     </form>
@@ -2570,9 +2570,15 @@ function mzHTML(){
 }
 function bindMz(){
   const f=document.getElementById("mzForm"); if(!f) return;
-  const run=async(save)=>{ MZ.busy=true; MZ.err=""; MZ.result=null; render();
+  const run=async(save)=>{
+    // lê os campos ANTES de redesenhar a tela
+    const form={ url:document.getElementById("mzUrl").value.trim(), token:document.getElementById("mzToken").value.trim(), senha:document.getElementById("mzSenha").value };
+    MZ.form={url:form.url, token:form.token};
+    if(save && !form.url){ MZ.err="Informe o endereço do painel Magazord."; render(); return; }
+    if(save && !MZ.status?.configured && (!form.token || !form.senha)){ MZ.err="Informe o token e a senha da API."; render(); return; }
+    MZ.busy=true; MZ.err=""; MZ.result=null; render();
     try{
-      if(save) await window.psMagazord({action:"config", url:document.getElementById("mzUrl").value, token:document.getElementById("mzToken").value, senha:document.getElementById("mzSenha").value});
+      if(save){ await window.psMagazord({action:"config", ...form}); MZ.form=null; }
       MZ.status=await window.psMagazord({action:"status"});
       const r=await window.psMagazord({action:"test"}); if(r.ok) MZ.result=r; else MZ.err=r.error||"Falha no teste";
     }catch(e){ MZ.err=e.message||String(e); }
