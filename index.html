@@ -395,6 +395,16 @@ select.tin{width:auto}
 .urow .grow b{display:block}
 .urow .grow small{color:var(--muted);font-size:12px}
 .urow.off{opacity:.55}
+.urow{flex-wrap:nowrap}
+.utags{display:flex;gap:6px;flex-wrap:wrap;margin-top:5px}
+.utag{font-size:11px;font-weight:700;border:1px solid var(--line);border-radius:999px;padding:2px 8px;color:var(--muted)}
+.utag.eco{color:var(--route,#2A5BC8);border-color:currentColor}.utag.warn{color:var(--bad);border-color:currentColor}
+.ucfg .ucfg-h{display:flex;flex-direction:column;margin-bottom:10px}.ucfg .ucfg-h small{color:var(--muted)}
+.ucfg-f{display:flex;flex-direction:column;gap:4px}.ucfg-f small{color:var(--muted);font-size:12px}.ucfg-f .tin{width:100%}
+.ucfg-sw{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:8px;cursor:pointer}
+.ucfg-sw input{width:20px;height:20px;margin-top:2px;accent-color:var(--accent);flex:none}.ucfg-sw b{display:block}.ucfg-sw small{color:var(--muted);font-size:12px}
+.ucfg-pw{display:flex;gap:8px;margin-top:6px}.ucfg-pw .tin{flex:1;width:auto}
+.ucfg-a{justify-content:space-between!important;margin-top:16px!important}
 .urow select.tin{height:34px;width:auto}
 .matrix th{white-space:normal;text-align:center;font-size:10px}
 .matrix td.c{text-align:center}
@@ -2573,13 +2583,10 @@ function renderUsuarios(){
         <h2>Pessoas com acesso</h2>${pgU.top}
         <div class="ulist">
           ${ME.isOwner?`<div class="urow"><img class="av" data-uid="${esc(ME.id)}" alt=""><div class="grow"><b data-uid="${esc(ME.id)}" data-fallback="Você"></b><small>Proprietário da página · sempre Administrador</small></div><span class="chip done">Administrador</span></div>`:""}
-          ${pgU.items.map(id=>{ const u=USERS[id]; return `<div class="urow ${u.active===false?"off":""}">
-            <img class="av" data-uid="${esc(id)}" alt=""><div class="grow"><b data-uid="${esc(id)}"></b><small>${u.login?`Login: <span class="mono">${esc(u.login)}</span> · `:""}${ROLES[u.role]?.d||""}</small></div>
-            ${roleSel(id,u.role)}
-            <label class="chk"><input type="checkbox" data-active="${esc(id)}" ${u.active!==false?"checked":""}> Ativo</label>
-            ${["separador","supervisor","conferente"].includes(u.role)?`<label class="chk" title="Pode ver e separar as vendas consultivas"><input type="checkbox" data-cons="${esc(id)}" ${u.consultiva?"checked":""}> Venda Consultiva</label><label class="chk" title="Pode ver e separar os pedidos do e-commerce"><input type="checkbox" data-eco="${esc(id)}" ${u.ecommerce?"checked":""}> E-commerce</label>`:""}
-            ${window.psAdmin && ME.isOwner ? `<span class="pwbox" data-pwbox="${esc(id)}"><button class="mini" data-pw="${esc(id)}">Nova senha</button></span>` : ""}
-            <button class="mini" data-del="${esc(id)}" aria-label="Remover usuário">Remover</button></div>`; }).join("") || (!ME.isOwner?`<div class="empty">Nenhum usuário cadastrado.</div>`:"")}
+          ${pgU.items.map(id=>{ const u=USERS[id], sep=CANAL_ROLES.includes(u.role); return `<div class="urow ${u.active===false?"off":""}">
+            <img class="av" data-uid="${esc(id)}" alt=""><div class="grow"><b data-uid="${esc(id)}"></b><small>${u.login?`<span class="mono">${esc(u.login)}</span>`:""}</small>
+              <div class="utags"><span class="chip ${u.role==="admin"?"done":"norm"}">${esc(ROLES[u.role]?.t||u.role)}</span>${u.active===false?`<span class="chip bad">Inativo</span>`:""}${sep&&u.consultiva?`<span class="utag">Venda Consultiva</span>`:""}${sep&&u.ecommerce?`<span class="utag eco">E-commerce</span>`:""}${sep&&!u.consultiva&&!u.ecommerce?`<span class="utag warn">Nenhum canal</span>`:""}</div></div>
+            <button class="icbtn" data-ucfg="${esc(id)}" aria-label="Configurar usuário" title="Configurar usuário"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button></div>`; }).join("") || (!ME.isOwner?`<div class="empty">Nenhum usuário cadastrado.</div>`:"")}
         </div>${pgU.pager}
         ${window.psAdmin && ME.isOwner ? `<h2 style="margin-top:6px">Criar usuário</h2>
         <form class="newuser" id="newUser" autocomplete="off">
@@ -2617,6 +2624,7 @@ function renderUsuarios(){
       </aside>
     </div>`;
   bindNav(); fillNames(app);
+  app.querySelectorAll("[data-ucfg]").forEach(b=>b.onclick=()=>openUserModal(b.dataset.ucfg));
   app.querySelectorAll("[data-role]").forEach(s=>s.onchange=()=>saveUser(s.dataset.role, {role:s.value}));
   app.querySelectorAll("[data-active]").forEach(c=>c.onchange=()=>saveUser(c.dataset.active, {active:c.checked}));
   app.querySelectorAll("[data-cons]").forEach(c=>c.onchange=()=>{ saveUser(c.dataset.cons, {consultiva:c.checked}); toast(c.checked?"Liberado para separar Venda Consultiva":"Venda Consultiva bloqueada para esta pessoa"); });
@@ -2710,6 +2718,37 @@ function bindMz(){
   const sy=document.getElementById("mzSync"); if(sy) sy.onclick=async()=>{ MZ.busy=true; MZ.err=""; render();
     try{ const r=await window.psMagazord({action:"sync"}); MZSYNC=r; toast(`Importação concluída · ${r.imported} pedido(s) novo(s)`); }catch(e){ MZ.err=e.message||String(e); }
     MZ.busy=false; render(); };
+}
+/* Configurações de um usuário (janela aberta pela engrenagem) */
+const CANAL_ROLES=["separador","supervisor","conferente"];
+function openUserModal(id){
+  const u=USERS[id]; if(!u) return;
+  const name=document.querySelector(`.urow b[data-uid="${id}"]`)?.textContent || u.login || "Usuário";
+  const ov=document.createElement("div"); ov.className="modal"; document.body.appendChild(ov); scanbar.hidden=true;
+  let delC=false;
+  const close=()=>{ ov.remove(); render(); };
+  const draw=()=>{ const cur=USERS[id]||u, sep=CANAL_ROLES.includes(cur.role);
+    ov.innerHTML=`<div class="mbox ucfg" role="dialog" aria-modal="true" aria-label="Configurar ${esc(name)}">
+      <div class="ucfg-h"><h2>${esc(name)}</h2>${cur.login?`<small class="mono">${esc(cur.login)}</small>`:""}</div>
+      <label class="ucfg-f"><span class="eyebrow">Nível de acesso</span><select class="tin" id="ucRole">${Object.entries(ROLES).map(([k,r])=>`<option value="${k}" ${cur.role===k?"selected":""}>${r.t}</option>`).join("")}</select><small>${esc(ROLES[cur.role]?.d||"")}</small></label>
+      <label class="ucfg-sw"><input type="checkbox" id="ucActive" ${cur.active!==false?"checked":""}><span><b>Ativo</b><small>Desligado: a pessoa não acessa o sistema.</small></span></label>
+      ${sep?`<div class="eyebrow" style="margin-top:12px">Pode separar</div>
+      <label class="ucfg-sw"><input type="checkbox" id="ucCons" ${cur.consultiva?"checked":""}><span><b>Venda Consultiva</b><small>Pedidos das pré-vendas.</small></span></label>
+      <label class="ucfg-sw"><input type="checkbox" id="ucEco" ${cur.ecommerce?"checked":""}><span><b>E-commerce</b><small>Pedidos do site e marketplaces (Magazord).</small></span></label>`:""}
+      ${window.psAdmin && ME.isOwner?`<div class="eyebrow" style="margin-top:12px">Senha</div>
+      <div class="ucfg-pw"><input class="tin" id="ucPw" placeholder="Nova senha (mín. 6)" autocomplete="new-password"><button class="btn ghost sm" id="ucPwGo">Trocar senha</button></div>`:""}
+      <div class="mact ucfg-a"><button class="btn ghost danger-t" id="ucDel">${delC?"Confirmar remoção":"Remover acesso"}</button><button class="btn primary" id="ucOk">Fechar</button></div></div>`;
+    ov.querySelector("#ucRole").onchange=e=>{ saveUser(id,{role:e.target.value}); toast("Nível alterado"); draw(); };
+    ov.querySelector("#ucActive").onchange=e=>{ saveUser(id,{active:e.target.checked}); toast(e.target.checked?"Usuário ativado":"Usuário desativado"); draw(); };
+    const c=ov.querySelector("#ucCons"); if(c) c.onchange=()=>{ saveUser(id,{consultiva:c.checked}); toast(c.checked?"Liberado para Venda Consultiva":"Venda Consultiva bloqueada"); };
+    const e2=ov.querySelector("#ucEco"); if(e2) e2.onchange=()=>{ saveUser(id,{ecommerce:e2.checked}); toast(e2.checked?"Liberado para E-commerce":"E-commerce bloqueado"); };
+    const pg=ov.querySelector("#ucPwGo"); if(pg) pg.onclick=async()=>{ const v=ov.querySelector("#ucPw").value; if(v.length<6){ toast("A senha precisa ter pelo menos 6 caracteres"); return; }
+      pg.disabled=true; try{ await window.psAdmin.setPassword(id, v); toast("Senha alterada. Passe a nova senha para a pessoa."); ov.querySelector("#ucPw").value=""; }catch(err){ toast(err.message||"Falha ao trocar a senha"); } pg.disabled=false; };
+    ov.querySelector("#ucDel").onclick=()=>{ if(!delC){ delC=true; draw(); return; } ov.remove(); deleteUser(id); };
+    ov.querySelector("#ucOk").onclick=close;
+  };
+  ov.onclick=e=>{ if(e.target===ov) close(); };
+  draw();
 }
 function saveUser(id, patch, create){
   const cur = USERS[id] || {};
