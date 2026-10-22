@@ -107,10 +107,14 @@ button:focus-visible{outline:3px solid var(--route);outline-offset:2px}
 .loc-code span{color:var(--muted);font-weight:500}
 .noloc .loc-code{font-family:var(--display);font-size:clamp(20px,6vw,28px);color:var(--warn,#C27C0E)}
 .spotbtn{width:100%;margin-top:8px}
-.ordwrap{display:flex;flex-direction:column}
-.ord-acts{display:flex;justify-content:flex-end;gap:6px;margin-top:6px}
-.ord-acts .mini{display:inline-flex;align-items:center;gap:5px}
-.ord-acts svg,.mini svg{width:14px;height:14px}
+.ordwrap{position:relative;display:flex;flex-direction:column}
+.ordwrap.acts1 .order .meta{padding-right:48px}
+.ordwrap.acts2 .order .meta{padding-right:96px}
+.ord-acts{position:absolute;right:12px;bottom:12px;display:flex;gap:8px;z-index:1}
+.icbtn{width:40px;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--bg,var(--surface));color:var(--muted);display:grid;place-items:center;cursor:pointer;padding:0}
+.icbtn:active{transform:scale(.95)}
+.icbtn.del{color:var(--bad)}
+.icbtn svg{width:18px;height:18px}
 .back.del{color:var(--bad)}
 .modal{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.55);display:grid;place-items:center;padding:16px}
 .mbox{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:14px;padding:18px;width:min(440px,100%);box-shadow:0 12px 40px rgba(0,0,0,.4)}
@@ -1041,12 +1045,13 @@ function renderOrders(){
       ${queue.length ? pgQ.items.map(o=>{
         const pl=pickList(o), r=res(o), done=pl.filter(x=>r[x.i].status!=="pend").length, enc=o.items.filter(i=>i.qtyEnc>0).length;
         const aisles=[...new Set(pl.filter(x=>x.loc).map(x=>"R"+x.loc.r))].join(" · "), semLoc=pl.filter(x=>!x.loc).length;
-        return `<div class="ordwrap"><button class="order ${o.mode==="aguarda"?"urgent":""}" data-oid="${esc(o.id)}">
+        const acts = can("coleta") ? (o.status==="separando"?2:1) : 0;
+        return `<div class="ordwrap acts${acts}"><button class="order ${o.mode==="aguarda"?"urgent":""}" data-oid="${esc(o.id)}">
           <div class="row"><span class="num">#${esc(o.num)}${newIds.has(o.id)&&o.status==="aguardando"?` <span class="chip newc">Novo</span>`:""}</span>${o.status==="separando"?`<span class="chip prog">Em separação</span>`:`<span class="chip ${MODES[o.mode].c}">${MODES[o.mode].t}</span>`}</div>
           <div class="client">${esc(o.client)}</div>
           <div class="meta tnum"><span>${pl.length} ref. · ${pl.reduce((a,x)=>a+x.need,0)} pç</span>${aisles?`<span>Ruas ${aisles}</span>`:""}${semLoc?`<span style="color:var(--bad)">${semLoc} sem local</span>`:""}${o.status==="separando"&&o.startedAt?`<span>Separando há ${since(o.startedAt)}</span>`:`<span>Na fila há ${since(o.createdAt)}</span>`}${o.tray&&o.status==="separando"?`<span>Bandeja ${esc(o.tray)}</span>`:""}${o.mode==="aguarda"?`<span>Colmeia ${esc(o.colmeia)}</span>`:`<span>Destino: mesa de expedição</span>`}${enc?`<span>${enc} ref. sob encomenda</span>`:""}</div>
           ${done?`<div class="prog-bar"><i style="width:${done/pl.length*100}%"></i></div>`:""}
-        </button>${can("coleta")?`<div class="ord-acts">${o.status==="separando"?`<button class="mini" data-restart="${esc(o.id)}">${ICON_RESTART}Reiniciar</button>`:""}<button class="mini" data-delord="${esc(o.id)}">${ICON_TRASH}Excluir</button></div>`:""}</div>`;}).join("") + pgQ.pager : `<div class="empty">Nenhum pedido aguardando separação.</div>`}
+        </button>${acts?`<div class="ord-acts">${o.status==="separando"?`<button class="icbtn" data-restart="${esc(o.id)}" aria-label="Reiniciar separação" title="Reiniciar separação">${ICON_RESTART}</button>`:""}<button class="icbtn del" data-delord="${esc(o.id)}" aria-label="Excluir separação" title="Excluir separação">${ICON_TRASH}</button></div>`:""}</div>`;}).join("") + pgQ.pager : `<div class="empty">Nenhum pedido aguardando separação.</div>`}
     </div>
     ${parked.length?`<div class="section"><div class="eyebrow">Separados · na mesa com bandeja ou Mesa-001 · ${parked.length}</div>${pgP.top}<div class="list" style="margin-top:0">${pgP.items.map(o=>
       `<div class="li sep" style="cursor:default"><span class="lc tnum">${esc(o.tray)}</span><span class="ln">#${esc(o.num)} · ${esc(o.client)}<small>${o.mode==="aguarda"?"Vai para a colmeia "+esc(o.colmeia||""):"Mesa"}${bigOnMesa(o)?" · itens grandes na Mesa-001":""}</small></span>${can("coleta")||can("mesa") ? `<button class="mini" data-free="${esc(o.id)}">${o.tray===MESA_SPOT?"Liberar Mesa-001":bigOnMesa(o)?"Liberar bandeja e Mesa-001":"Liberar bandeja"}</button>` : ""}</div>`).join("")}</div>${pgP.pager}</div>`:""}`;
