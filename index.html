@@ -107,6 +107,51 @@ button:focus-visible{outline:3px solid var(--route);outline-offset:2px}
 .loc-code span{color:var(--muted);font-weight:500}
 .noloc .loc-code{font-family:var(--display);font-size:clamp(20px,6vw,28px);color:var(--warn,#C27C0E)}
 .spotbtn{width:100%;margin-top:8px}
+a.refbtn{text-decoration:none}
+@media (max-width:600px){ .tvlink{display:none} }
+/* ---- Painel TV ---- */
+html.tvmode{--bg:#0B1117; --surface:#151E28; --ink:#EEF3F8; --muted:#93A2B2; --line:#26323F; --accent:#F5B71A; --accent-soft:#3A2F12; --ok:#3CC488; --ok-soft:#163327; --bad:#F06A5B; --bad-soft:#3A1D1A; color-scheme:dark; background:var(--bg)}
+html.tvmode body{background:var(--bg);color:var(--ink);overflow:hidden}
+.app.tv{max-width:none;height:100vh;display:flex;flex-direction:column;padding:1.4vw 1.8vw;box-sizing:border-box;gap:1.2vw;font-size:clamp(14px,1.05vw,30px)}
+.tvhead{display:flex;align-items:center;justify-content:space-between;gap:2vw}
+.tvhead .brand{font-family:var(--display);font-weight:700;font-size:2.1em;letter-spacing:.04em;text-transform:uppercase;line-height:1}
+.tvhead .brand small{display:block;font-family:inherit;font-size:.45em;letter-spacing:.14em;color:var(--muted);font-weight:600;margin-top:.3em}
+.tvclock{text-align:center}.tvclock b{font-family:var(--display);font-size:3.2em;line-height:1}.tvclock small{display:block;color:var(--muted);text-transform:capitalize}
+.tvtools{display:flex;align-items:center;gap:.8em}.tvtools .sync{font-size:1em}
+.tvgrid{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;gap:1.6vw}
+.tvcol{background:var(--surface);border:1px solid var(--line);border-radius:1.2em;padding:1.2em 1.4em;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.tvcol h2{margin:0 0 .5em;font-family:var(--display);font-size:2em;letter-spacing:.02em}
+.tvcol h3{margin:1em 0 .45em;font-size:.85em;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.tvkpis{display:grid;grid-template-columns:repeat(5,1fr);gap:.6em}
+.tvkpis div{background:var(--bg);border:1px solid var(--line);border-radius:.8em;padding:.55em .7em}
+.tvkpis b{display:block;font-family:var(--display);font-size:2.1em;line-height:1.05;white-space:nowrap}
+.tvkpis small{display:block;font-size:.68em;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tvkpis .tvwarn b{color:var(--accent)}.tvkpis .tvbad b{color:var(--bad)}
+.tvlist{display:flex;flex-direction:column;gap:.4em}
+.tvrow{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:.9em;background:var(--bg);border:1px solid var(--line);border-left:.35em solid var(--line);border-radius:.6em;padding:.5em .8em}
+.tvrow:has(.tvpos){grid-template-columns:1.6em auto 1fr auto}
+.tvrow.doing{grid-template-columns:auto 1fr 9em auto;border-left-color:var(--route,#6F9BFF)}
+.tvrow.tvwarn{border-left-color:var(--accent)}.tvrow.tvbad{border-left-color:var(--bad)}
+.tvrow.tvwarn .tvtime{color:var(--accent)}.tvrow.tvbad .tvtime{color:var(--bad)}
+.tvlist.fit{flex:1;min-height:0;overflow:hidden}
+.tvrow[hidden],.tvdone[hidden]{display:none}
+.tvrow.fin{border-left-color:var(--ok);padding:.35em .8em}
+.tvpos{color:var(--muted);font-weight:700}
+.tvnum{font-family:var(--mono);font-weight:700;font-size:1.15em;white-space:nowrap}
+.tvcli{font-weight:600;font-size:1.1em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tvcli small{display:block;font-weight:500;font-size:.78em;color:var(--muted);overflow:hidden;text-overflow:ellipsis}
+.tvtime{font-family:var(--mono);font-weight:700;font-size:1.15em;white-space:nowrap}
+.tvlist.small .tvcli{font-size:.95em}.tvlist.small .tvtime,.tvlist.small .tvnum{font-size:.95em}
+.tvprog{position:relative;height:1.6em;background:var(--line);border-radius:.4em;overflow:hidden}
+.tvprog i{position:absolute;inset:0 auto 0 0;background:var(--route,#6F9BFF)}
+.tvprog small{position:relative;display:block;text-align:center;line-height:1.6em;font-size:.8em;font-weight:700}
+.tvnew{font-style:normal;font-family:var(--display);font-size:.75em;background:var(--accent);color:#111;border-radius:.3em;padding:.05em .35em;margin-left:.3em;animation:tvblink 1.2s ease-in-out infinite}
+@keyframes tvblink{50%{opacity:.35}}
+.tvnone{color:var(--muted);padding:.6em .2em}.tvnone.ok{color:var(--ok);font-weight:600}
+.tvmore{color:var(--muted);font-size:.9em;padding:.2em .3em}
+.tvsoon{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.6em;color:var(--muted);text-align:center;border:2px dashed var(--line);border-radius:1em;margin-top:1em}
+.tvsoon b{color:var(--ink);font-size:1.4em}
+@media (max-width:900px){ .app.tv{height:auto;font-size:14px} html.tvmode body{overflow:auto} .tvgrid{grid-template-columns:1fr} .tvkpis{grid-template-columns:repeat(3,1fr)} }
 .refbtn{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-weight:600;font-size:14px;cursor:pointer;flex:none}
 .refbtn svg{width:18px;height:18px}
 .refbtn.spin svg{animation:refspin .8s linear infinite}
@@ -648,6 +693,7 @@ function normalize(o){ // compatibilidade com pedidos gravados na versão anteri
   if(o.status==="aguardando_encomenda") o.status="na_colmeia";
   if(o.mode==="parcial" && o.colmeia && !o.v2) o.mode="aguarda";
   if(o.mode!=="aguarda") delete o.colmeia;
+  o.canal ||= "consultiva"; // canal de venda: consultiva (pré-venda) ou ecommerce (fluxo futuro)
   return o;
 }
 // Cadastro de endereços de estoque (no sistema real vem do ERP/WMS)
@@ -780,6 +826,8 @@ document.addEventListener("click", e => {
   if(t){ const y = t.getBoundingClientRect().top; if(y < 0 || y > innerHeight*0.6) t.scrollIntoView({block:"start"}); }
 });
 const state = { sector:null, view:"orders", oid:null, idx:0, phase:"loc", count:0, draft:null, draftErr:"", parsing:false, etab:"enderecos", rua:1, lado:"A", selLoc:null, mesaLast:null };
+if(location.hash==="#tv") state.view="tv";
+window.addEventListener("hashchange", ()=>{ if(location.hash==="#tv"){ state.view="tv"; render(); } else if(state.view==="tv"){ state.view="orders"; render(); } });
 function initialSector(){ const h=location.hash.slice(1); if(["comercial","expedicao","estoque","usuarios"].includes(h)) return h; return innerWidth>=900 ? "comercial" : "expedicao"; }
 state.sector = initialSector();
 
@@ -985,7 +1033,7 @@ function sendDraft(){
   const slot = m==="aguarda" ? ((prev && usesHive(prev) && prev.colmeia) || freeSlot()) : null;
   if(m==="aguarda" && !slot){ state.draftErr="Todas as colmeias estão ocupadas. Libere uma colmeia antes de integrar este pedido."; return render(); }
   const o = { id:d.id, num:d.num, date:d.date, time:d.time, clientCode:d.clientCode, client:d.client, city:d.city, seller:d.seller, obs:d.obs, total:d.total,
-    mode:m, v2:true, items, remessa:1, status: hasPick ? "aguardando" : "na_colmeia", createdAt: Date.now(), createdBy: ME.id||"" };
+    mode:m, v2:true, items, remessa:1, status: hasPick ? "aguardando" : "na_colmeia", createdAt: Date.now(), createdBy: ME.id||"", canal:"consultiva" };
   if(slot) o.colmeia = slot;
   res(o);
   state.draft=null; state.draftErr="";
@@ -1092,6 +1140,7 @@ function renderOrders(){
   }
   app.innerHTML = topnav() + `
     <header class="bar"><div class="grow"><h1>${tab==="fila"?"Pedidos para separar":tab==="colmeias"?"Encomendas":"Pedidos separados"}</h1><div class="sub">CD Porto Belo${can("coleta")?"":" · somente consulta"}</div></div>
+      <a class="refbtn tvlink" href="/#tv" target="_blank" rel="noopener" title="Abrir o painel da fila para a TV"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="13" rx="2"/><path d="M8 21h8"/></svg><span>Painel TV</span></a>
       <button class="refbtn" id="refreshQ" aria-label="Atualizar a fila" title="Atualizar a fila">${ICON_RESTART}<span>Atualizar</span></button></header>
     ${!synced ? `<div class="banner">Sem conexão com o banco de dados. Verifique a internet ou a configuração do Supabase.</div>`:""}
     ${body}`;
@@ -1221,6 +1270,75 @@ function askModal({title, text, okText="Confirmar", danger=false, input=null}){
   });
 }
 const USERS_NAME = id => { const n = id && document.querySelector(`[data-uid="${id}"]`)?.textContent; return n ? " por "+esc(n) : ""; };
+/* ================== Painel TV da fila de separação ================== */
+const TV_CANAIS = [["consultiva","Venda Consultiva"],["ecommerce","E-commerce"]];
+let tvRefreshT=null;
+function tvColumn(canal, title){
+  const today=new Date().toDateString(), isToday=t=>t && new Date(t).toDateString()===today, now=Date.now();
+  const mine = ORDERS.filter(o=>(o.canal||"consultiva")===canal);
+  const queue = mine.filter(o=>o.status==="aguardando" && pickList(o).length).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+  const doing = mine.filter(o=>o.status==="separando").sort((a,b)=>(a.startedAt||0)-(b.startedAt||0));
+  const done = mine.filter(o=>isToday(o.pickedAt) && !o.semPecas).sort((a,b)=>(b.pickedAt||0)-(a.pickedAt||0));
+  const avgPick = avg(done.filter(o=>o.startedAt).map(o=>o.pickedAt-o.startedAt).filter(x=>x>=0));
+  const oldest = queue[0];
+  const wait = o => now-(o.createdAt||now), lvl = ms => ms>60*60e3 ? "tvbad" : ms>30*60e3 ? "tvwarn" : "";
+  const units = o => pickList(o).reduce((a,x)=>a+x.need,0);
+  const MAXQ=40, MAXD=4, MAXF=3;
+  const empty = !mine.length;
+  return `<section class="tvcol">
+    <h2>${esc(title)}</h2>
+    <div class="tvkpis">
+      <div><b class="tnum">${queue.length}</b><small>Na fila</small></div>
+      <div><b class="tnum">${doing.length}</b><small>Em separação</small></div>
+      <div><b class="tnum">${done.length}</b><small>Separados hoje</small></div>
+      <div><b class="tnum">${avgPick==null?"—":fmtDur(avgPick).replace(/ \d+s$/,"")}</b><small>Picking médio</small></div>
+      <div class="${oldest?lvl(wait(oldest)):""}"><b class="tnum">${oldest?`<span data-since="${oldest.createdAt}">${fmtDur(wait(oldest))}</span>`:"—"}</b><small>Mais antigo na fila</small></div>
+    </div>
+    ${empty && canal==="ecommerce" ? `<div class="tvsoon"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 8H6"/><circle cx="10" cy="20" r="1.3"/><circle cx="17" cy="20" r="1.3"/></svg><b>Pedidos do e-commerce</b><span>Este lado mostra a fila do e-commerce quando o fluxo for integrado.</span></div>` : `
+    <h3>Em separação · ${doing.length}</h3>
+    <div class="tvlist">${doing.slice(0,MAXD).map(o=>{ const pl=pickList(o), r=res(o), d=pl.filter(x=>r[x.i].status!=="pend").length;
+      return `<div class="tvrow doing"><span class="tvnum">#${esc(o.num)}</span><span class="tvcli">${esc(o.client)}<small><span data-uid="${esc(o.startedBy||"")}" data-fallback="Separador"></span>${o.tray?` · ${esc(spotsTxt(o))}`:""}</small></span>
+        <span class="tvprog"><i style="width:${pl.length?d/pl.length*100:0}%"></i><small class="tnum">${d}/${pl.length} ref.</small></span>
+        <span class="tvtime tnum">${o.startedAt?`<span data-since="${o.startedAt}">${fmtDur(now-o.startedAt)}</span>`:"—"}</span></div>`; }).join("") || `<div class="tvnone">Ninguém separando agora</div>`}
+      ${doing.length>MAXD?`<div class="tvmore">+ ${doing.length-MAXD} em separação</div>`:""}</div>
+    <h3>Aguardando separação · ${queue.length}</h3>
+    <div class="tvlist fit" data-total="${queue.length}">${queue.slice(0,MAXQ).map((o,k)=>`<div class="tvrow ${lvl(wait(o))}"><span class="tvpos tnum">${k+1}</span><span class="tvnum">#${esc(o.num)}${now-(o.createdAt||0)<5*60e3?` <em class="tvnew">NOVO</em>`:""}</span>
+        <span class="tvcli">${esc(o.client)}<small>${pickList(o).length} ref. · ${units(o)} pç · ${esc(MODES[o.mode]?.t||"")}</small></span>
+        <span class="tvtime tnum"><span data-since="${o.createdAt}">${fmtDur(wait(o))}</span></span></div>`).join("") || `<div class="tvnone ok">Fila vazia</div>`}
+</div><div class="tvmore" data-more>${queue.length>MAXQ?`+ ${queue.length-MAXQ} pedidos na fila`:""}</div>
+    ${done.length?`<div class="tvdone"><h3>Últimos separados</h3><div class="tvlist small">${done.slice(0,MAXF).map(o=>`<div class="tvrow fin"><span class="tvnum">#${esc(o.num)}</span><span class="tvcli">${esc(o.client)}</span><span class="tvtime tnum">${fmtClock(o.pickedAt)}${o.startedAt?` · ${fmtDur(o.pickedAt-o.startedAt).replace(/ \d+s$/,"")}`:""}</span></div>`).join("")}</div></div>`:""}`}
+  </section>`;
+}
+function renderTV(){
+  app.classList.add("tv"); document.documentElement.classList.add("tvmode");
+  const d=new Date(), painel=myRole()==="painel";
+  app.innerHTML = `<header class="tvhead">
+      <div class="brand">Picking <span>Serena</span><small>Painel da separação</small></div>
+      <div class="tvclock"><b class="tnum" id="tvClock">${d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</b><small>${d.toLocaleDateString("pt-BR",{weekday:"long", day:"2-digit", month:"long"})}</small></div>
+      <div class="tvtools"><div class="sync ${synced?"":"local"}"><i></i>${synced?"Ao vivo":"Sem conexão"}</div>
+        ${document.fullscreenElement?"":`<button class="refbtn" id="tvFull">Tela cheia</button>`}
+        ${painel?`<button class="refbtn" onclick="psLogout&&psLogout()">Sair</button>`:`<a class="refbtn" href="/#expedicao" id="tvExit">Voltar ao sistema</a>`}</div>
+    </header>
+    ${!synced?`<div class="banner">Sem conexão com o banco de dados. Os dados podem estar desatualizados.</div>`:""}
+    <div class="tvgrid">${TV_CANAIS.map(([c,t])=>tvColumn(c,t)).join("")}</div>`;
+  fillNames(app); tvFit();
+  const f=document.getElementById("tvFull"); if(f) f.onclick=()=>document.documentElement.requestFullscreen?.().then(()=>render()).catch(()=>{});
+  const ex=document.getElementById("tvExit"); if(ex) ex.onclick=e=>{ e.preventDefault(); history.replaceState(null,"","/#expedicao"); state.view="orders"; state.sector="expedicao"; document.documentElement.classList.remove("tvmode"); render(); };
+  // a cada minuto: busca tudo de novo (garante a fila mesmo se o tempo real cair) e redesenha
+  if(!tvRefreshT) tvRefreshT=setInterval(()=>{ if(state.view!=="tv" && myRole()!=="painel"){ clearInterval(tvRefreshT); tvRefreshT=null; return; }
+    (window.psRefresh?window.psRefresh():Promise.resolve()).then(()=>{ synced=true; }, ()=>{}).finally(()=>rerender()); }, 60000);
+}
+/* Mostra só as linhas da fila que cabem na tela e conta o resto em "+ N pedidos" */
+function tvFit(){ document.querySelectorAll(".tvlist.fit").forEach(l=>{
+  const rows=[...l.querySelectorAll(".tvrow")]; rows.forEach(r=>r.hidden=false); let hid=0;
+  const doneBox=l.closest(".tvcol")?.querySelector(".tvdone"); if(doneBox) doneBox.hidden = l.scrollHeight>l.clientHeight+1; // fila tem prioridade
+  for(let k=rows.length-1; k>0 && l.scrollHeight>l.clientHeight+1; k--){ rows[k].hidden=true; hid++; }
+  const total=+l.dataset.total||0, shown=rows.length-hid, more=l.nextElementSibling;
+  if(more && more.hasAttribute("data-more")) more.textContent = total>shown ? `+ ${total-shown} pedido${total-shown===1?"":"s"} na fila` : "";
+}); }
+window.addEventListener("resize", ()=>{ if(document.querySelector(".tvgrid")) tvFit(); });
+setInterval(()=>{ const c=document.getElementById("tvClock"); if(c) c.textContent=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}); }, 5000);
+
 /* Botão "Atualizar" da fila: busca os pedidos de novo no servidor */
 let refreshing=false;
 async function refreshQueue(){
@@ -2291,6 +2409,7 @@ const ROLES = {
   comercial: {t:"Comercial",     d:"Importa pré-vendas, define o tipo de envio e registra envios", p:["comercial"]},
   estoque:   {t:"Estoque",       d:"Cadastra endereços e EANs e imprime etiquetas", p:["estoque"]},
   separador: {t:"Separador",     d:"Faz a coleta dos pedidos no celular", p:["coleta"]},
+  painel:    {t:"Painel TV",     d:"Só exibe o painel da fila de separação na TV", p:[]},
   conferente:{t:"Conferente",    d:"Recebe as bandejas na mesa de expedição e guarda nas colmeias", p:["mesa"]},
 };
 const SECTOR_PERM = { comercial:["comercial"], expedicao:["coleta","mesa"], estoque:["estoque"], usuarios:["usuarios"] };
@@ -2525,9 +2644,11 @@ function rerender(){
 app.addEventListener("focusout", ()=>{ if(pendingRender) setTimeout(()=>{ const ae=document.activeElement; if(pendingRender && !(ae && /INPUT|SELECT/.test(ae.tagName) && app.contains(ae))){ pendingRender=false; render(); } }, 250); });
 function render(){
   pendingRender=false;
-  keepAwake(state.sector==="expedicao" && ["pick","tray","tomesa","store","mesa","trays"].includes(state.view));
+  keepAwake(state.view==="tv" || (state.sector==="expedicao" && ["pick","tray","tomesa","store","mesa","trays"].includes(state.view)));
   if(!authReady){ scanbar.hidden=true; return renderLoading(); }
   if(!myRole()){ scanbar.hidden=true; app.classList.remove("picking"); return renderNoAccess(); }
+  if(state.view==="tv" || myRole()==="painel"){ scanbar.hidden=true; app.classList.remove("picking","wide"); return renderTV(); }
+  app.classList.remove("tv"); document.documentElement.classList.remove("tvmode");
   if(!canSector(state.sector)){ const al=allowedSectors(); state.sector = al.includes("expedicao") && innerWidth<900 ? "expedicao" : al[0]; state.view="orders"; }
   if(state.sector==="expedicao"){
     if(["pick","tray","done","tomesa"].includes(state.view) && !can("coleta")) state.view="orders";

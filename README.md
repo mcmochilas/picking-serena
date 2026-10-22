@@ -88,12 +88,24 @@ A partir daqui, cada `git push` na `main` publica sozinho.
 | Estoque | locais, produtos/EAN e etiquetas |
 | Separador | separação no celular/coletor |
 | Conferente | mesa de expedição e colmeias |
+| Painel TV | só o painel da fila (`/#tv`), sem alterar nada |
 
 ## 5. Celular e coletor
 
 - **Instalar como app:** abra o endereço no **Chrome** e use **Adicionar à tela inicial**. O sistema abre em tela cheia, como um aplicativo.
 - **Leitura pela câmera:** fora do Claude, o botão **Câmera** abre o leitor **ao vivo**. Basta apontar para o código de barras.
 - **Coletor Android com leitor embutido:** configure o leitor em modo **teclado (keyboard wedge)**, com sufixo **Enter**, e deixe ligados **EAN-13** e **Code 128**. O sistema detecta o coletor e ativa o modo compacto sozinho.
+
+## Painel da TV
+
+- **Endereço:** `https://picking-serena.vercel.app/#tv`. Também abre pelo botão **Painel TV** na tela de Separação.
+- **Login da TV:** crie em **Usuários → Criar usuário** um usuário com o nível **Painel TV** (ex.: `tv.expedicao`). Esse nível só enxerga o painel e não altera nada.
+- **Organização da tela:**
+  - **Lado esquerdo, Venda Consultiva:** os pedidos das pré-vendas.
+  - **Lado direito, E-commerce:** fica reservado. Os pedidos com `canal: "ecommerce"` aparecem ali quando esse fluxo for integrado.
+- **O que mostra:** fila, pedidos em separação (com separador, progresso e tempo), separados no dia, tempo médio de picking e o pedido mais antigo na fila. Pedidos esperando mais de 30 minutos ficam amarelos, e mais de 1 hora, vermelhos.
+- **Atualização:** em tempo real, com uma busca completa a cada minuto.
+- **Tela ligada:** o painel mantém a tela acesa. Use **Tela cheia** na TV.
 
 ## Notificação de novo pedido
 

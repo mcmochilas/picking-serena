@@ -10,7 +10,7 @@ const sb = createClient(URL_, KEY, { auth: { persistSession: false, autoRefreshT
 
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info", "Access-Control-Allow-Methods": "POST, OPTIONS" };
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...CORS, "Content-Type": "application/json" } });
-const ROLES = ["admin", "supervisor", "comercial", "estoque", "separador", "conferente"];
+const ROLES = ["admin", "supervisor", "comercial", "estoque", "separador", "conferente", "painel"];
 const USER_DOMAIN = "usuarios.picking-serena.invalid"; // domínio reservado: nunca recebe e-mail
 const toEmail = (login: string) => {
   const l = String(login || "").trim().toLowerCase();
