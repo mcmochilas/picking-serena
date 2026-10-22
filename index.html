@@ -107,6 +107,12 @@ button:focus-visible{outline:3px solid var(--route);outline-offset:2px}
 .loc-code span{color:var(--muted);font-weight:500}
 .noloc .loc-code{font-family:var(--display);font-size:clamp(20px,6vw,28px);color:var(--warn,#C27C0E)}
 .spotbtn{width:100%;margin-top:8px}
+.newuser{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}
+.newuser .tin{width:100%}
+@media (min-width:900px){ .newuser{grid-template-columns:1.2fr 1.4fr 1fr 1fr auto} }
+.okbox{background:var(--ok-soft);color:var(--ink);border-radius:8px;padding:8px 10px;font-size:13px;margin:6px 0}
+.pwbox{display:inline-flex;gap:6px;align-items:center}
+.mono{font-family:var(--mono)}
 .alerts{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:10px 12px;margin:10px 0 4px}
 .alerts .al-h{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .alerts .al-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:13px}
@@ -2186,12 +2192,23 @@ function renderUsuarios(){
         <div class="ulist">
           ${ME.isOwner?`<div class="urow"><img class="av" data-uid="${esc(ME.id)}" alt=""><div class="grow"><b data-uid="${esc(ME.id)}" data-fallback="Você"></b><small>Proprietário da página · sempre Administrador</small></div><span class="chip done">Administrador</span></div>`:""}
           ${pgU.items.map(id=>{ const u=USERS[id]; return `<div class="urow ${u.active===false?"off":""}">
-            <img class="av" data-uid="${esc(id)}" alt=""><div class="grow"><b data-uid="${esc(id)}"></b><small>${ROLES[u.role]?.d||""}</small></div>
+            <img class="av" data-uid="${esc(id)}" alt=""><div class="grow"><b data-uid="${esc(id)}"></b><small>${u.login?`Login: <span class="mono">${esc(u.login)}</span> · `:""}${ROLES[u.role]?.d||""}</small></div>
             ${roleSel(id,u.role)}
             <label class="chk"><input type="checkbox" data-active="${esc(id)}" ${u.active!==false?"checked":""}> Ativo</label>
+            ${window.psAdmin && ME.isOwner ? `<span class="pwbox" data-pwbox="${esc(id)}"><button class="mini" data-pw="${esc(id)}">Nova senha</button></span>` : ""}
             <button class="mini" data-del="${esc(id)}" aria-label="Remover usuário">Remover</button></div>`; }).join("") || (!ME.isOwner?`<div class="empty">Nenhum usuário cadastrado.</div>`:"")}
         </div>${pgU.pager}
-        <h2 style="margin-top:6px">Adicionar pessoa</h2>
+        ${window.psAdmin && ME.isOwner ? `<h2 style="margin-top:6px">Criar usuário</h2>
+        <form class="newuser" id="newUser" autocomplete="off">
+          <input class="tin" id="nuName" placeholder="Nome" required>
+          <input class="tin" id="nuLogin" placeholder="E-mail ou usuário (ex.: joao.silva)" required autocapitalize="none" spellcheck="false">
+          <input class="tin" id="nuPass" placeholder="Senha inicial (mín. 6)" required minlength="6">
+          <select class="tin" id="nuRole" aria-label="Nível de acesso">${Object.entries(ROLES).map(([k,r])=>`<option value="${k}" ${k==="separador"?"selected":""}>${r.t}</option>`).join("")}</select>
+          <button class="btn dark" type="submit" id="nuBtn" style="min-height:40px;padding:8px 16px">Criar</button>
+        </form>
+        ${state.nuMsg?`<div class="${state.nuMsg.ok?"okbox":"err"}">${state.nuMsg.t}</div>`:""}
+        <p class="hint">A conta já nasce liberada, sem e-mail de confirmação. Quem não tem e-mail entra com o usuário (ex.: <b>joao.silva</b>) e a senha. Esqueceu a senha? Use <b>Nova senha</b> ao lado do nome.</p>` : ""}
+        <h2 style="margin-top:6px">Adicionar pessoa que já criou conta</h2>
         <div class="filters">
           <input class="tin" id="uq" placeholder="Buscar colega pelo nome" autocomplete="off" style="flex:1;min-width:200px">
           <label class="eyebrow">Nível <select class="tin" id="newRole">${Object.entries(ROLES).map(([k,r])=>`<option value="${k}" ${k==="separador"?"selected":""}>${r.t}</option>`).join("")}</select></label>
@@ -2220,6 +2237,22 @@ function renderUsuarios(){
   app.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{
     if(b.dataset.confirm){ deleteUser(b.dataset.del); return; }
     b.dataset.confirm="1"; b.textContent="Confirmar remoção"; b.classList.add("danger"); setTimeout(()=>{ if(b.isConnected){ delete b.dataset.confirm; b.textContent="Remover"; b.classList.remove("danger"); } },4000);
+  });
+  const nu=document.getElementById("newUser");
+  if(nu) nu.onsubmit=async e=>{ e.preventDefault(); const btn=document.getElementById("nuBtn"); btn.disabled=true; btn.textContent="Criando…";
+    const name=document.getElementById("nuName").value.trim(), login=document.getElementById("nuLogin").value.trim(), password=document.getElementById("nuPass").value, role=document.getElementById("nuRole").value;
+    try{ const r=await window.psAdmin.createUser({name, login, password, role});
+      state.nuMsg={ok:true, t:`${esc(name)} criado como ${ROLES[role].t}. Login: <b class="mono">${esc(r.login)}</b> · senha: a que você definiu.`};
+      USERS[r.id]={role, active:true, addedAt:Date.now(), login:r.login};
+    }catch(ex){ state.nuMsg={ok:false, t:esc(ex.message||ex)}; }
+    render(); };
+  app.querySelectorAll("[data-pw]").forEach(b=>b.onclick=()=>{ const id=b.dataset.pw, box=b.closest(".pwbox");
+    box.innerHTML=`<input class="tin sm" placeholder="nova senha" minlength="6" style="width:120px"><button class="mini">Salvar</button>`;
+    const inp=box.querySelector("input"), sv=box.querySelector("button"); inp.focus();
+    const go=async()=>{ if(inp.value.length<6){ toast("A senha precisa ter pelo menos 6 caracteres"); return; } sv.disabled=true;
+      try{ await window.psAdmin.setPassword(id, inp.value); toast("Senha alterada. Passe a nova senha para a pessoa."); render(); }
+      catch(ex){ toast(ex.message||"Falha ao trocar a senha"); sv.disabled=false; } };
+    sv.onclick=go; inp.onkeydown=e=>{ if(e.key==="Enter") go(); };
   });
   const uq=document.getElementById("uq"), hits=document.getElementById("uhits");
   uq.onfocus=uq.oninput=async ()=>{

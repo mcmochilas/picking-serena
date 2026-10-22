@@ -18,6 +18,11 @@
   let session = null, profile = null, readyResolve;
   const ready = new Promise(r => readyResolve = r);
   const DOC_TABLES = ["orders","products","blocks","config"];
+  /* Usuário sem e-mail: "joao.silva" vira joao.silva@usuarios.picking-serena.invalid (domínio que nunca recebe e-mail) */
+  const USER_DOMAIN = "usuarios.picking-serena.invalid";
+  const loginToEmail = l => { l = String(l||"").trim().toLowerCase(); if(l.includes("@")) return l;
+    const slug = l.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9._-]+/g,".").replace(/^\.+|\.+$/g,""); return slug ? `${slug}@${USER_DOMAIN}` : ""; };
+  const emailToLogin = e => String(e||"").replace("@"+USER_DOMAIN, "");
 
   const toErr = e => {
     const m = String(e?.message || e || "erro");
@@ -75,7 +80,7 @@
     return {
       onSnapshot(cb, onErr){
         const rows = new Map(); let loaded = false;
-        const put = r => { if(r.role) rows.set(r.id, { role:r.role, active:r.active, addedAt: Date.parse(r.created_at)||0 }); else rows.delete(r.id); };
+        const put = r => { if(r.role) rows.set(r.id, { role:r.role, active:r.active, addedAt: Date.parse(r.created_at)||0, login: emailToLogin(r.email) }); else rows.delete(r.id); };
         const emit = () => { if(loaded) cb({ docs: [...rows].map(([id,d]) => ({ id, exists:true, data:()=>d })) }); };
         const ch = sb.channel(`rt-profiles-${uid()}`)
           .on("postgres_changes", { event:"*", schema:"public", table:"profiles" }, p => {
@@ -83,7 +88,7 @@
             if(p.new?.id === session?.user?.id) profile = { ...profile, ...p.new };
             emit();
           }).subscribe();
-        fetchAll("profiles", "id,role,active,created_at").then(d => { d.forEach(put); loaded = true; emit(); })
+        fetchAll("profiles", "id,role,active,created_at,email").then(d => { d.forEach(put); loaded = true; emit(); })
           .catch(e => onErr && onErr(toErr(e)));
         return () => sb.removeChannel(ch);
       },
@@ -175,14 +180,15 @@
       ${msg ? `<div class="lg-ok">${msg}</div>` : ""}${err ? `<div class="lg-err">${err}</div>` : ""}
       <form id="lgForm" autocomplete="on">
         ${mode==="signup" ? `<label>Nome<input id="lgName" required autocomplete="name"></label>` : ""}
-        ${mode!=="newpass" ? `<label>E-mail<input id="lgEmail" type="email" required autocomplete="email" inputmode="email"></label>` : ""}
+        ${mode==="login" ? `<label>E-mail ou usuário<input id="lgEmail" type="text" required autocomplete="username" autocapitalize="none" spellcheck="false"></label>`
+          : mode!=="newpass" ? `<label>E-mail<input id="lgEmail" type="email" required autocomplete="email" inputmode="email"></label>` : ""}
         ${mode!=="reset" ? `<label>Senha<input id="lgPass" type="password" required minlength="6" autocomplete="${mode==="login"?"current-password":"new-password"}"></label>` : ""}
         <button class="lg-btn" type="submit">${t}</button>
       </form>
       <div class="lg-links">
         ${mode==="login" ? `<button data-m="signup">Criar conta</button><button data-m="reset">Esqueci minha senha</button>` : `<button data-m="login">Voltar para o login</button>`}
       </div>
-      ${mode==="signup" ? `<p class="lg-hint">Depois de criar a conta, o administrador libera o seu nível de acesso.</p>` : ""}
+      ${mode==="signup" ? `<p class="lg-hint">Depois de criar a conta, o administrador libera o seu nível de acesso. Também é possível o administrador criar a conta direto em Usuários.</p>` : ""}
     </div>`;
   }
   function showLogin(mode="login", msg="", err=""){
@@ -196,13 +202,14 @@
       const email = ov.querySelector("#lgEmail")?.value.trim(), pass = ov.querySelector("#lgPass")?.value, name = ov.querySelector("#lgName")?.value.trim();
       try{
         if(mode === "login"){
-          const { error } = await sb.auth.signInWithPassword({ email, password:pass });
+          const { error } = await sb.auth.signInWithPassword({ email: loginToEmail(email), password:pass });
           if(error) throw error;
         } else if(mode === "signup"){
           const { data, error } = await sb.auth.signUp({ email, password:pass, options:{ data:{ name }, emailRedirectTo: location.origin } });
           if(error) throw error;
           if(!data.session) return showLogin("login", "Conta criada. Confirme o e-mail que enviamos e depois entre.");
         } else if(mode === "reset"){
+          if(!email.includes("@")) throw new Error("Quem entra com usuário (sem e-mail) pede uma nova senha ao administrador.");
           const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin });
           if(error) throw error;
           return showLogin("login", "Enviamos um link para redefinir a senha no seu e-mail.");
@@ -213,7 +220,7 @@
         }
       }catch(ex){
         const m = String(ex?.message||ex);
-        const pt = /Invalid login/i.test(m) ? "E-mail ou senha incorretos." : /Email not confirmed/i.test(m) ? "Confirme o seu e-mail antes de entrar (veja a caixa de entrada)." : /already registered/i.test(m) ? "Este e-mail já tem conta. Use Entrar." : /Password should/i.test(m) ? "A senha precisa ter pelo menos 6 caracteres." : m;
+        const pt = /Invalid login/i.test(m) ? "E-mail ou senha incorretos." : /Email not confirmed/i.test(m) ? "Confirme o seu e-mail antes de entrar (veja a caixa de entrada)." : /already registered/i.test(m) ? "Este e-mail já tem conta. Use Entrar." : /rate limit/i.test(m) ? "O sistema atingiu o limite de e-mails por hora. Peça ao administrador para criar a sua conta em Usuários → Criar usuário (não precisa de e-mail)." : /Password should/i.test(m) ? "A senha precisa ter pelo menos 6 caracteres." : m;
         showLogin(mode, "", pt);
       }
     };
@@ -308,6 +315,20 @@
       return r.json();
     }
   };
+  /* Administrador: criar usuários e trocar senhas sem e-mail */
+  const adminFn = async body => {
+    const { data } = await sb.auth.getSession();
+    const r = await fetch(cfg.SUPABASE_URL.replace(/\/$/,"") + "/functions/v1/admin-users", { method:"POST",
+      headers:{ "Content-Type":"application/json", Authorization:"Bearer " + (data.session?.access_token || "") }, body: JSON.stringify(body) });
+    const j = await r.json().catch(() => ({ error:"Falha de conexão" }));
+    if(!r.ok || j.error) throw new Error(j.error || "Falha");
+    return j;
+  };
+  window.psAdmin = {
+    createUser: ({ name, login, password, role }) => adminFn({ action:"create", name, login, password, role }),
+    setPassword: (id, password) => adminFn({ action:"password", id, password })
+  };
+
   /* Toque na notificação com o app aberto: vai para a Separação */
   if("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", e => {
     if(e.data?.type === "ps-open") window.dispatchEvent(new CustomEvent("psopen", { detail: e.data.url }));

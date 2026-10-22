@@ -13,6 +13,7 @@ js/backend.js           login + ligação com o Supabase
 supabase/schema.sql     tabelas, regras de acesso (RLS) e tempo real
 supabase/push.sql       notificações push (inscrições + gatilho de novo pedido)
 supabase/functions/push função que envia o push (Supabase Edge Function)
+supabase/functions/admin-users  criação de usuários e troca de senha pelo administrador
 sw.js                   service worker: mostra a notificação com o app fechado
 supabase/seed-exemplo.sql  dados de exemplo (opcional)
 vercel.json             cabeçalhos (libera a câmera no próprio site)
@@ -74,7 +75,8 @@ A partir daqui, cada `git push` na `main` publica sozinho.
 ## 4. Primeiro acesso e usuários
 
 1. Abra o sistema e clique em **Criar conta**. **A primeira conta criada vira Administrador automaticamente.**
-2. Cada pessoa da equipe cria a própria conta pelo mesmo botão.
+2. **Recomendado:** o administrador cria as contas em **Usuários → Criar usuário** (nome, e-mail **ou** usuário, senha inicial e nível). A conta já nasce liberada, sem e-mail de confirmação. Quem não tem e-mail entra com o usuário, por exemplo `joao.silva`. Para trocar a senha de alguém, use **Nova senha** ao lado do nome.
+   - A pessoa também pode criar a própria conta pelo botão **Criar conta**. Só que o Supabase gratuito envia poucos e-mails de confirmação por hora ("email rate limit exceeded").
 3. O administrador vai em **Usuários**, busca a pessoa pelo nome e define o nível: Supervisor, Comercial, Estoque, Separador ou Conferente.
 4. Quem não tem nível vê "Acesso ainda não liberado". As regras do banco também bloqueiam essa pessoa: ela não lê nem grava nada.
 
