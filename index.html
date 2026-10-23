@@ -232,6 +232,9 @@ html.tvmode body{background:var(--bg);color:var(--ink);overflow:hidden}
 .bar .btn.cpbtn{flex:none;width:auto;height:44px;padding:0 18px;font-size:15px}
 .cpkpis .kp{font:inherit;color:inherit;text-align:left;cursor:pointer}.cpkpis .kp:hover{border-color:var(--accent)}
 .chip.warn{background:var(--accent-soft);color:var(--accent-ink)}
+.cpfoot .btn{flex:none;width:auto;height:42px;padding:0 18px;font-size:15px}
+.decplan{font-size:14px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.cpdec .encin{justify-content:flex-end}
 .cpwait tr.late,.cpwait tr.late td{background:var(--bad-soft)}
 @media (max-width:600px){.cpwait tr.late td{background:none}}
 .cpkpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px}
@@ -838,6 +841,7 @@ function statusInfo(o){
     case "separando": return {t:"Em separação", c:"prog"};
     case "pronto_envio": return {t: o.mode==="encomenda" ? "Encomenda chegou · pronto para enviar" : o.mode==="aguarda" ? `Encomenda chegou · retirar da colmeia ${o.colmeia||""}` : o.remessa===2 ? "Encomenda chegou" : "Finalizado · na mesa", c:"done"};
     case "encomenda": return {t:"Encomenda total · aguardando chegada", c:"enc"};
+    case "analise_compras": return {t:"Aguardando decisão de Compras", c:"urg"};
     case "enc_pendente": return {t:"1º envio feito · aguardando encomenda", c:"enc"};
     case "na_colmeia": return {t:"Na colmeia · aguardando encomenda", c:"enc"};
     case "na_mesa": return {t:`Na mesa · guardar na colmeia ${o.colmeia||""}`, c:"prog"};
@@ -1132,8 +1136,8 @@ function draftHTML(d){
     <div class="modes" role="radiogroup">
       <label class="mode"><input type="radio" name="mode" value="total" ${d.mode==="total"?"checked":""}><span><b>Envio total</b><small>Todas as peças têm pronta entrega. A expedição separa tudo e o pedido vai direto para o envio.</small></span></label>
       <label class="mode"><input type="radio" name="mode" value="parcial" ${d.mode==="parcial"?"checked":""}><span><b>Envio parcial</b><small>Envia agora o que tem em estoque. As peças encomendadas seguem depois, em um 2º envio.</small></span></label>
-      <label class="mode"><input type="radio" name="mode" value="aguarda" ${d.mode==="aguarda"?"checked":""}><span><b>Aguarda encomenda</b><small>Separa o que tem em estoque e guarda na colmeia até chegar o restante. Envio único.</small></span></label>
-      <label class="mode"><input type="radio" name="mode" value="encomenda" ${d.mode==="encomenda"?"checked":""}><span><b>Encomenda total</b><small>Todos os itens são encomenda. Não passa pela separação nem usa colmeia: vai direto para Compras e é enviado quando chegar.</small></span></label>
+      <label class="mode"><input type="radio" name="mode" value="aguarda" ${d.mode==="aguarda"?"checked":""}><span><b>Aguarda encomenda</b><small>Vai para Compras, que decide se encomenda tudo ou separa o que tem na loja e guarda na colmeia. Envio único.</small></span></label>
+      <label class="mode"><input type="radio" name="mode" value="encomenda" ${d.mode==="encomenda"?"checked":""}><span><b>Encomenda total</b><small>Todos os itens são encomenda. Vai para Compras, que confirma o que encomendar; é enviado quando chegar.</small></span></label>
     </div>
     <div class="flagrow"><label class="retira green ${d.retira?"on":""}"><input type="checkbox" id="retiraChk" ${d.retira?"checked":""}><span><b>Retira na Loja</b></span></label>
     <label class="retira naloja ${d.naLoja?"on":""}"><input type="checkbox" id="naLojaChk" ${d.naLoja?"checked":""}><span><b>Cliente está na loja</b></span></label></div></div>
@@ -1168,7 +1172,7 @@ function totalsHTML(t, d){
   const slot = d.mode==="aguarda" && t.pick ? ((prev && usesHive(prev) && prev.colmeia) || freeSlot()) : null;
   return `<div><small>${d.mode==="parcial"?"1º envio":"Separar agora"}</small><b class="tnum">${t.pick}</b> pç · ${t.refsPick} ref.</div>
     ${d.mode!=="total"?`<div><small>${d.mode==="parcial"?"2º envio (encomenda)":"Sob encomenda"}</small><b class="tnum">${t.enc}</b> pç · ${t.refsEnc} ref.</div>`:""}
-    <div><small>Destino da separação</small><b>${t.enc && !t.pick ? "Sem separação · direto para Compras" : d.mode==="aguarda" ? (slot ? "Colmeia "+slot.slice(3) : "Colmeias lotadas") : "Mesa de expedição"}</b></div>`;
+    <div><small>Destino da separação</small><b>${d.mode==="aguarda"||d.mode==="encomenda" ? "Compras decide" : t.enc && !t.pick ? "Sem separação · direto para Compras" : "Mesa de expedição"}</b></div>`;
 }
 function bindDraft(){
   const d = state.draft;
@@ -1211,21 +1215,21 @@ function sendDraft(){
   const hasEnc = items.some(it=>it.qtyEnc>0), hasPick = items.some(it=>it.qty-it.qtyEnc>0);
   if(enc && !hasEnc){ state.draftErr="Informe pelo menos um item sob encomenda, ou escolha Envio total."; return render(); }
   if(m==="encomenda" && hasPick){ state.draftErr="Na encomenda total todos os itens são encomenda. Se há peças em estoque, use Envio parcial ou Aguarda encomenda."; return render(); }
-  if(hasEnc && !hasPick) m = "encomenda"; // tudo encomenda: não separa e não usa colmeia
+  if(m==="parcial" && hasEnc && !hasPick) m = "encomenda"; // tudo encomenda: não separa e não usa colmeia
+  const toCompras = m==="aguarda" || m==="encomenda"; // Compras decide se encomenda tudo ou separa o que tem na loja
   const missing = items.map((it,i)=>it.qtyEnc>0 && !it.eta ? i : -1).filter(i=>i>=0);
   if(missing.length){ missing.forEach(i=>document.getElementById("eta-"+i)?.classList.add("invalid")); state.draftErr=""; toast("Informe a previsão de chegada dos itens sob encomenda."); return; }
   const noLoc = items.filter(it=>it.qty-it.qtyEnc>0 && !it.loc);
   items.forEach(it=>{ const p=PRODUCTS[it.code]; if(!p) saveProduct({code:it.code, name:it.name, ean:it.ean, loc:it.loc?code(it.loc):""}); else if(!p.ean && it.ean && !validateProduct({...p, ean:it.ean})) saveProduct({...p, ean:it.ean}); });
   const prev = ORDERS.find(o=>o.id===d.id);
-  const slot = m==="aguarda" ? ((prev && usesHive(prev) && prev.colmeia) || freeSlot()) : null;
-  if(m==="aguarda" && !slot){ state.draftErr="Todas as colmeias estão ocupadas. Libere uma colmeia antes de integrar este pedido."; return render(); }
+  const slot = null; // a colmeia é escolhida quando Compras encaminha para a separação
   const o = { id:d.id, num:d.num, date:d.date, time:d.time, clientCode:d.clientCode, client:d.client, city:d.city, seller:d.seller, obs:d.obs, total:d.total,
-    mode:m, v2:true, items, remessa:1, status: m==="encomenda" ? "encomenda" : "aguardando", createdAt: Date.now(), createdBy: ME.id||"", canal:"consultiva", retira: !!(d.retira||d.naLoja), naLoja: !!d.naLoja, transportadora: (d.transportadora ?? carrierFromObs(d.obs)) || "" };
+    mode:m, v2:true, items, remessa:1, status: toCompras ? "analise_compras" : "aguardando", modeCom: m, createdAt: Date.now(), createdBy: ME.id||"", canal:"consultiva", retira: !!(d.retira||d.naLoja), naLoja: !!d.naLoja, transportadora: (d.transportadora ?? carrierFromObs(d.obs)) || "" };
   if(slot) o.colmeia = slot;
   res(o);
   state.draft=null; state.draftErr="";
   saveOrder(o);
-  toast((noLoc.length ? `${noLoc.length} item(ns) sem local · o separador procura no estoque · ` : "") + (m==="encomenda" ? `Pré-venda ${o.num} toda sob encomenda · enviada para Compras` : m==="aguarda" ? `Pré-venda ${o.num} enviada para separação · colmeia ${slot.slice(3)}` : `Pré-venda ${o.num} enviada para separação · ${MODES[m].t.toLowerCase()}`));
+  toast(toCompras ? `Pré-venda ${o.num} enviada para Compras decidir a encomenda` : (noLoc.length ? `${noLoc.length} item(ns) sem local · o separador procura no estoque · ` : "") + `Pré-venda ${o.num} enviada para separação · ${MODES[m].t.toLowerCase()}`);
 }
 
 /* ---- Encomendas: o separador cadastra uma pré-venda e amarra a uma colmeia ---- */
@@ -1355,7 +1359,8 @@ function bindAside(){
 let PURCHASES = {}, purchCol = null;
 const encItems = o => (o.items||[]).map((it,i)=>({...it, i})).filter(x=>x.qtyEnc>0);
 const encArrived = o => !!o.arrivedAt || (o.mode==="parcial" && o.remessa===2);
-const encOpen = o => !isEco(o) && !["enviado","excluido"].includes(o.status) && hasEnc(o) && !encArrived(o);
+const encOpen = o => !isEco(o) && !["enviado","excluido","analise_compras"].includes(o.status) && hasEnc(o) && !encArrived(o);
+const toDecide = o => o.status==="analise_compras";
 const canRelease = o => o.status==="na_colmeia" || o.status==="encomenda" || o.status==="enc_pendente" || (o.status==="pronto_envio" && o.mode==="parcial" && o.remessa!==2);
 const compraSt = it => it.compra?.st==="chegou" ? "chegou" : (it.compra?.links||[]).reduce((s,l)=>s+(+l.qty||0),0) >= it.qtyEnc ? "pedido" : (it.compra?.links||[]).length ? "parcial" : "falta";
 const compraQty = it => (it.compra?.links||[]).reduce((s,l)=>s+(+l.qty||0),0);
@@ -1378,7 +1383,8 @@ function prazoInfo(it){ const p=prevOf(it); if(!p || compraSt(it)==="chegou") re
 const COMPRA_LABEL = { falta:["A encomendar","bad"], parcial:["Encomendado em parte","prog"], pedido:["Encomendado","enc"], chegou:["Chegou","done"] };
 
 function renderCompras(){
-  const tab = state.cTab || "abertas";
+  const decide = ORDERS.filter(o=>toDecide(o) && !isEco(o)).sort((a,b)=>(urgRank(b)-urgRank(a)) || (a.createdAt||0)-(b.createdAt||0));
+  const tab = state.cTab || (decide.length ? "decidir" : "abertas");
   const open = ORDERS.filter(encOpen).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
   const done = ORDERS.filter(o=>!isEco(o) && hasEnc(o) && encArrived(o) && o.status!=="excluido").sort((a,b)=>(b.arrivedAt||0)-(a.arrivedAt||0)).slice(0,60);
   const allIt = open.flatMap(o=>encItems(o).map(x=>({...x, o}))), falta = allIt.filter(x=>compraSt(x)==="falta"||compraSt(x)==="parcial"), aguard = allIt.filter(x=>compraSt(x)==="pedido"||compraSt(x)==="parcial"), late = aguard.filter(x=>prazoInfo(x)?.c==="bad");
@@ -1386,7 +1392,11 @@ function renderCompras(){
   const match = o => !q || [o.num,o.client,o.seller,...(o.items||[]).map(i=>i.code+" "+i.name)].join(" ").toLowerCase().includes(q);
   const purch = Object.values(PURCHASES).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   let body;
-  if(tab==="chegada"){
+  if(tab==="decidir"){
+    const list = decide.filter(match), pgd = pageOf(list, "cpdec", 10);
+    body = list.length ? `${pgd.top}<div class="cplist">${pgd.items.map(decideCard).join("")}</div>${pgd.pager}`
+      : `<div class="empty">${q?"Nada encontrado para essa busca.":"Nenhuma pré-venda aguardando decisão."}</div>`;
+  } else if(tab==="chegada"){
     const rows = aguard.filter(x=>match(x.o)).sort((a,b)=>(prevOf(a)||"9999").localeCompare(prevOf(b)||"9999"));
     const pgw = pageOf(rows, "cpwait", 20);
     body = rows.length ? `${pgw.top}<div class="cpcard"><div class="cptwrap"><table class="cptab cpwait"><thead><tr><th>Previsão</th><th>Prazo</th><th>Pré-venda</th><th>Item</th><th class="r">Qtd</th><th>Fornecedor · pedido</th><th></th></tr></thead><tbody>
@@ -1414,7 +1424,7 @@ function renderCompras(){
   app.innerHTML = topnav() + `
     <header class="bar"><div class="grow"><h1>Compras · encomendas</h1><div class="sub">Itens que o comercial vendeu sob encomenda e o pedido feito ao fornecedor</div></div>
       <button class="btn primary cpbtn" id="cpImport">Importar pedido do fornecedor</button></header>
-    <div class="cptools"><div class="seg">${[["abertas",`Em aberto · ${open.length}`],["chegada",`Aguardando chegada · ${aguard.length}${late.length?` (${late.length} atrasado${late.length===1?"":"s"})`:""}`],["fornecedor",`Pedidos ao fornecedor · ${purch.length}`],["concluidas","Concluídas"]].map(([k,t])=>`<button data-ctab="${k}" aria-pressed="${tab===k}">${t}</button>`).join("")}</div>
+    <div class="cptools"><div class="seg">${[["decidir",`Para decidir · ${decide.length}`],["abertas",`Em aberto · ${open.length}`],["chegada",`Aguardando chegada · ${aguard.length}${late.length?` (${late.length} atrasado${late.length===1?"":"s"})`:""}`],["fornecedor",`Pedidos ao fornecedor · ${purch.length}`],["concluidas","Concluídas"]].map(([k,t])=>`<button data-ctab="${k}" aria-pressed="${tab===k}">${t}</button>`).join("")}</div>
       ${tab!=="fornecedor"?`<input class="tinput cpq" id="cpQ" placeholder="Buscar pré-venda, cliente ou código" value="${esc(state.cQ||"")}">`:""}</div>
     ${body}`;
   bindNav();
@@ -1424,7 +1434,59 @@ function renderCompras(){
   app.querySelectorAll("details[data-cpid]").forEach(d=>d.ontoggle=()=>{ const id=d.dataset.cpid, set=new Set(state.cpOpen||[]); d.open?set.add(id):set.delete(id); state.cpOpen=[...set]; });
   app.querySelectorAll("[data-carr]").forEach(b=>b.onclick=()=>{ const [oid,i]=b.dataset.carr.split(":"); setItemArrived(oid,+i,b.dataset.v==="1"); });
   app.querySelectorAll("[data-crel]").forEach(b=>b.onclick=()=>{ if(!b.dataset.c){ b.dataset.c="1"; b.textContent="Confirmar: encomenda chegou"; return; } releaseEnc(b.dataset.crel); });
+  bindDecide();
   app.querySelectorAll("[data-cunl]").forEach(b=>b.onclick=()=>{ const [oid,i,pid]=b.dataset.cunl.split(":"); unlinkPurchase(oid,+i,pid); });
+}
+/* ---- Decisão de Compras: encomendar tudo ou separar o que tem na loja (colmeia) ---- */
+function decidePlan(o, qs){
+  const items=o.items.map((it,i)=>({...it, qtyEnc: Math.max(0, Math.min(it.qty, qs[i] ?? it.qtyEnc ?? 0))}));
+  const enc=items.reduce((s,it)=>s+it.qtyEnc,0), pick=items.reduce((s,it)=>s+it.qty-it.qtyEnc,0);
+  const kind = !enc ? "total" : !pick ? "encomenda" : "aguarda";
+  return { items, enc, pick, kind, refsPick: items.filter(it=>it.qty-it.qtyEnc>0).length, refsEnc: items.filter(it=>it.qtyEnc>0).length };
+}
+function decidePlanText(pl, o){
+  if(pl.kind==="encomenda") return `<b>Encomenda total</b>: encomendar ${pl.enc} pç · não passa pela separação nem usa colmeia.`;
+  if(pl.kind==="total") return `<b>Nada a encomendar</b>: vai para a separação como envio total (${pl.pick} pç).`;
+  const slot=freeSlot(); return `<b>Separar o que tem na loja</b>: ${pl.refsPick} ref. · ${pl.pick} pç vão para a separação e ficam na ${slot?`colmeia <b>${slot.slice(3)}</b>`:"colmeia (<b>todas ocupadas</b>)"} · encomendar ${pl.enc} pç.`;
+}
+function decideCard(o){
+  state.dq ||= {}; const qs = state.dq[o.id] ||= Object.fromEntries(o.items.map((it,i)=>[i, it.qtyEnc||0]));
+  const pl=decidePlan(o, qs), sug = MODES[o.modeCom||o.mode]?.t || "";
+  return `<article class="cpcard dec" data-dec="${o.id}">
+    <div class="cphead"><b class="mono">#${esc(o.num)}</b><span class="chip urg">Para decidir</span><span class="muted-s">Comercial pediu: ${esc(sug)}</span>${o.naLoja?`<span class="retirabar">CLIENTE NA LOJA</span>`:o.retira?`<span class="retirabar rb-green">RETIRA NA LOJA</span>`:""}</div>
+    <div class="cpcli">${esc(o.client)}<small>${[o.seller?"Vendedor "+esc(o.seller):"", o.date?esc(o.date):"", transpOf(o)?esc(transpOf(o)):"", "integrada há "+since(o.createdAt)].filter(Boolean).join(" · ")}</small></div>
+    <div class="cptwrap"><table class="cptab cpdec"><thead><tr><th>Código</th><th>Item</th><th class="r">Vendido</th><th class="r">Encomendar</th><th class="r">Da loja</th><th>Previsão</th></tr></thead><tbody>
+    ${o.items.map((it,i)=>{ const e=pl.items[i].qtyEnc; return `<tr><td class="mono">${esc(it.code)}</td><td>${esc(it.name)}${PRODUCTS[it.code]?.loc?`<div class="muted-s">${esc(fullLoc(PRODUCTS[it.code].loc))}</div>`:""}</td><td class="r tnum">${it.qty}</td>
+      <td class="r"><div class="encin"><input type="number" min="0" max="${it.qty}" step="1" value="${e}" data-dq="${o.id}:${i}" aria-label="Encomendar de ${esc(it.code)}"><label><input type="checkbox" data-dqall="${o.id}:${i}" ${e===it.qty?"checked":""}>todas</label></div></td>
+      <td class="r tnum"><b>${it.qty-e}</b></td><td class="tnum">${fmtDate(it.eta)||"—"}</td></tr>`; }).join("")}
+    </tbody></table></div>
+    <div class="decplan" id="dp-${o.id}">${decidePlanText(pl,o)}</div>
+    <div class="cpfoot"><button class="mini" data-dall="${o.id}">Encomendar tudo</button><button class="btn primary cpbtn" data-dok="${o.id}">Confirmar e encaminhar</button></div>
+  </article>`;
+}
+function bindDecide(){
+  const upd = oid => { const o=ORDERS.find(x=>x.id===oid), box=document.getElementById("dp-"+oid); if(o&&box) box.innerHTML=decidePlanText(decidePlan(o, state.dq[oid]), o);
+    app.querySelectorAll(`[data-dq^="${oid}:"]`).forEach(inp=>{ const i=+inp.dataset.dq.split(":")[1], it=o.items[i], v=Math.max(0,Math.min(it.qty,+inp.value||0));
+      const tr=inp.closest("tr"); tr.querySelector("td:nth-child(5) b").textContent=it.qty-v; tr.querySelector("[data-dqall]").checked = v===it.qty; }); };
+  app.querySelectorAll("[data-dq]").forEach(inp=>inp.oninput=()=>{ const [oid,i]=inp.dataset.dq.split(":"); state.dq[oid][+i]=+inp.value||0; upd(oid); });
+  app.querySelectorAll("[data-dqall]").forEach(cb=>cb.onchange=()=>{ const [oid,i]=cb.dataset.dqall.split(":"), o=ORDERS.find(x=>x.id===oid), v=cb.checked?o.items[+i].qty:0;
+    state.dq[oid][+i]=v; app.querySelector(`[data-dq="${oid}:${i}"]`).value=v; upd(oid); });
+  app.querySelectorAll("[data-dall]").forEach(b=>b.onclick=()=>{ const o=ORDERS.find(x=>x.id===b.dataset.dall); o.items.forEach((it,i)=>{ state.dq[o.id][i]=it.qty; const inp=app.querySelector(`[data-dq="${o.id}:${i}"]`); if(inp) inp.value=it.qty; }); upd(o.id); });
+  app.querySelectorAll("[data-dok]").forEach(b=>b.onclick=()=>decideOrder(b.dataset.dok));
+}
+function decideOrder(oid){
+  const o=ORDERS.find(x=>x.id===oid); if(!o || !toDecide(o)) return;
+  const pl=decidePlan(o, state.dq?.[oid]||{}), now=Date.now();
+  const items=pl.items.map(it=>({...it, eta: it.qtyEnc>0 ? (it.eta||"") : ""}));
+  let patch;
+  if(pl.kind==="encomenda") patch={mode:"encomenda", status:"encomenda"};
+  else if(pl.kind==="total") patch={mode:"total", status:"aguardando", queuedAt:now};
+  else { const slot=freeSlot(); if(!slot){ toast("Todas as colmeias estão ocupadas. Libere uma colmeia para encaminhar este pedido."); return; }
+    patch={mode:"aguarda", status:"aguardando", colmeia:slot, queuedAt:now}; }
+  patchOrder(oid, {...patch, items, res:null, decidedAt:now, decidedBy:ME.id||""});
+  delete state.dq[oid];
+  toast(pl.kind==="encomenda" ? `#${o.num}: encomenda total · aparece em Em aberto para encomendar` : pl.kind==="total" ? `#${o.num} enviado para a separação` : `#${o.num} enviado para a separação · peças da loja vão para a colmeia ${patch.colmeia.slice(3)}`);
+  rerender();
 }
 function compraCard(o, closed){
   const k=encKind(o), its=encItems(o), allArr=its.every(x=>compraSt(x)==="chegou");
@@ -3446,9 +3508,10 @@ function chime(force){
 function checkNewOrders(){
   const tv = state.view==="tv" || myRole()==="painel"; // painel da TV: todos os canais, só som (sem janela de aviso)
   const open = ORDERS.filter(o=>o.status==="aguardando" && pickList(o).length && (tv || ecoOk(o)));
-  if(seenOrders===null){ seenOrders = new Set(ORDERS.map(o=>o.id+":"+(o.createdAt||0))); return; } // carga inicial: sem alerta
-  const fresh = open.filter(o=>!seenOrders.has(o.id+":"+(o.createdAt||0)));
-  ORDERS.forEach(o=>seenOrders.add(o.id+":"+(o.createdAt||0)));
+  const sk = o => o.id+":"+(o.createdAt||0)+":"+(o.queuedAt||0);
+  if(seenOrders===null){ seenOrders = new Set(ORDERS.map(sk)); return; } // carga inicial: sem alerta
+  const fresh = open.filter(o=>!seenOrders.has(sk(o)));
+  ORDERS.forEach(o=>seenOrders.add(sk(o)));
   if(tv){ if(fresh.length) chime(true); return; }
   const forMe = fresh.filter(o=>!(ME.id && o.createdBy===ME.id));
   if(!forMe.length || !myRole() || !can("coleta")) return;
