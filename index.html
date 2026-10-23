@@ -239,6 +239,8 @@ html.tvmode body{background:var(--bg);color:var(--ink);overflow:hidden}
 .uscount{display:flex;align-items:center;gap:14px;margin:12px 0}.uscount b{font-family:var(--display);font-size:40px;line-height:1}.uscount span{color:var(--muted)}.uscount .mini{width:44px;height:44px;font-size:22px}
 .qrbox{text-align:center}.qrbox p{text-align:left}.qr{display:grid;place-items:center;min-height:240px;margin:6px auto 10px;background:#fff;border-radius:12px;padding:10px;width:240px;max-width:100%;box-sizing:border-box}.qr img,.qr canvas{display:block;max-width:100%}
 .qrurl{display:flex;gap:8px;align-items:center}.qrurl .tinput{flex:1;min-width:0;font-size:12px}
+@media (min-width:601px){.cpitems{table-layout:fixed}.cpitems th:nth-child(1){width:90px}.cpitems th:nth-child(3){width:95px}.cpitems th:nth-child(4){width:125px}.cpitems th:nth-child(5){width:95px}.cpitems th:nth-child(6){width:34%}.cpitems th:nth-child(7){width:150px}}
+.cpitems tr.cpstock td{color:var(--muted)}.cpexp{align-self:flex-start;font-size:13px;font-weight:600}
 .decplan{font-size:14px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
 .cpdec .encin{justify-content:flex-end}
 .cpwait tr.late,.cpwait tr.late td{background:var(--bad-soft)}
@@ -284,7 +286,7 @@ details.cpcard summary{display:flex;justify-content:space-between;align-items:ce
 .pptop{display:grid;grid-template-columns:150px minmax(0,1fr) 80px auto;gap:6px;width:100%;align-items:center}
 .pplink{display:grid;grid-template-columns:auto minmax(0,1fr) 72px auto;gap:6px;align-items:center;width:100%;font-size:13px}
 .tinput.r{text-align:right}
-@media (max-width:600px){.cpkpis{grid-template-columns:1fr 1fr}.cpkpis b{font-size:20px}.pptop{grid-template-columns:minmax(0,1fr) 64px auto}.hnf.ppf{grid-template-columns:1fr}.pptop input[data-pf="name"]{grid-column:1/-1;grid-row:2}.cptab thead{display:none}.cptab tr{display:grid;grid-template-columns:auto 1fr auto;gap:2px 8px;padding:6px 0;border-bottom:1px solid var(--line)}.cptab td{border:0;padding:2px 0}.cptab:not(.cpwait) td:nth-child(2){grid-column:2/4}.cptab:not(.cpwait) td:nth-child(4)::before{content:"Previsão ";color:var(--muted)}
+@media (max-width:600px){.cpkpis{grid-template-columns:1fr 1fr}.cpkpis b{font-size:20px}.pptop{grid-template-columns:minmax(0,1fr) 64px auto}.hnf.ppf{grid-template-columns:1fr}.pptop input[data-pf="name"]{grid-column:1/-1;grid-row:2}.cptab thead{display:none}.cptab tr{display:grid;grid-template-columns:auto 1fr auto;gap:2px 8px;padding:6px 0;border-bottom:1px solid var(--line)}.cptab td{border:0;padding:2px 0}.cptab:not(.cpwait) td:nth-child(2){grid-column:2/4}.cptab:not(.cpwait):not(.cpitems):not(.cpdec) td:nth-child(4)::before{content:"Previsão ";color:var(--muted)}.cpitems td:nth-child(3)::before{content:"Qtd ";color:var(--muted)}.cpitems td:nth-child(4)::before{content:"Encomenda ";color:var(--muted)}.cpitems td:nth-child(5)::before{content:"Previsão ";color:var(--muted)}.cpitems td.r{text-align:left}.cptab.cpitems tr{grid-template-columns:repeat(3,minmax(0,1fr))}.cptab.cpitems td:nth-child(1),.cptab.cpitems td:nth-child(2),.cptab.cpitems td:nth-child(6),.cptab.cpitems td:nth-child(7){grid-column:1/-1}.cpitems td:nth-child(1){font-weight:700}.cpitems td:nth-child(5):empty,.cpitems td:nth-child(7):empty{display:none}
 .cpwait tr{grid-template-columns:1fr auto;padding:8px 6px}.cpwait td:nth-child(3),.cpwait td:nth-child(4),.cpwait td:nth-child(6){grid-column:1/-1}.cpwait td:nth-child(5){grid-column:1}.cpwait td:nth-child(7){grid-column:2;grid-row:1/3;align-self:start}.cpwait td.r{text-align:left}
 .bar:has(.cpbtn){flex-wrap:wrap}.bar .btn.cpbtn{width:100%}}
 .mbox.wide{width:min(560px,100%);max-height:92vh;overflow:auto}
@@ -1448,6 +1450,7 @@ function renderCompras(){
   app.querySelectorAll("[data-carr]").forEach(b=>b.onclick=()=>{ const [oid,i]=b.dataset.carr.split(":"); setItemArrived(oid,+i,b.dataset.v==="1"); });
   app.querySelectorAll("[data-crel]").forEach(b=>b.onclick=()=>{ if(!b.dataset.c){ b.dataset.c="1"; b.textContent="Confirmar: encomenda chegou"; return; } releaseEnc(b.dataset.crel); });
   bindDecide();
+  app.querySelectorAll("[data-cpexp]").forEach(b=>b.onclick=()=>{ const id=b.dataset.cpexp, set=new Set(state.cpExp||[]); set.has(id)?set.delete(id):set.add(id); state.cpExp=[...set]; render(); });
   app.querySelectorAll("[data-cunst]").forEach(b=>b.onclick=()=>openUnstoreQR(b.dataset.cunst));
   app.querySelectorAll("[data-cunl]").forEach(b=>b.onclick=()=>{ const [oid,i,pid]=b.dataset.cunl.split(":"); unlinkPurchase(oid,+i,pid); });
 }
@@ -1510,12 +1513,15 @@ function compraCard(o, closed){
     <div class="cphead"><b class="mono">#${esc(o.num)}</b><span class="chip ${k.c}">${k.t}</span>${where}${o.naLoja?`<span class="retirabar">CLIENTE NA LOJA</span>`:o.retira?`<span class="retirabar rb-green">RETIRA NA LOJA</span>`:""}</div>
     <div class="cpcli">${esc(o.client)}<small>${[o.seller?"Vendedor "+esc(o.seller):"", o.date?esc(o.date):"", transpOf(o)?esc(transpOf(o)):""].filter(Boolean).join(" · ")}</small></div>
     <div class="cpnote">${esc(k.d)}${pick.length?` · ${pick.length} ref. de pronta entrega`:""}</div>
-    <div class="cptwrap"><table class="cptab"><thead><tr><th>Código</th><th>Item</th><th class="r">Encomenda</th><th>Previsão</th><th>Situação</th><th></th></tr></thead><tbody>
-    ${its.map(x=>{ const st=compraSt(x), [lt,lc]=COMPRA_LABEL[st], links=x.compra?.links||[];
-      return `<tr><td class="mono">${esc(x.code)}</td><td>${esc(x.name)}</td><td class="r tnum"><b>${x.qtyEnc}</b> pç</td><td class="tnum">${fmtDate(x.eta)||"—"}</td>
+    ${(()=>{ // todos os itens da pré-venda: encomenda primeiro; mais de 2 produtos → "ver todos"
+      const all=[...its, ...(o.items||[]).map((it,i)=>({...it,i})).filter(x=>!(x.qtyEnc>0))], open=(state.cpExp||[]).includes(o.id), hid=all.length>2 && !open ? all.length-2 : 0;
+      return `<div class="cptwrap"><table class="cptab cpitems"><thead><tr><th>Código</th><th>Item</th><th class="r">Quantidade</th><th class="r">Quant. encomenda</th><th>Previsão</th><th>Situação</th><th></th></tr></thead><tbody>
+    ${all.slice(0, hid ? 2 : all.length).map(x=>{ if(!(x.qtyEnc>0)) return `<tr class="cpstock"><td class="mono">${esc(x.code)}</td><td>${esc(x.name)}</td><td class="r tnum">${x.qty} pç</td><td class="r tnum">—</td><td class="tnum">—</td><td><span class="chip norm">Pronta entrega</span></td><td></td></tr>`;
+      const st=compraSt(x), [lt,lc]=COMPRA_LABEL[st], links=x.compra?.links||[];
+      return `<tr><td class="mono">${esc(x.code)}</td><td>${esc(x.name)}</td><td class="r tnum">${x.qty} pç</td><td class="r tnum"><b>${x.qtyEnc}</b> pç</td><td class="tnum">${fmtDate(x.eta)||"—"}</td>
         <td><span class="chip ${lc}">${lt}${st==="parcial"?` · ${compraQty(x)}/${x.qtyEnc}`:""}</span>${(()=>{ const pz=prazoInfo(x); return pz?` <span class="chip ${pz.c}" title="Previsão do fornecedor ${fmtDate(pz.p)}">${pz.t} · ${fmtDate(pz.p)}</span>`:""; })()}${links.map(l=>{ const p=PURCHASES[l.pid]; return `<div class="cpref">${esc(p?.forn||"Fornecedor")}${(l.ped||p?.num)?" · ped. "+esc(l.ped||p.num):""}${l.fcode?" · "+esc(l.fcode):""} · ${l.qty} pç${l.entrega?" · entrega "+esc(fmtBR(l.entrega)):""}${closed?"":` <button class="lnk" data-cunl="${o.id}:${x.i}:${esc(l.pid)}" title="Desfazer vínculo">desfazer</button>`}</div>`; }).join("")}</td>
         <td class="r">${closed?"":st==="chegou"?`<button class="mini" data-carr="${o.id}:${x.i}" data-v="0">Desfazer chegada</button>`:`<button class="mini" data-carr="${o.id}:${x.i}" data-v="1">Chegou</button>`}</td></tr>`; }).join("")}
-    </tbody></table></div>
+    </tbody></table></div>${all.length>2 ? `<button class="lnk cpexp" data-cpexp="${o.id}">${open ? "Mostrar menos" : `Ver todos os ${all.length} itens (+${hid})`}</button>` : ""}`; })()}
     ${!closed && o.status==="na_colmeia" && can("devolver") ? `<div class="cpfoot"><button class="mini" data-cunst="${o.id}">Editar pedido · retirar da colmeia ${esc((o.colmeia||"").slice(3))}</button><small>Bipa a colmeia e as peças, devolve ao estoque e o pedido volta para "Para decidir".</small></div>` : ""}
     ${closed ? `<div class="cpfoot ok-line">Encomenda recebida em ${new Date(o.arrivedAt||Date.now()).toLocaleDateString("pt-BR")} · ${esc(statusInfo(o).t)}</div>`
       : allArr ? (canRelease(o) ? `<div class="cpfoot"><button class="btn primary" data-crel="${o.id}">Encomenda completa · liberar pedido</button><small>${o.mode==="encomenda"?"O pedido fica pronto para enviar e o comercial é avisado.":o.mode==="aguarda"?`O pedido fica pronto para retirar da colmeia ${esc((o.colmeia||"").slice(3))} e o comercial é avisado.`:o.mode==="parcial"?"Libera o 2º envio e o comercial é avisado.":"O comercial é avisado que a encomenda chegou."}</small></div>`
