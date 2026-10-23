@@ -1026,7 +1026,8 @@ const state = { canal:(()=>{ try{ return localStorage.getItem("ps-canal")||"cons
 if(location.hash==="#tv") state.view="tv";
 // link do QR code "devolver ao estoque": abre o processo no celular depois do login
 const usFromHash = () => { const m=location.hash.match(/^#devolver-(.+)$/); if(m){ state.usPending=decodeURIComponent(m[1]); state.sector="compras"; } };
-usFromHash(); window.addEventListener("hashchange", ()=>{ usFromHash(); if(state.usPending) render(); });
+const hoFromHash = () => { const m=location.hash.match(/^#colmeia-(retirou|enviado)-(.+)$/); if(m){ state.hoPending={how:m[1], oid:decodeURIComponent(m[2])}; state.sector="colmeias"; } };
+usFromHash(); hoFromHash(); window.addEventListener("hashchange", ()=>{ usFromHash(); hoFromHash(); if(state.usPending || state.hoPending) render(); });
 window.addEventListener("hashchange", ()=>{ if(location.hash==="#tv"){ state.view="tv"; render(); } else if(state.view==="tv"){ state.view="orders"; render(); } });
 function initialSector(){ const h=location.hash.slice(1); if(["comercial","expedicao","colmeias","compras","recebimento","estoque","usuarios"].includes(h)) return h; return innerWidth>=900 ? "comercial" : "expedicao"; }
 state.sector = initialSector();
@@ -1357,6 +1358,13 @@ function colmeiaSaida(o, how){
   rerender();
 }
 /* Saída da colmeia com conferência: bipa a colmeia → vê os itens → confirma que o cliente retirou (ou que foi enviado) */
+// quem pode dar saída da colmeia: separação, estoque, comercial e compras. Comercial e Compras (no computador) recebem um QR code para fazer no celular
+const canHvOut = () => can("mesa")||can("coleta")||can("estoque")||can("comercial")||can("compras");
+const hvOutByQR = () => !(can("mesa")||can("coleta")||can("estoque")) && innerWidth>=700; // no celular, faz direto
+function askHvOut(oid, how){ const o=ORDERS.find(x=>x.id===oid); if(!o || !o.colmeia) return;
+  if(!hvOutByQR()) return startHvOut(oid, how);
+  openPhoneQR(APP_URL + "#colmeia-" + how + "-" + encodeURIComponent(oid), `O pedido <b>#${esc(o.num)}</b> abre no celular para você ir até a colmeia <b>${esc(o.colmeia.slice(3))}</b>, bipar a etiqueta, conferir os itens e confirmar ${how==="enviado"?"o envio":"a retirada"}.`, ()=>startHvOut(oid, how));
+}
 function startHvOut(oid, how){ const o=ORDERS.find(x=>x.id===oid); if(!o || !o.colmeia) return;
   state.hvOut={oid, how, step:"hive", back:state.sector}; state.sector="colmeias"; state.view="hvout"; render(); scrollTo(0,0); }
 function endHvOut(){ state.hvOut=null; state.view="orders"; render(); scrollTo(0,0); }
@@ -1422,7 +1430,7 @@ function bindAside(){
   app.querySelectorAll("[data-arrived]").forEach(b=>b.onclick=()=>{
     releaseEnc(b.dataset.arrived);
   });
-  app.querySelectorAll("[data-sent]").forEach(b=>b.onclick=()=>{ const o=ORDERS.find(x=>x.id===b.dataset.sent); if(!o) return; if(o.colmeia) startHvOut(o.id, "retirou"); else colmeiaSaida(o, "retirou"); });
+  app.querySelectorAll("[data-sent]").forEach(b=>b.onclick=()=>{ const o=ORDERS.find(x=>x.id===b.dataset.sent); if(!o) return; if(o.colmeia) askHvOut(o.id, "retirou"); else colmeiaSaida(o, "retirou"); });
 }
 
 /* ================== COMPRAS: encomendas aos fornecedores ==================
@@ -1870,10 +1878,14 @@ const usItems = o => { const r=o.res||[]; return (o.items||[]).map((it,i)=>({...
 const APP_URL = /vercel\.app$|picking-serena/.test(location.hostname) ? location.origin + "/" : "https://picking-serena.vercel.app/";
 function openUnstoreQR(oid){
   const o=ORDERS.find(x=>x.id===oid); if(!o) return;
-  const url = APP_URL + "#devolver-" + encodeURIComponent(oid), cm=(o.colmeia||"").slice(3);
+  const cm=(o.colmeia||"").slice(3);
+  openPhoneQR(APP_URL + "#devolver-" + encodeURIComponent(oid), `O processo do pedido <b>#${esc(o.num)}</b> abre direto na colmeia <b>${esc(cm)}</b> para você bipar as peças e devolvê-las ao estoque.`, ()=>startUnstore(oid));
+}
+// QR code para continuar um processo no celular (quem está no computador)
+function openPhoneQR(url, html, onHere){
   const ov=document.createElement("div"); ov.className="modal";
-  ov.innerHTML=`<div class="mbox qrbox" role="dialog" aria-modal="true" aria-label="Devolver ao estoque pelo celular"><h2>Continue no celular</h2>
-    <p>Aponte a câmera do celular para o código. O processo do pedido <b>#${esc(o.num)}</b> abre direto na colmeia <b>${esc(cm)}</b> para você bipar as peças e devolvê-las ao estoque.</p>
+  ov.innerHTML=`<div class="mbox qrbox" role="dialog" aria-modal="true" aria-label="Continuar no celular"><h2>Continue no celular</h2>
+    <p>Aponte a câmera do celular para o código. ${html}</p>
     <div class="qr" id="usQR" aria-label="QR code do link"><span class="muted-s">Gerando código…</span></div>
     <div class="qrurl"><input class="tinput mono" id="usUrl" value="${esc(url)}" readonly aria-label="Link"><button class="mini" id="usCopy">Copiar</button></div>
     <div class="mact"><button class="btn ghost" id="mNo">Fechar</button><button class="btn primary" id="usHere">Fazer neste aparelho</button></div></div>`;
@@ -1881,7 +1893,7 @@ function openUnstoreQR(oid){
   document.body.appendChild(ov); scanbar.hidden=true;
   ov.onclick=e=>{ if(e.target===ov) close(); };
   ov.querySelector("#mNo").onclick=close;
-  ov.querySelector("#usHere").onclick=()=>{ ov.remove(); startUnstore(oid); };
+  ov.querySelector("#usHere").onclick=()=>{ ov.remove(); onHere(); };
   ov.querySelector("#usCopy").onclick=async()=>{ const i=ov.querySelector("#usUrl"); try{ await navigator.clipboard.writeText(url); toast("Link copiado"); }catch(e){ i.select(); } };
   loadLib("qr","https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js").then(()=>{ const box=ov.querySelector("#usQR"); if(!box) return; box.innerHTML="";
     new QRCode(box, { text:url, width:220, height:220, colorDark:"#000000", colorLight:"#ffffff", correctLevel:QRCode.CorrectLevel.M }); })
@@ -2274,7 +2286,7 @@ function renderOrders(){
         const head = hvNorm([o.num,o.client].join(" ")), open = (state.hvExp||[]).includes(o.id) || (hitIt.length>0 && !toks.every(t=>head.includes(t)) && !(state.hvClosed||[]).includes(o.id));
         return `<div class="li sep hvli" style="cursor:default"><span class="lc tnum">${esc((o.colmeia||"—").replace(/^CM-/,""))}</span><span class="ln">#${esc(o.num)} · ${esc(o.client)}<small>${o.status==="pronto_envio" ? `<b class="ok-t">${o.mode==="aguarda"||o.fase2?"Encomenda chegou · pronto":"Pronto"} para ${o.retira?"o cliente retirar":"enviar"}</b>${transpOf(o)&&!o.retira?" · "+esc(transpOf(o)):""}` : o.hiveManual?`Cadastrada na colmeia${o.obs?" · "+esc(o.obs):""}`:`${enc.reduce((s,i)=>s+i.qtyEnc,0)} pç sob encomenda${eta?" · chega "+fmtDate(eta):""}`}</small>${items.length?xpBtn(`data-hvexp="${esc(o.id)}"`, open, `Ver itens da pré-venda (${items.length})`, "Ocultar itens"):""}</span>
           ${o.status==="na_mesa" && (can("mesa")||can("coleta")) ? `<button class="mini" data-hive="${esc(o.id)}">Guardar</button>`
-          : (o.status==="pronto_envio" || o.status==="na_colmeia") && (can("mesa")||can("coleta")||can("comercial")||can("estoque")) ? `<span class="hvact">${o.status==="na_colmeia"?`<span class="chip enc">Aguardando encomenda</span>`:""}<button class="mini" data-hsai="${esc(o.id)}:retirou" data-pend="${hasEnc(o)&&!encArrived(o)?1:""}">Cliente retirou</button><button class="mini" data-hsai="${esc(o.id)}:enviado" data-pend="${hasEnc(o)&&!encArrived(o)?1:""}">Enviado</button></span>`
+          : (o.status==="pronto_envio" || o.status==="na_colmeia") && canHvOut() ? `<span class="hvact">${o.status==="na_colmeia"?`<span class="chip enc">Aguardando encomenda</span>`:""}<button class="mini" data-hsai="${esc(o.id)}:retirou" data-pend="${hasEnc(o)&&!encArrived(o)?1:""}">Cliente retirou</button><button class="mini" data-hsai="${esc(o.id)}:enviado" data-pend="${hasEnc(o)&&!encArrived(o)?1:""}">Enviado</button></span>`
           : `<span class="chip enc">${o.status==="pronto_envio"?"Pronto":"Aguardando encomenda"}</span>`}
           ${items.length ? `<div class="xpbox hvbox${open?" xopen":""}"><div class="hvitems">${items.map((it,i)=>hvItemHTML(o,it,hitIt.includes(i))).join("")}</div></div>` : ""}</div>`; }).join("")}</div>`; })()}
     </div>`;
@@ -2312,7 +2324,7 @@ function renderOrders(){
     state.hvExp = open ? [...ex, id] : ex.filter(x=>x!==id);
     state.hvClosed = open ? (state.hvClosed||[]).filter(x=>x!==id) : [...(state.hvClosed||[]), id]; // fechar mesmo quando aberto pela busca
     xpToggle(b.closest(".hvli").querySelector(".xpbox"), b, open); });
-  app.querySelectorAll("[data-hsai]").forEach(b=>b.onclick=()=>{ const [id,how]=b.dataset.hsai.split(":"); startHvOut(id, how); });
+  app.querySelectorAll("[data-hsai]").forEach(b=>b.onclick=()=>{ const [id,how]=b.dataset.hsai.split(":"); askHvOut(id, how); });
 }
 function openOrder(id){
   const o=ORDERS.find(x=>x.id===id); if(!o || !ecoOk(o)) return;
@@ -4123,6 +4135,10 @@ function render(){
   if(!myRole()){ scanbar.hidden=true; app.classList.remove("picking"); return renderNoAccess(); }
   if(state.view==="tv" || myRole()==="painel"){ scanbar.hidden=true; app.classList.remove("picking","wide"); return renderTV(); }
   app.classList.remove("tv"); document.documentElement.classList.remove("tvmode");
+  if(state.hoPending && canSector("colmeias")){ const {oid,how}=state.hoPending, o=ORDERS.find(x=>x.id===oid);
+    if(o || ORDERS.length){ state.hoPending=null; try{ history.replaceState(null,"",location.pathname+"#colmeias"); }catch(e){}
+      if(o && o.colmeia){ state.hvOut={oid, how, step:"hive"}; state.sector="colmeias"; state.view="hvout"; }
+      else toast(o ? `O pedido #${o.num} não está mais na colmeia` : "Pedido não encontrado"); } }
   if(state.sector==="expedicao" && state.sepTab==="colmeias"){ state.sector="colmeias"; state.sepTab="fila"; }
   if(!canSector(state.sector)){ const al=allowedSectors(); state.sector = al.includes("expedicao") && innerWidth<900 ? "expedicao" : (al.find(x=>x!=="colmeias")||al[0]); state.view="orders"; }
   if(state.sector==="expedicao"){
