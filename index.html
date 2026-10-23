@@ -651,6 +651,9 @@ body.pda .keyhint{display:block}
 .bell.busy{opacity:.6;pointer-events:none}
 .sync.local i{background:var(--accent)}
 .app.wide{max-width:1240px}
+.qgrid{display:flex;flex-direction:column;gap:10px}
+@media (min-width:900px){.app.sepwide .qgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px;align-items:start}
+  .app.sepwide .list .li.hrow{padding:12px 18px}}
 .app.wide .bar{position:static;border-bottom:0;padding-block:14px 0}
 
 /* Comercial */
@@ -1697,7 +1700,7 @@ function renderOrders(){
       <div><b class="tnum">${units}</b><span class="eyebrow">Peças</span></div>
     </div>
     <div class="section"><div class="eyebrow">Fila de separação</div>${pgQ.top}
-      ${queue.length ? pgQ.items.map(o=>{
+      ${queue.length ? `<div class="qgrid">` + pgQ.items.map(o=>{
         const pl=pickList(o), r=res(o), done=pl.filter(x=>r[x.i].status!=="pend").length, enc=o.items.filter(i=>i.qtyEnc>0).length;
         const aisles=[...new Set(pl.filter(x=>x.loc).map(x=>"R"+x.loc.r))].join(" · "), semLoc=pl.filter(x=>!x.loc).length;
         const acts = can("coleta") ? (o.status==="separando"?2:1) : 0;
@@ -1708,7 +1711,7 @@ function renderOrders(){
           <div class="client">${esc(o.client)}</div>
           <div class="meta tnum"><span>${pl.length} ref. · ${pl.reduce((a,x)=>a+x.need,0)} pç</span>${aisles?`<span>Ruas ${aisles}</span>`:""}${semLoc?`<span style="color:var(--bad)">${semLoc} sem local</span>`:""}${o.status==="separando"&&o.startedAt?`<span>Separando há ${since(o.startedAt)}</span>`:`<span>Na fila há ${since(o.createdAt)}</span>`}${o.tray&&o.status==="separando"?`<span>Bandeja ${esc(o.tray)}</span>`:""}${isEco(o)?transpBadge(o.transportadora):`${transpOf(o)?transpBadge(transpOf(o)):""}`+(o.mode==="aguarda"?`<span>Colmeia ${esc(o.colmeia)}</span>`:`<span>Destino: mesa de expedição</span>`)}${enc?`<span>${enc} ref. sob encomenda</span>`:""}</div>
           ${done?`<div class="prog-bar"><i style="width:${done/pl.length*100}%"></i></div>`:""}
-        </button>${acts?`<div class="ord-acts">${o.status==="separando"?`<button class="icbtn" data-restart="${esc(o.id)}" aria-label="Reiniciar separação" title="Reiniciar separação">${ICON_RESTART}</button>`:""}<button class="icbtn del" data-delord="${esc(o.id)}" aria-label="Excluir separação" title="Excluir separação">${ICON_TRASH}</button></div>`:""}</div>`;}).join("") + pgQ.pager : `<div class="empty">Nenhum pedido aguardando separação.</div>`}
+        </button>${acts?`<div class="ord-acts">${o.status==="separando"?`<button class="icbtn" data-restart="${esc(o.id)}" aria-label="Reiniciar separação" title="Reiniciar separação">${ICON_RESTART}</button>`:""}<button class="icbtn del" data-delord="${esc(o.id)}" aria-label="Excluir separação" title="Excluir separação">${ICON_TRASH}</button></div>`:""}</div>`;}).join("") + `</div>` + pgQ.pager : `<div class="empty">Nenhum pedido aguardando separação.</div>`}
     </div>
     ${parked.length?`<div class="section"><div class="eyebrow">Separados · com bandeja ou mesa · ${parked.length}</div>${pgP.top}<div class="list" style="margin-top:0">${pgP.items.map(o=>
       `<div class="li sep" style="cursor:default"><span class="lc tnum">${esc(o.tray)}</span><span class="ln">#${esc(o.num)} · ${esc(o.client)}<small>${o.mode==="aguarda"?"Vai para a colmeia "+esc(o.colmeia||""):"Mesa"}${bigOnMesa(o)?" · itens grandes na "+bigSpots(o).map(mesaName).join(", "):""}</small></span>${can("coleta")||can("mesa") ? `<button class="mini" data-free="${esc(o.id)}">${isShared(o.tray)?"Liberar "+spotName(o.tray):bigOnMesa(o)?"Liberar bandeja e mesa":"Liberar bandeja"}</button>` : ""}</div>`).join("")}</div>${pgP.pager}</div>`:""}`;
@@ -3555,7 +3558,10 @@ function render(){
   const scanning = state.sector==="expedicao" && SCAN_VIEWS.includes(state.view);
   scanbar.hidden = !scanning;
   app.classList.toggle("picking", scanning);
-  app.classList.toggle("wide", state.sector!=="expedicao" || state.view==="labels");
+  // Administrador: Separação e Separados na largura do computador
+  const adminWide = myRole()==="admin" && state.sector==="expedicao" && state.view==="orders" && ["fila","historico"].includes(state.sepTab||"fila");
+  app.classList.toggle("wide", state.sector!=="expedicao" || state.view==="labels" || adminWide);
+  app.classList.toggle("sepwide", adminWide);
   if(state.view==="labels") return renderLabels();
   if(state.sector==="comercial") return renderComercial();
   if(state.sector==="estoque") return renderEstoque();
