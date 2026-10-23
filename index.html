@@ -227,6 +227,35 @@ html.tvmode body{background:var(--bg);color:var(--ink);overflow:hidden}
 .mbox p{margin:0 0 10px;font-size:14px;color:var(--muted);line-height:1.45}
 .mbox textarea{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:10px;background:var(--bg,transparent);color:var(--ink);padding:10px;font:inherit;font-size:15px;resize:vertical}
 .mbox .merr{color:var(--bad);font-size:13px;min-height:18px;margin-top:4px}
+.mbox.xwide{width:min(860px,100%);max-height:92vh;overflow:auto}
+.bar .btn.cpbtn{flex:none;width:auto;height:44px;padding:0 18px;font-size:15px}
+.cpkpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}
+.cpkpis div{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px;min-width:0}
+.cpkpis b{display:block;font-size:26px;font-family:var(--display);line-height:1.1}.cpkpis small{color:var(--muted);font-size:12px}
+.cpkpis .bad b{color:var(--bad)}
+.cptools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:16px 0 10px}.cptools .seg{flex-wrap:wrap}.cpq{max-width:320px;flex:1;min-width:180px}
+.cplist{display:flex;flex-direction:column;gap:12px}
+.cpcard{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+details.cpcard summary{display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer;list-style:none;flex-wrap:wrap}
+.cphead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.cphead .mono{font-size:16px}
+.cpcm{font-size:13px;border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent-ink);border-radius:8px;padding:2px 8px}
+.cpcli{font-weight:600;font-size:15px}.cpcli small{display:block;font-weight:400;color:var(--muted);font-size:12px;margin-top:2px}
+.cpnote{font-size:13px;color:var(--muted)}
+.cptwrap{overflow-x:auto}
+.cptab{width:100%;border-collapse:collapse;font-size:13px}
+.cptab th{text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line)}
+.cptab td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}.cptab tr:last-child td{border-bottom:0}
+.cptab .r{text-align:right}.cptab .mono,.ppline .mono{font-family:var(--mono)}
+.cpref{font-size:12px;color:var(--muted);margin-top:3px}
+.lnk{border:0;background:none;color:var(--route);font:inherit;font-size:12px;cursor:pointer;padding:0;text-decoration:underline}
+.cplink{display:inline-block;font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:1px 6px;margin:1px 2px}
+.cpfoot{display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:10px}.cpfoot small{color:var(--muted)}
+.pplines{display:flex;flex-direction:column;gap:8px;margin:12px 0 8px}
+.ppline{border:1px solid var(--line);border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.pptop{display:grid;grid-template-columns:110px minmax(0,1fr) 80px auto;gap:6px;width:100%;align-items:center}
+.pplink{display:grid;grid-template-columns:auto minmax(0,1fr) 72px auto;gap:6px;align-items:center;width:100%;font-size:13px}
+.tinput.r{text-align:right}
+@media (max-width:600px){.cpkpis{grid-template-columns:1fr 1fr 1fr}.cpkpis b{font-size:20px}.pptop{grid-template-columns:90px minmax(0,1fr) 64px auto}.pptop input[data-pf="name"]{grid-column:1/-1;grid-row:2}.cptab thead{display:none}.cptab tr{display:grid;grid-template-columns:auto 1fr auto;gap:2px 8px;padding:6px 0;border-bottom:1px solid var(--line)}.cptab td{border:0;padding:2px 0}.cptab td:nth-child(2){grid-column:2/4}.cptab td:nth-child(4)::before{content:"Previsão ";color:var(--muted)}}
 .mbox.wide{width:min(560px,100%);max-height:92vh;overflow:auto}
 .hivebar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px}
 .hnpdf{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0 10px}
@@ -948,7 +977,7 @@ document.addEventListener("click", e => {
 const state = { canal:(()=>{ try{ return localStorage.getItem("ps-canal")||"consultiva"; }catch(e){ return "consultiva"; } })(), sector:null, view:"orders", oid:null, idx:0, phase:"loc", count:0, draft:null, draftErr:"", parsing:false, etab:"enderecos", rua:1, lado:"A", selLoc:null, mesaLast:null };
 if(location.hash==="#tv") state.view="tv";
 window.addEventListener("hashchange", ()=>{ if(location.hash==="#tv"){ state.view="tv"; render(); } else if(state.view==="tv"){ state.view="orders"; render(); } });
-function initialSector(){ const h=location.hash.slice(1); if(["comercial","expedicao","estoque","usuarios"].includes(h)) return h; return innerWidth>=900 ? "comercial" : "expedicao"; }
+function initialSector(){ const h=location.hash.slice(1); if(["comercial","expedicao","compras","estoque","usuarios"].includes(h)) return h; return innerWidth>=900 ? "comercial" : "expedicao"; }
 state.sector = initialSector();
 
 function pickList(o){
@@ -960,7 +989,7 @@ function res(o){ if(!o.res || o.res.length!==o.items.length) o.res = o.items.map
 
 /* ================== Navegação ================== */
 function topnav(){
-  const names = {comercial:"Comercial", expedicao:"Separação", estoque:"Locais", usuarios:"Usuários"};
+  const names = {comercial:"Comercial", expedicao:"Separação", compras:"Compras", estoque:"Locais", usuarios:"Usuários"};
   return `<nav class="topnav" aria-label="Setores">
     <div class="brand">Picking <span>Serena</span></div>
     <div class="navright"><div class="sync ${synced?"":"local"}" title="${synced?"Dados sincronizados entre os setores":"Sem sincronização: os dados ficam só nesta tela"}"><i></i>${synced?"Sincronizado":"Modo local"}</div>${bellHTML()}</div>
@@ -1275,7 +1304,7 @@ function asideHTML(){
         <div class="meta tnum"><span>⏱ ${o.status==="excluido" ? `excluído ${fmtDur((o.deletedAt||0)-(o.createdAt||0))} após a integração` : finished(o)&&(o.atMesaAt||o.pickedAt) ? `picking em ${fmtDur((o.atMesaAt||o.pickedAt)-o.createdAt)}` : `${since(o.createdAt)} desde a integração`}</span>${o.status==="separando"&&o.startedAt?`<span>separando há ${since(o.startedAt)}</span>`:""}</div>
         <details><summary>Tempos</summary>${timelineHTML(o)}</details>
         ${enc.length?`<details><summary>${enc.length} ref. sob encomenda</summary><ul>${enc.map(i=>`<li>${esc(i.code)} · ${i.qtyEnc} pç · chega ${fmtDate(i.eta)||"—"}</li>`).join("")}</ul></details>`:""}
-        ${o.status==="na_colmeia"||o.status==="enc_pendente"||(o.status==="pronto_envio"&&o.mode==="parcial"&&o.remessa!==2&&enc.length)?`<div><button class="mini" data-arrived="${esc(o.id)}">Encomenda chegou</button></div>`:""}
+        ${can("compras") && (o.status==="na_colmeia"||o.status==="enc_pendente"||(o.status==="pronto_envio"&&o.mode==="parcial"&&o.remessa!==2&&enc.length))?`<div><button class="mini" data-arrived="${esc(o.id)}">Encomenda chegou</button></div>`:""}
         ${o.status==="pronto_envio"&&o.mode==="aguarda"?`<div><button class="mini" data-sent="${esc(o.id)}">Retirado · liberar colmeia ${esc(o.colmeia||"")}</button></div>`:""}
       </div>`;}).join("") : `<div class="empty">Nenhum pedido na expedição. Importe uma pré-venda para começar.</div>`}</div>${pg.pager}</div>
     <div class="excol exhive"><h3>Colmeias de encomenda</h3>${hiveHTML(null)}</div></div>`;
@@ -1291,6 +1320,196 @@ function bindAside(){
     patchOrder(o.id,{status:"enviado", sentAt:Date.now()}); toast(`Pedido ${o.num} finalizado · colmeia ${o.colmeia||""} liberada`);
     rerender();
   });
+}
+
+/* ================== COMPRAS: encomendas aos fornecedores ==================
+   Lista as pré-vendas com itens sob encomenda (encomenda total, envio parcial e aguarda encomenda),
+   mostra onde estão as peças do estoque (colmeia) e deixa o setor de compras:
+   1) importar o PDF do pedido feito ao fornecedor e relacionar cada linha às pré-vendas (manual);
+   2) marcar a chegada dos itens e liberar o pedido para o envio/retirada. */
+let PURCHASES = {}, purchCol = null;
+const encItems = o => (o.items||[]).map((it,i)=>({...it, i})).filter(x=>x.qtyEnc>0);
+const encArrived = o => !!o.arrivedAt || (o.mode==="parcial" && o.remessa===2);
+const encOpen = o => !isEco(o) && !["enviado","excluido"].includes(o.status) && hasEnc(o) && !encArrived(o);
+const canRelease = o => o.status==="na_colmeia" || o.status==="enc_pendente" || (o.status==="pronto_envio" && o.mode==="parcial" && o.remessa!==2);
+const compraSt = it => it.compra?.st==="chegou" ? "chegou" : (it.compra?.links||[]).reduce((s,l)=>s+(+l.qty||0),0) >= it.qtyEnc ? "pedido" : (it.compra?.links||[]).length ? "parcial" : "falta";
+const compraQty = it => (it.compra?.links||[]).reduce((s,l)=>s+(+l.qty||0),0);
+function encKind(o){
+  const pick = (o.items||[]).some(it=>it.qty-(it.qtyEnc||0)>0), cm = o.colmeia ? o.colmeia.slice(3) : "";
+  if(!pick) return {t:"Encomenda total", c:"enc", d:`Todos os itens são encomenda · não passa pela separação${cm?` · colmeia ${cm} reservada`:""}`};
+  if(o.mode==="parcial"){
+    const sent = o.status==="pronto_envio" || o.status==="enviado" || !!o.pickedAt;
+    return {t:"Envio parcial", c:"prog", d: sent ? "1º envio já separado com as peças do estoque · falta só a encomenda" : "1º envio (peças do estoque) ainda na separação"};
+  }
+  return {t:"Aguarda encomenda", c:"res", d: o.status==="na_colmeia" ? `Peças do estoque guardadas na colmeia ${cm}` : o.status==="na_mesa" ? `Peças do estoque na mesa, indo para a colmeia ${cm}` : `Peças do estoque na separação · vão para a colmeia ${cm}`};
+}
+const COMPRA_LABEL = { falta:["A encomendar","bad"], parcial:["Encomendado em parte","prog"], pedido:["Encomendado","enc"], chegou:["Chegou","done"] };
+
+function renderCompras(){
+  const tab = state.cTab || "abertas";
+  const open = ORDERS.filter(encOpen).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+  const done = ORDERS.filter(o=>!isEco(o) && hasEnc(o) && encArrived(o) && o.status!=="excluido").sort((a,b)=>(b.arrivedAt||0)-(a.arrivedAt||0)).slice(0,60);
+  const allIt = open.flatMap(encItems), falta = allIt.filter(x=>compraSt(x)==="falta"||compraSt(x)==="parcial"), aguard = allIt.filter(x=>compraSt(x)==="pedido");
+  const q = (state.cQ||"").trim().toLowerCase();
+  const match = o => !q || [o.num,o.client,o.seller,...(o.items||[]).map(i=>i.code+" "+i.name)].join(" ").toLowerCase().includes(q);
+  const purch = Object.values(PURCHASES).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  let body;
+  if(tab==="fornecedor"){
+    body = purch.length ? `<div class="cplist">${purch.map(p=>{ const links=p.lines.reduce((s,l)=>s+(l.links||[]).length,0);
+      return `<details class="cpcard"><summary><div class="cphead"><b>${esc(p.forn||"Fornecedor")}</b>${p.num?`<span class="muted-s">Pedido ${esc(p.num)}</span>`:""}<span class="muted-s">${new Date(p.createdAt).toLocaleDateString("pt-BR")}</span></div>
+        <span class="chip ${links?"enc":"bad"}">${p.lines.length} itens · ${links} vínculo${links===1?"":"s"}</span></summary>
+        <table class="cptab"><thead><tr><th>Código</th><th>Descrição</th><th class="r">Qtd</th><th>Pré-vendas</th></tr></thead><tbody>${p.lines.map(l=>`<tr><td class="mono">${esc(l.code)}</td><td>${esc(l.name||"")}</td><td class="r tnum">${l.qty||""}</td>
+          <td>${(l.links||[]).map(k=>{ const o=ORDERS.find(x=>x.id===k.oid); return `<span class="cplink">#${esc(o?.num||k.oid.replace(/^PV-/,""))} · ${k.qty} pç</span>`; }).join(" ")||`<span class="muted-s">sem vínculo</span>`}</td></tr>`).join("")}</tbody></table></details>`; }).join("")}</div>`
+      : `<div class="empty">Nenhum pedido de fornecedor importado ainda. Use <b>Importar pedido do fornecedor</b>.</div>`;
+  } else {
+    const list = (tab==="concluidas" ? done : open).filter(match);
+    const pg = pageOf(list, "compras", 12);
+    body = list.length ? `${pg.top}<div class="cplist">${pg.items.map(o=>compraCard(o, tab==="concluidas")).join("")}</div>${pg.pager}`
+      : `<div class="empty">${tab==="concluidas" ? "Nenhuma encomenda concluída ainda." : q ? "Nada encontrado para essa busca." : "Nenhuma pré-venda com encomenda em aberto."}</div>`;
+  }
+  app.innerHTML = topnav() + `
+    <header class="bar"><div class="grow"><h1>Compras · encomendas</h1><div class="sub">Itens que o comercial vendeu sob encomenda e o pedido feito ao fornecedor</div></div>
+      <button class="btn primary cpbtn" id="cpImport">Importar pedido do fornecedor</button></header>
+    <div class="cpkpis"><div><b class="tnum">${open.length}</b><small>pré-vendas com encomenda</small></div><div class="${falta.length?"bad":""}"><b class="tnum">${falta.length}</b><small>itens a encomendar</small></div><div><b class="tnum">${aguard.length}</b><small>encomendados, aguardando chegada</small></div></div>
+    <div class="cptools"><div class="seg">${[["abertas",`Em aberto · ${open.length}`],["fornecedor",`Pedidos ao fornecedor · ${purch.length}`],["concluidas","Concluídas"]].map(([k,t])=>`<button data-ctab="${k}" aria-pressed="${tab===k}">${t}</button>`).join("")}</div>
+      ${tab!=="fornecedor"?`<input class="tinput cpq" id="cpQ" placeholder="Buscar pré-venda, cliente ou código" value="${esc(state.cQ||"")}">`:""}</div>
+    ${body}`;
+  bindNav();
+  app.querySelectorAll("[data-ctab]").forEach(b=>b.onclick=()=>{ state.cTab=b.dataset.ctab; render(); });
+  const qi=document.getElementById("cpQ"); if(qi){ qi.oninput=()=>{ state.cQ=qi.value; clearTimeout(qi._t); qi._t=setTimeout(()=>{ resetPage("compras"); render(); const n=document.getElementById("cpQ"); if(n){ n.focus(); n.setSelectionRange(n.value.length,n.value.length); } },250); }; }
+  document.getElementById("cpImport").onclick=()=>openPurchaseImport();
+  app.querySelectorAll("[data-carr]").forEach(b=>b.onclick=()=>{ const [oid,i]=b.dataset.carr.split(":"); setItemArrived(oid,+i,b.dataset.v==="1"); });
+  app.querySelectorAll("[data-crel]").forEach(b=>b.onclick=()=>{ if(!b.dataset.c){ b.dataset.c="1"; b.textContent="Confirmar: encomenda chegou"; return; } releaseEnc(b.dataset.crel); });
+  app.querySelectorAll("[data-cunl]").forEach(b=>b.onclick=()=>{ const [oid,i,pid]=b.dataset.cunl.split(":"); unlinkPurchase(oid,+i,pid); });
+}
+function compraCard(o, closed){
+  const k=encKind(o), its=encItems(o), allArr=its.every(x=>compraSt(x)==="chegou");
+  const pick=(o.items||[]).filter(it=>it.qty-(it.qtyEnc||0)>0);
+  const where = o.colmeia ? `<span class="cpcm" title="Colmeia">Colmeia <b>${esc(o.colmeia.slice(3))}</b></span>` : "";
+  return `<article class="cpcard">
+    <div class="cphead"><b class="mono">#${esc(o.num)}</b><span class="chip ${k.c}">${k.t}</span>${where}${o.naLoja?`<span class="retirabar">CLIENTE NA LOJA</span>`:o.retira?`<span class="retirabar rb-green">RETIRA NA LOJA</span>`:""}</div>
+    <div class="cpcli">${esc(o.client)}<small>${[o.seller?"Vendedor "+esc(o.seller):"", o.date?esc(o.date):"", transpOf(o)?esc(transpOf(o)):""].filter(Boolean).join(" · ")}</small></div>
+    <div class="cpnote">${esc(k.d)}${pick.length?` · ${pick.length} ref. de pronta entrega`:""}</div>
+    <div class="cptwrap"><table class="cptab"><thead><tr><th>Código</th><th>Item</th><th class="r">Encomenda</th><th>Previsão</th><th>Situação</th><th></th></tr></thead><tbody>
+    ${its.map(x=>{ const st=compraSt(x), [lt,lc]=COMPRA_LABEL[st], links=x.compra?.links||[];
+      return `<tr><td class="mono">${esc(x.code)}</td><td>${esc(x.name)}</td><td class="r tnum"><b>${x.qtyEnc}</b> pç</td><td class="tnum">${fmtDate(x.eta)||"—"}</td>
+        <td><span class="chip ${lc}">${lt}${st==="parcial"?` · ${compraQty(x)}/${x.qtyEnc}`:""}</span>${links.map(l=>{ const p=PURCHASES[l.pid]; return `<div class="cpref">${esc(p?.forn||"Fornecedor")}${p?.num?" · ped. "+esc(p.num):""} · ${l.qty} pç${closed?"":` <button class="lnk" data-cunl="${o.id}:${x.i}:${esc(l.pid)}" title="Desfazer vínculo">desfazer</button>`}</div>`; }).join("")}</td>
+        <td class="r">${closed?"":st==="chegou"?`<button class="mini" data-carr="${o.id}:${x.i}" data-v="0">Desfazer chegada</button>`:`<button class="mini" data-carr="${o.id}:${x.i}" data-v="1">Chegou</button>`}</td></tr>`; }).join("")}
+    </tbody></table></div>
+    ${closed ? `<div class="cpfoot ok-line">Encomenda recebida em ${new Date(o.arrivedAt||Date.now()).toLocaleDateString("pt-BR")} · ${esc(statusInfo(o).t)}</div>`
+      : allArr ? (canRelease(o) ? `<div class="cpfoot"><button class="btn primary" data-crel="${o.id}">Encomenda completa · liberar pedido</button><small>${o.mode==="aguarda"?`O pedido fica pronto para retirar da colmeia ${esc((o.colmeia||"").slice(3))} e o comercial é avisado.`:o.mode==="parcial"?"Libera o 2º envio e o comercial é avisado.":"O comercial é avisado que a encomenda chegou."}</small></div>`
+        : `<div class="cpfoot"><small>Todos os itens chegaram. Para liberar, as peças do estoque precisam terminar a separação (${esc(statusInfo(o).t.toLowerCase())}).</small></div>`)
+      : ""}
+  </article>`;
+}
+function patchItems(oid, fn){
+  const o=ORDERS.find(x=>x.id===oid); if(!o) return;
+  const items=JSON.parse(JSON.stringify(o.items)); fn(items); patchOrder(oid,{items}); rerender();
+}
+function setItemArrived(oid, i, on){
+  patchItems(oid, items=>{ const it=items[i]; it.compra={...(it.compra||{links:[]}), st: on?"chegou":"", arrivedAt: on?Date.now():null, arrivedBy: on?(ME.id||""):""}; });
+  toast(on?"Item marcado como chegou":"Chegada desfeita");
+}
+function releaseEnc(oid){
+  const o=ORDERS.find(x=>x.id===oid); if(!o || !canRelease(o)) return;
+  patchOrder(o.id,{status:"pronto_envio", remessa: o.mode==="parcial"?2:1, arrivedAt:Date.now(), arrivedBy:ME.id||""});
+  toast(o.mode==="aguarda" ? `Encomenda do pedido ${o.num} recebida · retirar da colmeia ${(o.colmeia||"").slice(3)}` : `Encomenda do pedido ${o.num} recebida · 2º envio liberado`); rerender();
+}
+function unlinkPurchase(oid, i, pid){
+  patchItems(oid, items=>{ const it=items[i]; if(it.compra) it.compra.links=(it.compra.links||[]).filter(l=>l.pid!==pid); });
+  const p=PURCHASES[pid]; if(p && purchCol){ const q=JSON.parse(JSON.stringify(p)); q.lines.forEach(l=>l.links=(l.links||[]).filter(k=>!(k.oid===oid && k.i===i))); PURCHASES[pid]=q; queueWrite("pc-"+pid, ()=>purchCol.doc(pid).set(q)); }
+  toast("Vínculo desfeito");
+}
+
+/* ---- leitura do PDF do fornecedor (genérica: cada linha com um código conhecido vira um item) ---- */
+async function readSupplierPdf(file){
+  await loadPdfJs();
+  const pdf = await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
+  const lines=[];
+  for(let n=1;n<=pdf.numPages;n++){
+    const tc = await (await pdf.getPage(n)).getTextContent(), rows=new Map();
+    tc.items.forEach(t=>{ if(!t.str.trim()) return; const y=Math.round(t.transform[5]/3); (rows.get(y)||rows.set(y,[]).get(y)).push({s:t.str.trim(), x:t.transform[4]}); });
+    [...rows.entries()].sort((a,b)=>b[0]-a[0]).forEach(([,r])=>lines.push(r.sort((a,b)=>a.x-b.x).map(t=>t.s)));
+  }
+  const text = lines.map(l=>l.join(" ")).join("\n");
+  const known = new Set([...Object.keys(PRODUCTS), ...ORDERS.flatMap(o=>(o.items||[]).map(i=>i.code))]);
+  const byEan = Object.fromEntries(Object.values(PRODUCTS).filter(p=>p.ean).map(p=>[p.ean.replace(/^0+/,""), p.code]));
+  const num = s => +String(s).replace(/\./g,"").replace(",",".");
+  const out=[];
+  lines.forEach(l=>{
+    const toks = l.join(" ").split(/\s+/);
+    let k = toks.findIndex(t=>known.has(t) || byEan[t.replace(/^0+/,"")]);
+    if(k<0) return;
+    const code = known.has(toks[k]) ? toks[k] : byEan[toks[k].replace(/^0+/,"")];
+    const rest = toks.slice(k+1);
+    const nums = rest.map((t,j)=>({t,j})).filter(x=>/^\d{1,3}(\.\d{3})*(,\d+)?$|^\d+([.,]\d+)?$/.test(x.t));
+    const ints = nums.filter(x=>/^\d+([.,]0+)?$/.test(x.t) && num(x.t)>0 && num(x.t)<100000);
+    const qty = ints.length ? num(ints[0].t) : 0;
+    const firstNum = nums.length ? nums[0].j : rest.length;
+    const name = rest.slice(0, firstNum).join(" ").replace(/^[-–·\s]+/,"") || PRODUCTS[code]?.name || "";
+    out.push({code, name: name.slice(0,90), qty});
+  });
+  const pm = text.match(/pedido\s*(?:de\s+compra)?\s*(?:n[º°o.]*)?\s*[:#-]?\s*(\d{3,})/i);
+  return { lines: out, num: pm ? pm[1] : "" };
+}
+
+function openPurchaseImport(){
+  const S = { forn:"", num:"", lines:[], busy:false, err:"", file:"" };
+  const ov=document.createElement("div"); ov.className="modal";
+  const close=()=>{ ov.remove(); render(); };
+  // itens de pré-venda que ainda precisam de encomenda (quantidade que falta encomendar)
+  const pending = () => ORDERS.filter(encOpen).flatMap(o=>encItems(o).map(x=>({o, x, left: x.qtyEnc - compraQty(x) - S.lines.reduce((s,l)=>s+(l.links||[]).filter(k=>k.oid===o.id&&k.i===x.i).reduce((a,k)=>a+(+k.qty||0),0),0)})));
+  const optHTML = (code, cur) => { const all=pending();
+    const opt = p => `<option value="${p.o.id}:${p.x.i}" ${cur===p.o.id+":"+p.x.i?"selected":""}>#${esc(p.o.num)} · ${esc(p.x.code)} · ${esc(p.o.client).slice(0,28)} · ${p.x.qtyEnc} pç sob encomenda${compraQty(p.x)?` (${compraQty(p.x)} já encomendadas)`:""}</option>`;
+    const same=all.filter(p=>p.x.code===code), other=all.filter(p=>p.x.code!==code);
+    return `<option value="">Escolher pré-venda…</option>${same.length?`<optgroup label="Mesmo código">${same.map(opt).join("")}</optgroup>`:""}${other.length?`<optgroup label="Outros itens">${other.map(opt).join("")}</optgroup>`:""}`; };
+  const draw=()=>{
+    ov.innerHTML=`<div class="mbox xwide" role="dialog" aria-modal="true" aria-label="Importar pedido do fornecedor"><h2>Importar pedido do fornecedor</h2>
+      <p>Envie o PDF do pedido feito ao fornecedor. Depois, em cada item, escolha a pré-venda a que ele pertence. Um item pode atender mais de uma pré-venda.</p>
+      <div class="hnpdf"><label class="mini tup">${S.busy?"Lendo PDF…":S.file?"Trocar PDF":"Escolher PDF do fornecedor"}<input type="file" id="ppPdf" accept="application/pdf,.pdf" hidden></label><span class="muted-s">${S.file?esc(S.file)+" · "+S.lines.length+" itens encontrados":"ou adicione os itens à mão"}</span></div>
+      <div class="hnf"><label><span>Fornecedor</span><input class="tinput" id="ppForn" value="${esc(S.forn)}" placeholder="Nome do fornecedor"></label><label><span>Nº do pedido</span><input class="tinput" id="ppNum" value="${esc(S.num)}"></label></div>
+      <div class="pplines">${S.lines.map((l,j)=>`<div class="ppline">
+        <div class="pptop"><input class="tinput mono" data-pf="code" data-j="${j}" value="${esc(l.code)}" placeholder="Código" aria-label="Código"><input class="tinput" data-pf="name" data-j="${j}" value="${esc(l.name)}" placeholder="Descrição" aria-label="Descrição"><input class="tinput r" data-pf="qty" data-j="${j}" type="number" min="0" value="${l.qty||""}" placeholder="Qtd" aria-label="Quantidade"><button class="icbtn del" data-pdel="${j}" title="Remover item" aria-label="Remover item">${ICON_TRASH}</button></div>
+        ${(l.links||[]).map((k,m)=>`<div class="pplink"><span>→</span><select class="tinput" data-lk="${j}:${m}">${optHTML(l.code, k.oid?k.oid+":"+k.i:"")}</select><input class="tinput r" type="number" min="1" data-lq="${j}:${m}" value="${k.qty||""}" placeholder="pç" aria-label="Peças para esta pré-venda"><button class="lnk" data-lrm="${j}:${m}">tirar</button></div>`).join("")}
+        <button class="lnk" data-ladd="${j}">+ vincular ${l.links?.length?"outra ":""}pré-venda</button>
+        ${(()=>{ const used=(l.links||[]).reduce((s,k)=>s+(+k.qty||0),0); return l.qty && used>l.qty ? `<div class="merr">Vínculos somam ${used} pç, mais que as ${l.qty} pç do pedido.</div>` : l.qty && used && used<l.qty ? `<small class="muted-s">${l.qty-used} pç sem pré-venda (estoque)</small>` : ""; })()}
+      </div>`).join("") || `<div class="empty" style="margin:8px 0">Nenhum item ainda.</div>`}</div>
+      <button class="mini" id="ppAdd">+ Adicionar item à mão</button>
+      <div class="merr">${esc(S.err)}</div>
+      <div class="mact"><button class="btn ghost" id="mNo">Cancelar</button><button class="btn primary" id="mOk">Salvar pedido do fornecedor</button></div></div>`;
+    const g=id=>ov.querySelector("#"+id);
+    g("ppForn").oninput=e=>S.forn=e.target.value; g("ppNum").oninput=e=>S.num=e.target.value;
+    g("ppPdf").onchange=async e=>{ const f=e.target.files[0]; if(!f) return; S.busy=true; S.err=""; draw();
+      try{ const r=await readSupplierPdf(f); S.file=f.name; S.lines=r.lines.map(l=>({...l, links:[]})); S.num=S.num||r.num; if(!r.lines.length) S.err="Não encontrei códigos de produto conhecidos neste PDF. Adicione os itens à mão."; }
+      catch(x){ S.err="Não foi possível ler este PDF."; }
+      S.busy=false; draw(); };
+    ov.querySelectorAll("[data-pf]").forEach(inp=>inp.onchange=()=>{ const l=S.lines[+inp.dataset.j], f=inp.dataset.pf; l[f]= f==="qty" ? Math.max(0,+inp.value||0) : inp.value.trim(); if(f!=="name") draw(); });
+    ov.querySelectorAll("[data-pdel]").forEach(b=>b.onclick=()=>{ S.lines.splice(+b.dataset.pdel,1); draw(); });
+    ov.querySelectorAll("[data-ladd]").forEach(b=>b.onclick=()=>{ const l=S.lines[+b.dataset.ladd]; (l.links||=[]);
+      l.links.push({oid:"", i:-1, qty:""}); draw(); });
+    ov.querySelectorAll("[data-lk]").forEach(s=>s.onchange=()=>{ const [j,m]=s.dataset.lk.split(":").map(Number), k=S.lines[j].links[m], [oid,i]=s.value.split(":"); k.oid=oid||""; k.i=oid?+i:-1;
+      if(oid){ const p=pending().find(p=>p.o.id===oid&&p.x.i===+i), used=S.lines[j].links.reduce((a,q,n)=>n===m?a:a+(+q.qty||0),0), room=S.lines[j].qty ? S.lines[j].qty-used : Infinity;
+        k.qty = p ? Math.max(1, Math.min(p.left + (+k.qty||0), room)) : 1; } draw(); });
+    ov.querySelectorAll("[data-lq]").forEach(s=>s.onchange=()=>{ const [j,m]=s.dataset.lq.split(":").map(Number); S.lines[j].links[m].qty=Math.max(0,+s.value||0); draw(); });
+    ov.querySelectorAll("[data-lrm]").forEach(b=>b.onclick=()=>{ const [j,m]=b.dataset.lrm.split(":").map(Number); S.lines[j].links.splice(m,1); draw(); });
+    g("ppAdd").onclick=()=>{ S.lines.push({code:"", name:"", qty:0, links:[]}); draw(); };
+    g("mNo").onclick=close;
+    g("mOk").onclick=()=>{
+      const lines=S.lines.filter(l=>l.code||l.name).map(l=>({code:l.code, name:l.name, qty:+l.qty||0, links:(l.links||[]).filter(k=>k.oid&&k.i>=0&&+k.qty>0).map(k=>({oid:k.oid, i:k.i, qty:+k.qty}))}));
+      if(!S.forn.trim()){ S.err="Informe o fornecedor."; return draw(); }
+      if(!lines.length){ S.err="Adicione pelo menos um item."; return draw(); }
+      const over=lines.find(l=>l.qty && l.links.reduce((s,k)=>s+k.qty,0)>l.qty); if(over){ S.err=`O item ${over.code} tem mais peças vinculadas do que no pedido.`; return draw(); }
+      const id="PC-"+Date.now().toString(36), doc={id, forn:S.forn.trim(), num:S.num.trim(), file:S.file, lines, createdAt:Date.now(), createdBy:ME.id||""};
+      PURCHASES[id]=doc; if(purchCol) queueWrite("pc-"+id, ()=>purchCol.doc(id).set(JSON.parse(JSON.stringify(doc))));
+      // grava o vínculo em cada item da pré-venda
+      const byOrder={}; lines.forEach(l=>l.links.forEach(k=>(byOrder[k.oid] ||= []).push(k)));
+      Object.entries(byOrder).forEach(([oid,ks])=>patchItems(oid, items=>ks.forEach(k=>{ const it=items[k.i]; if(!it) return; it.compra={...(it.compra||{}), links:[...((it.compra||{}).links||[]), {pid:id, qty:k.qty}]}; })));
+      const nl=lines.reduce((s,l)=>s+l.links.length,0);
+      toast(`Pedido do fornecedor salvo · ${nl} vínculo${nl===1?"":"s"} com pré-vendas`); close();
+    };
+  };
+  ov.onclick=e=>{ if(e.target===ov) close(); };
+  document.body.appendChild(ov); scanbar.hidden=true; draw();
 }
 
 /* ================== EXPEDIÇÃO: lista ================== */
@@ -2768,18 +2987,20 @@ const PERMS = {
   coleta:"Separar pedidos (coleta no celular)",
   mesa:"Mesa de expedição e colmeias",
   estoque:"Endereços, EAN e etiquetas",
+  compras:"Encomendas aos fornecedores",
   usuarios:"Gerenciar usuários e acessos",
 };
 const ROLES = {
-  admin:     {t:"Administrador", d:"Acesso total, inclusive gestão de usuários", p:["comercial","coleta","mesa","estoque","usuarios"]},
-  supervisor:{t:"Supervisor",    d:"Todas as operações, sem gestão de usuários", p:["comercial","coleta","mesa","estoque"]},
+  admin:     {t:"Administrador", d:"Acesso total, inclusive gestão de usuários", p:["comercial","coleta","mesa","estoque","compras","usuarios"]},
+  supervisor:{t:"Supervisor",    d:"Todas as operações, sem gestão de usuários", p:["comercial","coleta","mesa","estoque","compras"]},
   comercial: {t:"Comercial",     d:"Importa pré-vendas, define o tipo de envio e registra envios", p:["comercial"]},
+  compras:   {t:"Compras",       d:"Encomenda aos fornecedores os itens vendidos sob encomenda e dá baixa na chegada", p:["compras"]},
   estoque:   {t:"Estoque",       d:"Cadastra endereços e EANs e imprime etiquetas", p:["estoque"]},
   separador: {t:"Separador",     d:"Faz a coleta dos pedidos no celular", p:["coleta"]},
   painel:    {t:"Painel TV",     d:"Só exibe o painel da fila de separação na TV", p:[]},
   conferente:{t:"Conferente",    d:"Recebe as bandejas na mesa de expedição e guarda nas colmeias", p:["mesa"]},
 };
-const SECTOR_PERM = { comercial:["comercial"], expedicao:["coleta","mesa"], estoque:["estoque"], usuarios:["usuarios"] };
+const SECTOR_PERM = { comercial:["comercial"], expedicao:["coleta","mesa"], compras:["compras"], estoque:["estoque"], usuarios:["usuarios"] };
 let USERS = {}, usersCol = null, userCap = null, ME = {id:null, name:"", isOwner:false, avatarUrl:""}, authReady = !window.claude?.use;
 
 function myRole(){
@@ -2803,7 +3024,7 @@ const urgText = o => o.naLoja ? "URGENTE · CLIENTE NA LOJA" : "URGENTE · RETIR
 const urgBar = (o, st="") => urgKind(o) ? `<div class="retirabar ${o.naLoja?"":"rb-green"}"${st?` style="${st}"`:""}>${urgText(o)}</div>` : "";
 const byUrg = (a,b) => (urgRank(b) - urgRank(a)) || (a.createdAt||0)-(b.createdAt||0);
 const ecoOk = o => isEco(o) ? canEco() : canCons();
-function allowedSectors(){ return ["comercial","expedicao","estoque","usuarios"].filter(canSector); }
+function allowedSectors(){ return ["comercial","expedicao","compras","estoque","usuarios"].filter(canSector); }
 
 // Nomes e fotos: guardamos só o id; o nome é resolvido na hora de mostrar
 async function fillNames(root){
@@ -3147,7 +3368,7 @@ function rerender(){
   }
   if(state.view==="pick" && state.phase==="qty") return; // não interrompe a contagem
   const ae=document.activeElement;
-  if((state.sector==="estoque"||state.sector==="usuarios") && ae && /INPUT|SELECT/.test(ae.tagName) && app.contains(ae)){ pendingRender=true; return; } // não apaga o que está sendo digitado
+  if((state.sector==="estoque"||state.sector==="usuarios"||state.sector==="compras") && ae && /INPUT|SELECT/.test(ae.tagName) && app.contains(ae)){ pendingRender=true; return; } // não apaga o que está sendo digitado
   render();
 }
 app.addEventListener("focusout", ()=>{ if(pendingRender) setTimeout(()=>{ const ae=document.activeElement; if(pendingRender && !(ae && /INPUT|SELECT/.test(ae.tagName) && app.contains(ae))){ pendingRender=false; render(); } }, 250); });
@@ -3172,6 +3393,7 @@ function render(){
   if(state.view==="labels") return renderLabels();
   if(state.sector==="comercial") return renderComercial();
   if(state.sector==="estoque") return renderEstoque();
+  if(state.sector==="compras") return renderCompras();
   if(state.sector==="usuarios") return renderUsuarios();
   if(state.view==="tray") return renderTray();
   if(state.view==="mesa") return renderMesa();
@@ -3202,6 +3424,8 @@ render();
   blockCol.onSnapshot(snap=>{ BLOCKS = Object.fromEntries(snap.docs.map(d=>[d.id, JSON.parse(JSON.stringify(d.data()))])); rerender(); }, e=>{ blockCol=null; });
   prodCol = db.collection("products");
   prodCol.onSnapshot(snap=>{ PRODUCTS = Object.fromEntries(snap.docs.map(d=>[d.id, JSON.parse(JSON.stringify(d.data()))])); rerender(); }, e=>{ prodCol=null; });
+  purchCol = db.collection("purchases");
+  purchCol.onSnapshot(snap=>{ PURCHASES = Object.fromEntries(snap.docs.map(d=>[d.id, JSON.parse(JSON.stringify(d.data()))])); if(state.sector==="compras") rerender(); }, e=>{ purchCol=null; });
   col = db.collection("orders");
   col.onSnapshot(snap=>{
     const allOrders = snap.docs.map(d=>normalize(JSON.parse(JSON.stringify(d.data()))));

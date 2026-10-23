@@ -6,7 +6,7 @@
    Nada aqui fala com o Supabase nem com a Magazord.
    ===================================================================== */
 (function(){
-  const KEY = "ps-test-db-v1", UKEY = "ps-test-user";
+  const KEY = "ps-test-db-v2", UKEY = "ps-test-user";
   const mem = {};
   const ls = {
     get(k){ try{ return localStorage.getItem(k); }catch(e){ return mem[k] ?? null; } },
@@ -22,6 +22,7 @@
     "u-sep":    { name:"Separador Teste",  role:"separador", active:true, ecommerce:true,  consultiva:true,  login:"separador" },
     "u-sep2":   { name:"Separador Consultiva", role:"separador", active:true, ecommerce:false, consultiva:true, login:"separador2" },
     "u-com":    { name:"Comercial Teste",  role:"comercial", active:true, ecommerce:false, consultiva:true,  login:"comercial" },
+    "u-cp":     { name:"Compras Teste",    role:"compras",   active:true, ecommerce:false, consultiva:false, login:"compras" },
     "u-est":    { name:"Estoque Teste",    role:"estoque",   active:true, ecommerce:false, consultiva:false, login:"estoque" },
     "u-tv":     { name:"Painel TV",        role:"painel",    active:true, ecommerce:false, consultiva:false, login:"tv" }
   };
@@ -44,6 +45,8 @@
       {...base, id:"PV-90004", num:"90004", client:"ARQUITETURA LIMA (EXEMPLO)", clientCode:"104", obs:"DAYTONA EXPRESS - DE 2 À 3 DIAS ÚTEIS", mode:"parcial", status:"aguardando", canal:"consultiva", transportadora:"Daytona Express", createdAt:now-60*M, items:[it("13088",10,4), it("12045",5)]},
       {...base, id:"PV-90005", num:"90005", client:"CASA & CIA (EXEMPLO)", clientCode:"105", obs:"ENVIO DISK TENHA", mode:"aguarda", status:"na_colmeia", canal:"consultiva", transportadora:"Disk Tenha", colmeia:"CM-A1", createdAt:now-26*60*M, startedAt:now-25*60*M, pickedAt:now-25*60*M+6*M, storedAt:now-25*60*M+9*M, items:[it("16120",2), it("17333",6,6)], res:[{status:"ok",got:2},{status:"ok",got:0}]},
       {...base, id:"PV-90006", num:"90006", client:"MARMORARIA ROCHA (EXEMPLO)", clientCode:"106", obs:"AZUL CARGO - DE 10 À 11 DIAS ÚTEIS", mode:"total", status:"pronto_envio", canal:"consultiva", transportadora:"Azul Cargo", createdAt:now-180*M, startedAt:now-170*M, pickedAt:now-160*M, atMesaAt:now-160*M, items:[it("14410",3)], res:[{status:"ok",got:3}]},
+      {...base, id:"PV-90007", num:"90007", client:"DECORA INTERIORES (EXEMPLO)", clientCode:"107", obs:"JADLOG - 3 A 5 DIAS ÚTEIS", mode:"aguarda", status:"na_colmeia", canal:"consultiva", transportadora:"Jadlog", colmeia:"CM-B1", createdAt:now-3*24*60*M, items:[it("15002",4,4), it("16120",10,10)]},
+      {...base, id:"PV-90008", num:"90008", client:"MARCENARIA OLIVEIRA (EXEMPLO)", clientCode:"108", obs:"AZUL CARGO - DE 5 À 6 DIAS ÚTEIS", mode:"parcial", status:"pronto_envio", canal:"consultiva", transportadora:"Azul Cargo", createdAt:now-2*24*60*M, startedAt:now-2*24*60*M+20*M, pickedAt:now-2*24*60*M+30*M, atMesaAt:now-2*24*60*M+30*M, items:[it("13088",8), it("17333",12,12)], res:[{status:"ok",got:8},{status:"ok",got:0}]},
       {id:"MZ-50001", num:"0012610900001", client:"Fernanda Alves (exemplo)", canal:"ecommerce", origem:"Mercado Livre", transportadora:"Mercado Livre Coletas", mode:"total", status:"aguardando", v2:true, remessa:1, createdAt:now-30*M, items:[it("13088",1)]},
       {id:"MZ-50002", num:"0012610900002", client:"Ricardo Gomes (exemplo)", canal:"ecommerce", origem:"Mercado Livre", transportadora:"Mercado Livre Coletas", mode:"total", status:"aguardando", v2:true, remessa:1, createdAt:now-22*M, items:[it("12045",2)]},
       {id:"MZ-50003", num:"0012610900003", client:"Juliana Costa (exemplo)", canal:"ecommerce", origem:"Site", transportadora:"Correios", mode:"total", status:"aguardando", v2:true, remessa:1, createdAt:now-15*M, items:[it("17333",1), it("16120",1)]},
