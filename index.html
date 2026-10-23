@@ -272,6 +272,10 @@ details.cpcard summary{display:flex;justify-content:space-between;align-items:ce
 .ppsku{display:grid;grid-template-columns:auto 190px minmax(0,1fr);gap:8px;align-items:center;width:100%;font-size:12px;color:var(--muted);font-weight:600}
 .ppsku .ok-s{color:var(--ok);font-weight:600}.ppnew{display:flex;gap:6px;align-items:center;min-width:0}.ppnew small{color:var(--accent-ink);white-space:nowrap}.ppnew .tinput{flex:1;min-width:0}
 @media (max-width:600px){.ppsku{grid-template-columns:auto 1fr}.ppsku>small,.ppsku>.ppnew{grid-column:1/-1}}
+.pvadd{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.pvbox{flex:1;border:1px dashed var(--accent);background:var(--accent-soft);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.pvact .btn{flex:none;width:auto;height:42px;padding:0 18px;font-size:15px}
+.pvbox .cptab{background:var(--surface);border-radius:8px}.pvtop{display:flex;justify-content:space-between;align-items:center}.pvact{display:flex;justify-content:flex-end}
 .ppfilter{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}.ppfilter .tinput{flex:1;min-width:180px}.ppfilter label{font-size:13px;display:flex;gap:6px;align-items:center}
 .ppline.on{border-color:var(--accent);background:var(--accent-soft)}
 .pplines{display:flex;flex-direction:column;gap:8px;margin:12px 0 8px}
@@ -1636,7 +1640,39 @@ function openPurchaseImport(){
   const ov=document.createElement("div"); ov.className="modal";
   const close=()=>{ ov.remove(); render(); };
   // itens de pré-venda sob encomenda, com quanto ainda falta encomendar
-  const pending = () => ORDERS.filter(encOpen).flatMap(o=>encItems(o).map(x=>({o, x, left: x.qtyEnc - compraQty(x) - S.lines.reduce((s,l)=>s+(l.links||[]).filter(k=>k.oid===o.id&&k.i===x.i).reduce((a,k)=>a+(+k.qty||0),0),0)})));
+  const pending = () => ORDERS.filter(o=>encOpen(o) || (toDecide(o) && !isEco(o) && hasEnc(o))).flatMap(o=>encItems(o).map(x=>({o, x, left: x.qtyEnc - compraQty(x) - S.lines.reduce((s,l)=>s+(l.links||[]).filter(k=>k.oid===o.id&&k.i===x.i).reduce((a,k)=>a+(+k.qty||0),0),0)})));
+  // ---- adicionar a pré-venda (mesmo PDF do comercial) para poder vincular ----
+  const pvPanelHTML = () => { const V=S.pv, p=V.p;
+    return `<div class="pvbox"><div class="pvtop"><b>Adicionar pré-venda</b><button class="lnk" id="pvClose">fechar</button></div>
+      <div class="hnpdf"><label class="mini tup">${V.busy?"Lendo PDF…":p?"Trocar PDF":"Escolher PDF da pré-venda"}<input type="file" id="pvPdf" accept="application/pdf,.pdf" hidden></label>${p?`<span class="muted-s">Pré-venda <b>${esc(p.num)}</b> · ${esc(p.client)} · ${p.items.length} itens</span>`:`<span class="muted-s">o mesmo PDF que o comercial importa</span>`}</div>
+      ${p ? `<div class="cptwrap"><table class="cptab"><thead><tr><th>Código</th><th>Item</th><th class="r">Qtd</th><th class="r">Encomendar</th></tr></thead><tbody>${p.items.map((it,i)=>`<tr><td class="mono">${esc(it.code)}</td><td>${esc(it.name)}</td><td class="r tnum">${it.qty}</td><td class="r"><input class="tinput r" type="number" min="0" max="${it.qty}" data-pve="${i}" value="${V.enc[i]??it.qty}" style="width:80px"></td></tr>`).join("")}</tbody></table></div>
+        <small class="muted-s">${(()=>{ const e=p.items.reduce((s,it,i)=>s+Math.min(it.qty,+(V.enc[i]??it.qty)||0),0), t=p.items.reduce((s,it)=>s+it.qty,0); return !e ? "Nada marcado para encomendar." : e===t ? "Encomenda total: não passa pela separação nem usa colmeia." : "Encomenda parcial: as peças da loja vão para a separação e ficam numa colmeia."; })()}</small>
+        <div class="pvact"><button class="btn primary cpbtn" id="pvSave">Adicionar pré-venda ${esc(p.num)}</button></div>` : ""}
+      ${V.err?`<div class="merr">${esc(V.err)}</div>`:""}</div>`; };
+  const bindPv = () => { const g=id=>ov.querySelector("#"+id);
+    const op=g("pvOpen"); if(op) op.onclick=()=>{ S.pv={p:null, enc:{}, busy:false, err:""}; draw(); };
+    const cl=g("pvClose"); if(cl) cl.onclick=()=>{ S.pv=null; draw(); };
+    const f=g("pvPdf"); if(f) f.onchange=async e=>{ const file=e.target.files[0]; if(!file) return; S.pv.busy=true; S.pv.err=""; draw();
+      try{ const p=await readPresalePdf(file); const ex=ORDERS.find(o=>o.id==="PV-"+p.num && !["enviado","excluido"].includes(o.status));
+        if(ex){ S.pv.p=null; S.pv.err=`A pré-venda ${p.num} já está no sistema (${statusInfo(ex).t}). ${hasEnc(ex)?"Ela já aparece na lista para vincular.":"Ela não tem itens sob encomenda."}`; }
+        else { S.pv.p=p; S.pv.enc={}; } }
+      catch(x){ S.pv.p=null; S.pv.err="Não reconheci este PDF como uma pré-venda ou orçamento."; }
+      S.pv.busy=false; draw(); };
+    ov.querySelectorAll("[data-pve]").forEach(i=>i.onchange=()=>{ S.pv.enc[+i.dataset.pve]=Math.max(0,Math.min(S.pv.p.items[+i.dataset.pve].qty,+i.value||0)); setTimeout(draw); });
+    const sv=g("pvSave"); if(sv) sv.onclick=()=>{ const p=S.pv.p, now=Date.now();
+      const items=p.items.map((it,i)=>{ const e=Math.min(it.qty, +(S.pv.enc[i]??it.qty)||0); return {code:it.code, name:it.name, ean:it.ean||PRODUCTS[it.code]?.ean||"", un:it.un, qty:it.qty, price:it.price, loc:"", qtyEnc:e, eta: e ? (S.prev||"") : ""}; });
+      const enc=items.some(it=>it.qtyEnc>0), pick=items.some(it=>it.qty-it.qtyEnc>0);
+      if(!enc){ S.pv.err="Marque pelo menos um item para encomendar."; return draw(); }
+      const mode = pick ? "aguarda" : "encomenda", slot = pick ? freeSlot() : null;
+      if(pick && !slot){ S.pv.err="Todas as colmeias estão ocupadas. Libere uma colmeia ou marque tudo para encomendar."; return draw(); }
+      items.forEach(it=>{ if(!PRODUCTS[it.code]) saveProduct({code:it.code, name:it.name, ean:it.ean, loc:""}); });
+      const o={ id:"PV-"+p.num, num:p.num, date:p.date, time:p.time, clientCode:p.clientCode, client:p.client, city:p.city, seller:p.seller, obs:p.obs, total:p.total,
+        mode, modeCom:mode, v2:true, items, remessa:1, status: pick ? "aguardando" : "encomenda", createdAt:now, createdBy:ME.id||"", decidedAt:now, decidedBy:ME.id||"",
+        canal:"consultiva", fromCompras:true, transportadora: carrierFromObs(p.obs)||"", ...(pick?{colmeia:slot, queuedAt:now}:{}) };
+      saveOrder(o);
+      toast(pick ? `Pré-venda ${p.num} adicionada · peças da loja vão para a separação (colmeia ${slot.slice(3)})` : `Pré-venda ${p.num} adicionada como encomenda total`);
+      S.pv=null; draw(); };
+  };
   const optHTML = (l, cur) => { const all=pending().map(p=>({...p, sc: (l.sku && p.x.code===l.sku ? 100 : 0) + simScore(l.name+" "+l.code, p.x.name+" "+p.x.code)}));
     const opt = p => `<option value="${p.o.id}:${p.x.i}" ${cur===p.o.id+":"+p.x.i?"selected":""}>#${esc(p.o.num)} · ${esc(p.x.code)} ${esc(p.x.name).slice(0,34)} · ${p.x.qtyEnc} pç${compraQty(p.x)?` (${compraQty(p.x)} já encomendadas)`:""} · ${esc(p.o.client).slice(0,20)}</option>`;
     const best=all.filter(p=>p.sc>0).sort((a,b)=>b.sc-a.sc), rest=all.filter(p=>!(p.sc>0)).sort((a,b)=>(a.o.createdAt||0)-(b.o.createdAt||0));
@@ -1649,6 +1685,7 @@ function openPurchaseImport(){
       <div class="hnpdf"><label class="mini tup">${S.busy?"Lendo PDF…":S.file?"Trocar PDF":"Escolher PDF do fornecedor"}<input type="file" id="ppPdf" accept="application/pdf,.pdf" hidden></label><span class="muted-s">${S.file?esc(S.file)+" · "+S.lines.length+" itens lidos · "+nLinked+" com pré-venda":"ou adicione os itens à mão"}</span></div>
       <div class="hnf ppf"><label><span>Fornecedor</span><input class="tinput" id="ppForn" value="${esc(S.forn)}" placeholder="Nome do fornecedor"></label><label><span>Previsão de chegada *</span><input class="tinput" type="date" id="ppPrev" value="${esc(S.prev)}" required></label><label><span>Nº do pedido</span><input class="tinput" id="ppNum" value="${esc(S.num)}" placeholder="${S.lines.some(l=>l.ped)?"Vários · cada item tem o seu":""}"></label></div>
       ${S.lines.length>6?`<div class="ppfilter"><input class="tinput" id="ppQ" placeholder="Filtrar itens por código ou descrição" value="${esc(S.q)}"><label><input type="checkbox" id="ppOnly" ${S.onlyLinked?"checked":""}> só com pré-venda</label></div>`:""}
+      <div class="pvadd">${S.pv ? pvPanelHTML() : `<span class="muted-s">A pré-venda não aparece na lista para vincular?</span><button class="mini" id="pvOpen">+ Adicionar pré-venda (PDF)</button>`}</div>
       <div class="pplines">${vis.map(({l,j})=>`<div class="ppline ${(l.links||[]).some(k=>k.oid)?"on":""}">
         <div class="pptop"><input class="tinput mono" data-pf="code" data-j="${j}" value="${esc(l.code)}" placeholder="Código" aria-label="Código do fornecedor"><input class="tinput" data-pf="name" data-j="${j}" value="${esc(l.name)}" placeholder="Descrição" aria-label="Descrição"><input class="tinput r" data-pf="qty" data-j="${j}" type="number" min="0" value="${l.qty||""}" placeholder="Qtd" aria-label="Quantidade"><button class="icbtn del" data-pdel="${j}" title="Remover item" aria-label="Remover item">${ICON_TRASH}</button></div>
         ${l.ped||l.entrega?`<small class="muted-s">${l.ped?"Pedido "+esc(l.ped):""}${l.ped&&l.entrega?" · ":""}${l.entrega?"entrega "+esc(fmtBR(l.entrega)):""}</small>`:""}
@@ -1709,6 +1746,7 @@ function openPurchaseImport(){
         k.qty = p ? Math.max(1, Math.min(p.left + (+k.qty||0), room)) : 1; } draw(); });
     ov.querySelectorAll("[data-lq]").forEach(s=>s.onchange=()=>{ const [j,m]=s.dataset.lq.split(":").map(Number); S.lines[j].links[m].qty=Math.max(0,+s.value||0); setTimeout(draw); });
     ov.querySelectorAll("[data-lrm]").forEach(b=>b.onclick=()=>{ const [j,m]=b.dataset.lrm.split(":").map(Number); S.lines[j].links.splice(m,1); draw(); });
+    bindPv();
     g("ppAdd").onclick=()=>{ S.lines.push({code:"", name:"", qty:0, ped:"", entrega:"", links:[]}); S.q=""; S.onlyLinked=false; draw(); };
     g("mNo").onclick=close;
     g("mOk").onclick=()=>{
