@@ -1028,7 +1028,7 @@ if(location.hash==="#tv") state.view="tv";
 const usFromHash = () => { const m=location.hash.match(/^#devolver-(.+)$/); if(m){ state.usPending=decodeURIComponent(m[1]); state.sector="compras"; } };
 usFromHash(); window.addEventListener("hashchange", ()=>{ usFromHash(); if(state.usPending) render(); });
 window.addEventListener("hashchange", ()=>{ if(location.hash==="#tv"){ state.view="tv"; render(); } else if(state.view==="tv"){ state.view="orders"; render(); } });
-function initialSector(){ const h=location.hash.slice(1); if(["comercial","expedicao","compras","recebimento","estoque","usuarios"].includes(h)) return h; return innerWidth>=900 ? "comercial" : "expedicao"; }
+function initialSector(){ const h=location.hash.slice(1); if(["comercial","expedicao","colmeias","compras","recebimento","estoque","usuarios"].includes(h)) return h; return innerWidth>=900 ? "comercial" : "expedicao"; }
 state.sector = initialSector();
 
 function pickList(o){
@@ -1041,12 +1041,12 @@ function res(o){ if(!o.res || o.res.length!==o.items.length) o.res = o.items.map
 
 /* ================== Navegação ================== */
 function topnav(){
-  const names = {comercial:"Comercial", expedicao:"Separação", compras:"Compras", recebimento:"Recebimento", estoque:"Locais", usuarios:"Usuários"};
+  const names = {comercial:"Comercial", expedicao:"Separação", colmeias:"Colmeias", compras:"Compras", recebimento:"Recebimento", estoque:"Locais", usuarios:"Usuários"};
   return `<nav class="topnav" aria-label="Setores">
     <div class="brand">Picking <span>Serena</span></div>
     <div class="navright"><div class="sync ${synced?"":"local"}" title="${synced?"Dados sincronizados entre os setores":"Sem sincronização: os dados ficam só nesta tela"}"><i></i>${synced?"Sincronizado":"Modo local"}</div>${themeBtnHTML()}${bellHTML()}</div>
     <div class="seg mainnav" role="group">${allowedSectors().flatMap(k=> k==="expedicao"
-      ? [["fila","Separação"],["historico","Separados"],["colmeias","Encomendas"]].map(([t,n])=>`<button data-sec="expedicao" data-tab="${t}" aria-pressed="${state.sector==="expedicao" && (state.sepTab||"fila")===t}">${n}</button>`)
+      ? [["fila","Separação"],["historico","Separados"]].map(([t,n])=>`<button data-sec="expedicao" data-tab="${t}" aria-pressed="${state.sector==="expedicao" && (state.sepTab||"fila")===t}">${n}</button>`)
       : [`<button data-sec="${k}" aria-pressed="${state.sector===k}">${names[k]}</button>`]).join("")}</div>
     ${userChip()}
   </nav>${state.viewAs?`<div class="viewas"><span>Simulando o nível ${ROLES[state.viewAs].t}. Os dados são reais.</span><button class="mini" id="exitViewAs">Voltar ao meu acesso</button></div>`:""}`;
@@ -2141,14 +2141,14 @@ const inHistory = o => !!o.pickedAt && !isSeparated(o) && !inHive(o) && !["aguar
 function sepTab(o){ return isSeparated(o) ? "fila" : inHive(o) ? "colmeias" : inHistory(o) ? "historico" : "fila"; }
 
 function renderOrders(){
-  const tab = state.sepTab || "fila", eco = canEco(), cons = canCons();
+  const tab = state.sector==="colmeias" ? "colmeias" : (state.sepTab || "fila"), eco = canEco(), cons = canCons();
   const VIS = ORDERS.filter(ecoOk);
   const canal = eco && cons ? (state.canal || "consultiva") : eco ? "ecommerce" : "consultiva";
   const allQ = VIS.filter(o=>(o.status==="aguardando"||o.status==="separando") && pickList(o).length).sort(byUrg);
   const qCons = allQ.filter(o=>!isEco(o)), qEco = allQ.filter(isEco);
   const queue = canal==="ecommerce" ? qEco : qCons;
   const parked = VIS.filter(isSeparated).sort((a,b)=>(a.pickedAt||0)-(b.pickedAt||0));
-  const hive = VIS.filter(o=>inHive(o) || (usesHive(o) && o.status==="pronto_envio")).sort((a,b)=>(a.colmeia||"").localeCompare(b.colmeia||""));
+  const hive = ORDERS.filter(o=>inHive(o) || (usesHive(o) && o.status==="pronto_envio")).sort((a,b)=>(a.colmeia||"").localeCompare(b.colmeia||""));
   const hist = [...VIS.filter(inHistory), ...DELETED.filter(ecoOk)].sort((a,b)=>(b.deletedAt||b.pickedAt||0)-(a.deletedAt||a.pickedAt||0));
   const units = queue.reduce((s,o)=>s+pickList(o).reduce((a,x)=>a+x.need,0),0);
   const tabs = [["fila","Separação",queue.length+parked.length],["colmeias","Colmeias · encomenda",hive.length],["historico","Histórico",hist.length]];
@@ -2193,7 +2193,7 @@ function renderOrders(){
         const eta=enc.map(i=>i.eta).filter(Boolean).sort()[0];
         return `<div class="li sep hvli" style="cursor:default"><span class="lc tnum">${esc((o.colmeia||"—").replace(/^CM-/,""))}</span><span class="ln">#${esc(o.num)} · ${esc(o.client)}<small>${o.status==="pronto_envio" ? `<b class="ok-t">${o.mode==="aguarda"||o.fase2?"Encomenda chegou · pronto":"Pronto"} para ${o.retira?"o cliente retirar":"enviar"}</b>${transpOf(o)&&!o.retira?" · "+esc(transpOf(o)):""}` : o.hiveManual?`Cadastrada na colmeia${o.obs?" · "+esc(o.obs):""}`:`${enc.reduce((s,i)=>s+i.qtyEnc,0)} pç sob encomenda${eta?" · chega "+fmtDate(eta):""}`}</small></span>
           ${o.status==="na_mesa" && (can("mesa")||can("coleta")) ? `<button class="mini" data-hive="${esc(o.id)}">Guardar</button>`
-          : o.status==="pronto_envio" && (can("mesa")||can("coleta")||can("comercial")) ? `<span class="hvact"><button class="mini" data-hsai="${esc(o.id)}:retirou">Cliente retirou</button><button class="mini" data-hsai="${esc(o.id)}:enviado">Enviado</button></span>`
+          : o.status==="pronto_envio" && (can("mesa")||can("coleta")||can("comercial")||can("estoque")) ? `<span class="hvact"><button class="mini" data-hsai="${esc(o.id)}:retirou">Cliente retirou</button><button class="mini" data-hsai="${esc(o.id)}:enviado">Enviado</button></span>`
           : `<span class="chip enc">${o.status==="pronto_envio"?"Pronto":"Aguardando encomenda"}</span>`}</div>`; }).join("")}</div>` : `<div class="empty">Nenhum pedido nas colmeias.</div>`}
     </div>`;
   } else {
@@ -2208,8 +2208,8 @@ function renderOrders(){
     </div>`;
   }
   app.innerHTML = topnav() + `
-    <header class="bar"><div class="grow"><h1>${tab==="fila"?"Pedidos para separar":tab==="colmeias"?"Encomendas":"Pedidos separados"}</h1><div class="sub">CD Porto Belo${can("coleta")?"":" · somente consulta"}</div></div>
-      <a class="refbtn tvlink" href="/#tv" target="_blank" rel="noopener" title="Abrir o painel da fila para a TV"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="13" rx="2"/><path d="M8 21h8"/></svg><span>Painel TV</span></a>
+    <header class="bar"><div class="grow"><h1>${tab==="fila"?"Pedidos para separar":tab==="colmeias"?"Colmeias":"Pedidos separados"}</h1><div class="sub">CD Porto Belo${tab==="colmeias"?" · encomendas e pedidos aguardando retirada":can("coleta")?"":" · somente consulta"}</div></div>
+      ${tab==="colmeias"?"":`<a class="refbtn tvlink" href="/#tv" target="_blank" rel="noopener" title="Abrir o painel da fila para a TV"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="13" rx="2"/><path d="M8 21h8"/></svg><span>Painel TV</span></a>`}
       <button class="refbtn" id="refreshQ" aria-label="Atualizar a fila" title="Atualizar a fila">${ICON_RESTART}<span>Atualizar</span></button></header>
     ${!synced ? `<div class="banner">Sem conexão com o banco de dados. Verifique a internet ou a configuração do Supabase.</div>`:""}
     ${body}`;
@@ -2223,8 +2223,8 @@ function renderOrders(){
   app.querySelectorAll("[data-delord]").forEach(b=>b.onclick=()=>deleteOrder(b.dataset.delord));
   if(can("coleta")) app.querySelectorAll(".order").forEach(b=>b.onclick=()=>openOrder(b.dataset.oid));
   else app.querySelectorAll(".order").forEach(b=>{ b.style.cursor="default"; b.tabIndex=-1; });
-  app.querySelectorAll("[data-free]").forEach(b=>b.onclick=()=>{ if(!b.dataset.c){ b.dataset.c="1"; b.textContent="Confirmar liberação"; b.classList.add("danger"); return; } const o=ORDERS.find(x=>x.id===b.dataset.free); if(o){ unlinkTray(o); toast(`${spotsTxt(o)} liberada · pedido ${o.num} foi para ${inHive(o)?"Encomendas":"Separados"}`); } });
-  app.querySelectorAll("[data-hive]").forEach(b=>b.onclick=()=>{ state.oid=b.dataset.hive; state.fromMesa=false; state.view="store"; render(); scrollTo(0,0); });
+  app.querySelectorAll("[data-free]").forEach(b=>b.onclick=()=>{ if(!b.dataset.c){ b.dataset.c="1"; b.textContent="Confirmar liberação"; b.classList.add("danger"); return; } const o=ORDERS.find(x=>x.id===b.dataset.free); if(o){ unlinkTray(o); toast(`${spotsTxt(o)} liberada · pedido ${o.num} foi para ${inHive(o)?"Colmeias":"Separados"}`); } });
+  app.querySelectorAll("[data-hive]").forEach(b=>b.onclick=()=>{ state.oid=b.dataset.hive; state.fromMesa=false; state.sector="expedicao"; state.view="store"; render(); scrollTo(0,0); });
   app.querySelectorAll("[data-hsai]").forEach(b=>b.onclick=()=>{ const [id,how]=b.dataset.hsai.split(":"); if(!b.dataset.c){ b.dataset.c="1"; b.textContent=how==="enviado"?"Confirmar envio":"Confirmar retirada"; b.classList.add("danger"); return; } const o=ORDERS.find(x=>x.id===id); if(o) colmeiaSaida(o, how); });
 }
 function openOrder(id){
@@ -3635,7 +3635,7 @@ const ROLES = {
   painel:    {t:"Painel TV",     d:"Só exibe o painel da fila de separação na TV", p:[]},
   conferente:{t:"Conferente",    d:"Recebe as bandejas na mesa de expedição e guarda nas colmeias", p:["mesa"]},
 };
-const SECTOR_PERM = { comercial:["comercial"], expedicao:["coleta","mesa"], compras:["compras"], recebimento:["receber"], estoque:["estoque"], usuarios:["usuarios"] };
+const SECTOR_PERM = { comercial:["comercial"], expedicao:["coleta","mesa"], colmeias:["coleta","mesa","comercial","compras","estoque"], compras:["compras"], recebimento:["receber"], estoque:["estoque"], usuarios:["usuarios"] };
 let USERS = {}, usersCol = null, userCap = null, ME = {id:null, name:"", isOwner:false, avatarUrl:""}, authReady = !window.claude?.use;
 
 function myRole(){
@@ -3659,7 +3659,8 @@ const urgText = o => o.naLoja ? "URGENTE · CLIENTE NA LOJA" : "URGENTE · RETIR
 const urgBar = (o, st="") => urgKind(o) ? `<div class="retirabar ${o.naLoja?"":"rb-green"}"${st?` style="${st}"`:""}>${urgText(o)}</div>` : "";
 const byUrg = (a,b) => (urgRank(b) - urgRank(a)) || (a.createdAt||0)-(b.createdAt||0);
 const ecoOk = o => isEco(o) ? canEco() : canCons();
-function allowedSectors(){ return ["comercial","expedicao","compras","recebimento","estoque","usuarios"].filter(canSector); }
+// Colmeias fica ao lado de Separação; para quem não separa, vem depois do setor principal (e nunca é a tela inicial)
+function allowedSectors(){ const sep=canSector("expedicao"); return (sep ? ["comercial","expedicao","colmeias","compras","recebimento","estoque","usuarios"] : ["comercial","compras","recebimento","estoque","colmeias","usuarios"]).filter(canSector); }
 
 // Nomes e fotos: guardamos só o id; o nome é resolvido na hora de mostrar
 async function fillNames(root){
@@ -4034,7 +4035,8 @@ function render(){
   if(!myRole()){ scanbar.hidden=true; app.classList.remove("picking"); return renderNoAccess(); }
   if(state.view==="tv" || myRole()==="painel"){ scanbar.hidden=true; app.classList.remove("picking","wide"); return renderTV(); }
   app.classList.remove("tv"); document.documentElement.classList.remove("tvmode");
-  if(!canSector(state.sector)){ const al=allowedSectors(); state.sector = al.includes("expedicao") && innerWidth<900 ? "expedicao" : al[0]; state.view="orders"; }
+  if(state.sector==="expedicao" && state.sepTab==="colmeias"){ state.sector="colmeias"; state.sepTab="fila"; }
+  if(!canSector(state.sector)){ const al=allowedSectors(); state.sector = al.includes("expedicao") && innerWidth<900 ? "expedicao" : (al.find(x=>x!=="colmeias")||al[0]); state.view="orders"; }
   if(state.sector==="expedicao"){
     if(["pick","tray","done","tomesa"].includes(state.view) && !can("coleta")) state.view="orders";
     if(state.view==="store" && !can("mesa") && !can("coleta")) state.view="orders";
@@ -4047,7 +4049,7 @@ function render(){
   app.classList.toggle("picking", scanning);
   // Administrador: Separação e Separados na largura do computador
   const adminWide = myRole()==="admin" && state.sector==="expedicao" && state.view==="orders" && ["fila","historico"].includes(state.sepTab||"fila");
-  app.classList.toggle("wide", state.sector!=="expedicao" || state.view==="labels" || adminWide);
+  app.classList.toggle("wide", (state.sector!=="expedicao" && state.sector!=="colmeias") || state.view==="labels" || adminWide);
   app.classList.toggle("sepwide", adminWide);
   if(state.view==="labels") return renderLabels();
   if(state.sector==="comercial") return renderComercial();
