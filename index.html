@@ -250,6 +250,9 @@ details.cpcard summary{display:flex;justify-content:space-between;align-items:ce
 .lnk{border:0;background:none;color:var(--route);font:inherit;font-size:12px;cursor:pointer;padding:0;text-decoration:underline}
 .cplink{display:inline-block;font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:1px 6px;margin:1px 2px}
 .cpfoot{display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:10px}.cpfoot small{color:var(--muted)}
+.ppsku{display:grid;grid-template-columns:auto 150px minmax(0,1fr);gap:8px;align-items:center;width:100%;font-size:12px;color:var(--muted);font-weight:600}
+.ppsku .ok-s{color:var(--ok);font-weight:600}.ppnew{display:flex;gap:6px;align-items:center;min-width:0}.ppnew small{color:var(--accent-ink);white-space:nowrap}.ppnew .tinput{flex:1;min-width:0}
+@media (max-width:600px){.ppsku{grid-template-columns:auto 1fr}.ppsku>small,.ppsku>.ppnew{grid-column:1/-1}}
 .ppfilter{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}.ppfilter .tinput{flex:1;min-width:180px}.ppfilter label{font-size:13px;display:flex;gap:6px;align-items:center}
 .ppline.on{border-color:var(--accent);background:var(--accent-soft)}
 .pplines{display:flex;flex-direction:column;gap:8px;margin:12px 0 8px}
@@ -948,7 +951,8 @@ function saveOrder(o){
 }
 let prodCol = null;
 function saveProduct(p){
-  const clean = {code:p.code, name:p.name, ean:p.ean||"", loc:p.loc||""};
+  const fc = p.forn ?? PRODUCTS[p.code]?.forn; // códigos do produto nos fornecedores ("ZEN|ZP5854.00019")
+  const clean = {code:p.code, name:p.name, ean:p.ean||"", loc:p.loc||"", ...(fc&&fc.length?{forn:fc}:{})};
   PRODUCTS[p.code] = clean;
   if(prodCol) queueWrite("p:"+p.code, ()=>prodCol.doc(p.code).set(clean));
   rerender();
@@ -1363,7 +1367,7 @@ function renderCompras(){
     body = purch.length ? `<div class="cplist">${purch.map(p=>{ const links=p.lines.reduce((s,l)=>s+(l.links||[]).length,0);
       return `<details class="cpcard"><summary><div class="cphead"><b>${esc(p.forn||"Fornecedor")}</b>${p.num?`<span class="muted-s">Pedido ${esc(p.num)}</span>`:""}<span class="muted-s">${new Date(p.createdAt).toLocaleDateString("pt-BR")}</span></div>
         <span class="chip ${links?"enc":"bad"}">${p.lines.length} itens · ${links} vínculo${links===1?"":"s"}</span></summary>
-        <div class="cptwrap"><table class="cptab"><thead><tr><th>Código</th><th>Descrição</th><th class="r">Qtd</th><th>Pedido · entrega</th><th>Pré-vendas</th></tr></thead><tbody>${p.lines.map(l=>`<tr><td class="mono">${esc(l.code)}</td><td>${esc(l.name||"")}</td><td class="r tnum">${l.qty||""}</td><td class="tnum">${esc(l.ped||p.num||"—")}${l.entrega?" · "+esc(fmtBR(l.entrega)):""}</td>
+        <div class="cptwrap"><table class="cptab"><thead><tr><th>Código</th><th>Item Serena</th><th>Descrição</th><th class="r">Qtd</th><th>Pedido · entrega</th><th>Pré-vendas</th></tr></thead><tbody>${p.lines.map(l=>`<tr><td class="mono">${esc(l.code)}</td><td class="mono">${esc(l.sku||"—")}</td><td>${esc(l.name||"")}</td><td class="r tnum">${l.qty||""}</td><td class="tnum">${esc(l.ped||p.num||"—")}${l.entrega?" · "+esc(fmtBR(l.entrega)):""}</td>
           <td>${(l.links||[]).map(k=>{ const o=ORDERS.find(x=>x.id===k.oid); return `<span class="cplink">#${esc(o?.num||k.oid.replace(/^PV-/,""))} · ${k.qty} pç</span>`; }).join(" ")||`<span class="muted-s">estoque</span>`}</td></tr>`).join("")}</tbody></table></div></details>`; }).join("")}</div>`
       : `<div class="empty">Nenhum pedido de fornecedor importado ainda. Use <b>Importar pedido do fornecedor</b>.</div>`;
   } else {
@@ -1511,6 +1515,9 @@ async function readSupplierPdf(file){
 const simWords = t => new Set(String(t||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toUpperCase().replace(/^PUX(ADOR)?\b\.?/,"").split(/[^A-Z0-9]+/).filter(w=>w.length>=3 && !["PUX","PUXADOR","COM","MM"].includes(w)));
 const simScore = (a, b) => { const A=simWords(a), B=simWords(b); let n=0; A.forEach(w=>{ if(B.has(w)) n++; }); return n; };
 const fmtBR = d => d ? (/^\d{4}-/.test(d) ? fmtDate(d) : d) : "";
+// SKU da Serena para o código do fornecedor (aprendido nas importações anteriores)
+const fornKey = (forn, code) => (String(forn||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().match(/[A-Z0-9]+/)||[""])[0] + "|" + String(code||"").trim().toUpperCase();
+function skuFor(forn, code){ const k=fornKey(forn, code); const p=Object.values(PRODUCTS).find(p=>(p.forn||[]).includes(k)); return p ? p.code : ""; }
 
 function openPurchaseImport(){
   const S = { forn:"", num:"", lines:[], busy:false, err:"", file:"", q:"", onlyLinked:false };
@@ -1518,10 +1525,10 @@ function openPurchaseImport(){
   const close=()=>{ ov.remove(); render(); };
   // itens de pré-venda sob encomenda, com quanto ainda falta encomendar
   const pending = () => ORDERS.filter(encOpen).flatMap(o=>encItems(o).map(x=>({o, x, left: x.qtyEnc - compraQty(x) - S.lines.reduce((s,l)=>s+(l.links||[]).filter(k=>k.oid===o.id&&k.i===x.i).reduce((a,k)=>a+(+k.qty||0),0),0)})));
-  const optHTML = (l, cur) => { const all=pending().map(p=>({...p, sc: simScore(l.name+" "+l.code, p.x.name+" "+p.x.code)}));
+  const optHTML = (l, cur) => { const all=pending().map(p=>({...p, sc: (l.sku && p.x.code===l.sku ? 100 : 0) + simScore(l.name+" "+l.code, p.x.name+" "+p.x.code)}));
     const opt = p => `<option value="${p.o.id}:${p.x.i}" ${cur===p.o.id+":"+p.x.i?"selected":""}>#${esc(p.o.num)} · ${esc(p.x.code)} ${esc(p.x.name).slice(0,34)} · ${p.x.qtyEnc} pç${compraQty(p.x)?` (${compraQty(p.x)} já encomendadas)`:""} · ${esc(p.o.client).slice(0,20)}</option>`;
     const best=all.filter(p=>p.sc>0).sort((a,b)=>b.sc-a.sc), rest=all.filter(p=>!(p.sc>0)).sort((a,b)=>(a.o.createdAt||0)-(b.o.createdAt||0));
-    return `<option value="">Escolher pré-venda…</option>${best.length?`<optgroup label="Parecidos com este item">${best.map(opt).join("")}</optgroup>`:""}${rest.length?`<optgroup label="Todas as encomendas em aberto">${rest.map(opt).join("")}</optgroup>`:""}`; };
+    return `<option value="">Escolher pré-venda…</option>${best.filter(p=>p.sc>=100).length?`<optgroup label="Mesmo item (SKU ${esc(l.sku)})">${best.filter(p=>p.sc>=100).map(opt).join("")}</optgroup>`:""}${best.filter(p=>p.sc<100).length?`<optgroup label="Parecidos com este item">${best.filter(p=>p.sc<100).map(opt).join("")}</optgroup>`:""}${rest.length?`<optgroup label="Todas as encomendas em aberto">${rest.map(opt).join("")}</optgroup>`:""}`; };
   const draw=()=>{
     const q=S.q.trim().toLowerCase(), vis=S.lines.map((l,j)=>({l,j})).filter(({l})=>(!q || (l.code+" "+l.name+" "+(l.ped||"")).toLowerCase().includes(q)) && (!S.onlyLinked || (l.links||[]).length));
     const nLinked=S.lines.filter(l=>(l.links||[]).some(k=>k.oid)).length;
@@ -1533,44 +1540,58 @@ function openPurchaseImport(){
       <div class="pplines">${vis.map(({l,j})=>`<div class="ppline ${(l.links||[]).some(k=>k.oid)?"on":""}">
         <div class="pptop"><input class="tinput mono" data-pf="code" data-j="${j}" value="${esc(l.code)}" placeholder="Código" aria-label="Código do fornecedor"><input class="tinput" data-pf="name" data-j="${j}" value="${esc(l.name)}" placeholder="Descrição" aria-label="Descrição"><input class="tinput r" data-pf="qty" data-j="${j}" type="number" min="0" value="${l.qty||""}" placeholder="Qtd" aria-label="Quantidade"><button class="icbtn del" data-pdel="${j}" title="Remover item" aria-label="Remover item">${ICON_TRASH}</button></div>
         ${l.ped||l.entrega?`<small class="muted-s">${l.ped?"Pedido "+esc(l.ped):""}${l.ped&&l.entrega?" · ":""}${l.entrega?"entrega "+esc(fmtBR(l.entrega)):""}</small>`:""}
+        <div class="ppsku"><span>Item Serena</span><input class="tinput mono" list="skuList" data-sku="${j}" value="${esc(l.sku||"")}" placeholder="SKU" aria-label="SKU da Serena para este item">
+          ${!l.sku ? `<small class="muted-s">sem item relacionado</small>` : PRODUCTS[l.sku] ? `<small class="ok-s">${esc(PRODUCTS[l.sku].name)}${(PRODUCTS[l.sku].forn||[]).includes(fornKey(S.forn,l.code))?" · já relacionado":""}</small>`
+            : `<span class="ppnew"><small>Novo produto · será cadastrado</small><input class="tinput" data-skn="${j}" value="${esc(l.newName??l.name)}" placeholder="Nome do produto" aria-label="Nome do novo produto"></span>`}</div>
         ${(l.links||[]).map((k,m)=>`<div class="pplink"><span>→</span><select class="tinput" data-lk="${j}:${m}" aria-label="Pré-venda">${optHTML(l, k.oid?k.oid+":"+k.i:"")}</select><input class="tinput r" type="number" min="1" data-lq="${j}:${m}" value="${k.qty||""}" placeholder="pç" aria-label="Peças para esta pré-venda"><button class="lnk" data-lrm="${j}:${m}">tirar</button></div>`).join("")}
         <button class="lnk" data-ladd="${j}">+ vincular ${l.links?.length?"outra ":""}pré-venda</button>
         ${(()=>{ const used=(l.links||[]).reduce((s,k)=>s+(+k.qty||0),0); return l.qty && used>l.qty ? `<div class="merr">Vínculos somam ${used} pç, mais que as ${l.qty} pç do pedido.</div>` : l.qty && used && used<l.qty ? `<small class="muted-s">${l.qty-used} pç para estoque</small>` : ""; })()}
       </div>`).join("") || `<div class="empty" style="margin:8px 0">${S.lines.length?"Nenhum item com esse filtro.":"Nenhum item ainda."}</div>`}</div>
+      <datalist id="skuList">${Object.values(PRODUCTS).sort((a,b)=>a.code.localeCompare(b.code)).map(p=>`<option value="${esc(p.code)}">${esc(p.name)}</option>`).join("")}</datalist>
       <button class="mini" id="ppAdd">+ Adicionar item à mão</button>
       <div class="merr">${esc(S.err)}</div>
       <div class="mact"><button class="btn ghost" id="mNo">Cancelar</button><button class="btn primary" id="mOk">Salvar pedido do fornecedor</button></div></div>`;
     const g=id=>ov.querySelector("#"+id);
     g("ppForn").oninput=e=>S.forn=e.target.value; g("ppNum").oninput=e=>S.num=e.target.value;
+    g("ppForn").onchange=()=>setTimeout(()=>{ let n=0; S.lines.forEach(l=>{ if(!l.sku){ l.sku=skuFor(S.forn,l.code); if(l.sku) n++; } }); if(n){ toast(`${n} item(ns) reconhecido(s) pelo cadastro`); draw(); } });
+    ov.querySelectorAll("[data-sku]").forEach(inp=>inp.onchange=()=>{ const l=S.lines[+inp.dataset.sku]; l.sku=inp.value.trim().toUpperCase().split(/\s+[·-]\s+/)[0]; if(l.sku && !PRODUCTS[l.sku] && !l.newName) l.newName=l.name; setTimeout(draw); });
+    ov.querySelectorAll("[data-skn]").forEach(inp=>inp.oninput=()=>{ S.lines[+inp.dataset.skn].newName=inp.value; });
     const qi=g("ppQ"); if(qi) qi.oninput=()=>{ S.q=qi.value; clearTimeout(qi._t); qi._t=setTimeout(()=>{ draw(); const n=g("ppQ"); n.focus(); n.setSelectionRange(n.value.length,n.value.length); },250); };
     const oc=g("ppOnly"); if(oc) oc.onchange=()=>{ S.onlyLinked=oc.checked; draw(); };
     g("ppPdf").onchange=async e=>{ const f=e.target.files[0]; if(!f) return; S.busy=true; S.err=""; draw();
-      try{ const r=await readSupplierPdf(f); S.file=f.name; S.lines=r.lines.map(l=>({...l, links:[]})); S.num=S.num||r.num; S.forn=S.forn||r.forn;
+      try{ const r=await readSupplierPdf(f); S.file=f.name; S.num=S.num||r.num; S.forn=S.forn||r.forn; S.lines=r.lines.map(l=>({...l, sku: skuFor(S.forn, l.code), links:[]}));
         if(!r.lines.length) S.err="Não encontrei a tabela de itens neste PDF. Adicione os itens à mão ou me mande este modelo para eu ensinar o sistema a ler."; }
       catch(x){ S.err="Não foi possível ler este PDF."; }
       S.busy=false; draw(); };
-    ov.querySelectorAll("[data-pf]").forEach(inp=>inp.onchange=()=>{ const l=S.lines[+inp.dataset.j], f=inp.dataset.pf; l[f]= f==="qty" ? Math.max(0,+inp.value||0) : inp.value.trim(); if(f!=="name") draw(); });
+    ov.querySelectorAll("[data-pf]").forEach(inp=>inp.onchange=()=>{ const l=S.lines[+inp.dataset.j], f=inp.dataset.pf; l[f]= f==="qty" ? Math.max(0,+inp.value||0) : inp.value.trim(); if(f!=="name") setTimeout(draw); });
     ov.querySelectorAll("[data-pdel]").forEach(b=>b.onclick=()=>{ S.lines.splice(+b.dataset.pdel,1); draw(); });
     ov.querySelectorAll("[data-ladd]").forEach(b=>b.onclick=()=>{ const l=S.lines[+b.dataset.ladd]; (l.links||=[]).push({oid:"", i:-1, qty:""}); draw(); });
     ov.querySelectorAll("[data-lk]").forEach(s=>s.onchange=()=>{ const [j,m]=s.dataset.lk.split(":").map(Number), k=S.lines[j].links[m], [oid,i]=s.value.split(":"); k.oid=oid||""; k.i=oid?+i:-1;
       if(oid){ const p=pending().find(p=>p.o.id===oid&&p.x.i===+i), used=S.lines[j].links.reduce((a,q,n)=>n===m?a:a+(+q.qty||0),0), room=S.lines[j].qty ? S.lines[j].qty-used : Infinity;
         k.qty = p ? Math.max(1, Math.min(p.left + (+k.qty||0), room)) : 1; } draw(); });
-    ov.querySelectorAll("[data-lq]").forEach(s=>s.onchange=()=>{ const [j,m]=s.dataset.lq.split(":").map(Number); S.lines[j].links[m].qty=Math.max(0,+s.value||0); draw(); });
+    ov.querySelectorAll("[data-lq]").forEach(s=>s.onchange=()=>{ const [j,m]=s.dataset.lq.split(":").map(Number); S.lines[j].links[m].qty=Math.max(0,+s.value||0); setTimeout(draw); });
     ov.querySelectorAll("[data-lrm]").forEach(b=>b.onclick=()=>{ const [j,m]=b.dataset.lrm.split(":").map(Number); S.lines[j].links.splice(m,1); draw(); });
     g("ppAdd").onclick=()=>{ S.lines.push({code:"", name:"", qty:0, ped:"", entrega:"", links:[]}); S.q=""; S.onlyLinked=false; draw(); };
     g("mNo").onclick=close;
     g("mOk").onclick=()=>{
-      const lines=S.lines.filter(l=>l.code||l.name).map(l=>({code:l.code, name:l.name, qty:+l.qty||0, ped:l.ped||"", entrega:l.entrega||"", links:(l.links||[]).filter(k=>k.oid&&k.i>=0&&+k.qty>0).map(k=>({oid:k.oid, i:k.i, qty:+k.qty}))}));
+      const lines=S.lines.filter(l=>l.code||l.name).map(l=>({code:l.code, name:l.name, qty:+l.qty||0, ped:l.ped||"", entrega:l.entrega||"", sku:l.sku||"", links:(l.links||[]).filter(k=>k.oid&&k.i>=0&&+k.qty>0).map(k=>({oid:k.oid, i:k.i, qty:+k.qty}))}));
       if(!S.forn.trim()){ S.err="Informe o fornecedor."; return draw(); }
       if(!lines.length){ S.err="Adicione pelo menos um item."; return draw(); }
       const over=lines.find(l=>l.qty && l.links.reduce((s,k)=>s+k.qty,0)>l.qty); if(over){ S.err=`O item ${over.code} tem mais peças vinculadas do que no pedido.`; return draw(); }
+      const noName=S.lines.find(l=>l.sku && !PRODUCTS[l.sku] && !String(l.newName??l.name).trim()); if(noName){ S.err=`Informe o nome do novo produto ${noName.sku}.`; return draw(); }
+      // cadastra os produtos novos e guarda o código do fornecedor no produto (próximas importações já reconhecem)
+      let nNew=0, nMap=0;
+      S.lines.filter(l=>l.sku && l.code).forEach(l=>{ const k=fornKey(S.forn,l.code), cur=PRODUCTS[l.sku];
+        if(!cur){ saveProduct({code:l.sku, name:String(l.newName??l.name).trim().toUpperCase(), ean:"", loc:"", forn:[k]}); nNew++; }
+        else if(!(cur.forn||[]).includes(k)){ saveProduct({...cur, forn:[...(cur.forn||[]), k]}); nMap++; }
+        Object.values(PRODUCTS).filter(p=>p.code!==l.sku && (p.forn||[]).includes(k)).forEach(p=>saveProduct({...p, forn:p.forn.filter(x=>x!==k)})); }); // um código do fornecedor aponta para um só item
       const id="PC-"+Date.now().toString(36), doc={id, forn:S.forn.trim(), num:S.num.trim(), file:S.file, lines, createdAt:Date.now(), createdBy:ME.id||""};
       PURCHASES[id]=doc; if(purchCol) queueWrite("pc-"+id, ()=>purchCol.doc(id).set(JSON.parse(JSON.stringify(doc))));
       // grava o vínculo em cada item da pré-venda (com o nº do pedido e a entrega do fornecedor)
       const byOrder={}; lines.forEach(l=>l.links.forEach(k=>(byOrder[k.oid] ||= []).push({...k, ped:l.ped||doc.num, entrega:l.entrega, fcode:l.code})));
       Object.entries(byOrder).forEach(([oid,ks])=>patchItems(oid, items=>ks.forEach(k=>{ const it=items[k.i]; if(!it) return; it.compra={...(it.compra||{}), links:[...((it.compra||{}).links||[]), {pid:id, qty:k.qty, ped:k.ped, entrega:k.entrega, fcode:k.fcode}]}; })));
       const nl=lines.reduce((s,l)=>s+l.links.length,0);
-      toast(`Pedido do fornecedor salvo · ${nl} vínculo${nl===1?"":"s"} com pré-vendas`); close();
+      toast(`Pedido do fornecedor salvo · ${nl} vínculo${nl===1?"":"s"} com pré-vendas${nMap?` · ${nMap} item(ns) relacionado(s)`:""}${nNew?` · ${nNew} produto(s) cadastrado(s)`:""}`); close();
     };
   };
   ov.onclick=e=>{ if(e.target===ov) close(); };
