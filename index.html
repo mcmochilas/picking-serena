@@ -697,6 +697,7 @@ body.pda .keyhint{display:block}
 .tinput{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);padding:6px 8px;font:inherit;font-size:14px}
 .fields dt{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
 .fields dd{margin:2px 0 0;font-weight:600;overflow-wrap:anywhere}
+.hintbox{background:var(--accent-soft);color:var(--ink);border:1px solid var(--accent);border-radius:10px;padding:10px 12px;font-size:14px;margin-bottom:10px}
 .modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 @media (max-width:760px){.modes{grid-template-columns:1fr}}
 .mode{display:flex;gap:10px;align-items:flex-start;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer;background:var(--bg)}
@@ -1132,7 +1133,7 @@ async function importPdf(file){
 }
 
 function draftHTML(d){
-  const par = d.mode!=="total";
+  const par = d.mode==="parcial"; // em "Tem encomenda" o comercial não marca itens: Compras decide
   const tot = draftTotals(d);
   return `
     <div class="pshead">
@@ -1152,11 +1153,12 @@ function draftHTML(d){
     <div class="modes" role="radiogroup">
       <label class="mode"><input type="radio" name="mode" value="total" ${d.mode==="total"?"checked":""}><span><b>Envio total</b><small>Todas as peças têm pronta entrega. A expedição separa tudo e o pedido vai direto para o envio.</small></span></label>
       <label class="mode"><input type="radio" name="mode" value="parcial" ${d.mode==="parcial"?"checked":""}><span><b>Envio parcial</b><small>Envia agora o que tem em estoque. As peças encomendadas seguem depois, em um 2º envio.</small></span></label>
-      <label class="mode"><input type="radio" name="mode" value="temenc" ${d.mode==="temenc"?"checked":""}><span><b>Tem encomenda</b><small>Marque os itens sob encomenda. Compras decide se separa o que tem na loja (colmeia) ou aguarda chegar tudo, e informa o prazo.</small></span></label>
+      <label class="mode"><input type="radio" name="mode" value="temenc" ${d.mode==="temenc"?"checked":""}><span><b>Tem encomenda</b><small>A pré-venda vai para Compras, que define o que encomendar, se separa o que tem na loja (colmeia) ou aguarda chegar tudo, e informa o prazo.</small></span></label>
     </div>
     <div class="flagrow"><label class="retira green ${d.retira?"on":""}"><input type="checkbox" id="retiraChk" ${d.retira?"checked":""}><span><b>Retira na Loja</b></span></label>
     <label class="retira naloja ${d.naLoja?"on":""}"><input type="checkbox" id="naLojaChk" ${d.naLoja?"checked":""}><span><b>Cliente está na loja</b></span></label></div></div>
     <div><h2 style="margin-bottom:10px">3. Itens ${par?"· marque o que é sob encomenda":""}</h2>
+    ${d.mode==="temenc"?`<div class="hintbox">Não precisa marcar os itens: a pré-venda vai inteira para Compras, que decide o que encomendar e o que separar da loja.</div>`:""}
     <div class="tablewrap"><table class="items">
       <thead><tr><th>Cód.</th><th>Descrição</th><th>Endereço</th><th class="num">Qtd</th>${par?`<th>Sob encomenda</th>${d.mode==="parcial"?`<th>Previsão de chegada</th>`:""}`:""}<th class="num">Separar agora</th></tr></thead>
       <tbody>${d.items.map((it,i)=>{
@@ -1168,13 +1170,13 @@ function draftHTML(d){
           <td class="num">${it.qty} ${esc(it.un)}</td>
           ${par?`<td><div class="encin"><input type="number" min="0" max="${it.qty}" step="1" value="${enc}" id="enc-${i}" data-i="${i}" aria-label="Quantidade sob encomenda de ${esc(it.code)}"><label><input type="checkbox" data-all="${i}" ${enc===it.qty?"checked":""}>todas</label></div></td>
                  ${d.mode==="parcial"?`<td><input type="date" id="eta-${i}" data-eta="${i}" value="${esc(it.eta)}" ${enc?"":"disabled"} aria-label="Previsão de chegada de ${esc(it.code)}"></td>`:""}`:""}
-          <td class="num now" id="now-${i}">${now}</td>
+          <td class="num now" id="now-${i}">${d.mode==="temenc"?"—":now}</td>
         </tr>`;}).join("")}</tbody>
     </table></div></div>
     ${state.draftErr ? `<div class="err">${esc(state.draftErr)}</div>` : ""}
     <div class="sumbar">
       <div class="totals" id="totals">${totalsHTML(tot, d)}</div>
-      <button class="btn dark" id="sendBtn">Enviar para expedição</button>
+      <button class="btn dark" id="sendBtn">${d.mode==="temenc"?"Enviar para Compras":"Enviar para expedição"}</button>
     </div>`;
 }
 function draftTotals(d){
@@ -1185,6 +1187,8 @@ function draftTotals(d){
 function totalsHTML(t, d){
   const prev = ORDERS.find(o=>o.id===d.id);
   const slot = d.mode==="aguarda" && t.pick ? ((prev && usesHive(prev) && prev.colmeia) || freeSlot()) : null;
+  if(d.mode==="temenc"){ const pc=d.items.reduce((a,it)=>a+it.qty,0);
+    return `<div><small>Itens da pré-venda</small><b class="tnum">${pc}</b> pç · ${d.items.length} ref.</div><div><small>Próximo passo</small><b>Compras decide</b></div>`; }
   return `<div><small>${d.mode==="parcial"?"1º envio":"Separar agora"}</small><b class="tnum">${t.pick}</b> pç · ${t.refsPick} ref.</div>
     ${d.mode!=="total"?`<div><small>${d.mode==="parcial"?"2º envio (encomenda)":"Sob encomenda"}</small><b class="tnum">${t.enc}</b> pç · ${t.refsEnc} ref.</div>`:""}
     <div><small>Destino da separação</small><b>${d.mode==="temenc" ? "Compras decide" : t.enc && !t.pick ? "Sem separação · direto para Compras" : "Mesa de expedição"}</b></div>`;
@@ -1224,6 +1228,7 @@ function bindDraft(){
 }
 function sendDraft(){
   const d = state.draft, enc = d.mode!=="total"; let m = d.mode;
+  if(m==="temenc") d.items.forEach(it=>{ it.qtyEnc = it.qty; it.eta = ""; }); // Compras define o que é encomenda
   const items = d.items.map(it=>({code:it.code, name:it.name, ean:it.ean, un:it.un, qty:it.qty, price:it.price, loc:it.loc?code(it.loc):"", qtyEnc: enc?(it.qtyEnc||0):0, eta: enc&&it.qtyEnc?it.eta:""}));
   const zeroQ = items.filter(it=>!(it.qty>0));
   if(zeroQ.length){ state.draftErr=`Quantidade zerada em: ${zeroQ.map(x=>x.code).join(", ")}. O PDF não foi lido corretamente; não dá para enviar assim.`; return render(); }
