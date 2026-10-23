@@ -4117,7 +4117,7 @@ function themeBtnHTML(){
 function toggleTheme(){ const n=THEMES[curTheme()].n; applyTheme(n); toast(THEMES[n].t); render(); }
 applyTheme(curTheme());
 function bellHTML(){
-  if(!can("coleta")) return "";
+  if(!can("coleta") && !can("compras")) return "";
   const b=bellState(), on=b!=="off";
   const tip = b==="on" ? "Alerta de novo pedido ligado (som e notificação no celular). Toque para desligar."
     : b==="push" ? "Notificação no celular ligada, som do app desligado. Toque para desligar."
@@ -4147,7 +4147,7 @@ async function toggleBell(){
   else toast("Som de novo pedido ligado");
 }
 window.addEventListener("pspush", ()=>rerender());
-window.addEventListener("psopen", ()=>{ if(["pick","tray","store","tomesa"].includes(state.view)) return; state.sector="expedicao"; state.sepTab="fila"; state.view="orders"; render(); scrollTo(0,0); });
+window.addEventListener("psopen", e=>{ if(["pick","tray","store","tomesa","hvout","unstore"].includes(state.view)) return; if(/#compras/.test(e.detail||"") && can("compras")){ state.sector="compras"; state.cTab=null; } else { state.sector="expedicao"; state.sepTab="fila"; } state.view="orders"; render(); scrollTo(0,0); });
 function setSound(on, quiet){ SOUND=on; try{ localStorage.setItem("ps-sound", on?"1":"0"); }catch(e){} if(on){ unlockAudio(); chime(); } if(!quiet) toast(on?"Som de alerta ligado":"Som de alerta desligado"); render(); }
 
 let tt; function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.hidden=false; clearTimeout(tt); tt=setTimeout(()=>t.hidden=true,2400); }

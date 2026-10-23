@@ -2,6 +2,7 @@
 //  GET  ?key            -> chave pública (VAPID) para o celular se inscrever
 //  POST {action:"test"} -> notificação de teste para o próprio usuário (precisa estar logado)
 //  POST {order:{...}}   -> chamado pelo banco quando entra um pedido para separar (x-push-secret)
+//  POST {compras:{...}} -> chamado pelo banco quando chega uma encomenda para Compras (x-push-secret)
 import webpush from "npm:web-push@3.6.7";
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
 
@@ -71,6 +72,19 @@ Deno.serve(async (req) => {
       const fake = { endpoint: "https://push.invalid/x", keys: { p256dh: webpush.generateVAPIDKeys().publicKey, auth: btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "") } };
       try { await webpush.sendNotification(fake, "{}", { TTL: 60 }); return json({ ok: true }); }
       catch (e) { return json({ reached: "envio", error: String((e as Error).message || e).slice(0, 200), key: !!KEY }); }
+    }
+
+    if (body.compras) { // nova encomenda para o setor de Compras
+      if (req.headers.get("x-push-secret") !== await secret("push_webhook")) return json({ error: "não autorizado" }, 401);
+      const o = body.compras;
+      const { data: people } = await sb.from("profiles").select("id").eq("active", true).eq("role", "compras");
+      const ids = (people || []).map((p) => p.id as string).filter((id) => id !== o.createdBy);
+      const r = await sendTo(ids, {
+        title: o.kind === "decidir" ? "Nova encomenda para decidir" : "Nova encomenda · envio parcial",
+        body: `#${o.num} · ${o.client}${o.refs ? ` · ${o.refs} ref. sob encomenda` : ""}`,
+        tag: `compras-${o.id}`, url: "/#compras",
+      });
+      return json(r);
     }
 
     if (body.order) {
