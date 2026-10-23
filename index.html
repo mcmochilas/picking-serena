@@ -233,6 +233,9 @@ html.tvmode body{background:var(--bg);color:var(--ink);overflow:hidden}
 .cpkpis .kp{font:inherit;color:inherit;text-align:left;cursor:pointer}.cpkpis .kp:hover{border-color:var(--accent)}
 .chip.warn{background:var(--accent-soft);color:var(--accent-ink)}
 .cpfoot .btn{flex:none;width:auto;height:42px;padding:0 18px;font-size:15px}
+.phases.ph3{grid-template-columns:repeat(3,minmax(0,1fr))}.phases.ph3 .phase{font-size:12px;padding:8px}
+.li.usrow .ln{white-space:normal;display:flex;flex-direction:column;overflow:visible}
+.uspm{display:flex;align-items:center;gap:6px;flex:none}.uspm .mini{width:34px;height:34px;padding:0;font-size:18px}.uspm b{min-width:44px;text-align:center}.uspm b.okc{color:var(--ok)}
 .uscount{display:flex;align-items:center;gap:14px;margin:12px 0}.uscount b{font-family:var(--display);font-size:40px;line-height:1}.uscount span{color:var(--muted)}.uscount .mini{width:44px;height:44px;font-size:22px}
 .qrbox{text-align:center}.qrbox p{text-align:left}.qr{display:grid;place-items:center;min-height:240px;margin:6px auto 10px;background:#fff;border-radius:12px;padding:10px;width:240px;max-width:100%;box-sizing:border-box}.qr img,.qr canvas{display:block;max-width:100%}
 .qrurl{display:flex;gap:8px;align-items:center}.qrurl .tinput{flex:1;min-width:0;font-size:12px}
@@ -1762,12 +1765,13 @@ function openUnstoreQR(oid){
 }
 function startUnstore(oid){
   const o=ORDERS.find(x=>x.id===oid); if(!o || o.status!=="na_colmeia" || !can("devolver")) return;
-  state.us = { oid, phase:"hive", idx:0, count:0, step:"prod", done:{} };
-  state.view="unstore"; render(); scrollTo(0,0);
+  state.us = newUs(oid); state.view="unstore"; render(); scrollTo(0,0);
 }
+// etapas: "hive" (bipar a colmeia) → "check" (bipar todas as peças que estão nela) → "back" (devolver cada item no endereço)
+const newUs = oid => ({ oid, phase:"hive", cnt:{}, idx:0, done:{} });
 function usCur(){ const u=state.us, o=u && ORDERS.find(x=>x.id===u.oid); if(!o) return null; const its=usItems(o); return {u, o, its, it: its[u.idx]}; }
 function usNext(){ const c=usCur(); if(!c) return; const {u, its}=c; const n=its.findIndex(x=>!u.done[x.i]);
-  if(n<0) return finishUnstore(); u.idx=n; u.count=0; u.step="prod"; render(); scrollTo({top:0,behavior:"smooth"}); }
+  if(n<0) return finishUnstore(); u.idx=n; render(); scrollTo({top:0,behavior:"smooth"}); }
 function finishUnstore(){
   const c=usCur(); if(!c) return; const {o}=c, now=Date.now();
   patchOrder(o.id, {status:"analise_compras", colmeia:null, res:null, startedAt:null, startedBy:"", pickedAt:null, pickedBy:"", atMesaAt:null, storedAt:null, tray:"", trayStatus:"",
@@ -1775,62 +1779,69 @@ function finishUnstore(){
   toast(`Pedido #${o.num} reaberto · peças devolvidas ao estoque · colmeia ${(o.colmeia||"").slice(3)} liberada`);
   state.us=null; state.view="orders"; state.cTab="decidir"; render(); scrollTo(0,0);
 }
+const usLoc = it => { const loc=PRODUCTS[it.code]?.loc||""; return loc ? parseLoc(loc)||parseCode(loc) : null; };
 function renderUnstore(){
   const c=usCur(); if(!c){ state.view="orders"; return render(); }
-  const {u, o, its, it}=c, cm=(o.colmeia||"").slice(3), total=its.reduce((s,x)=>s+x.back,0), doneN=its.filter(x=>u.done[x.i]).length;
-  const loc = it ? (PRODUCTS[it.code]?.loc || "") : "", L = loc ? parseLoc(loc) || parseCode(loc) : null;
+  const {u, o, its, it}=c, cm=(o.colmeia||"").slice(3), total=its.reduce((s,x)=>s+x.back,0);
+  const got=its.reduce((s,x)=>s+Math.min(x.back,u.cnt[x.i]||0),0), allOk=its.every(x=>(u.cnt[x.i]||0)>=x.back), doneN=its.filter(x=>u.done[x.i]).length;
+  const L = u.phase==="back" && it ? usLoc(it) : null;
+  const ph = (k,n,t) => { const ord=["hive","check","back"], cur=ord.indexOf(u.phase), me=ord.indexOf(k); return `<div class="phase ${me<cur?"ok":me===cur?"on":""}"><span class="n">${me<cur?"✓":n}</span>${t}</div>`; };
+  let main;
+  if(u.phase==="hive") main = `<div class="product">
+      <div class="eyebrow">Vá até a colmeia</div><div class="store-code">${esc(cm)}</div>
+      <div class="hivebig">${hiveHTML(o.colmeia)}</div>
+      <div class="instr">${ICON_SCAN}<div>Bipe a etiqueta da colmeia <b>${esc(cm)}</b>.</div></div>
+      <button class="demo" id="sim">Simular leitura da colmeia (demo)</button></div>`;
+  else if(u.phase==="check") main = `<div class="product">
+      <div class="eyebrow">Colmeia ${esc(cm)} · confira as peças</div>
+      <div class="uscount"><b class="tnum">${got}</b><span>de ${total} pç bipadas</span></div>
+      <div class="instr">${ICON_SCAN}<div>Bipe cada peça que está na colmeia, em qualquer ordem. Use − e + para corrigir.</div></div>
+      <div class="list" style="margin-top:4px">${its.map(x=>{ const n=u.cnt[x.i]||0, ok=n>=x.back; return `<div class="li usrow ${ok?"":"cur"}" style="cursor:default"><span class="ln"><b class="mono">${esc(x.code)}</b> ${esc(x.name)}<small>${x.ean?"EAN "+esc(x.ean):"sem EAN · bipe o código"}</small></span>
+        <span class="uspm"><button class="mini" data-usm="${x.i}" aria-label="Menos uma de ${esc(x.code)}">−</button><b class="tnum ${ok?"okc":""}">${n}/${x.back}</b><button class="mini" data-usp="${x.i}" aria-label="Mais uma de ${esc(x.code)}">+</button></span></div>`; }).join("")}</div>
+      <button class="btn primary" id="usOk" ${allOk?"":"disabled"}>${allOk?"Peças conferidas · devolver ao estoque":`Faltam ${total-got} pç`}</button>
+      <button class="demo" id="sim">Simular leitura de uma peça (demo)</button></div>`;
+  else main = `<div class="product">
+      <div class="eyebrow">Devolva ao estoque · item ${doneN+1} de ${its.length}</div>
+      <h2 style="margin:0">${esc(it.name)}</h2>
+      <div class="meta tnum"><span class="mono">Cód. ${esc(it.code)}</span><span><b>${it.back}</b> pç</span></div>
+      ${L ? `<div class="loc"><div class="grow"><div class="eyebrow">Endereço no estoque</div><div class="loc-code">${esc(code(L))}</div></div></div><div class="map-card">${mapSVG({loc:L}, null)}</div>
+        <div class="instr">${ICON_SCAN}<div>Guarde as ${it.back} pç no endereço <b>${esc(code(L))}</b> e bipe a etiqueta do endereço.</div></div>
+        <button class="demo" id="sim">Simular leitura do endereço (demo)</button>`
+      : `<div class="noloc"><div class="eyebrow">Endereço no estoque</div><div class="loc-code">Sem local cadastrado</div></div>
+        <div class="instr">${ICON_SCAN}<div>Este produto não tem endereço. Guarde no estoque e avise o setor de Estoque para cadastrar o local.</div></div>
+        <button class="btn primary" id="usNoLoc">Guardei no estoque</button>`}
+    </div>
+    <div class="eyebrow" style="margin-top:14px">Devolvidos · ${doneN} de ${its.length}</div>
+    <div class="list" style="margin-top:6px">${its.map((x,k)=>`<div class="li ${k===u.idx?"cur":""}" style="cursor:default"><span class="lc tnum">${esc(x.code)}</span><span class="ln">${esc(x.name)}<small>${x.back} pç · ${usLoc(x)?esc(code(usLoc(x))):"sem local"}</small></span>${u.done[x.i]?`<span class="chip done">Devolvido</span>`:""}</div>`).join("")}</div>`;
   app.innerHTML = `
     <header class="bar"><button class="back" id="back" aria-label="Voltar para Compras"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
-      <div class="grow"><h1>#${esc(o.num)} · devolver ao estoque</h1><div class="sub">${esc(o.client)}</div></div><span class="badge tnum">${doneN}/${its.length}</span></header>
-    <div class="phases"><div class="phase ${u.phase==="hive"?"on":"ok"}"><span class="n">${u.phase==="hive"?"1":"✓"}</span>Colmeia ${esc(cm)}</div><div class="phase ${u.phase==="items"?"on":""}"><span class="n">2</span>Conferir e devolver · ${total} pç</div></div>
-    ${u.phase==="hive" ? `<div class="product">
-        <div class="eyebrow">Vá até a colmeia</div><div class="store-code">${esc(cm)}</div>
-        <div class="hivebig">${hiveHTML(o.colmeia)}</div>
-        <div class="instr">${ICON_SCAN}<div>Bipe a etiqueta da colmeia <b>${esc(cm)}</b> para começar a retirar as peças.</div></div>
-        <button class="demo" id="sim">Simular leitura da colmeia (demo)</button></div>`
-    : `<div class="product">
-        <div class="eyebrow">${u.step==="prod"?"Retire da colmeia "+esc(cm):"Devolva ao estoque"}</div>
-        <h2 style="margin:0">${esc(it.name)}</h2>
-        <div class="meta tnum"><span class="mono">Cód. ${esc(it.code)}</span>${it.ean?`<span>EAN ${esc(it.ean)}</span>`:""}<span><b>${it.back}</b> pç para devolver</span></div>
-        ${u.step==="prod" ? `
-          <div class="uscount"><button class="mini" id="usMinus" aria-label="Menos uma">−</button><b class="tnum" id="usCnt">${u.count}</b><span>de ${it.back} pç</span><button class="mini" id="usPlus" aria-label="Mais uma">+</button></div>
-          <div class="instr">${ICON_SCAN}<div>Bipe cada peça (ou ajuste a contagem) e confirme.</div></div>
-          <button class="btn primary" id="usOk" ${u.count===it.back?"":"disabled"}>Confirmar ${it.back} pç retiradas</button>
-          <button class="demo" id="sim">Simular leitura do produto (demo)</button>`
-        : `
-          ${L ? `<div class="loc"><div class="grow"><div class="eyebrow">Endereço no estoque</div><div class="loc-code">${esc(code(L))}</div></div></div><div class="map-card">${mapSVG({loc:L}, null)}</div>
-            <div class="instr">${ICON_SCAN}<div>Guarde as ${it.back} pç no endereço <b>${esc(code(L))}</b> e bipe a etiqueta do endereço.</div></div>
-            <button class="demo" id="sim">Simular leitura do endereço (demo)</button>`
-          : `<div class="noloc"><div class="eyebrow">Endereço no estoque</div><div class="loc-code">Sem local cadastrado</div></div>
-            <div class="instr">${ICON_SCAN}<div>Este produto não tem endereço. Guarde no estoque e avise o setor de Estoque para cadastrar o local.</div></div>
-            <button class="btn primary" id="usNoLoc">Guardei no estoque</button>`}`}
-      </div>
-      <div class="eyebrow" style="margin-top:14px">Itens · ${doneN} de ${its.length} devolvidos</div>
-      <div class="list" style="margin-top:6px">${its.map((x,k)=>`<div class="li ${k===u.idx?"cur":""}" style="cursor:default"><span class="lc tnum">${esc(x.code)}</span><span class="ln">${esc(x.name)}<small>${x.back} pç${PRODUCTS[x.code]?.loc?" · "+esc(PRODUCTS[x.code].loc):" · sem local"}</small></span>${u.done[x.i]?`<span class="chip done">Devolvido</span>`:""}</div>`).join("")}</div>`}`;
+      <div class="grow"><h1>#${esc(o.num)} · devolver ao estoque</h1><div class="sub">${esc(o.client)}</div></div></header>
+    <div class="phases ph3">${ph("hive",1,"Colmeia "+esc(cm))}${ph("check",2,"Conferir peças")}${ph("back",3,"Devolver")}</div>
+    ${main}`;
   document.getElementById("back").onclick=()=>{ state.view="orders"; render(); };
   const sim=document.getElementById("sim");
-  if(sim) sim.onclick=()=>handleScan(u.phase==="hive" ? o.colmeia : u.step==="prod" ? (it.ean||it.code) : code(L));
-  const mi=document.getElementById("usMinus"), pl=document.getElementById("usPlus"), ok=document.getElementById("usOk"), nl=document.getElementById("usNoLoc");
-  if(mi) mi.onclick=()=>{ u.count=Math.max(0,u.count-1); render(); };
-  if(pl) pl.onclick=()=>{ u.count=Math.min(it.back,u.count+1); render(); };
-  if(ok) ok.onclick=()=>{ u.step="loc"; render(); setMsg(L?`Leve ao endereço ${code(L)} e bipe a etiqueta`:"Guarde no estoque e confirme","info"); };
-  if(nl) nl.onclick=()=>{ u.done[it.i]=true; toast(`${it.code} devolvido ao estoque`); usNext(); };
-  setMsg(u.phase==="hive" ? `Bipe a colmeia ${cm}` : u.step==="prod" ? `Bipe ${it.name}` : L ? `Bipe o endereço ${code(L)}` : "Guarde no estoque e confirme", "info");
+  if(sim) sim.onclick=()=>{ if(u.phase==="hive") return handleScan(o.colmeia); if(u.phase==="check"){ const x=its.find(x=>(u.cnt[x.i]||0)<x.back); if(x) handleScan(x.ean||x.code); return; } handleScan(code(L)); };
+  app.querySelectorAll("[data-usm]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.usm; u.cnt[i]=Math.max(0,(u.cnt[i]||0)-1); render(); });
+  app.querySelectorAll("[data-usp]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.usp, x=its.find(y=>y.i===i); u.cnt[i]=Math.min(x.back,(u.cnt[i]||0)+1); render(); });
+  const ok=document.getElementById("usOk"); if(ok) ok.onclick=()=>{ u.phase="back"; u.idx=-1; usNext(); };
+  const nl=document.getElementById("usNoLoc"); if(nl) nl.onclick=()=>{ u.done[it.i]=true; toast(`${it.code} devolvido ao estoque`); usNext(); };
+  setMsg(u.phase==="hive" ? `Bipe a colmeia ${cm}` : u.phase==="check" ? (allOk ? "Peças conferidas. Toque para devolver ao estoque." : `Bipe as peças da colmeia ${cm} · ${got}/${total}`) : L ? `Bipe o endereço ${code(L)}` : "Guarde no estoque e confirme", u.phase==="check"&&allOk?"good":"info");
   focusScan();
 }
 function scanUnstore(v){
-  const c=usCur(); if(!c) return; const {u, o, it}=c;
+  const c=usCur(); if(!c) return; const {u, o, its, it}=c;
   if(u.phase==="hive"){ const hv=hiveCode(v);
-    if(hv===o.colmeia){ feedback(true); u.phase="items"; u.idx=-1; usNext(); return setMsg(`Colmeia ${hv.slice(3)} confirmada. Retire as peças.`,"good"); }
+    if(hv===o.colmeia){ feedback(true); u.phase="check"; render(); return setMsg(`Colmeia ${hv.slice(3)} confirmada. Bipe as peças que estão nela.`,"good"); }
     feedback(false); return setMsg(isHiveCode(hv) ? `Colmeia errada: ${hv.slice(3)}. As peças estão na ${o.colmeia.slice(3)}.` : `Bipe a etiqueta da colmeia ${o.colmeia.slice(3)}.`,"bad"); }
-  if(u.step==="prod"){
-    const isProd=(!!it.ean && v===it.ean) || v===it.code;
-    if(!isProd){ feedback(false); return setMsg(`Código ${v} não é ${it.name}.`,"bad"); }
-    if(u.count>=it.back){ feedback(false); return setMsg(`Já foram contadas as ${it.back} pç. Confirme.`,"info"); }
-    feedback(true); u.count++; render(); return setMsg(u.count===it.back ? `${u.count} de ${it.back} pç · confirme` : `${u.count} de ${it.back} pç`, "good");
+  if(u.phase==="check"){
+    const x=its.find(x=>((!!x.ean && v===x.ean) || v===x.code) && (u.cnt[x.i]||0)<x.back) || its.find(x=>(!!x.ean && v===x.ean) || v===x.code);
+    if(!x){ feedback(false); return setMsg(`Código ${v} não é de nenhuma peça deste pedido.`,"bad"); }
+    if((u.cnt[x.i]||0)>=x.back){ feedback(false); return setMsg(`${x.code}: já foram bipadas as ${x.back} pç.`,"info"); }
+    feedback(true); u.cnt[x.i]=(u.cnt[x.i]||0)+1; render();
+    const left=its.reduce((s,y)=>s+Math.max(0,y.back-(u.cnt[y.i]||0)),0);
+    return setMsg(left ? `${x.code}: ${u.cnt[x.i]}/${x.back} · faltam ${left} pç` : "Todas as peças conferidas. Toque para devolver ao estoque.", "good");
   }
-  const loc=PRODUCTS[it.code]?.loc||"", L=loc?parseLoc(loc)||parseCode(loc):null;
-  if(!L) return;
+  const L=usLoc(it); if(!L) return;
   if(v===code(L)){ feedback(true); u.done[it.i]=true; toast(`${it.code} devolvido em ${code(L)}`); return usNext(); }
   feedback(false); setMsg(LOC_RE.test(v) ? `Endereço errado: ${v}. Guarde em ${code(L)}.` : `Bipe a etiqueta do endereço ${code(L)}.`,"bad");
 }
@@ -3742,7 +3753,7 @@ function render(){
   if(state.sector==="estoque") return renderEstoque();
   if(state.usPending && can("devolver")){ const o=ORDERS.find(x=>x.id===state.usPending);
     if(o){ state.usPending=null; try{ history.replaceState(null,"",location.pathname+"#compras"); }catch(e){}
-      if(o.status==="na_colmeia"){ state.sector="compras"; state.us={ oid:o.id, phase:"hive", idx:0, count:0, step:"prod", done:{} }; state.view="unstore"; }
+      if(o.status==="na_colmeia"){ state.sector="compras"; state.us=newUs(o.id); state.view="unstore"; }
       else toast(`O pedido #${o.num} não está mais na colmeia`); } }
   if(state.sector==="compras") return state.view==="unstore" ? renderUnstore() : renderCompras();
   if(state.sector==="usuarios") return renderUsuarios();
