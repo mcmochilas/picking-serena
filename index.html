@@ -270,6 +270,7 @@ details.cpcard summary{display:flex;justify-content:space-between;align-items:ce
 .skudd{position:absolute;z-index:5;left:0;top:calc(100% + 4px);width:min(440px,80vw);max-height:280px;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.25);padding:4px}
 .skudd button{display:flex;gap:10px;align-items:baseline;width:100%;text-align:left;border:0;background:none;color:var(--ink);font:inherit;font-size:13px;font-weight:500;padding:7px 8px;border-radius:7px;cursor:pointer}
 .skudd button:hover,.skudd button:focus{background:var(--accent-soft)}.skudd button b{flex:none;min-width:64px}.skudd button span{min-width:0}
+.lkdd{width:min(560px,86vw)}.skudd button small{font-weight:400}
 .skuhint{font-size:12px;color:var(--muted);padding:6px 8px;font-weight:500}
 .ppsku{display:grid;grid-template-columns:auto 190px minmax(0,1fr);gap:8px;align-items:center;width:100%;font-size:12px;color:var(--muted);font-weight:600}
 .ppsku .ok-s{color:var(--ok);font-weight:600}.ppnew{display:flex;gap:6px;align-items:center;min-width:0}.ppnew small{color:var(--accent-ink);white-space:nowrap}.ppnew .tinput{flex:1;min-width:0}
@@ -696,7 +697,7 @@ body.pda .keyhint{display:block}
 .tinput{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);padding:6px 8px;font:inherit;font-size:14px}
 .fields dt{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
 .fields dd{margin:2px 0 0;font-weight:600;overflow-wrap:anywhere}
-.modes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 @media (max-width:760px){.modes{grid-template-columns:1fr}}
 .mode{display:flex;gap:10px;align-items:flex-start;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer;background:var(--bg)}
 .mode input{margin-top:4px;accent-color:var(--ink)}
@@ -846,7 +847,7 @@ function hiveCode(v){ // aceita CM-A1, A1 e as etiquetas antigas CM-01…CM-24
   let m=v.match(/^CM-?(\d{1,2})$/); if(m){ const n=+m[1]-1; return "CM-"+HIVE_COL(n%6)+(Math.floor(n/6)+1); }
   m=v.match(/^(?:CM-?)?([A-Z])0*(\d{1,2})$/); return m ? "CM-"+m[1]+(+m[2]) : v; }
 const isHiveCode = v => /^CM-[A-Z]\d{1,2}$/.test(v);
-const MODES = { total:{t:"Envio total", c:"norm"}, parcial:{t:"Envio parcial", c:"prog"}, aguarda:{t:"Aguarda encomenda", c:"urg"}, encomenda:{t:"Encomenda total", c:"enc"} };
+const MODES = { total:{t:"Envio total", c:"norm"}, parcial:{t:"Envio parcial", c:"prog"}, aguarda:{t:"Aguarda encomenda", c:"urg"}, encomenda:{t:"Encomenda total", c:"enc"}, temenc:{t:"Tem encomenda", c:"urg"} };
 function statusInfo(o){
   switch(o.status){
     case "aguardando": return {t:"Aguardando separação", c:"norm"};
@@ -1151,14 +1152,13 @@ function draftHTML(d){
     <div class="modes" role="radiogroup">
       <label class="mode"><input type="radio" name="mode" value="total" ${d.mode==="total"?"checked":""}><span><b>Envio total</b><small>Todas as peças têm pronta entrega. A expedição separa tudo e o pedido vai direto para o envio.</small></span></label>
       <label class="mode"><input type="radio" name="mode" value="parcial" ${d.mode==="parcial"?"checked":""}><span><b>Envio parcial</b><small>Envia agora o que tem em estoque. As peças encomendadas seguem depois, em um 2º envio.</small></span></label>
-      <label class="mode"><input type="radio" name="mode" value="aguarda" ${d.mode==="aguarda"?"checked":""}><span><b>Aguarda encomenda</b><small>Vai para Compras, que decide se encomenda tudo ou separa o que tem na loja e guarda na colmeia. Envio único.</small></span></label>
-      <label class="mode"><input type="radio" name="mode" value="encomenda" ${d.mode==="encomenda"?"checked":""}><span><b>Encomenda total</b><small>Todos os itens são encomenda. Vai para Compras, que confirma o que encomendar; é enviado quando chegar.</small></span></label>
+      <label class="mode"><input type="radio" name="mode" value="temenc" ${d.mode==="temenc"?"checked":""}><span><b>Tem encomenda</b><small>Marque os itens sob encomenda. Compras decide se separa o que tem na loja (colmeia) ou aguarda chegar tudo, e informa o prazo.</small></span></label>
     </div>
     <div class="flagrow"><label class="retira green ${d.retira?"on":""}"><input type="checkbox" id="retiraChk" ${d.retira?"checked":""}><span><b>Retira na Loja</b></span></label>
     <label class="retira naloja ${d.naLoja?"on":""}"><input type="checkbox" id="naLojaChk" ${d.naLoja?"checked":""}><span><b>Cliente está na loja</b></span></label></div></div>
     <div><h2 style="margin-bottom:10px">3. Itens ${par?"· marque o que é sob encomenda":""}</h2>
     <div class="tablewrap"><table class="items">
-      <thead><tr><th>Cód.</th><th>Descrição</th><th>Endereço</th><th class="num">Qtd</th>${par?`<th>Sob encomenda</th><th>Previsão de chegada</th>`:""}<th class="num">Separar agora</th></tr></thead>
+      <thead><tr><th>Cód.</th><th>Descrição</th><th>Endereço</th><th class="num">Qtd</th>${par?`<th>Sob encomenda</th>${d.mode==="parcial"?`<th>Previsão de chegada</th>`:""}`:""}<th class="num">Separar agora</th></tr></thead>
       <tbody>${d.items.map((it,i)=>{
         const enc = it.qtyEnc||0, now = it.qty-enc;
         return `<tr class="${par&&enc?"enc":""}">
@@ -1167,7 +1167,7 @@ function draftHTML(d){
           <td>${it.loc?`<span class="pill">${fullLoc(code(it.loc))}</span>`:`<div class="setloc"><input class="tin mono sm" id="dl-${i}" placeholder="R1-LB-BIN-8.M" style="width:104px" aria-label="Endereço de ${esc(it.code)}"><button class="mini" data-setloc="${i}">Salvar</button></div><div class="setloc"><small>sem local · pode enviar assim mesmo</small></div>`}</td>
           <td class="num">${it.qty} ${esc(it.un)}</td>
           ${par?`<td><div class="encin"><input type="number" min="0" max="${it.qty}" step="1" value="${enc}" id="enc-${i}" data-i="${i}" aria-label="Quantidade sob encomenda de ${esc(it.code)}"><label><input type="checkbox" data-all="${i}" ${enc===it.qty?"checked":""}>todas</label></div></td>
-                 <td><input type="date" id="eta-${i}" data-eta="${i}" value="${esc(it.eta)}" ${enc?"":"disabled"} aria-label="Previsão de chegada de ${esc(it.code)}"></td>`:""}
+                 ${d.mode==="parcial"?`<td><input type="date" id="eta-${i}" data-eta="${i}" value="${esc(it.eta)}" ${enc?"":"disabled"} aria-label="Previsão de chegada de ${esc(it.code)}"></td>`:""}`:""}
           <td class="num now" id="now-${i}">${now}</td>
         </tr>`;}).join("")}</tbody>
     </table></div></div>
@@ -1187,12 +1187,12 @@ function totalsHTML(t, d){
   const slot = d.mode==="aguarda" && t.pick ? ((prev && usesHive(prev) && prev.colmeia) || freeSlot()) : null;
   return `<div><small>${d.mode==="parcial"?"1º envio":"Separar agora"}</small><b class="tnum">${t.pick}</b> pç · ${t.refsPick} ref.</div>
     ${d.mode!=="total"?`<div><small>${d.mode==="parcial"?"2º envio (encomenda)":"Sob encomenda"}</small><b class="tnum">${t.enc}</b> pç · ${t.refsEnc} ref.</div>`:""}
-    <div><small>Destino da separação</small><b>${d.mode==="aguarda"||d.mode==="encomenda" ? "Compras decide" : t.enc && !t.pick ? "Sem separação · direto para Compras" : "Mesa de expedição"}</b></div>`;
+    <div><small>Destino da separação</small><b>${d.mode==="temenc" ? "Compras decide" : t.enc && !t.pick ? "Sem separação · direto para Compras" : "Mesa de expedição"}</b></div>`;
 }
 function bindDraft(){
   const d = state.draft;
   document.getElementById("cancelDraft").onclick=()=>{ state.draft=null; state.draftErr=""; render(); };
-  app.querySelectorAll('input[name=mode]').forEach(r=>r.onchange=()=>{ d.mode=r.value; state.draftErr=""; if(d.mode==="encomenda") d.items.forEach(it=>it.qtyEnc=it.qty); render(); });
+  app.querySelectorAll('input[name=mode]').forEach(r=>r.onchange=()=>{ d.mode=r.value; state.draftErr=""; render(); });
   const dt=document.getElementById("dTransp"); if(dt) dt.oninput=()=>{ d.transportadora=dt.value.trim(); };
   const rc=document.getElementById("retiraChk"); if(rc) rc.onchange=()=>{ d.retira=rc.checked; if(!d.retira) d.naLoja=false; render(); };
   const nl=document.getElementById("naLojaChk"); if(nl) nl.onchange=()=>{ d.naLoja=nl.checked; if(d.naLoja) d.retira=true; render(); };
@@ -1229,10 +1229,9 @@ function sendDraft(){
   if(zeroQ.length){ state.draftErr=`Quantidade zerada em: ${zeroQ.map(x=>x.code).join(", ")}. O PDF não foi lido corretamente; não dá para enviar assim.`; return render(); }
   const hasEnc = items.some(it=>it.qtyEnc>0), hasPick = items.some(it=>it.qty-it.qtyEnc>0);
   if(enc && !hasEnc){ state.draftErr="Informe pelo menos um item sob encomenda, ou escolha Envio total."; return render(); }
-  if(m==="encomenda" && hasPick){ state.draftErr="Na encomenda total todos os itens são encomenda. Se há peças em estoque, use Envio parcial ou Aguarda encomenda."; return render(); }
-  if(m==="parcial" && hasEnc && !hasPick) m = "encomenda"; // tudo encomenda: não separa e não usa colmeia
-  const toCompras = m==="aguarda" || m==="encomenda"; // Compras decide se encomenda tudo ou separa o que tem na loja
-  const missing = items.map((it,i)=>it.qtyEnc>0 && !it.eta ? i : -1).filter(i=>i>=0);
+  if(m==="parcial" && hasEnc && !hasPick) m = "temenc"; // tudo encomenda: Compras decide
+  const toCompras = m==="temenc"; // Compras decide se separa o que tem na loja (colmeia) ou aguarda chegar tudo
+  const missing = m!=="parcial" ? [] : items.map((it,i)=>it.qtyEnc>0 && !it.eta ? i : -1).filter(i=>i>=0); // prazo da encomenda: Compras informa
   if(missing.length){ missing.forEach(i=>document.getElementById("eta-"+i)?.classList.add("invalid")); state.draftErr=""; toast("Informe a previsão de chegada dos itens sob encomenda."); return; }
   const noLoc = items.filter(it=>it.qty-it.qtyEnc>0 && !it.loc);
   items.forEach(it=>{ const p=PRODUCTS[it.code]; if(!p) saveProduct({code:it.code, name:it.name, ean:it.ean, loc:it.loc?code(it.loc):""}); else if(!p.ean && it.ean && !validateProduct({...p, ean:it.ean})) saveProduct({...p, ean:it.ean}); });
@@ -1343,7 +1342,7 @@ function asideHTML(){
       const enc=o.items.filter(i=>i.qtyEnc>0), falt=o.items.filter((it,i)=>r[i].status==="miss"||r[i].status==="part");
       const pl=pickList(o), done=pl.filter(x=>r[x.i].status!=="pend").length;
       return `<div class="qcard">
-        <div class="row"><span class="pvn">${esc(o.num)}${o.mode==="aguarda"?" · "+esc(o.colmeia):""}</span><span class="chip ${st.c}">${st.t}</span></div>
+        <div class="row"><span class="pvn">${esc(o.num)}${o.mode==="aguarda"&&o.colmeia?" · Colmeia "+esc(o.colmeia.slice(3)):""}</span><span class="chip ${st.c}">${st.t}</span></div>
         <div class="cl">${esc(o.client)}</div>${urgBar(o)}
         ${o.status==="excluido"?`<div class="delnote">Excluído às ${fmtClock(o.deletedAt)}${USERS_NAME(o.deletedBy)} · motivo: ${esc(o.deleteReason||"")}</div>`:""}
         <div class="meta tnum"><span>${MODES[o.mode]?.t||""}</span>${pl.length?`<span>Separado ${done}/${pl.length} ref.</span>`:""}${(o.tray&&["separando","mesa"].includes(o.trayStatus))||bigOnMesa(o)&&o.trayStatus!=="livre"?`<span>${esc(spotsTxt(o))}</span>`:""}${falt.length?`<span style="color:var(--bad)">${falt.length} com falta</span>`:""}</div>
@@ -1679,6 +1678,12 @@ function openPurchaseImport(){
       toast(pick ? `Pré-venda ${p.num} adicionada · peças da loja vão para a separação (colmeia ${slot.slice(3)})` : `Pré-venda ${p.num} adicionada como encomenda total`);
       S.pv=null; draw(); };
   };
+  const lkLabel = k => { const o=ORDERS.find(x=>x.id===k.oid), it=o?.items[k.i]; return o ? `#${o.num} · ${o.client} · ${it?.code||""} ${it?.name||""}` : ""; };
+  const lkFind = (q, l) => { const all=pending().map(p=>({...p, sc:(l.sku && p.x.code===l.sku ? 100 : 0) + simScore(l.name+" "+l.code, p.x.name+" "+p.x.code)}));
+    const ws=String(q||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/#/g,"").split(/\s+/).filter(Boolean);
+    const hay = p => (p.o.num+" "+p.o.client+" "+p.x.code+" "+p.x.name).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase();
+    const r = ws.length ? all.filter(p=>ws.every(w=>hay(p).includes(w))) : all;
+    return r.sort((a,b)=>(b.sc-a.sc) || (a.o.createdAt||0)-(b.o.createdAt||0)).slice(0,12); };
   const optHTML = (l, cur) => { const all=pending().map(p=>({...p, sc: (l.sku && p.x.code===l.sku ? 100 : 0) + simScore(l.name+" "+l.code, p.x.name+" "+p.x.code)}));
     const opt = p => `<option value="${p.o.id}:${p.x.i}" ${cur===p.o.id+":"+p.x.i?"selected":""}>#${esc(p.o.num)} · ${esc(p.x.code)} ${esc(p.x.name).slice(0,34)} · ${p.x.qtyEnc} pç${compraQty(p.x)?` (${compraQty(p.x)} já encomendadas)`:""} · ${esc(p.o.client).slice(0,20)}</option>`;
     const best=all.filter(p=>p.sc>0).sort((a,b)=>b.sc-a.sc), rest=all.filter(p=>!(p.sc>0)).sort((a,b)=>(a.o.createdAt||0)-(b.o.createdAt||0));
@@ -1698,7 +1703,7 @@ function openPurchaseImport(){
         <div class="ppsku"><span>Item Serena</span><div class="skubox"><input class="tinput mono" data-sku="${j}" value="${esc(l.sku||"")}" placeholder="SKU ou descrição" autocomplete="off" role="combobox" aria-expanded="false" aria-label="Buscar item da Serena por SKU ou descrição"><div class="skudd" data-dd="${j}" role="listbox" hidden></div></div>
           ${!l.sku ? `<small class="muted-s">sem item relacionado</small>` : PRODUCTS[l.sku] ? `<small class="ok-s">${esc(PRODUCTS[l.sku].name)}${(PRODUCTS[l.sku].forn||[]).includes(fornKey(S.forn,l.code))?" · já relacionado":""}</small>`
             : `<span class="ppnew"><small>Novo produto · será cadastrado</small><input class="tinput" data-skn="${j}" value="${esc(l.newName??l.name)}" placeholder="Nome do produto" aria-label="Nome do novo produto"></span>`}</div>
-        ${(l.links||[]).map((k,m)=>`<div class="pplink"><span>→</span><select class="tinput" data-lk="${j}:${m}" aria-label="Pré-venda">${optHTML(l, k.oid?k.oid+":"+k.i:"")}</select><input class="tinput r" type="number" min="1" data-lq="${j}:${m}" value="${k.qty||""}" placeholder="pç" aria-label="Peças para esta pré-venda"><button class="lnk" data-lrm="${j}:${m}">tirar</button></div>`).join("")}
+        ${(l.links||[]).map((k,m)=>`<div class="pplink"><span>→</span><div class="skubox"><input class="tinput" data-lk="${j}:${m}" value="${esc(k.oid ? lkLabel(k) : "")}" placeholder="Nº da pré-venda ou nome do cliente" autocomplete="off" role="combobox" aria-label="Buscar pré-venda por número ou cliente"><div class="skudd lkdd" data-lkdd="${j}:${m}" hidden></div></div><input class="tinput r" type="number" min="1" data-lq="${j}:${m}" value="${k.qty||""}" placeholder="pç" aria-label="Peças para esta pré-venda"><button class="lnk" data-lrm="${j}:${m}">tirar</button></div>`).join("")}
         <button class="lnk" data-ladd="${j}">+ vincular ${l.links?.length?"outra ":""}pré-venda</button>
         ${(()=>{ const used=(l.links||[]).reduce((s,k)=>s+(+k.qty||0),0); return l.qty && used>l.qty ? `<div class="merr">Vínculos somam ${used} pç, mais que as ${l.qty} pç do pedido.</div>` : l.qty && used && used<l.qty ? `<small class="muted-s">${l.qty-used} pç para estoque</small>` : ""; })()}
       </div>`).join("") || `<div class="empty" style="margin:8px 0">${S.lines.length?"Nenhum item com esse filtro.":"Nenhum item ainda."}</div>`}</div>
@@ -1747,9 +1752,21 @@ function openPurchaseImport(){
     ov.querySelectorAll("[data-pf]").forEach(inp=>inp.onchange=()=>{ const l=S.lines[+inp.dataset.j], f=inp.dataset.pf; l[f]= f==="qty" ? Math.max(0,+inp.value||0) : inp.value.trim(); if(f!=="name") setTimeout(draw); });
     ov.querySelectorAll("[data-pdel]").forEach(b=>b.onclick=()=>{ S.lines.splice(+b.dataset.pdel,1); draw(); });
     ov.querySelectorAll("[data-ladd]").forEach(b=>b.onclick=()=>{ const l=S.lines[+b.dataset.ladd]; (l.links||=[]).push({oid:"", i:-1, qty:""}); draw(); });
-    ov.querySelectorAll("[data-lk]").forEach(s=>s.onchange=()=>{ const [j,m]=s.dataset.lk.split(":").map(Number), k=S.lines[j].links[m], [oid,i]=s.value.split(":"); k.oid=oid||""; k.i=oid?+i:-1;
+    // busca da pré-venda por número, cliente ou item
+    ov.querySelectorAll("[data-lk]").forEach(inp=>{ const [j,m]=inp.dataset.lk.split(":").map(Number), l=S.lines[j], k=l.links[m], dd=ov.querySelector(`[data-lkdd="${j}:${m}"]`);
+      const show = () => { const q = k.oid && inp.value===lkLabel(k) ? "" : inp.value, r=lkFind(q, l);
+        dd.innerHTML = r.length ? (!q ? `<div class="skuhint">${l.sku?"Mesmo item e parecidos primeiro":"Parecidos com este item primeiro"} · digite o nº ou o cliente</div>` : "") + r.map(p=>`<button type="button" data-lpick="${p.o.id}:${p.x.i}"><b class="mono">#${esc(p.o.num)}</b><span>${esc(p.o.client)}<small class="muted-s"> · ${esc(p.x.code)} ${esc(p.x.name)} · ${p.x.qtyEnc} pç${p.sc>=100?" · mesmo item":""}</small></span></button>`).join("")
+          : `<div class="skuhint">Nenhuma pré-venda com encomenda encontrada. Use “Adicionar pré-venda (PDF)”.</div>`;
+        dd.hidden=false;
+        dd.querySelectorAll("[data-lpick]").forEach(b=>b.onmousedown=e=>{ e.preventDefault(); dd.hidden=true; pick(b.dataset.lpick); }); };
+      const pick = v => { const [oid,i]=v.split(":"); k.oid=oid; k.i=+i; inp.blur(); applyLink(j,m,oid,+i); };
+      inp.onfocus=show; inp.oninput=show;
+      inp.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); const f=dd.querySelector("[data-lpick]"); if(f && !dd.hidden){ dd.hidden=true; pick(f.dataset.lpick); } } if(e.key==="Escape") dd.hidden=true; };
+      inp.onblur=()=>{ dd.hidden=true; if(k.oid && inp.value!==lkLabel(k)) inp.value=lkLabel(k); if(!k.oid) inp.value=""; };
+    });
+    const applyLink=(j,m,oid,i)=>{ const k=S.lines[j].links[m];
       if(oid){ const p=pending().find(p=>p.o.id===oid&&p.x.i===+i), used=S.lines[j].links.reduce((a,q,n)=>n===m?a:a+(+q.qty||0),0), room=S.lines[j].qty ? S.lines[j].qty-used : Infinity;
-        k.qty = p ? Math.max(1, Math.min(p.left + (+k.qty||0), room)) : 1; } draw(); });
+        k.qty = p ? Math.max(1, Math.min(p.left + (+k.qty||0), room)) : 1; } setTimeout(draw); };
     ov.querySelectorAll("[data-lq]").forEach(s=>s.onchange=()=>{ const [j,m]=s.dataset.lq.split(":").map(Number); S.lines[j].links[m].qty=Math.max(0,+s.value||0); setTimeout(draw); });
     ov.querySelectorAll("[data-lrm]").forEach(b=>b.onclick=()=>{ const [j,m]=b.dataset.lrm.split(":").map(Number); S.lines[j].links.splice(m,1); draw(); });
     bindPv();
