@@ -121,3 +121,11 @@ A partir daqui, cada `git push` na `main` publica sozinho.
 - **Tempo real:** pedidos integrados no comercial aparecem na hora nos celulares, com alerta sonoro para o separador. Para isso, o sistema precisa estar aberto no aparelho.
 - **Backup:** o Supabase faz backup diário nos planos pagos. No plano gratuito, exporte as tabelas de vez em quando em **Table Editor → Export**.
 - **Projeto parado:** projetos do plano gratuito do Supabase pausam após uma semana sem uso. Em produção, considere o plano Pro.
+
+## Compras · encomendas
+- Tela **Compras** (nível de acesso "Compras"; Administrador e Supervisor também veem): pré-vendas com itens sob encomenda (Encomenda total, Envio parcial, Aguarda encomenda com a colmeia).
+- **Encomenda total**: todos os itens são encomenda; não passa pela separação nem usa colmeia.
+- **Importar pedido do fornecedor** (PDF): lê Living, Zen, Italy, Torralba, Jador e modelos parecidos (código, descrição, quantidade, pedido e entrega por linha). Previsão de chegada obrigatória.
+- Cada item pode ser relacionado ao SKU da Serena (busca por SKU ou descrição; SKU novo é cadastrado) e às pré-vendas. O código do fornecedor fica gravado no produto (`forn`) para as próximas importações.
+- Aba **Aguardando chegada** com prazo (no prazo / chega em breve / atrasado). Compras dá baixa ("Chegou") e libera o pedido.
+- Tabela `purchases` (pedidos ao fornecedor). Versão de teste: `python3 test/build-test.py saida.html`.

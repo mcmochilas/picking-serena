@@ -86,3 +86,26 @@ create policy config_transportadoras_write on public.config for all
   using (id = 'transportadoras' and public.app_role() in ('admin','supervisor','estoque'))
   with check (id = 'transportadoras' and public.app_role() in ('admin','supervisor','estoque'));
 insert into public.config (id, data) values ('transportadoras', '{"list":{}}'::jsonb) on conflict (id) do nothing;
+
+-- ---------- Compras: encomendas aos fornecedores ----------
+alter table public.profiles drop constraint if exists profiles_role_check;
+alter table public.profiles add constraint profiles_role_check
+  check (role = any (array['admin','supervisor','comercial','estoque','separador','conferente','painel','compras']));
+create table if not exists public.purchases (id text primary key, data jsonb not null, updated_at timestamptz not null default now());
+alter table public.purchases enable row level security;
+create policy purchases_select on public.purchases for select using (public.app_role() is not null);
+create policy purchases_write on public.purchases for all
+  using (public.app_role() in ('admin','supervisor','compras'))
+  with check (public.app_role() in ('admin','supervisor','compras'));
+alter publication supabase_realtime add table public.purchases;
+-- Compras dá baixa na chegada (pedidos) e cadastra produtos / códigos de fornecedor
+alter policy orders_insert on public.orders with check (public.app_role() in ('admin','supervisor','comercial','separador','conferente','compras'));
+alter policy orders_update on public.orders using (public.app_role() in ('admin','supervisor','comercial','separador','conferente','compras'))
+  with check (public.app_role() in ('admin','supervisor','comercial','separador','conferente','compras'));
+alter policy products_write on public.products using (public.app_role() in ('admin','supervisor','estoque','comercial','compras'))
+  with check (public.app_role() in ('admin','supervisor','estoque','comercial','compras'));
+create or replace function public.merge_doc(t text, doc_id text, patch jsonb) returns void language plpgsql set search_path = public as $$
+begin
+  if t not in ('orders','products','blocks','config','purchases') then raise exception 'tabela inválida: %', t; end if;
+  execute format('update public.%I set data = data || $1, updated_at = now() where id = $2', t) using patch, doc_id;
+end $$;
