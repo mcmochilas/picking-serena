@@ -250,12 +250,15 @@ details.cpcard summary{display:flex;justify-content:space-between;align-items:ce
 .lnk{border:0;background:none;color:var(--route);font:inherit;font-size:12px;cursor:pointer;padding:0;text-decoration:underline}
 .cplink{display:inline-block;font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:1px 6px;margin:1px 2px}
 .cpfoot{display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:10px}.cpfoot small{color:var(--muted)}
+.ppfilter{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}.ppfilter .tinput{flex:1;min-width:180px}.ppfilter label{font-size:13px;display:flex;gap:6px;align-items:center}
+.ppline.on{border-color:var(--accent);background:var(--accent-soft)}
 .pplines{display:flex;flex-direction:column;gap:8px;margin:12px 0 8px}
 .ppline{border:1px solid var(--line);border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
-.pptop{display:grid;grid-template-columns:110px minmax(0,1fr) 80px auto;gap:6px;width:100%;align-items:center}
+.ppf{grid-template-columns:minmax(0,1fr) 200px}
+.pptop{display:grid;grid-template-columns:150px minmax(0,1fr) 80px auto;gap:6px;width:100%;align-items:center}
 .pplink{display:grid;grid-template-columns:auto minmax(0,1fr) 72px auto;gap:6px;align-items:center;width:100%;font-size:13px}
 .tinput.r{text-align:right}
-@media (max-width:600px){.cpkpis{grid-template-columns:1fr 1fr 1fr}.cpkpis b{font-size:20px}.pptop{grid-template-columns:90px minmax(0,1fr) 64px auto}.pptop input[data-pf="name"]{grid-column:1/-1;grid-row:2}.cptab thead{display:none}.cptab tr{display:grid;grid-template-columns:auto 1fr auto;gap:2px 8px;padding:6px 0;border-bottom:1px solid var(--line)}.cptab td{border:0;padding:2px 0}.cptab td:nth-child(2){grid-column:2/4}.cptab td:nth-child(4)::before{content:"Previsão ";color:var(--muted)}}
+@media (max-width:600px){.cpkpis{grid-template-columns:1fr 1fr 1fr}.cpkpis b{font-size:20px}.pptop{grid-template-columns:minmax(0,1fr) 64px auto}.ppf{grid-template-columns:1fr}.pptop input[data-pf="name"]{grid-column:1/-1;grid-row:2}.cptab thead{display:none}.cptab tr{display:grid;grid-template-columns:auto 1fr auto;gap:2px 8px;padding:6px 0;border-bottom:1px solid var(--line)}.cptab td{border:0;padding:2px 0}.cptab td:nth-child(2){grid-column:2/4}.cptab td:nth-child(4)::before{content:"Previsão ";color:var(--muted)}}
 .mbox.wide{width:min(560px,100%);max-height:92vh;overflow:auto}
 .hivebar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px}
 .hnpdf{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0 10px}
@@ -1360,8 +1363,8 @@ function renderCompras(){
     body = purch.length ? `<div class="cplist">${purch.map(p=>{ const links=p.lines.reduce((s,l)=>s+(l.links||[]).length,0);
       return `<details class="cpcard"><summary><div class="cphead"><b>${esc(p.forn||"Fornecedor")}</b>${p.num?`<span class="muted-s">Pedido ${esc(p.num)}</span>`:""}<span class="muted-s">${new Date(p.createdAt).toLocaleDateString("pt-BR")}</span></div>
         <span class="chip ${links?"enc":"bad"}">${p.lines.length} itens · ${links} vínculo${links===1?"":"s"}</span></summary>
-        <table class="cptab"><thead><tr><th>Código</th><th>Descrição</th><th class="r">Qtd</th><th>Pré-vendas</th></tr></thead><tbody>${p.lines.map(l=>`<tr><td class="mono">${esc(l.code)}</td><td>${esc(l.name||"")}</td><td class="r tnum">${l.qty||""}</td>
-          <td>${(l.links||[]).map(k=>{ const o=ORDERS.find(x=>x.id===k.oid); return `<span class="cplink">#${esc(o?.num||k.oid.replace(/^PV-/,""))} · ${k.qty} pç</span>`; }).join(" ")||`<span class="muted-s">sem vínculo</span>`}</td></tr>`).join("")}</tbody></table></details>`; }).join("")}</div>`
+        <div class="cptwrap"><table class="cptab"><thead><tr><th>Código</th><th>Descrição</th><th class="r">Qtd</th><th>Pedido · entrega</th><th>Pré-vendas</th></tr></thead><tbody>${p.lines.map(l=>`<tr><td class="mono">${esc(l.code)}</td><td>${esc(l.name||"")}</td><td class="r tnum">${l.qty||""}</td><td class="tnum">${esc(l.ped||p.num||"—")}${l.entrega?" · "+esc(fmtBR(l.entrega)):""}</td>
+          <td>${(l.links||[]).map(k=>{ const o=ORDERS.find(x=>x.id===k.oid); return `<span class="cplink">#${esc(o?.num||k.oid.replace(/^PV-/,""))} · ${k.qty} pç</span>`; }).join(" ")||`<span class="muted-s">estoque</span>`}</td></tr>`).join("")}</tbody></table></div></details>`; }).join("")}</div>`
       : `<div class="empty">Nenhum pedido de fornecedor importado ainda. Use <b>Importar pedido do fornecedor</b>.</div>`;
   } else {
     const list = (tab==="concluidas" ? done : open).filter(match);
@@ -1395,7 +1398,7 @@ function compraCard(o, closed){
     <div class="cptwrap"><table class="cptab"><thead><tr><th>Código</th><th>Item</th><th class="r">Encomenda</th><th>Previsão</th><th>Situação</th><th></th></tr></thead><tbody>
     ${its.map(x=>{ const st=compraSt(x), [lt,lc]=COMPRA_LABEL[st], links=x.compra?.links||[];
       return `<tr><td class="mono">${esc(x.code)}</td><td>${esc(x.name)}</td><td class="r tnum"><b>${x.qtyEnc}</b> pç</td><td class="tnum">${fmtDate(x.eta)||"—"}</td>
-        <td><span class="chip ${lc}">${lt}${st==="parcial"?` · ${compraQty(x)}/${x.qtyEnc}`:""}</span>${links.map(l=>{ const p=PURCHASES[l.pid]; return `<div class="cpref">${esc(p?.forn||"Fornecedor")}${p?.num?" · ped. "+esc(p.num):""} · ${l.qty} pç${closed?"":` <button class="lnk" data-cunl="${o.id}:${x.i}:${esc(l.pid)}" title="Desfazer vínculo">desfazer</button>`}</div>`; }).join("")}</td>
+        <td><span class="chip ${lc}">${lt}${st==="parcial"?` · ${compraQty(x)}/${x.qtyEnc}`:""}</span>${links.map(l=>{ const p=PURCHASES[l.pid]; return `<div class="cpref">${esc(p?.forn||"Fornecedor")}${(l.ped||p?.num)?" · ped. "+esc(l.ped||p.num):""}${l.fcode?" · "+esc(l.fcode):""} · ${l.qty} pç${l.entrega?" · entrega "+esc(fmtBR(l.entrega)):""}${closed?"":` <button class="lnk" data-cunl="${o.id}:${x.i}:${esc(l.pid)}" title="Desfazer vínculo">desfazer</button>`}</div>`; }).join("")}</td>
         <td class="r">${closed?"":st==="chegou"?`<button class="mini" data-carr="${o.id}:${x.i}" data-v="0">Desfazer chegada</button>`:`<button class="mini" data-carr="${o.id}:${x.i}" data-v="1">Chegou</button>`}</td></tr>`; }).join("")}
     </tbody></table></div>
     ${closed ? `<div class="cpfoot ok-line">Encomenda recebida em ${new Date(o.arrivedAt||Date.now()).toLocaleDateString("pt-BR")} · ${esc(statusInfo(o).t)}</div>`
@@ -1423,89 +1426,149 @@ function unlinkPurchase(oid, i, pid){
   toast("Vínculo desfeito");
 }
 
-/* ---- leitura do PDF do fornecedor (genérica: cada linha com um código conhecido vira um item) ---- */
-async function readSupplierPdf(file){
-  await loadPdfJs();
-  const pdf = await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
-  const lines=[];
-  for(let n=1;n<=pdf.numPages;n++){
-    const tc = await (await pdf.getPage(n)).getTextContent(), rows=new Map();
-    tc.items.forEach(t=>{ if(!t.str.trim()) return; const y=Math.round(t.transform[5]/3); (rows.get(y)||rows.set(y,[]).get(y)).push({s:t.str.trim(), x:t.transform[4]}); });
-    [...rows.entries()].sort((a,b)=>b[0]-a[0]).forEach(([,r])=>lines.push(r.sort((a,b)=>a.x-b.x).map(t=>t.s)));
-  }
-  const text = lines.map(l=>l.join(" ")).join("\n");
-  const known = new Set([...Object.keys(PRODUCTS), ...ORDERS.flatMap(o=>(o.items||[]).map(i=>i.code))]);
-  const byEan = Object.fromEntries(Object.values(PRODUCTS).filter(p=>p.ean).map(p=>[p.ean.replace(/^0+/,""), p.code]));
-  const num = s => +String(s).replace(/\./g,"").replace(",",".");
-  const out=[];
-  lines.forEach(l=>{
-    const toks = l.join(" ").split(/\s+/);
-    let k = toks.findIndex(t=>known.has(t) || byEan[t.replace(/^0+/,"")]);
-    if(k<0) return;
-    const code = known.has(toks[k]) ? toks[k] : byEan[toks[k].replace(/^0+/,"")];
-    const rest = toks.slice(k+1);
-    const nums = rest.map((t,j)=>({t,j})).filter(x=>/^\d{1,3}(\.\d{3})*(,\d+)?$|^\d+([.,]\d+)?$/.test(x.t));
-    const ints = nums.filter(x=>/^\d+([.,]0+)?$/.test(x.t) && num(x.t)>0 && num(x.t)<100000);
-    const qty = ints.length ? num(ints[0].t) : 0;
-    const firstNum = nums.length ? nums[0].j : rest.length;
-    const name = rest.slice(0, firstNum).join(" ").replace(/^[-–·\s]+/,"") || PRODUCTS[code]?.name || "";
-    out.push({code, name: name.slice(0,90), qty});
+/* ---- Leitura do PDF do fornecedor ----
+   Os fornecedores mandam formatos diferentes (relatório de pedidos em aberto, pedido de venda,
+   orçamento). A leitura acha a linha de cabeçalho da tabela (Código/Item · Descrição · Quantidade)
+   e lê cada linha abaixo dela: código do fornecedor, descrição, quantidade e, quando houver,
+   nº do pedido e data de entrega da própria linha. Recebe as páginas como listas de
+   pedaços de texto com posição ({s, x, y, w}) e devolve {forn, num, entrega, lines}. */
+function parseSupplierPages(pages){
+  const norm = t => String(t||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
+  const brNum = t => { t=String(t).trim(); if(!/^\d{1,3}(\.\d{3})*(,\d+)?$|^\d+(,\d+)?$|^\d+\.\d+$/.test(t)) return NaN;
+    if(t.includes(",")) return +t.replace(/\./g,"").replace(",","."); if(/^\d{1,3}(\.\d{3})+$/.test(t)) return +t.replace(/\./g,""); return +t; };
+  const DATE = /^\d{2}\/\d{2}\/\d{4}$/;
+  // palavras com posição: um pedaço de texto pode conter várias palavras e até colunas inteiras
+  const lines = [];
+  pages.forEach((items, pi) => {
+    const words = [];
+    items.forEach(it => { const s = it.s || ""; if(!s.trim()) return; const cw = (it.w || s.length*5) / Math.max(1, s.length);
+      s.replace(/\S+/g, (m, idx) => { words.push({ t:m, x: it.x + idx*cw, x2: it.x + (idx+m.length)*cw, y: it.y }); return m; }); });
+    words.sort((a,b) => b.y - a.y || a.x - b.x);
+    let cur = null;
+    words.forEach(w => { if(!cur || Math.abs(cur.y - w.y) > 3){ cur = { y:w.y, page:pi, w:[] }; lines.push(cur); } cur.w.push(w); });
+    lines.filter(l=>l.page===pi).forEach(l => l.w.sort((a,b) => a.x - b.x));
   });
-  const pm = text.match(/pedido\s*(?:de\s+compra)?\s*(?:n[º°o.]*)?\s*[:#-]?\s*(\d{3,})/i);
-  return { lines: out, num: pm ? pm[1] : "" };
+  const text = l => l.w.map(w=>w.t).join(" ");
+  // segmentos separados por espaços grandes (nomes de empresas no cabeçalho)
+  const segs = l => { const out=[]; let s=null; l.w.forEach(w=>{ if(!s || w.x - s.x2 > 14){ s={t:w.t, x2:w.x2}; out.push(s); } else { s.t+=" "+w.t; s.x2=w.x2; } }); return out.map(x=>x.t); };
+
+  // fornecedor: primeiro nome de empresa do topo que não seja a Serena
+  let forn = "";
+  for(const l of lines.slice(0, 14)){ for(const sg of segs(l)){ const n = norm(sg);
+    if(/serena/.test(n) || /:/.test(sg) || /pedido|cliente|endereco|cnpj|data|rua |r \d/.test(n)) continue;
+    if(/\b(ltda|ind\b|ind\.|industria|s\/?a\b|eireli|comercio|com\.|metais|acessorios)/.test(n) && sg.length > 6){ forn = sg.replace(/\s+-\s+base nova$/i,"").trim();
+      const fw = forn.split(" ")[0], k = forn.lastIndexOf(" "+fw+" "); if(k>0) forn = forn.slice(k+1); break; } }
+    if(forn) break; }
+  const all = lines.map(text).join("\n");
+  const numM = all.match(/(?:Num\.?\s*Pedido|N[º°o]\.?\s*Pedido|Pedido(?!\s*(?:RCA|Cliente|de\s+Venda))|Or[çc]amento\s*N[º°o]?)\s*:?\s*(\d[\d.]*\d|\d)/i);
+  const num = numM ? numM[1].replace(/\./g,"") : "";
+  const entM = all.match(/Data\s+de\s+entrega\s*:?\s*(\d{2}\/\d{2}\/\d{4})/i);
+  const entrega = entM ? entM[1] : "";
+
+  // cabeçalho da tabela
+  const isHeader = l => { const n = l.w.map(w=>norm(w.t)); return n.some(t=>/^descri/.test(t)) && n.some(t=>/^(qtde|quantidade|qt|qtd)$/.test(t)) && n.some(t=>/^(codigo|item|produto|cod\.?)$/.test(t)); };
+  const out = []; let H = null, last = null;
+  const colX = (l, re) => { const w = l.w.find(w => re.test(norm(w.t))); return w ? w.x : null; };
+  for(const l of lines){
+    if(isHeader(l)){
+      H = { code: colX(l,/^(codigo|cod\.?)$/) ?? colX(l,/^item$/) ?? colX(l,/^produto$/), desc: colX(l,/^descri/), qty: colX(l,/^(qtde|quantidade|qt|qtd)$/), ped: colX(l,/^pedido$/) };
+      last = null; continue;
+    }
+    if(!H) continue;
+    const t = norm(text(l));
+    if(/^(total|nº itens|n itens|n. itens)|total geral|^\s*emitido por|^vl\.? pedido/.test(t)){ H = null; last = null; continue; }
+    const ws = l.w.filter(w => w.t !== "(*)" && w.t !== "*");
+    if(!ws.length) continue;
+    // quantidade: primeiro número a partir da coluna de quantidade (alinhado à direita, pode começar um pouco antes)
+    const qi = ws.findIndex(w => w.x2 >= H.qty - 4 && !isNaN(brNum(w.t)) && w.x >= H.desc);
+    const ci = ws.findIndex(w => w.x >= H.code - 12 && w.x < H.desc - 2 && (H.ped == null || w.x > H.ped + 20) && !DATE.test(w.t));
+    const codeW = ci >= 0 && ci < (qi < 0 ? ws.length : qi) ? [ws[ci]] : [];
+    if(qi < 0 || !codeW.length){
+      // continuação da descrição na linha de baixo
+      if(last && !codeW.length){ const d = ws.filter(w => w.x >= H.desc - 4 && w.x < H.qty - 4 && isNaN(brNum(w.t)) && !DATE.test(w.t)).map(w=>w.t).join(" ");
+        if(d && !/^\d{4}\.\d{2}/.test(d)) last.name = (last.name + " " + d).trim(); }
+      continue;
+    }
+    const qty = brNum(ws[qi].t);
+    const code = codeW.map(w=>w.t).join(" ");
+    const name = ws.slice(ci+1, qi).map(w=>w.t).join(" ").replace(/^[-–·\s]+/,"").trim();
+    const ped = H.ped != null ? (ws.find(w => Math.abs(w.x - H.ped) < 30 && /^\d+$/.test(w.t))?.t || "") : "";
+    const dt = ws.find(w => DATE.test(w.t))?.t || "";
+    if(!(qty > 0) || !/[a-z0-9]/i.test(code)) continue;
+    last = { code, name, qty, ped, entrega: dt || entrega };
+    out.push(last);
+  }
+  return { forn, num, entrega, lines: out };
 }
 
+async function readSupplierPdf(file){
+  await loadPdfJs();
+  const pdf = await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise, pages=[];
+  for(let n=1;n<=pdf.numPages;n++){ const tc = await (await pdf.getPage(n)).getTextContent(); pages.push(tc.items.map(i=>({s:i.str, x:i.transform[4], y:i.transform[5], w:i.width}))); }
+  return parseSupplierPages(pages);
+}
+// semelhança entre a descrição do fornecedor e o nome do item da pré-venda (ajuda a achar na lista)
+const simWords = t => new Set(String(t||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toUpperCase().replace(/^PUX(ADOR)?\b\.?/,"").split(/[^A-Z0-9]+/).filter(w=>w.length>=3 && !["PUX","PUXADOR","COM","MM"].includes(w)));
+const simScore = (a, b) => { const A=simWords(a), B=simWords(b); let n=0; A.forEach(w=>{ if(B.has(w)) n++; }); return n; };
+const fmtBR = d => d ? (/^\d{4}-/.test(d) ? fmtDate(d) : d) : "";
+
 function openPurchaseImport(){
-  const S = { forn:"", num:"", lines:[], busy:false, err:"", file:"" };
+  const S = { forn:"", num:"", lines:[], busy:false, err:"", file:"", q:"", onlyLinked:false };
   const ov=document.createElement("div"); ov.className="modal";
   const close=()=>{ ov.remove(); render(); };
-  // itens de pré-venda que ainda precisam de encomenda (quantidade que falta encomendar)
+  // itens de pré-venda sob encomenda, com quanto ainda falta encomendar
   const pending = () => ORDERS.filter(encOpen).flatMap(o=>encItems(o).map(x=>({o, x, left: x.qtyEnc - compraQty(x) - S.lines.reduce((s,l)=>s+(l.links||[]).filter(k=>k.oid===o.id&&k.i===x.i).reduce((a,k)=>a+(+k.qty||0),0),0)})));
-  const optHTML = (code, cur) => { const all=pending();
-    const opt = p => `<option value="${p.o.id}:${p.x.i}" ${cur===p.o.id+":"+p.x.i?"selected":""}>#${esc(p.o.num)} · ${esc(p.x.code)} · ${esc(p.o.client).slice(0,28)} · ${p.x.qtyEnc} pç sob encomenda${compraQty(p.x)?` (${compraQty(p.x)} já encomendadas)`:""}</option>`;
-    const same=all.filter(p=>p.x.code===code), other=all.filter(p=>p.x.code!==code);
-    return `<option value="">Escolher pré-venda…</option>${same.length?`<optgroup label="Mesmo código">${same.map(opt).join("")}</optgroup>`:""}${other.length?`<optgroup label="Outros itens">${other.map(opt).join("")}</optgroup>`:""}`; };
+  const optHTML = (l, cur) => { const all=pending().map(p=>({...p, sc: simScore(l.name+" "+l.code, p.x.name+" "+p.x.code)}));
+    const opt = p => `<option value="${p.o.id}:${p.x.i}" ${cur===p.o.id+":"+p.x.i?"selected":""}>#${esc(p.o.num)} · ${esc(p.x.code)} ${esc(p.x.name).slice(0,34)} · ${p.x.qtyEnc} pç${compraQty(p.x)?` (${compraQty(p.x)} já encomendadas)`:""} · ${esc(p.o.client).slice(0,20)}</option>`;
+    const best=all.filter(p=>p.sc>0).sort((a,b)=>b.sc-a.sc), rest=all.filter(p=>!(p.sc>0)).sort((a,b)=>(a.o.createdAt||0)-(b.o.createdAt||0));
+    return `<option value="">Escolher pré-venda…</option>${best.length?`<optgroup label="Parecidos com este item">${best.map(opt).join("")}</optgroup>`:""}${rest.length?`<optgroup label="Todas as encomendas em aberto">${rest.map(opt).join("")}</optgroup>`:""}`; };
   const draw=()=>{
+    const q=S.q.trim().toLowerCase(), vis=S.lines.map((l,j)=>({l,j})).filter(({l})=>(!q || (l.code+" "+l.name+" "+(l.ped||"")).toLowerCase().includes(q)) && (!S.onlyLinked || (l.links||[]).length));
+    const nLinked=S.lines.filter(l=>(l.links||[]).some(k=>k.oid)).length;
     ov.innerHTML=`<div class="mbox xwide" role="dialog" aria-modal="true" aria-label="Importar pedido do fornecedor"><h2>Importar pedido do fornecedor</h2>
-      <p>Envie o PDF do pedido feito ao fornecedor. Depois, em cada item, escolha a pré-venda a que ele pertence. Um item pode atender mais de uma pré-venda.</p>
-      <div class="hnpdf"><label class="mini tup">${S.busy?"Lendo PDF…":S.file?"Trocar PDF":"Escolher PDF do fornecedor"}<input type="file" id="ppPdf" accept="application/pdf,.pdf" hidden></label><span class="muted-s">${S.file?esc(S.file)+" · "+S.lines.length+" itens encontrados":"ou adicione os itens à mão"}</span></div>
-      <div class="hnf"><label><span>Fornecedor</span><input class="tinput" id="ppForn" value="${esc(S.forn)}" placeholder="Nome do fornecedor"></label><label><span>Nº do pedido</span><input class="tinput" id="ppNum" value="${esc(S.num)}"></label></div>
-      <div class="pplines">${S.lines.map((l,j)=>`<div class="ppline">
-        <div class="pptop"><input class="tinput mono" data-pf="code" data-j="${j}" value="${esc(l.code)}" placeholder="Código" aria-label="Código"><input class="tinput" data-pf="name" data-j="${j}" value="${esc(l.name)}" placeholder="Descrição" aria-label="Descrição"><input class="tinput r" data-pf="qty" data-j="${j}" type="number" min="0" value="${l.qty||""}" placeholder="Qtd" aria-label="Quantidade"><button class="icbtn del" data-pdel="${j}" title="Remover item" aria-label="Remover item">${ICON_TRASH}</button></div>
-        ${(l.links||[]).map((k,m)=>`<div class="pplink"><span>→</span><select class="tinput" data-lk="${j}:${m}">${optHTML(l.code, k.oid?k.oid+":"+k.i:"")}</select><input class="tinput r" type="number" min="1" data-lq="${j}:${m}" value="${k.qty||""}" placeholder="pç" aria-label="Peças para esta pré-venda"><button class="lnk" data-lrm="${j}:${m}">tirar</button></div>`).join("")}
+      <p>Envie o PDF do pedido ou do relatório de pedidos em aberto do fornecedor. Depois, nos itens que são encomenda de cliente, escolha a pré-venda. Itens sem vínculo ficam como compra para estoque.</p>
+      <div class="hnpdf"><label class="mini tup">${S.busy?"Lendo PDF…":S.file?"Trocar PDF":"Escolher PDF do fornecedor"}<input type="file" id="ppPdf" accept="application/pdf,.pdf" hidden></label><span class="muted-s">${S.file?esc(S.file)+" · "+S.lines.length+" itens lidos · "+nLinked+" com pré-venda":"ou adicione os itens à mão"}</span></div>
+      <div class="hnf ppf"><label><span>Fornecedor</span><input class="tinput" id="ppForn" value="${esc(S.forn)}" placeholder="Nome do fornecedor"></label><label><span>Nº do pedido</span><input class="tinput" id="ppNum" value="${esc(S.num)}" placeholder="${S.lines.some(l=>l.ped)?"Vários · cada item tem o seu":""}"></label></div>
+      ${S.lines.length>6?`<div class="ppfilter"><input class="tinput" id="ppQ" placeholder="Filtrar itens por código ou descrição" value="${esc(S.q)}"><label><input type="checkbox" id="ppOnly" ${S.onlyLinked?"checked":""}> só com pré-venda</label></div>`:""}
+      <div class="pplines">${vis.map(({l,j})=>`<div class="ppline ${(l.links||[]).some(k=>k.oid)?"on":""}">
+        <div class="pptop"><input class="tinput mono" data-pf="code" data-j="${j}" value="${esc(l.code)}" placeholder="Código" aria-label="Código do fornecedor"><input class="tinput" data-pf="name" data-j="${j}" value="${esc(l.name)}" placeholder="Descrição" aria-label="Descrição"><input class="tinput r" data-pf="qty" data-j="${j}" type="number" min="0" value="${l.qty||""}" placeholder="Qtd" aria-label="Quantidade"><button class="icbtn del" data-pdel="${j}" title="Remover item" aria-label="Remover item">${ICON_TRASH}</button></div>
+        ${l.ped||l.entrega?`<small class="muted-s">${l.ped?"Pedido "+esc(l.ped):""}${l.ped&&l.entrega?" · ":""}${l.entrega?"entrega "+esc(fmtBR(l.entrega)):""}</small>`:""}
+        ${(l.links||[]).map((k,m)=>`<div class="pplink"><span>→</span><select class="tinput" data-lk="${j}:${m}" aria-label="Pré-venda">${optHTML(l, k.oid?k.oid+":"+k.i:"")}</select><input class="tinput r" type="number" min="1" data-lq="${j}:${m}" value="${k.qty||""}" placeholder="pç" aria-label="Peças para esta pré-venda"><button class="lnk" data-lrm="${j}:${m}">tirar</button></div>`).join("")}
         <button class="lnk" data-ladd="${j}">+ vincular ${l.links?.length?"outra ":""}pré-venda</button>
-        ${(()=>{ const used=(l.links||[]).reduce((s,k)=>s+(+k.qty||0),0); return l.qty && used>l.qty ? `<div class="merr">Vínculos somam ${used} pç, mais que as ${l.qty} pç do pedido.</div>` : l.qty && used && used<l.qty ? `<small class="muted-s">${l.qty-used} pç sem pré-venda (estoque)</small>` : ""; })()}
-      </div>`).join("") || `<div class="empty" style="margin:8px 0">Nenhum item ainda.</div>`}</div>
+        ${(()=>{ const used=(l.links||[]).reduce((s,k)=>s+(+k.qty||0),0); return l.qty && used>l.qty ? `<div class="merr">Vínculos somam ${used} pç, mais que as ${l.qty} pç do pedido.</div>` : l.qty && used && used<l.qty ? `<small class="muted-s">${l.qty-used} pç para estoque</small>` : ""; })()}
+      </div>`).join("") || `<div class="empty" style="margin:8px 0">${S.lines.length?"Nenhum item com esse filtro.":"Nenhum item ainda."}</div>`}</div>
       <button class="mini" id="ppAdd">+ Adicionar item à mão</button>
       <div class="merr">${esc(S.err)}</div>
       <div class="mact"><button class="btn ghost" id="mNo">Cancelar</button><button class="btn primary" id="mOk">Salvar pedido do fornecedor</button></div></div>`;
     const g=id=>ov.querySelector("#"+id);
     g("ppForn").oninput=e=>S.forn=e.target.value; g("ppNum").oninput=e=>S.num=e.target.value;
+    const qi=g("ppQ"); if(qi) qi.oninput=()=>{ S.q=qi.value; clearTimeout(qi._t); qi._t=setTimeout(()=>{ draw(); const n=g("ppQ"); n.focus(); n.setSelectionRange(n.value.length,n.value.length); },250); };
+    const oc=g("ppOnly"); if(oc) oc.onchange=()=>{ S.onlyLinked=oc.checked; draw(); };
     g("ppPdf").onchange=async e=>{ const f=e.target.files[0]; if(!f) return; S.busy=true; S.err=""; draw();
-      try{ const r=await readSupplierPdf(f); S.file=f.name; S.lines=r.lines.map(l=>({...l, links:[]})); S.num=S.num||r.num; if(!r.lines.length) S.err="Não encontrei códigos de produto conhecidos neste PDF. Adicione os itens à mão."; }
+      try{ const r=await readSupplierPdf(f); S.file=f.name; S.lines=r.lines.map(l=>({...l, links:[]})); S.num=S.num||r.num; S.forn=S.forn||r.forn;
+        if(!r.lines.length) S.err="Não encontrei a tabela de itens neste PDF. Adicione os itens à mão ou me mande este modelo para eu ensinar o sistema a ler."; }
       catch(x){ S.err="Não foi possível ler este PDF."; }
       S.busy=false; draw(); };
     ov.querySelectorAll("[data-pf]").forEach(inp=>inp.onchange=()=>{ const l=S.lines[+inp.dataset.j], f=inp.dataset.pf; l[f]= f==="qty" ? Math.max(0,+inp.value||0) : inp.value.trim(); if(f!=="name") draw(); });
     ov.querySelectorAll("[data-pdel]").forEach(b=>b.onclick=()=>{ S.lines.splice(+b.dataset.pdel,1); draw(); });
-    ov.querySelectorAll("[data-ladd]").forEach(b=>b.onclick=()=>{ const l=S.lines[+b.dataset.ladd]; (l.links||=[]);
-      l.links.push({oid:"", i:-1, qty:""}); draw(); });
+    ov.querySelectorAll("[data-ladd]").forEach(b=>b.onclick=()=>{ const l=S.lines[+b.dataset.ladd]; (l.links||=[]).push({oid:"", i:-1, qty:""}); draw(); });
     ov.querySelectorAll("[data-lk]").forEach(s=>s.onchange=()=>{ const [j,m]=s.dataset.lk.split(":").map(Number), k=S.lines[j].links[m], [oid,i]=s.value.split(":"); k.oid=oid||""; k.i=oid?+i:-1;
       if(oid){ const p=pending().find(p=>p.o.id===oid&&p.x.i===+i), used=S.lines[j].links.reduce((a,q,n)=>n===m?a:a+(+q.qty||0),0), room=S.lines[j].qty ? S.lines[j].qty-used : Infinity;
         k.qty = p ? Math.max(1, Math.min(p.left + (+k.qty||0), room)) : 1; } draw(); });
     ov.querySelectorAll("[data-lq]").forEach(s=>s.onchange=()=>{ const [j,m]=s.dataset.lq.split(":").map(Number); S.lines[j].links[m].qty=Math.max(0,+s.value||0); draw(); });
     ov.querySelectorAll("[data-lrm]").forEach(b=>b.onclick=()=>{ const [j,m]=b.dataset.lrm.split(":").map(Number); S.lines[j].links.splice(m,1); draw(); });
-    g("ppAdd").onclick=()=>{ S.lines.push({code:"", name:"", qty:0, links:[]}); draw(); };
+    g("ppAdd").onclick=()=>{ S.lines.push({code:"", name:"", qty:0, ped:"", entrega:"", links:[]}); S.q=""; S.onlyLinked=false; draw(); };
     g("mNo").onclick=close;
     g("mOk").onclick=()=>{
-      const lines=S.lines.filter(l=>l.code||l.name).map(l=>({code:l.code, name:l.name, qty:+l.qty||0, links:(l.links||[]).filter(k=>k.oid&&k.i>=0&&+k.qty>0).map(k=>({oid:k.oid, i:k.i, qty:+k.qty}))}));
+      const lines=S.lines.filter(l=>l.code||l.name).map(l=>({code:l.code, name:l.name, qty:+l.qty||0, ped:l.ped||"", entrega:l.entrega||"", links:(l.links||[]).filter(k=>k.oid&&k.i>=0&&+k.qty>0).map(k=>({oid:k.oid, i:k.i, qty:+k.qty}))}));
       if(!S.forn.trim()){ S.err="Informe o fornecedor."; return draw(); }
       if(!lines.length){ S.err="Adicione pelo menos um item."; return draw(); }
       const over=lines.find(l=>l.qty && l.links.reduce((s,k)=>s+k.qty,0)>l.qty); if(over){ S.err=`O item ${over.code} tem mais peças vinculadas do que no pedido.`; return draw(); }
       const id="PC-"+Date.now().toString(36), doc={id, forn:S.forn.trim(), num:S.num.trim(), file:S.file, lines, createdAt:Date.now(), createdBy:ME.id||""};
       PURCHASES[id]=doc; if(purchCol) queueWrite("pc-"+id, ()=>purchCol.doc(id).set(JSON.parse(JSON.stringify(doc))));
-      // grava o vínculo em cada item da pré-venda
-      const byOrder={}; lines.forEach(l=>l.links.forEach(k=>(byOrder[k.oid] ||= []).push(k)));
-      Object.entries(byOrder).forEach(([oid,ks])=>patchItems(oid, items=>ks.forEach(k=>{ const it=items[k.i]; if(!it) return; it.compra={...(it.compra||{}), links:[...((it.compra||{}).links||[]), {pid:id, qty:k.qty}]}; })));
+      // grava o vínculo em cada item da pré-venda (com o nº do pedido e a entrega do fornecedor)
+      const byOrder={}; lines.forEach(l=>l.links.forEach(k=>(byOrder[k.oid] ||= []).push({...k, ped:l.ped||doc.num, entrega:l.entrega, fcode:l.code})));
+      Object.entries(byOrder).forEach(([oid,ks])=>patchItems(oid, items=>ks.forEach(k=>{ const it=items[k.i]; if(!it) return; it.compra={...(it.compra||{}), links:[...((it.compra||{}).links||[]), {pid:id, qty:k.qty, ped:k.ped, entrega:k.entrega, fcode:k.fcode}]}; })));
       const nl=lines.reduce((s,l)=>s+l.links.length,0);
       toast(`Pedido do fornecedor salvo · ${nl} vínculo${nl===1?"":"s"} com pré-vendas`); close();
     };
