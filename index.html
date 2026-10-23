@@ -234,6 +234,8 @@ html.tvmode body{background:var(--bg);color:var(--ink);overflow:hidden}
 .chip.warn{background:var(--accent-soft);color:var(--accent-ink)}
 .cpfoot .btn{flex:none;width:auto;height:42px;padding:0 18px;font-size:15px}
 .uscount{display:flex;align-items:center;gap:14px;margin:12px 0}.uscount b{font-family:var(--display);font-size:40px;line-height:1}.uscount span{color:var(--muted)}.uscount .mini{width:44px;height:44px;font-size:22px}
+.qrbox{text-align:center}.qrbox p{text-align:left}.qr{display:grid;place-items:center;min-height:240px;margin:6px auto 10px;background:#fff;border-radius:12px;padding:10px;width:240px;max-width:100%;box-sizing:border-box}.qr img,.qr canvas{display:block;max-width:100%}
+.qrurl{display:flex;gap:8px;align-items:center}.qrurl .tinput{flex:1;min-width:0;font-size:12px}
 .decplan{font-size:14px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
 .cpdec .encin{justify-content:flex-end}
 .cpwait tr.late,.cpwait tr.late td{background:var(--bad-soft)}
@@ -1005,6 +1007,9 @@ document.addEventListener("click", e => {
 });
 const state = { canal:(()=>{ try{ return localStorage.getItem("ps-canal")||"consultiva"; }catch(e){ return "consultiva"; } })(), sector:null, view:"orders", oid:null, idx:0, phase:"loc", count:0, draft:null, draftErr:"", parsing:false, etab:"enderecos", rua:1, lado:"A", selLoc:null, mesaLast:null };
 if(location.hash==="#tv") state.view="tv";
+// link do QR code "devolver ao estoque": abre o processo no celular depois do login
+const usFromHash = () => { const m=location.hash.match(/^#devolver-(.+)$/); if(m){ state.usPending=decodeURIComponent(m[1]); state.sector="compras"; } };
+usFromHash(); window.addEventListener("hashchange", ()=>{ usFromHash(); if(state.usPending) render(); });
 window.addEventListener("hashchange", ()=>{ if(location.hash==="#tv"){ state.view="tv"; render(); } else if(state.view==="tv"){ state.view="orders"; render(); } });
 function initialSector(){ const h=location.hash.slice(1); if(["comercial","expedicao","compras","estoque","usuarios"].includes(h)) return h; return innerWidth>=900 ? "comercial" : "expedicao"; }
 state.sector = initialSector();
@@ -1436,7 +1441,7 @@ function renderCompras(){
   app.querySelectorAll("[data-carr]").forEach(b=>b.onclick=()=>{ const [oid,i]=b.dataset.carr.split(":"); setItemArrived(oid,+i,b.dataset.v==="1"); });
   app.querySelectorAll("[data-crel]").forEach(b=>b.onclick=()=>{ if(!b.dataset.c){ b.dataset.c="1"; b.textContent="Confirmar: encomenda chegou"; return; } releaseEnc(b.dataset.crel); });
   bindDecide();
-  app.querySelectorAll("[data-cunst]").forEach(b=>b.onclick=()=>startUnstore(b.dataset.cunst));
+  app.querySelectorAll("[data-cunst]").forEach(b=>b.onclick=()=>openUnstoreQR(b.dataset.cunst));
   app.querySelectorAll("[data-cunl]").forEach(b=>b.onclick=()=>{ const [oid,i,pid]=b.dataset.cunl.split(":"); unlinkPurchase(oid,+i,pid); });
 }
 /* ---- Decisão de Compras: encomendar tudo ou separar o que tem na loja (colmeia) ---- */
@@ -1735,6 +1740,26 @@ function openPurchaseImport(){
    3) leva ao endereço do estoque e bipa a etiqueta do endereço. No fim, o pedido volta para
    "Para decidir" em Compras e a colmeia fica livre. */
 const usItems = o => { const r=o.res||[]; return (o.items||[]).map((it,i)=>({...it, i, back: r[i] ? (r[i].got||0) : Math.max(0, it.qty-(it.qtyEnc||0))})).filter(x=>x.back>0); };
+const APP_URL = /vercel\.app$|picking-serena/.test(location.hostname) ? location.origin + "/" : "https://picking-serena.vercel.app/";
+function openUnstoreQR(oid){
+  const o=ORDERS.find(x=>x.id===oid); if(!o) return;
+  const url = APP_URL + "#devolver-" + encodeURIComponent(oid), cm=(o.colmeia||"").slice(3);
+  const ov=document.createElement("div"); ov.className="modal";
+  ov.innerHTML=`<div class="mbox qrbox" role="dialog" aria-modal="true" aria-label="Devolver ao estoque pelo celular"><h2>Continue no celular</h2>
+    <p>Aponte a câmera do celular para o código. O processo do pedido <b>#${esc(o.num)}</b> abre direto na colmeia <b>${esc(cm)}</b> para você bipar as peças e devolvê-las ao estoque.</p>
+    <div class="qr" id="usQR" aria-label="QR code do link"><span class="muted-s">Gerando código…</span></div>
+    <div class="qrurl"><input class="tinput mono" id="usUrl" value="${esc(url)}" readonly aria-label="Link"><button class="mini" id="usCopy">Copiar</button></div>
+    <div class="mact"><button class="btn ghost" id="mNo">Fechar</button><button class="btn primary" id="usHere">Fazer neste aparelho</button></div></div>`;
+  const close=()=>{ ov.remove(); render(); };
+  document.body.appendChild(ov); scanbar.hidden=true;
+  ov.onclick=e=>{ if(e.target===ov) close(); };
+  ov.querySelector("#mNo").onclick=close;
+  ov.querySelector("#usHere").onclick=()=>{ ov.remove(); startUnstore(oid); };
+  ov.querySelector("#usCopy").onclick=async()=>{ const i=ov.querySelector("#usUrl"); try{ await navigator.clipboard.writeText(url); toast("Link copiado"); }catch(e){ i.select(); } };
+  loadLib("qr","https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js").then(()=>{ const box=ov.querySelector("#usQR"); if(!box) return; box.innerHTML="";
+    new QRCode(box, { text:url, width:220, height:220, colorDark:"#000000", colorLight:"#ffffff", correctLevel:QRCode.CorrectLevel.M }); })
+    .catch(()=>{ const box=ov.querySelector("#usQR"); if(box) box.innerHTML=`<span class="muted-s">Não foi possível gerar o código. Use o link abaixo.</span>`; });
+}
 function startUnstore(oid){
   const o=ORDERS.find(x=>x.id===oid); if(!o || o.status!=="na_colmeia" || !can("devolver")) return;
   state.us = { oid, phase:"hive", idx:0, count:0, step:"prod", done:{} };
@@ -3715,6 +3740,10 @@ function render(){
   if(state.view==="labels") return renderLabels();
   if(state.sector==="comercial") return renderComercial();
   if(state.sector==="estoque") return renderEstoque();
+  if(state.usPending && can("devolver")){ const o=ORDERS.find(x=>x.id===state.usPending);
+    if(o){ state.usPending=null; try{ history.replaceState(null,"",location.pathname+"#compras"); }catch(e){}
+      if(o.status==="na_colmeia"){ state.sector="compras"; state.us={ oid:o.id, phase:"hive", idx:0, count:0, step:"prod", done:{} }; state.view="unstore"; }
+      else toast(`O pedido #${o.num} não está mais na colmeia`); } }
   if(state.sector==="compras") return state.view==="unstore" ? renderUnstore() : renderCompras();
   if(state.sector==="usuarios") return renderUsuarios();
   if(state.view==="tray") return renderTray();
