@@ -1378,19 +1378,22 @@ function renderCompras(){
   let body;
   if(tab==="chegada"){
     const rows = aguard.filter(x=>match(x.o)).sort((a,b)=>(prevOf(a)||"9999").localeCompare(prevOf(b)||"9999"));
-    body = rows.length ? `<div class="cpcard"><div class="cptwrap"><table class="cptab cpwait"><thead><tr><th>Previsão</th><th>Prazo</th><th>Pré-venda</th><th>Item</th><th class="r">Qtd</th><th>Fornecedor · pedido</th><th></th></tr></thead><tbody>
-      ${rows.map(x=>{ const pz=prazoInfo(x), links=x.compra?.links||[];
+    const pgw = pageOf(rows, "cpwait", 20);
+    body = rows.length ? `${pgw.top}<div class="cpcard"><div class="cptwrap"><table class="cptab cpwait"><thead><tr><th>Previsão</th><th>Prazo</th><th>Pré-venda</th><th>Item</th><th class="r">Qtd</th><th>Fornecedor · pedido</th><th></th></tr></thead><tbody>
+      ${pgw.items.map(x=>{ const pz=prazoInfo(x), links=x.compra?.links||[];
         return `<tr class="${pz?.c==="bad"?"late":""}"><td class="tnum">${prevOf(x)?fmtDate(prevOf(x)):"—"}</td><td>${pz?`<span class="chip ${pz.c}">${pz.t}</span>`:`<span class="muted-s">sem previsão</span>`}</td>
           <td><b class="mono">#${esc(x.o.num)}</b><div class="muted-s">${esc(x.o.client)}</div></td><td><span class="mono">${esc(x.code)}</span> ${esc(x.name)}</td><td class="r tnum">${compraQty(x)}${compraQty(x)<x.qtyEnc?`/${x.qtyEnc}`:""} pç</td>
           <td>${links.map(l=>{ const p=PURCHASES[l.pid]; return `<div>${esc(p?.forn||"Fornecedor")}${(l.ped||p?.num)?" · ped. "+esc(l.ped||p.num):""}</div>`; }).join("")}</td>
-          <td class="r"><button class="mini" data-carr="${x.o.id}:${x.i}" data-v="1">Chegou</button></td></tr>`; }).join("")}</tbody></table></div></div>`
+          <td class="r"><button class="mini" data-carr="${x.o.id}:${x.i}" data-v="1">Chegou</button></td></tr>`; }).join("")}</tbody></table></div></div>${pgw.pager}`
       : `<div class="empty">${q?"Nada encontrado para essa busca.":"Nenhum item encomendado aguardando chegada."}</div>`;
   } else if(tab==="fornecedor"){
-    body = purch.length ? `<div class="cplist">${purch.map(p=>{ const links=p.lines.reduce((s,l)=>s+(l.links||[]).length,0);
-      return `<details class="cpcard"><summary><div class="cphead"><b>${esc(p.forn||"Fornecedor")}</b>${p.num?`<span class="muted-s">Pedido ${esc(p.num)}</span>`:""}<span class="muted-s">importado ${new Date(p.createdAt).toLocaleDateString("pt-BR")}</span>${p.prev?`<span class="chip ${daysTo(p.prev)<0?"bad":"done"}">Previsão ${fmtDate(p.prev)}</span>`:""}</div>
+    const pgf = pageOf(purch, "cpforn", 10);
+    body = purch.length ? `${pgf.top}<div class="cplist">${pgf.items.map(p=>{ const links=p.lines.reduce((s,l)=>s+(l.links||[]).length,0);
+      const pgl = pageOf(p.lines, "cpl-"+p.id, 25);
+      return `<details class="cpcard" data-cpid="${esc(p.id)}" ${(state.cpOpen||[]).includes(p.id)?"open":""}><summary><div class="cphead"><b>${esc(p.forn||"Fornecedor")}</b>${p.num?`<span class="muted-s">Pedido ${esc(p.num)}</span>`:""}<span class="muted-s">importado ${new Date(p.createdAt).toLocaleDateString("pt-BR")}</span>${p.prev?`<span class="chip ${daysTo(p.prev)<0?"bad":"done"}">Previsão ${fmtDate(p.prev)}</span>`:""}</div>
         <span class="chip ${links?"enc":"bad"}">${p.lines.length} itens · ${links} vínculo${links===1?"":"s"}</span></summary>
-        <div class="cptwrap"><table class="cptab"><thead><tr><th>Código</th><th>Item Serena</th><th>Descrição</th><th class="r">Qtd</th><th>Pedido · entrega</th><th>Pré-vendas</th></tr></thead><tbody>${p.lines.map(l=>`<tr><td class="mono">${esc(l.code)}</td><td class="mono">${esc(l.sku||"—")}</td><td>${esc(l.name||"")}</td><td class="r tnum">${l.qty||""}</td><td class="tnum">${esc(l.ped||p.num||"—")}${l.entrega?" · "+esc(fmtBR(l.entrega)):""}</td>
-          <td>${(l.links||[]).map(k=>{ const o=ORDERS.find(x=>x.id===k.oid); return `<span class="cplink">#${esc(o?.num||k.oid.replace(/^PV-/,""))} · ${k.qty} pç</span>`; }).join(" ")||`<span class="muted-s">estoque</span>`}</td></tr>`).join("")}</tbody></table></div></details>`; }).join("")}</div>`
+        <div class="cptwrap"><table class="cptab"><thead><tr><th>Código</th><th>Item Serena</th><th>Descrição</th><th class="r">Qtd</th><th>Pedido · entrega</th><th>Pré-vendas</th></tr></thead><tbody>${pgl.items.map(l=>`<tr><td class="mono">${esc(l.code)}</td><td class="mono">${esc(l.sku||"—")}</td><td>${esc(l.name||"")}</td><td class="r tnum">${l.qty||""}</td><td class="tnum">${esc(l.ped||p.num||"—")}${l.entrega?" · "+esc(fmtBR(l.entrega)):""}</td>
+          <td>${(l.links||[]).map(k=>{ const o=ORDERS.find(x=>x.id===k.oid); return `<span class="cplink">#${esc(o?.num||k.oid.replace(/^PV-/,""))} · ${k.qty} pç</span>`; }).join(" ")||`<span class="muted-s">estoque</span>`}</td></tr>`).join("")}</tbody></table></div>${pgl.pager}</details>`; }).join("")}</div>${pgf.pager}`
       : `<div class="empty">Nenhum pedido de fornecedor importado ainda. Use <b>Importar pedido do fornecedor</b>.</div>`;
   } else {
     const list = (tab==="concluidas" ? done : open).filter(match);
@@ -1406,8 +1409,9 @@ function renderCompras(){
     ${body}`;
   bindNav();
   app.querySelectorAll("[data-ctab]").forEach(b=>b.onclick=()=>{ state.cTab=b.dataset.ctab; render(); });
-  const qi=document.getElementById("cpQ"); if(qi){ qi.oninput=()=>{ state.cQ=qi.value; clearTimeout(qi._t); qi._t=setTimeout(()=>{ resetPage("compras"); render(); const n=document.getElementById("cpQ"); if(n){ n.focus(); n.setSelectionRange(n.value.length,n.value.length); } },250); }; }
+  const qi=document.getElementById("cpQ"); if(qi){ qi.oninput=()=>{ state.cQ=qi.value; clearTimeout(qi._t); qi._t=setTimeout(()=>{ resetPage("compras"); resetPage("cpwait"); render(); const n=document.getElementById("cpQ"); if(n){ n.focus(); n.setSelectionRange(n.value.length,n.value.length); } },250); }; }
   document.getElementById("cpImport").onclick=()=>openPurchaseImport();
+  app.querySelectorAll("details[data-cpid]").forEach(d=>d.ontoggle=()=>{ const id=d.dataset.cpid, set=new Set(state.cpOpen||[]); d.open?set.add(id):set.delete(id); state.cpOpen=[...set]; });
   app.querySelectorAll("[data-carr]").forEach(b=>b.onclick=()=>{ const [oid,i]=b.dataset.carr.split(":"); setItemArrived(oid,+i,b.dataset.v==="1"); });
   app.querySelectorAll("[data-crel]").forEach(b=>b.onclick=()=>{ if(!b.dataset.c){ b.dataset.c="1"; b.textContent="Confirmar: encomenda chegou"; return; } releaseEnc(b.dataset.crel); });
   app.querySelectorAll("[data-cunl]").forEach(b=>b.onclick=()=>{ const [oid,i,pid]=b.dataset.cunl.split(":"); unlinkPurchase(oid,+i,pid); });
