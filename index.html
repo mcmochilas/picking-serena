@@ -237,7 +237,7 @@ html.tvmode body{background:var(--bg);color:var(--ink);overflow:hidden}
 .cpkpis>div,.cpkpis>.kp{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px;min-width:0}
 .cpkpis b{display:block;font-size:26px;font-family:var(--display);line-height:1.1}.cpkpis small{color:var(--muted);font-size:12px}
 .cpkpis .bad b{color:var(--bad)}
-.cptools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:16px 0 10px}.cptools .seg{flex-wrap:wrap}.cpq{max-width:320px;flex:1;min-width:180px}
+.cptools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:14px 0 10px}.cptools .seg{flex-wrap:wrap}.cpq{max-width:320px;flex:1;min-width:180px}
 .cplist{display:flex;flex-direction:column;gap:12px}
 .cpcard{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
 details.cpcard summary{display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer;list-style:none;flex-wrap:wrap}
@@ -1401,7 +1401,6 @@ function renderCompras(){
   app.innerHTML = topnav() + `
     <header class="bar"><div class="grow"><h1>Compras · encomendas</h1><div class="sub">Itens que o comercial vendeu sob encomenda e o pedido feito ao fornecedor</div></div>
       <button class="btn primary cpbtn" id="cpImport">Importar pedido do fornecedor</button></header>
-    <div class="cpkpis"><div><b class="tnum">${open.length}</b><small>pré-vendas com encomenda</small></div><button class="kp ${falta.length?"bad":""}" data-ctab="abertas"><b class="tnum">${falta.length}</b><small>itens a encomendar</small></button><button class="kp" data-ctab="chegada"><b class="tnum">${aguard.length}</b><small>encomendados, aguardando chegada</small></button><button class="kp ${late.length?"bad":""}" data-ctab="chegada"><b class="tnum">${late.length}</b><small>fora do prazo</small></button></div>
     <div class="cptools"><div class="seg">${[["abertas",`Em aberto · ${open.length}`],["chegada",`Aguardando chegada · ${aguard.length}${late.length?` (${late.length} atrasado${late.length===1?"":"s"})`:""}`],["fornecedor",`Pedidos ao fornecedor · ${purch.length}`],["concluidas","Concluídas"]].map(([k,t])=>`<button data-ctab="${k}" aria-pressed="${tab===k}">${t}</button>`).join("")}</div>
       ${tab!=="fornecedor"?`<input class="tinput cpq" id="cpQ" placeholder="Buscar pré-venda, cliente ou código" value="${esc(state.cQ||"")}">`:""}</div>
     ${body}`;
