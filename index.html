@@ -233,7 +233,7 @@ html.tvmode body{background:var(--bg);color:var(--ink);overflow:hidden}
 .cpkpis .kp{font:inherit;color:inherit;text-align:left;cursor:pointer}.cpkpis .kp:hover{border-color:var(--accent)}
 .chip.warn{background:var(--accent-soft);color:var(--accent-ink)}
 .cpbtns{display:flex;gap:8px;flex-wrap:wrap}.bar .btn.ghost.cpbtn{color:var(--ink)}
-.hnf.nff{grid-template-columns:minmax(0,1fr) 140px 140px}@media (max-width:600px){.hnf.nff{grid-template-columns:1fr 1fr}.hnf.nff label:first-child{grid-column:1/-1}}.nfl{display:flex;gap:8px;align-items:baseline;width:100%}.nfl span{margin-left:auto;white-space:nowrap}.nfpv{min-width:0;font-size:13px}.nfadd{width:100%}.nfadd .tinput{font-size:13px}.rcq{display:flex;gap:6px;align-items:center;flex:none}.rcq .tinput{width:70px}.rcq .mini.on{background:var(--ok-soft);color:var(--ok);border-color:var(--ok)}.rcl.ok{background:var(--ok-soft)}.rcl.div{background:var(--bad-soft)}.bad-t{color:var(--bad)}
+.hnf.nff{grid-template-columns:minmax(0,1fr) 140px 140px}@media (max-width:600px){.hnf.nff{grid-template-columns:1fr 1fr}.hnf.nff label:first-child{grid-column:1/-1}}.nfl{display:flex;gap:8px;align-items:baseline;width:100%}.nfl span{margin-left:auto;white-space:nowrap}.nfpv{min-width:0;font-size:13px}.nfadd{width:100%}.nfadd .tinput{font-size:13px}.rcq{display:flex;gap:6px;align-items:center;flex:none}.rcq .tinput{width:70px}.rcq .mini.on{background:var(--ok-soft);color:var(--ok);border-color:var(--ok)}.rcl.ok{background:var(--ok-soft)}.rcl.div{background:var(--bad-soft)}.bad-t{color:var(--bad)}.warn-t{color:var(--accent-ink)}
 .rcpv{display:flex;flex-wrap:wrap;gap:4px}
 .cpfoot .btn{flex:none;width:auto;height:42px;padding:0 18px;font-size:15px}
 .phases.ph3{grid-template-columns:repeat(3,minmax(0,1fr))}.phases.ph3 .phase{font-size:12px;padding:8px}
@@ -2074,31 +2074,37 @@ function renderReceb(){
         ${!n.received ? `<small class="muted-s">Confira cada item e toque em OK. Se a quantidade for diferente, digite o que chegou e toque em OK.</small>`:""}`; })() : ""}
       ${pvs(n).length?`<div class="eyebrow" style="margin-top:10px">Pré-vendas atendidas</div><div class="rcpv">${pvs(n).map(o=>`<span class="cplink">#${esc(o.num)} · ${esc(o.client)}</span>`).join("")}</div>`:""}
       ${n.received ? "" : (()=>{ const miss=(n.lines||[]).filter((l,k)=>!state.rc.chk[k]).length; return `<button class="btn primary" id="rcOk" ${got && !miss?"":"disabled"}>${!got ? "Conte as caixas" : miss ? `Faltam conferir ${miss} item(ns)` : `Confirmar recebimento · ${got} caixa${got===1?"":"s"}`}</button>`; })()}
-      <button class="mini" id="rcBack" style="margin-top:8px">Voltar à lista</button></div>`;
+      <button class="mini" id="rcBack" style="margin-top:8px">${n.received ? "Voltar à lista" : "Salvar e continuar depois"}</button>
+      ${!n.received && n.conf?.at ? `<small class="muted-s">Conferência salva automaticamente · última alteração ${new Date(n.conf.at).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}${n.conf.by?` por <span data-uid="${esc(n.conf.by)}"></span>`:""}</small>`:""}</div>`;
   } else {
     body = `<div class="instr" style="margin-top:12px">${ICON_SCAN}<div>Bipe o <b>código de barras da nota fiscal impressa</b> (DANFE) que veio com as caixas, ou digite o número da NF.</div></div>
-      <div class="section"><div class="eyebrow">Notas a receber · ${pend.length}</div>${pend.length?`<div class="list" style="margin-top:0">${pend.map(n=>`<button class="li" data-rcopen="${esc(n.id)}"><span class="lc tnum">${esc(n.num)}</span><span class="ln">${esc(n.forn)}<small>${n.vols?n.vols+" caixas · ":""}${pvs(n).map(o=>"#"+o.num).join(", ")||"estoque"}</small></span></button>`).join("")}</div>`:`<div class="empty">Nenhuma nota aguardando chegada.</div>`}</div>
+      <div class="section"><div class="eyebrow">Notas a receber · ${pend.length}</div>${pend.length?`<div class="list" style="margin-top:0">${pend.map(n=>`<button class="li" data-rcopen="${esc(n.id)}"><span class="lc tnum">${esc(n.num)}</span><span class="ln">${esc(n.forn||"Fornecedor a identificar")}<small>${n.conf?`<b class="warn-t">Em conferência · ${Object.keys(n.conf.chk||{}).length} de ${(n.lines||[]).length} itens · ${n.conf.vols||0} caixa(s)</b> · `:""}${n.vols?n.vols+" caixas · ":""}${pvs(n).map(o=>"#"+o.num).join(", ")||"estoque"}</small></span></button>`).join("")}</div>`:`<div class="empty">Nenhuma nota aguardando chegada.</div>`}</div>
       <div class="section"><div class="eyebrow">Recebidas recentemente</div>${done.length?`<div class="list" style="margin-top:0">${done.map(n=>`<button class="li" data-rcopen="${esc(n.id)}"><span class="lc tnum">${esc(n.num)}</span><span class="ln">${esc(n.forn||"—")}<small>${new Date(n.received.at).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})} · ${n.received.vols} caixa(s)${n.lines?.length?"":" · aguardando Compras"}</small></span>${n.received.div?`<span class="chip bad">Divergência</span>`:`<span class="chip done">Recebida</span>`}</button>`).join("")}</div>`:`<div class="empty">Nada recebido ainda.</div>`}</div>
       <button class="demo" id="sim">Simular leitura da 1ª nota (demo)</button>`;
   }
   app.innerHTML = topnav() + `<header class="bar"><div class="grow"><h1>Recebimento</h1><div class="sub">Chegada de mercadoria dos fornecedores</div></div></header>${body}`;
   bindNav();
   app.querySelectorAll("[data-rcopen]").forEach(b=>b.onclick=()=>openReceb(NFS[b.dataset.rcopen]));
+  fillNames(app);
   const g=id=>document.getElementById(id);
   if(g("sim")) g("sim").onclick=()=>{ const n=pend[0]; if(n) handleScan(n.chave||n.num); else toast("Nenhuma nota para simular"); };
-  if(g("rcMinus")) g("rcMinus").onclick=()=>{ state.rc.vols=Math.max(0,state.rc.vols-1); render(); };
-  if(g("rcPlus")) g("rcPlus").onclick=()=>{ state.rc.vols++; render(); };
-  if(g("rcBack")) g("rcBack").onclick=()=>{ state.rc=null; render(); };
+  if(g("rcMinus")) g("rcMinus").onclick=()=>{ state.rc.vols=Math.max(0,state.rc.vols-1); saveConf(); render(); };
+  if(g("rcPlus")) g("rcPlus").onclick=()=>{ state.rc.vols++; saveConf(); render(); };
+  if(g("rcBack")) g("rcBack").onclick=()=>{ const n=NFS[state.rc.id]; if(n && !n.received && (state.rc.vols || Object.keys(state.rc.chk).length)){ saveConf(); toast("Conferência salva · continue quando quiser"); } state.rc=null; render(); };
   if(g("rcOk")) g("rcOk").onclick=confirmReceb;
-  app.querySelectorAll("[data-rcok]").forEach(b=>b.onclick=()=>{ const k=+b.dataset.rcok, q=+(app.querySelector(`[data-rcq="${k}"]`)?.value)||0; state.rc.chk[k]={qty:Math.max(0,q)}; render(); });
-  app.querySelectorAll("[data-rcq]").forEach(i=>i.onchange=()=>{ const k=+i.dataset.rcq; if(state.rc.chk[k]) { state.rc.chk[k]={qty:Math.max(0,+i.value||0)}; render(); } });
+  app.querySelectorAll("[data-rcok]").forEach(b=>b.onclick=()=>{ const k=+b.dataset.rcok, q=+(app.querySelector(`[data-rcq="${k}"]`)?.value)||0; state.rc.chk[k]={qty:Math.max(0,q)}; saveConf(); render(); });
+  app.querySelectorAll("[data-rcq]").forEach(i=>i.onchange=()=>{ const k=+i.dataset.rcq; if(state.rc.chk[k]) { state.rc.chk[k]={qty:Math.max(0,+i.value||0)}; saveConf(); render(); } });
   setMsg(state.rc ? "Conte as caixas e confirme" : "Bipe o código de barras da nota fiscal", "info");
   focusScan();
 }
-function openReceb(n){ if(!n) return; state.rc={ id:n.id, vols: n.received ? n.received.vols : 0, chk:{} }; render(); scrollTo(0,0); }
+function openReceb(n){ if(!n) return; const c=!n.received && n.conf; // conferência salva: continua de onde parou
+  state.rc={ id:n.id, vols: n.received ? n.received.vols : (c ? c.vols||0 : 0), chk: c ? JSON.parse(JSON.stringify(c.chk||{})) : {} }; render(); scrollTo(0,0); }
+// grava o andamento da conferência na própria nota (outra pessoa ou outro aparelho pode continuar)
+function saveConf(){ const rc=state.rc; if(!rc) return; const now=Date.now(), base=NFS[rc.id] || {...rc.tmp, createdAt:now}; if(base.received) return;
+  const doc={...base, conf:{vols:rc.vols, chk:rc.chk, at:now, by:ME.id||""}}; NFS[doc.id]=doc; if(nfCol) queueWrite("nf-"+doc.id, ()=>nfCol.doc(doc.id).set(JSON.parse(JSON.stringify(doc)))); }
 function scanReceb(v){
   const ci=chaveInfo(v);
-  if(state.rc && !state.rc.tmp && NFS[state.rc.id] && (ci ? NFS[state.rc.id].chave===ci.chave : NFS[state.rc.id].num===String(+onlyDigits(v)))){ feedback(true); state.rc.vols++; render(); return setMsg(`${state.rc.vols} caixa(s) contada(s)`,"good"); }
+  if(state.rc && !state.rc.tmp && NFS[state.rc.id] && (ci ? NFS[state.rc.id].chave===ci.chave : NFS[state.rc.id].num===String(+onlyDigits(v)))){ feedback(true); state.rc.vols++; saveConf(); render(); return setMsg(`${state.rc.vols} caixa(s) contada(s)`,"good"); }
   let found=[];
   if(ci) found=Object.values(NFS).filter(n=>n.chave===ci.chave || (!n.chave && n.num===ci.num && (!n.cnpj || onlyDigits(n.cnpj)===ci.cnpj)));
   else if(/^\d{1,9}$/.test(onlyDigits(v)) && onlyDigits(v).length===String(v).replace(/\s/g,"").length) found=Object.values(NFS).filter(n=>n.num===String(+onlyDigits(v)));
@@ -2114,7 +2120,7 @@ function confirmReceb(){
   const lines=(base.lines||[]).map((l,k)=>({qty: rc.chk[k] ? rc.chk[k].qty : l.qty, exp:l.qty})), alloc={};
   (base.lines||[]).forEach((l,k)=>{ let left=lines[k].qty; (l.alloc||[]).forEach(a=>{ const q=Math.min(left, +a.qty||0); alloc[a.oid+":"+a.i]=q; left-=q; }); });
   const div = lines.some(x=>x.qty!==x.exp) || (base.vols && rc.vols!==base.vols);
-  const doc = {...base, received:{at:now, by:ME.id||"", vols:rc.vols, expected:base.vols||0, lines, alloc, div}};
+  const doc = {...base, conf:null, received:{at:now, by:ME.id||"", vols:rc.vols, expected:base.vols||0, lines, alloc, div}};
   NFS[doc.id]=doc; if(nfCol) queueWrite("nf-"+doc.id, ()=>nfCol.doc(doc.id).set(JSON.parse(JSON.stringify(doc))));
   toast(`NF ${doc.num} recebida · ${rc.vols} caixa(s)${div?" · com divergência registrada":""}${doc.lines?.length?"":" · Compras será avisado para amarrar"}`);
   state.rc=null; applyReceipt(doc.id); render(); scrollTo(0,0);
