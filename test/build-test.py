@@ -26,5 +26,7 @@ cut(r'<title>Picking Serena</title>', '<title>Picking Serena Teste</title>')
 cut(r'^<!doctype html>\s*<html[^>]*>\s*<head>\s*')
 cut(r'</head>\s*<body>\s*')
 cut(r'\s*</body>\s*</html>\s*$', "\n")
+# o artefato tem o próprio window.claude; a versão de teste usa um nome separado para o backend local
+src = src.replace("window.claude", "window.psTest")
 pathlib.Path(out).write_text(src, encoding="utf-8")
 print("ok", out, len(src))

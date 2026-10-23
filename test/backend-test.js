@@ -1,7 +1,7 @@
 /* =====================================================================
    Picking Serena · AMBIENTE DE TESTE (homologação)
    Substitui js/backend.js na versão de teste publicada como artefato.
-   Mesma forma do backend real (claude.use("db" | "user" | "downloads")),
+   Mesma forma do backend real (use de "db", "user" e "downloads"),
    mas os dados ficam só neste navegador, com pedidos de exemplo.
    Nada aqui fala com o Supabase nem com a Magazord.
    ===================================================================== */
