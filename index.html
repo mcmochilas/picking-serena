@@ -153,7 +153,7 @@ a.refbtn{text-decoration:none}
 /* ---- Painel TV ---- */
 html.tvmode{--bg:#0B1117; --surface:#151E28; --ink:#EEF3F8; --muted:#93A2B2; --line:#26323F; --accent:#F5B71A; --accent-soft:#3A2F12; --ok:#3CC488; --ok-soft:#163327; --bad:#F06A5B; --bad-soft:#3A1D1A; color-scheme:dark; background:var(--bg)}
 html.tvmode body{background:var(--bg);color:var(--ink);overflow:hidden}
-.app.tv{max-width:none;height:100vh;display:flex;flex-direction:column;padding:1.4vw 1.8vw;box-sizing:border-box;gap:1.2vw;font-size:clamp(14px,1.05vw,30px)}
+.app.tv{max-width:none;height:100vh;display:flex;flex-direction:column;padding:1.4vw 1.8vw;box-sizing:border-box;gap:1.2vw;font-size:clamp(9px,min(1.05vw,1.95vh),34px)}
 .tvhead{display:flex;align-items:center;justify-content:space-between;gap:2vw}
 .tvhead .brand{font-family:var(--display);font-weight:700;font-size:2.1em;letter-spacing:.04em;text-transform:uppercase;line-height:1}
 .tvhead .brand small{display:block;font-family:inherit;font-size:.45em;letter-spacing:.14em;color:var(--muted);font-weight:600;margin-top:.3em}
@@ -163,10 +163,11 @@ html.tvmode body{background:var(--bg);color:var(--ink);overflow:hidden}
 .tvcol{background:var(--surface);border:1px solid var(--line);border-radius:1.2em;padding:1.2em 1.4em;display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .tvcol h2{margin:0 0 .5em;font-family:var(--display);font-size:2em;letter-spacing:.02em}
 .tvcol h3{margin:1em 0 .45em;font-size:.85em;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
-.tvkpis{display:grid;grid-template-columns:repeat(5,1fr);gap:.6em}
-.tvkpis div{background:var(--bg);border:1px solid var(--line);border-radius:.8em;padding:.55em .7em}
-.tvkpis b{display:block;font-family:var(--display);font-size:2.1em;line-height:1.05;white-space:nowrap}
-.tvkpis small{display:block;font-size:.68em;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tvkpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:.6em}
+.tvkpis div{min-width:0;overflow:hidden;background:var(--bg);border:1px solid var(--line);border-radius:.8em;padding:.55em .7em}
+.tvkpis b{display:block;font-family:var(--display);font-size:2.1em;line-height:1.05;white-space:nowrap;overflow:hidden}
+.tvkpis small{display:block;font-size:.68em;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);line-height:1.2;overflow-wrap:anywhere}
+.app.tv .tvtools .refbtn{font-size:.85em;padding:.45em .9em;min-height:0;height:auto}
 .tvkpis .tvwarn b{color:var(--accent)}.tvkpis .tvbad b{color:var(--bad)}
 .tvlist{display:flex;flex-direction:column;gap:.4em}
 .tvrow{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:.9em;background:var(--bg);border:1px solid var(--line);border-left:.35em solid var(--line);border-radius:.6em;padding:.5em .8em}
@@ -1583,10 +1584,18 @@ function renderTV(){
     (window.psRefresh?window.psRefresh():Promise.resolve()).then(()=>{ synced=true; }, ()=>{}).finally(()=>rerender()); }, 60000);
 }
 /* Mostra só as linhas da fila que cabem na tela e conta o resto em "+ N pedidos" */
-function tvFit(){ document.querySelectorAll(".tvlist.fit").forEach(l=>{
-  const rows=[...l.querySelectorAll(".tvrow")]; rows.forEach(r=>r.hidden=false); let hid=0;
-  // "Últimos separados" fica sempre visível; a fila mostra as linhas que couberem no espaço restante
-  for(let k=rows.length-1; k>0 && l.scrollHeight>l.clientHeight+1; k--){ rows[k].hidden=true; hid++; }
+function tvFit(){
+  // números dos indicadores: diminuem só o necessário para caber no quadrinho
+  document.querySelectorAll(".tvkpis b").forEach(b=>{ b.style.fontSize=""; let f=parseFloat(getComputedStyle(b).fontSize), n=0;
+    while(b.scrollWidth>b.clientWidth+1 && n++<25){ f*=.94; b.style.fontSize=f+"px"; } });
+  document.querySelectorAll(".tvlist.fit").forEach(l=>{
+  const col=l.closest(".tvcol"), rows=[...l.querySelectorAll(".tvrow")], box=col&&col.querySelector(".tvdone"), done=box?[...box.querySelectorAll(".tvrow")]:[];
+  rows.forEach(r=>r.hidden=false); done.forEach(r=>r.hidden=false); if(box) box.hidden=false; let hid=0;
+  const fitN=()=>{ const lb=l.getBoundingClientRect().bottom+1; let n=0; for(const r of rows){ if(r.getBoundingClientRect().bottom<=lb) n++; else break; } return n; };
+  // a fila tem prioridade: se não couberem ao menos 4 pedidos, "Últimos separados" encolhe para 1 linha (e só some se nem 2 couberem)
+  for(let k=done.length-1; k>=1 && fitN()<Math.min(rows.length,4); k--) done[k].hidden=true;
+  if(box && done.length && fitN()<Math.min(rows.length,2)) box.hidden=true;
+  for(let k=rows.length-1; k>=0 && l.scrollHeight>l.clientHeight+1; k--){ rows[k].hidden=true; hid++; }
   const total=+l.dataset.total||0, shown=rows.length-hid, more=l.nextElementSibling;
   if(more && more.hasAttribute("data-more")) more.textContent = total>shown ? `+ ${total-shown} pedido${total-shown===1?"":"s"} na fila` : "";
 }); }
