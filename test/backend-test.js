@@ -153,7 +153,29 @@
       return { saved:true };
     }
   };
-  window.claude = { async use(name){ return name === "db" ? db : name === "user" ? user : name === "downloads" ? downloads : null; } };
+  /* saída da colmeia pelo celular sem login (mesma regra das funções do Supabase) */
+  const HV_TOKEN = (location.hash.match(/^#cm=([A-Za-z0-9_-]{20,})$/) || [])[1] || null;
+  const tokOk = t => { const k = (DB.hive_tokens ||= {})[t]; if(!k) return [null, "Link inválido."]; if(k.used_at) return [null, "Este link já foi usado."]; if(k.expires_at < Date.now()) return [null, "Este link expirou. Gere um novo QR code no computador."]; return [k, null]; };
+  window.psHive = {
+    token: HV_TOKEN,
+    async create(oid, how){ const o = DB.orders[oid]; if(!o || !o.colmeia) throw new Error("O pedido não está em uma colmeia");
+      const t = Array.from(crypto.getRandomValues(new Uint8Array(24)), b => b.toString(16).padStart(2,"0")).join("");
+      (DB.hive_tokens ||= {})[t] = { oid, how, created_by: meId, expires_at: Date.now() + 2*3600e3 }; save(); return t; },
+    async info(t){ const [k, err] = tokOk(t); if(err) return { error: err };
+      const o = DB.orders[k.oid]; if(!o) return { error:"Pedido não encontrado." }; if(!o.colmeia) return { error:"Este pedido não está mais na colmeia." };
+      return { how:k.how, by: DB.users[k.created_by]?.name || "", order: { id:o.id, num:o.num, client:o.client, colmeia:o.colmeia, status:o.status, mode:o.mode, remessa:o.remessa, arrivedAt:o.arrivedAt||null, retira:o.retira, obs:o.obs, hiveManual:o.hiveManual,
+        items:(o.items||[]).map(i=>({ code:i.code, name:i.name, ean:i.ean, qty:i.qty, qtyEnc:i.qtyEnc||0, eta:i.eta, compra:i.compra })) } }; },
+    async confirm(t, cm){ const [k, err] = tokOk(t); if(err) return { error: err };
+      const o = DB.orders[k.oid]; if(!o || !o.colmeia) return { error:"Este pedido não está mais na colmeia." };
+      if(String(o.colmeia).toUpperCase() !== String(cm).toUpperCase()) return { error:"Colmeia errada." };
+      const hasEnc = (o.items||[]).some(i => i.qtyEnc > 0), arrived = !!o.arrivedAt || (o.mode==="parcial" && o.remessa===2), now = Date.now();
+      let patch, result;
+      if((o.remessa||1)!==2 && hasEnc && !arrived){ patch = { status:"enc_pendente", colmeia:null, sentAt1:now, saida1:k.how, saida1By:k.created_by, saidaVia:"qr", ...(o.mode!=="parcial"?{mode:"parcial", modeOrig:o.mode}:{}) }; result="parcial"; }
+      else { patch = { status:"enviado", sentAt:now, saida:k.how, saidaBy:k.created_by, saidaVia:"qr" }; result="final"; }
+      DB.orders[k.oid] = { ...o, ...patch }; k.used_at = now; k.used_colmeia = cm; save(); emit("orders");
+      return { ok:true, result, num:o.num, colmeia:o.colmeia }; }
+  };
+  window.claude = HV_TOKEN ? { async use(){ return null; } } : { async use(name){ return name === "db" ? db : name === "user" ? user : name === "downloads" ? downloads : null; } };
   window.psRefresh = async () => { Object.keys(DB).forEach(emit); };
   window.psAdmin = {
     async createUser({ name, login, role, consultiva, ecommerce }){

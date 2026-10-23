@@ -15,6 +15,17 @@
   const sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, { auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true } });
   window.psSupabase = sb;
 
+  /* Saída da colmeia pelo celular sem login: link de uso único (#cm=<código>) gerado por quem está logado no computador */
+  const rpcJ = async (fn, args) => { const { data, error } = await sb.rpc(fn, args); if(error) throw new Error(error.message || "Falha de conexão"); return data; };
+  const HV_TOKEN = (location.hash.match(/^#cm=([A-Za-z0-9_-]{20,})$/) || [])[1] || null;
+  window.psHive = {
+    token: HV_TOKEN,
+    create: (oid, how) => rpcJ("create_hive_token", { p_oid: oid, p_how: how }),
+    info: t => rpcJ("hive_token_info", { p_token: t }),
+    confirm: (t, colmeia) => rpcJ("hive_token_confirm", { p_token: t, p_colmeia: colmeia })
+  };
+  if(HV_TOKEN){ window.claude = { use: async () => null }; return; } // sem tela de login: só a conferência da colmeia
+
   let session = null, profile = null, readyResolve;
   const ready = new Promise(r => readyResolve = r);
   const DOC_TABLES = ["orders","products","blocks","config"];
