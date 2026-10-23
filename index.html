@@ -254,7 +254,12 @@ details.cpcard summary{display:flex;justify-content:space-between;align-items:ce
 .lnk{border:0;background:none;color:var(--route);font:inherit;font-size:12px;cursor:pointer;padding:0;text-decoration:underline}
 .cplink{display:inline-block;font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:1px 6px;margin:1px 2px}
 .cpfoot{display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:10px}.cpfoot small{color:var(--muted)}
-.ppsku{display:grid;grid-template-columns:auto 150px minmax(0,1fr);gap:8px;align-items:center;width:100%;font-size:12px;color:var(--muted);font-weight:600}
+.skubox{position:relative;min-width:0}
+.skudd{position:absolute;z-index:5;left:0;top:calc(100% + 4px);width:min(440px,80vw);max-height:280px;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.25);padding:4px}
+.skudd button{display:flex;gap:10px;align-items:baseline;width:100%;text-align:left;border:0;background:none;color:var(--ink);font:inherit;font-size:13px;font-weight:500;padding:7px 8px;border-radius:7px;cursor:pointer}
+.skudd button:hover,.skudd button:focus{background:var(--accent-soft)}.skudd button b{flex:none;min-width:64px}.skudd button span{min-width:0}
+.skuhint{font-size:12px;color:var(--muted);padding:6px 8px;font-weight:500}
+.ppsku{display:grid;grid-template-columns:auto 190px minmax(0,1fr);gap:8px;align-items:center;width:100%;font-size:12px;color:var(--muted);font-weight:600}
 .ppsku .ok-s{color:var(--ok);font-weight:600}.ppnew{display:flex;gap:6px;align-items:center;min-width:0}.ppnew small{color:var(--accent-ink);white-space:nowrap}.ppnew .tinput{flex:1;min-width:0}
 @media (max-width:600px){.ppsku{grid-template-columns:auto 1fr}.ppsku>small,.ppsku>.ppnew{grid-column:1/-1}}
 .ppfilter{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}.ppfilter .tinput{flex:1;min-width:180px}.ppfilter label{font-size:13px;display:flex;gap:6px;align-items:center}
@@ -1569,23 +1574,45 @@ function openPurchaseImport(){
       <div class="pplines">${vis.map(({l,j})=>`<div class="ppline ${(l.links||[]).some(k=>k.oid)?"on":""}">
         <div class="pptop"><input class="tinput mono" data-pf="code" data-j="${j}" value="${esc(l.code)}" placeholder="Código" aria-label="Código do fornecedor"><input class="tinput" data-pf="name" data-j="${j}" value="${esc(l.name)}" placeholder="Descrição" aria-label="Descrição"><input class="tinput r" data-pf="qty" data-j="${j}" type="number" min="0" value="${l.qty||""}" placeholder="Qtd" aria-label="Quantidade"><button class="icbtn del" data-pdel="${j}" title="Remover item" aria-label="Remover item">${ICON_TRASH}</button></div>
         ${l.ped||l.entrega?`<small class="muted-s">${l.ped?"Pedido "+esc(l.ped):""}${l.ped&&l.entrega?" · ":""}${l.entrega?"entrega "+esc(fmtBR(l.entrega)):""}</small>`:""}
-        <div class="ppsku"><span>Item Serena</span><input class="tinput mono" list="skuList" data-sku="${j}" value="${esc(l.sku||"")}" placeholder="SKU" aria-label="SKU da Serena para este item">
+        <div class="ppsku"><span>Item Serena</span><div class="skubox"><input class="tinput mono" data-sku="${j}" value="${esc(l.sku||"")}" placeholder="SKU ou descrição" autocomplete="off" role="combobox" aria-expanded="false" aria-label="Buscar item da Serena por SKU ou descrição"><div class="skudd" data-dd="${j}" role="listbox" hidden></div></div>
           ${!l.sku ? `<small class="muted-s">sem item relacionado</small>` : PRODUCTS[l.sku] ? `<small class="ok-s">${esc(PRODUCTS[l.sku].name)}${(PRODUCTS[l.sku].forn||[]).includes(fornKey(S.forn,l.code))?" · já relacionado":""}</small>`
             : `<span class="ppnew"><small>Novo produto · será cadastrado</small><input class="tinput" data-skn="${j}" value="${esc(l.newName??l.name)}" placeholder="Nome do produto" aria-label="Nome do novo produto"></span>`}</div>
         ${(l.links||[]).map((k,m)=>`<div class="pplink"><span>→</span><select class="tinput" data-lk="${j}:${m}" aria-label="Pré-venda">${optHTML(l, k.oid?k.oid+":"+k.i:"")}</select><input class="tinput r" type="number" min="1" data-lq="${j}:${m}" value="${k.qty||""}" placeholder="pç" aria-label="Peças para esta pré-venda"><button class="lnk" data-lrm="${j}:${m}">tirar</button></div>`).join("")}
         <button class="lnk" data-ladd="${j}">+ vincular ${l.links?.length?"outra ":""}pré-venda</button>
         ${(()=>{ const used=(l.links||[]).reduce((s,k)=>s+(+k.qty||0),0); return l.qty && used>l.qty ? `<div class="merr">Vínculos somam ${used} pç, mais que as ${l.qty} pç do pedido.</div>` : l.qty && used && used<l.qty ? `<small class="muted-s">${l.qty-used} pç para estoque</small>` : ""; })()}
       </div>`).join("") || `<div class="empty" style="margin:8px 0">${S.lines.length?"Nenhum item com esse filtro.":"Nenhum item ainda."}</div>`}</div>
-      <datalist id="skuList">${Object.values(PRODUCTS).sort((a,b)=>a.code.localeCompare(b.code)).map(p=>`<option value="${esc(p.code)}">${esc(p.name)}</option>`).join("")}</datalist>
       <button class="mini" id="ppAdd">+ Adicionar item à mão</button>
       <div class="merr">${esc(S.err)}</div>
       <div class="mact"><button class="btn ghost" id="mNo">Cancelar</button><button class="btn primary" id="mOk">Salvar pedido do fornecedor</button></div></div>`;
     const g=id=>ov.querySelector("#"+id);
     g("ppForn").oninput=e=>S.forn=e.target.value; g("ppNum").oninput=e=>S.num=e.target.value; g("ppPrev").onchange=e=>{ S.prev=e.target.value; S.err=""; };
     g("ppForn").onchange=()=>setTimeout(()=>{ let n=0; S.lines.forEach(l=>{ if(!l.sku){ l.sku=skuFor(S.forn,l.code); if(l.sku) n++; } }); if(n){ toast(`${n} item(ns) reconhecido(s) pelo cadastro`); draw(); } });
-    ov.querySelectorAll("[data-sku]").forEach(inp=>inp.onchange=()=>{ const l=S.lines[+inp.dataset.sku]; l.sku=inp.value.trim().toUpperCase().split(/\s+[·-]\s+/)[0]; if(l.sku && !PRODUCTS[l.sku] && !l.newName) l.newName=l.name;
-      S.lines.forEach(o=>{ if(o!==l && !o.sku && o.code && o.code===l.code){ o.sku=l.sku; o.newName=l.newName; } }); // mesmo código do fornecedor em outras linhas
-      setTimeout(draw); });
+    // busca do item da Serena por SKU ou descrição (todas as palavras digitadas)
+    const nrm = t => String(t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase();
+    const findProd = (q, l) => { const ws=nrm(q).split(/\s+/).filter(Boolean), all=Object.values(PRODUCTS);
+      if(!ws.length) return all.map(p=>({p, sc:simScore(l.name, p.name)})).filter(x=>x.sc>0).sort((a,b)=>b.sc-a.sc).slice(0,8).map(x=>x.p);
+      return all.filter(p=>{ const h=nrm(p.code+" "+p.name); return ws.every(w=>h.includes(w)); }).sort((a,b)=>(nrm(a.code).startsWith(ws[0])?0:1)-(nrm(b.code).startsWith(ws[0])?0:1) || a.code.localeCompare(b.code)).slice(0,10); };
+    const isSkuLike = v => /^[A-Z0-9._-]{2,}$/i.test(v);
+    ov.querySelectorAll("[data-sku]").forEach(inp=>{ const j=+inp.dataset.sku, l=S.lines[j], dd=ov.querySelector(`[data-dd="${j}"]`);
+      const show = () => { const r=findProd(inp.value===l.sku?"":inp.value, l);
+        dd.innerHTML = r.length ? (inp.value===l.sku||!inp.value.trim() ? `<div class="skuhint">Sugestões pela descrição</div>` : "") + r.map(p=>`<button type="button" role="option" data-pick="${esc(p.code)}"><b class="mono">${esc(p.code)}</b><span>${esc(p.name)}</span></button>`).join("")
+          : `<div class="skuhint">${isSkuLike(inp.value.trim())?`Nenhum item encontrado. Ao sair do campo, <b>${esc(inp.value.trim().toUpperCase())}</b> será cadastrado como produto novo.`:"Nenhum item encontrado com essa descrição."}</div>`;
+        dd.hidden=false; inp.setAttribute("aria-expanded","true");
+        dd.querySelectorAll("[data-pick]").forEach(b=>b.onmousedown=e=>{ e.preventDefault(); inp.value=b.dataset.pick; dd.hidden=true; setSku(b.dataset.pick); }); };
+      const setSku = v => { l.sku=v; if(l.sku && !PRODUCTS[l.sku] && !l.newName) l.newName=l.name;
+        S.lines.forEach(o=>{ if(o!==l && !o.sku && o.code && o.code===l.code){ o.sku=l.sku; o.newName=l.newName; } }); // mesmo código do fornecedor em outras linhas
+        setTimeout(draw); };
+      inp.onfocus = show; inp.oninput = show;
+      inp.onkeydown = e => { if(e.key==="Enter"){ e.preventDefault(); const f=dd.querySelector("[data-pick]"); if(f && !dd.hidden){ inp.value=f.dataset.pick; dd.hidden=true; setSku(f.dataset.pick); } else inp.blur(); } if(e.key==="Escape"){ dd.hidden=true; } };
+      inp.onblur = () => { dd.hidden=true; inp.setAttribute("aria-expanded","false"); };
+      inp.onchange = () => { const v=inp.value.trim().toUpperCase();
+        if(!v){ if(l.sku){ l.sku=""; setTimeout(draw); } return; }
+        if(v===l.sku) return;
+        const exact=PRODUCTS[v] || Object.values(PRODUCTS).find(p=>nrm(p.code)===nrm(v));
+        if(exact) return setSku(exact.code);
+        if(isSkuLike(v)) return setSku(v); // SKU novo: será cadastrado
+        inp.value = l.sku || ""; }; // texto de busca sem escolher: não altera
+    });
     ov.querySelectorAll("[data-skn]").forEach(inp=>inp.oninput=()=>{ S.lines[+inp.dataset.skn].newName=inp.value; });
     const qi=g("ppQ"); if(qi) qi.oninput=()=>{ S.q=qi.value; clearTimeout(qi._t); qi._t=setTimeout(()=>{ draw(); const n=g("ppQ"); n.focus(); n.setSelectionRange(n.value.length,n.value.length); },250); };
     const oc=g("ppOnly"); if(oc) oc.onchange=()=>{ S.onlyLinked=oc.checked; draw(); };
