@@ -233,7 +233,7 @@ html.tvmode body{background:var(--bg);color:var(--ink);overflow:hidden}
 .cpkpis .kp{font:inherit;color:inherit;text-align:left;cursor:pointer}.cpkpis .kp:hover{border-color:var(--accent)}
 .chip.warn{background:var(--accent-soft);color:var(--accent-ink)}
 .cpbtns{display:flex;gap:8px;flex-wrap:wrap}.bar .btn.ghost.cpbtn{color:var(--ink)}
-.hnf.nff{grid-template-columns:minmax(0,1fr) 140px 140px}@media (max-width:600px){.hnf.nff{grid-template-columns:1fr 1fr}.hnf.nff label:first-child{grid-column:1/-1}}.nfl{display:flex;gap:8px;align-items:baseline;width:100%}.nfl span{margin-left:auto;white-space:nowrap}.nfpv{min-width:0;font-size:13px}.nfadd{width:100%}.nfadd .tinput{font-size:13px}.hvact{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;flex:none}.ok-t{color:var(--ok)}.li.hvli{flex-wrap:wrap}.li.hvli .ln{flex:1 1 0;min-width:140px}.li.hvli>.hvact,.li.hvli>.chip{margin-left:auto}@media (max-width:600px){.li.hvli>.hvact{width:100%}.li.hvli>.hvact .mini{flex:1}}
+.hnf.nff{grid-template-columns:minmax(0,1fr) 140px 140px}@media (max-width:600px){.hnf.nff{grid-template-columns:1fr 1fr}.hnf.nff label:first-child{grid-column:1/-1}}.nfl{display:flex;gap:8px;align-items:baseline;width:100%}.nfl span{margin-left:auto;white-space:nowrap}.nfpv{min-width:0;font-size:13px}.nfadd{width:100%}.nfadd .tinput{font-size:13px}.hvact{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;flex:none}.ok-t{color:var(--ok)}.li.hvli{flex-wrap:wrap}.hvsearch{margin:0 0 10px}.hvsearch .tin{width:100%;box-sizing:border-box}.hvexp{display:block;text-align:left;margin-top:4px;font-size:13px;font-weight:600}.hvitems{width:100%;border-top:1px dashed var(--line);padding-top:8px;display:flex;flex-direction:column;gap:2px}.hvit{display:grid;grid-template-columns:72px minmax(0,1fr);gap:4px 10px;align-items:start;padding:6px 6px;border-radius:8px;font-size:13px}.hvit .mono{font-family:var(--mono);color:var(--muted);padding-top:1px}.hvit .hvn small{display:block;color:var(--muted)}.hvit .hvst{grid-column:2;display:flex;flex-wrap:wrap;gap:4px;align-items:flex-start}.hvit .hvst{min-width:0}.hvit .chip{white-space:normal;text-align:left;line-height:1.35;max-width:100%;box-sizing:border-box;overflow:visible;text-overflow:clip;height:auto}.hvit.hit{background:color-mix(in srgb,var(--accent,#f5a400) 14%,transparent)}@media (max-width:600px){.hvit{grid-template-columns:60px minmax(0,1fr)}.hvit .hvst{grid-column:2;align-items:flex-start;max-width:none}.hvit .chip{text-align:left}}.li.hvli .ln{flex:1 1 0;min-width:140px}.li.hvli>.hvact,.li.hvli>.chip{margin-left:auto}@media (max-width:600px){.li.hvli>.hvact{width:100%}.li.hvli>.hvact .mini{flex:1}}
 .rcq{display:flex;gap:6px;align-items:center;flex:none}.rcq .tinput{width:70px}.rcq .mini.on{background:var(--ok-soft);color:var(--ok);border-color:var(--ok)}.rcl.ok{background:var(--ok-soft)}.rcl.div{background:var(--bad-soft)}.bad-t{color:var(--bad)}.warn-t{color:var(--accent-ink)}
 .rcpv{display:flex;flex-wrap:wrap;gap:4px}
 .cpfoot .btn{flex:none;width:auto;height:42px;padding:0 18px;font-size:15px}
@@ -2140,6 +2140,19 @@ const isSeparated = o => trayTied(o) && !["aguardando","separando"].includes(o.s
 const inHistory = o => !!o.pickedAt && !isSeparated(o) && !inHive(o) && !["aguardando","separando"].includes(o.status);
 function sepTab(o){ return isSeparated(o) ? "fila" : inHive(o) ? "colmeias" : inHistory(o) ? "historico" : "fila"; }
 
+/* Colmeias: busca e itens da pré-venda */
+const hvNorm = t => String(t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+const hvHay = o => hvNorm([o.num, o.client, (o.colmeia||"").slice(3), ...(o.items||[]).flatMap(it=>[it.code,it.name,it.ean,...(it.compra?.links||[]).map(l=>l.ped)])].join(" "));
+function hvItemHTML(o, it, hit){
+  const enc=it.qtyEnc||0, stock=it.qty-enc, parts=[];
+  const stored = o.status==="na_colmeia" || o.status==="pronto_envio", cm=(o.colmeia||"").slice(3);
+  if(stock>0) parts.push(`<span class="chip ${stored?"done":"norm"}">${stock} pç ${stored?"na colmeia "+esc(cm):o.status==="na_mesa"?"na mesa":"em separação"}</span>`);
+  if(enc>0){ const st=compraSt(it);
+    if(st==="chegou" && o.status==="pronto_envio") parts.push(`<span class="chip done">${enc} pç encomenda · na colmeia ${esc(cm)}</span>`);
+    else if(st==="chegou") parts.push(`<span class="chip prog">${enc} pç encomenda · chegou, em separação</span>`);
+    else { const [lt,lc]=COMPRA_LABEL[st]; parts.push(`<span class="chip ${lc}">${enc} pç encomenda · ${lt}${it.eta?" · chega "+fmtDate(it.eta):""}</span>`); } }
+  return `<div class="hvit${hit?" hit":""}"><span class="mono">${esc(it.code)}</span><span class="hvn">${esc(it.name)}<small>${it.qty} pç no pedido</small></span><span class="hvst">${parts.join("")}</span></div>`;
+}
 function renderOrders(){
   const tab = state.sector==="colmeias" ? "colmeias" : (state.sepTab || "fila"), eco = canEco(), cons = canCons();
   const VIS = ORDERS.filter(ecoOk);
@@ -2189,12 +2202,20 @@ function renderOrders(){
     <div class="hivebar">${can("coleta")||can("mesa")?`<button class="btn primary" id="hiveNew">+ Nova encomenda na colmeia</button>`:""}${["admin","supervisor","estoque"].includes(myRole())?`<button class="mini" id="hiveDim">Tamanho da grade · ${HIVE_DIM.cols} colunas × ${HIVE_DIM.rows} linhas</button>`:""}</div>
     <div class="section"><div class="eyebrow">Mapa das colmeias</div>${hiveHTML(null)}</div>
     <div class="section"><div class="eyebrow">Pedidos nas colmeias · ${hive.length}</div>
-      ${hive.length ? `<div class="list" style="margin-top:0">${hive.map(o=>{ const enc=o.items.filter(i=>i.qtyEnc>0);
+      <div class="hvsearch"><input class="tin" id="hvQ" type="search" placeholder="Pré-venda, cliente, SKU ou produto" value="${esc(state.hvQ||"")}" autocomplete="off"></div>
+      ${(()=>{ const q=hvNorm(state.hvQ).trim(), toks=q?q.split(/\s+/):[];
+        const list = toks.length ? hive.filter(o=>toks.every(t=>hvHay(o).includes(t))) : hive;
+        if(!hive.length) return `<div class="empty">Nenhum pedido nas colmeias.</div>`;
+        if(!list.length) return `<div class="empty">Nenhum pedido encontrado para “${esc(state.hvQ)}”.</div>`;
+        return `<div class="list" style="margin-top:0">${list.map(o=>{ const items=o.items||[], enc=items.filter(i=>i.qtyEnc>0);
         const eta=enc.map(i=>i.eta).filter(Boolean).sort()[0];
-        return `<div class="li sep hvli" style="cursor:default"><span class="lc tnum">${esc((o.colmeia||"—").replace(/^CM-/,""))}</span><span class="ln">#${esc(o.num)} · ${esc(o.client)}<small>${o.status==="pronto_envio" ? `<b class="ok-t">${o.mode==="aguarda"||o.fase2?"Encomenda chegou · pronto":"Pronto"} para ${o.retira?"o cliente retirar":"enviar"}</b>${transpOf(o)&&!o.retira?" · "+esc(transpOf(o)):""}` : o.hiveManual?`Cadastrada na colmeia${o.obs?" · "+esc(o.obs):""}`:`${enc.reduce((s,i)=>s+i.qtyEnc,0)} pç sob encomenda${eta?" · chega "+fmtDate(eta):""}`}</small></span>
+        const hitIt = toks.length ? items.map((it,i)=>toks.every(t=>hvNorm([it.code,it.name,it.ean].join(" ")).includes(t))?i:-1).filter(i=>i>=0) : [];
+        const head = hvNorm([o.num,o.client].join(" ")), open = (state.hvExp||[]).includes(o.id) || (hitIt.length>0 && !toks.every(t=>head.includes(t)) && !(state.hvClosed||[]).includes(o.id));
+        return `<div class="li sep hvli" style="cursor:default"><span class="lc tnum">${esc((o.colmeia||"—").replace(/^CM-/,""))}</span><span class="ln">#${esc(o.num)} · ${esc(o.client)}<small>${o.status==="pronto_envio" ? `<b class="ok-t">${o.mode==="aguarda"||o.fase2?"Encomenda chegou · pronto":"Pronto"} para ${o.retira?"o cliente retirar":"enviar"}</b>${transpOf(o)&&!o.retira?" · "+esc(transpOf(o)):""}` : o.hiveManual?`Cadastrada na colmeia${o.obs?" · "+esc(o.obs):""}`:`${enc.reduce((s,i)=>s+i.qtyEnc,0)} pç sob encomenda${eta?" · chega "+fmtDate(eta):""}`}</small>${items.length?`<button class="lnk hvexp" data-hvexp="${esc(o.id)}" aria-expanded="${open}">${open?"Ocultar itens":`Ver itens da pré-venda (${items.length})`}</button>`:""}</span>
           ${o.status==="na_mesa" && (can("mesa")||can("coleta")) ? `<button class="mini" data-hive="${esc(o.id)}">Guardar</button>`
           : o.status==="pronto_envio" && (can("mesa")||can("coleta")||can("comercial")||can("estoque")) ? `<span class="hvact"><button class="mini" data-hsai="${esc(o.id)}:retirou">Cliente retirou</button><button class="mini" data-hsai="${esc(o.id)}:enviado">Enviado</button></span>`
-          : `<span class="chip enc">${o.status==="pronto_envio"?"Pronto":"Aguardando encomenda"}</span>`}</div>`; }).join("")}</div>` : `<div class="empty">Nenhum pedido nas colmeias.</div>`}
+          : `<span class="chip enc">${o.status==="pronto_envio"?"Pronto":"Aguardando encomenda"}</span>`}
+          ${open ? `<div class="hvitems">${items.map((it,i)=>hvItemHTML(o,it,hitIt.includes(i))).join("")}</div>` : ""}</div>`; }).join("")}</div>`; })()}
     </div>`;
   } else {
     body = `
@@ -2225,6 +2246,8 @@ function renderOrders(){
   else app.querySelectorAll(".order").forEach(b=>{ b.style.cursor="default"; b.tabIndex=-1; });
   app.querySelectorAll("[data-free]").forEach(b=>b.onclick=()=>{ if(!b.dataset.c){ b.dataset.c="1"; b.textContent="Confirmar liberação"; b.classList.add("danger"); return; } const o=ORDERS.find(x=>x.id===b.dataset.free); if(o){ unlinkTray(o); toast(`${spotsTxt(o)} liberada · pedido ${o.num} foi para ${inHive(o)?"Colmeias":"Separados"}`); } });
   app.querySelectorAll("[data-hive]").forEach(b=>b.onclick=()=>{ state.oid=b.dataset.hive; state.fromMesa=false; state.sector="expedicao"; state.view="store"; render(); scrollTo(0,0); });
+  const hq=document.getElementById("hvQ"); if(hq) hq.oninput=()=>{ state.hvQ=hq.value; state.hvClosed=[]; const pos=hq.selectionStart; render(); const n=document.getElementById("hvQ"); if(n){ n.focus(); try{ n.setSelectionRange(pos,pos); }catch(e){} } };
+  app.querySelectorAll("[data-hvexp]").forEach(b=>b.onclick=()=>{ const id=b.dataset.hvexp, ex=state.hvExp||[]; state.hvExp = b.getAttribute("aria-expanded")==="true" ? ex.filter(x=>x!==id) : [...ex, id]; if(b.getAttribute("aria-expanded")==="true" && state.hvQ){ /* fechar mesmo quando aberto pela busca */ state.hvClosed=[...(state.hvClosed||[]), id]; } render(); });
   app.querySelectorAll("[data-hsai]").forEach(b=>b.onclick=()=>{ const [id,how]=b.dataset.hsai.split(":"); if(!b.dataset.c){ b.dataset.c="1"; b.textContent=how==="enviado"?"Confirmar envio":"Confirmar retirada"; b.classList.add("danger"); return; } const o=ORDERS.find(x=>x.id===id); if(o) colmeiaSaida(o, how); });
 }
 function openOrder(id){
