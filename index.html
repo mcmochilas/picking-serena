@@ -218,6 +218,14 @@ html.tvmode body{background:var(--bg);color:var(--ink);overflow:hidden}
 .mbox p{margin:0 0 10px;font-size:14px;color:var(--muted);line-height:1.45}
 .mbox textarea{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:10px;background:var(--bg,transparent);color:var(--ink);padding:10px;font:inherit;font-size:15px;resize:vertical}
 .mbox .merr{color:var(--bad);font-size:13px;min-height:18px;margin-top:4px}
+.mbox.wide{width:min(560px,100%);max-height:92vh;overflow:auto}
+.hivebar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px}
+.hnpdf{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0 10px}
+.hnf{display:grid;grid-template-columns:140px 1fr;gap:10px}
+.hnf label,.hnl,.hnslot{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);font-weight:600}
+.hnl{margin-top:10px}.hnslot{margin-top:12px}.hnslot .tinput{max-width:120px;font-family:var(--mono);font-size:16px;font-weight:700}
+.hnslot small{font-weight:400}
+.hnmap{margin-top:8px}
 .mbox .mact{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
 .delnote{font-size:12px;color:var(--bad);line-height:1.4}
 .newuser{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}
@@ -657,7 +665,11 @@ input.invalid{border-color:var(--bad);outline:2px solid var(--bad-soft)}
 .qcard summary{cursor:pointer;font-weight:600}
 .qcard ul{margin:6px 0 0;padding-left:18px}
 .mini{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600}
-.hive{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
+.hive{display:grid;grid-template-columns:18px repeat(6,minmax(0,1fr));gap:5px}
+.hive .hh{display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--muted);font-family:var(--mono)}
+button.slot{cursor:pointer;padding:0}
+.slot.pickable:hover{border-color:var(--accent)}
+.slot.sel{background:var(--accent);border-color:var(--ink);color:#1A1405}
 .slot{aspect-ratio:1;max-width:100%;border-radius:6px;border:1px solid var(--line);background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;color:var(--muted);line-height:1.1;text-align:center;min-width:0}
 .slot b{font-size:9px;color:var(--ink)}
 .slot.res{background:var(--floor);border-style:dashed}
@@ -750,7 +762,16 @@ function parsePresale(raw){
 }
 
 /* ================== Dados e utilidades ================== */
-const HIVE = Array.from({length:24},(_,i)=>"CM-"+String(i+1).padStart(2,"0"));
+/* Colmeias: grade com colunas A, B, C… e linhas 1, 2, 3… · código da etiqueta CM-A1 */
+let HIVE_DIM = {cols:6, rows:4}, HIVE = [];
+const HIVE_COL = i => String.fromCharCode(65+i);
+function buildHive(){ HIVE=[]; for(let r=1;r<=HIVE_DIM.rows;r++) for(let c=0;c<HIVE_DIM.cols;c++) HIVE.push("CM-"+HIVE_COL(c)+r); }
+buildHive();
+function hiveCode(v){ // aceita CM-A1, A1 e as etiquetas antigas CM-01…CM-24
+  v=String(v||"").toUpperCase().replace(/\s+/g,"");
+  let m=v.match(/^CM-?(\d{1,2})$/); if(m){ const n=+m[1]-1; return "CM-"+HIVE_COL(n%6)+(Math.floor(n/6)+1); }
+  m=v.match(/^(?:CM-?)?([A-Z])0*(\d{1,2})$/); return m ? "CM-"+m[1]+(+m[2]) : v; }
+const isHiveCode = v => /^CM-[A-Z]\d{1,2}$/.test(v);
 const MODES = { total:{t:"Envio total", c:"norm"}, parcial:{t:"Envio parcial", c:"prog"}, aguarda:{t:"Aguarda encomenda", c:"urg"} };
 function statusInfo(o){
   switch(o.status){
@@ -765,11 +786,12 @@ function statusInfo(o){
     default: return {t:"Finalizado", c:"sent"};
   }
 }
-const usesHive = o => o.mode==="aguarda" && o.status!=="enviado" && !!o.colmeia;
+const usesHive = o => o.mode==="aguarda" && o.status!=="enviado" && o.status!=="excluido" && !!o.colmeia;
 function normalize(o){ // compatibilidade com pedidos gravados na versão anterior
   if(o.status==="aguardando_envio") o.status="pronto_envio";
   if(o.status==="aguardando_encomenda") o.status="na_colmeia";
   if(o.mode==="parcial" && o.colmeia && !o.v2) o.mode="aguarda";
+  if(o.colmeia) o.colmeia = hiveCode(o.colmeia);
   if(o.mode!=="aguarda") delete o.colmeia;
   o.canal ||= "consultiva"; // canal de venda: consultiva (pré-venda) ou ecommerce (fluxo futuro)
   return o;
@@ -1007,15 +1029,17 @@ function loadPdfJs(){
   pdfReady = add(base+"pdf.min.js").then(()=>add(base+"pdf.worker.min.js")).catch(e=>{ pdfReady=null; throw e; });
   return pdfReady;
 }
+async function readPresalePdf(file){
+  await loadPdfJs();
+  const pdf = await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
+  const pg = await pdf.getPage(1); const tc = await pg.getTextContent();
+  return parsePresale(tc.items.map(i=>({s:i.str, x:i.transform[4], y:i.transform[5], w:i.width})));
+}
 async function importPdf(file){
   if(!/pdf$/i.test(file.type) && !/\.pdf$/i.test(file.name)){ state.draftErr="Escolha um arquivo PDF."; return render(); }
   state.parsing=true; state.draftErr=""; render();
   try{
-    await loadPdfJs();
-    const pdf = await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
-    const pg = await pdf.getPage(1); const tc = await pg.getTextContent();
-    const raw = tc.items.map(i=>({s:i.str, x:i.transform[4], y:i.transform[5], w:i.width}));
-    const p = parsePresale(raw);
+    const p = await readPresalePdf(file);
     state.parsing=false; startDraft(p);
   }catch(e){
     console.warn(e); state.parsing=false;
@@ -1137,11 +1161,87 @@ function sendDraft(){
   toast((noLoc.length ? `${noLoc.length} item(ns) sem local · o separador procura no estoque · ` : "") + (m==="aguarda" ? (hasPick ? `Pré-venda ${o.num} enviada para separação · colmeia ${slot}` : `Pré-venda ${o.num} toda sob encomenda · colmeia ${slot} reservada`) : `Pré-venda ${o.num} enviada para separação · ${MODES[m].t.toLowerCase()}`));
 }
 
-function hiveHTML(target){
+/* ---- Encomendas: o separador cadastra uma pré-venda e amarra a uma colmeia ---- */
+function openHiveNew(){
+  const f={num:"", cli:"", obs:""}; let p=null, sel=freeSlot(), err="", busyPdf=false;
+  const ov=document.createElement("div"); ov.className="modal";
+  const close=()=>{ ov.remove(); render(); };
+  const draw=()=>{
+    ov.innerHTML=`<div class="mbox wide" role="dialog" aria-modal="true" aria-label="Nova encomenda na colmeia"><h2>Nova encomenda na colmeia</h2>
+      <p>Cadastre a pré-venda que vai ficar guardada na colmeia aguardando a encomenda.</p>
+      <div class="hnpdf"><label class="mini tup">${busyPdf?"Lendo PDF…":p?"Trocar PDF":"Importar PDF da pré-venda"}<input type="file" id="hnPdf" accept="application/pdf,.pdf" hidden></label><span class="muted-s">${p?`Pré-venda ${esc(p.num)} · ${p.items.length} itens lidos`:"ou preencha abaixo"}</span></div>
+      <div class="hnf"><label><span>Nº da pré-venda</span><input class="tinput" id="hnNum" inputmode="numeric" value="${esc(f.num)}"></label><label><span>Cliente</span><input class="tinput" id="hnCli" value="${esc(f.cli)}"></label></div>
+      <label class="hnl"><span>Observação</span><input class="tinput" id="hnObs" value="${esc(f.obs)}" placeholder="Opcional"></label>
+      <div class="hnslot"><span>Colmeia</span><input class="tinput" id="hnSlot" value="${sel?sel.slice(3):""}" placeholder="Ex.: A1" autocomplete="off"><small>Toque numa colmeia livre ou bipe a etiqueta</small></div>
+      <div class="hnmap">${hiveHTML(sel, true)}</div>
+      <div class="merr">${esc(err)}</div>
+      <div class="mact"><button class="btn ghost" id="mNo">Cancelar</button><button class="btn primary" id="mOk">Guardar na colmeia${sel?" "+sel.slice(3):""}</button></div></div>`;
+    const g=id=>ov.querySelector("#"+id);
+    g("hnNum").oninput=e=>f.num=e.target.value; g("hnCli").oninput=e=>f.cli=e.target.value; g("hnObs").oninput=e=>f.obs=e.target.value;
+    g("hnPdf").onchange=async e=>{ const file=e.target.files[0]; if(!file) return; busyPdf=true; err=""; draw();
+      try{ p=await readPresalePdf(file); f.num=p.num||f.num; f.cli=p.client||f.cli; f.obs=p.obs||f.obs; }catch(x){ p=null; err="Não reconheci este PDF como uma pré-venda ou orçamento."; }
+      busyPdf=false; draw(); };
+    const setSlot=v=>{ const c=hiveCode(v); if(!HIVE.includes(c)){ err=v?`"${v}" não é uma colmeia desta grade.`:""; return draw(); }
+      const occ=ORDERS.find(o=>usesHive(o)&&o.colmeia===c); if(occ){ err=`Colmeia ${c.slice(3)} ocupada pela pré-venda ${occ.num}.`; return draw(); }
+      sel=c; err=""; draw(); };
+    g("hnSlot").onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); setSlot(e.target.value); } };
+    g("hnSlot").onchange=e=>setSlot(e.target.value);
+    ov.querySelectorAll("[data-hpick]").forEach(b=>b.onclick=()=>setSlot(b.dataset.hpick));
+    g("mNo").onclick=close;
+    g("mOk").onclick=()=>{
+      const num=f.num.trim().replace(/^(PV-|Nº\s*)/i,""), cli=f.cli.trim();
+      if(!num){ err="Informe o número da pré-venda."; return draw(); }
+      if(!cli){ err="Informe o cliente."; return draw(); }
+      if(!sel){ err="Escolha uma colmeia livre."; return draw(); }
+      const id="PV-"+num, ex=ORDERS.find(o=>o.id===id && !["enviado","excluido"].includes(o.status));
+      if(ex){ err=`A pré-venda ${num} já está no sistema (${statusInfo(ex).t}).`; return draw(); }
+      if(ORDERS.some(o=>usesHive(o)&&o.colmeia===sel)){ err=`Colmeia ${sel.slice(3)} acabou de ser ocupada. Escolha outra.`; sel=freeSlot(); return draw(); }
+      const now=Date.now(), obs=f.obs.trim();
+      const items=(p&&p.num===num ? p.items : []).map(it=>({code:it.code, name:it.name, ean:it.ean||PRODUCTS[it.code]?.ean||"", un:it.un, qty:it.qty, price:it.price, loc:"", qtyEnc:0, eta:""}));
+      saveOrder({ id, num, date:p?.date||"", time:p?.time||"", clientCode:p?.clientCode||"", client:cli, city:p?.city||"", seller:p?.seller||"", obs, total:p?.total||0,
+        mode:"aguarda", v2:true, items, remessa:1, status:"na_colmeia", colmeia:sel, createdAt:now, storedAt:now, createdBy:ME.id||"", canal:"consultiva",
+        hiveManual:true, transportadora:carrierFromObs(obs)||"" });
+      toast(`Pré-venda ${num} guardada na colmeia ${sel.slice(3)}`); close();
+    };
+  };
+  ov.onclick=e=>{ if(e.target===ov) close(); };
+  document.body.appendChild(ov); scanbar.hidden=true; draw(); ov.querySelector("#hnNum").focus();
+}
+function openHiveDim(){
+  let cols=HIVE_DIM.cols, rows=HIVE_DIM.rows, err="";
+  const ov=document.createElement("div"); ov.className="modal";
+  const close=()=>{ ov.remove(); render(); };
+  const draw=()=>{
+    ov.innerHTML=`<div class="mbox" role="dialog" aria-modal="true" aria-label="Tamanho da grade"><h2>Tamanho da grade das colmeias</h2>
+      <p>Colunas recebem letras (A, B, C…) e linhas recebem números (1, 2, 3…). Etiqueta: CM-A1.</p>
+      <div class="hnf"><label><span>Colunas</span><input class="tinput" id="hdC" type="number" min="1" max="26" value="${cols}"></label><label><span>Linhas</span><input class="tinput" id="hdR" type="number" min="1" max="30" value="${rows}"></label></div>
+      <p style="margin-top:8px">Total: <b>${cols*rows}</b> colmeias · de A1 até ${HIVE_COL(Math.max(0,cols-1))}${rows}</p>
+      <div class="merr">${esc(err)}</div>
+      <div class="mact"><button class="btn ghost" id="mNo">Cancelar</button><button class="btn primary" id="mOk">Salvar</button></div></div>`;
+    const c=ov.querySelector("#hdC"), r=ov.querySelector("#hdR");
+    c.onchange=()=>{ cols=Math.max(1,Math.min(26,+c.value||1)); draw(); }; r.onchange=()=>{ rows=Math.max(1,Math.min(30,+r.value||1)); draw(); };
+    ov.querySelector("#mNo").onclick=close;
+    ov.querySelector("#mOk").onclick=()=>{
+      cols=Math.max(1,Math.min(26,+c.value||1)); rows=Math.max(1,Math.min(30,+r.value||1));
+      const out=ORDERS.filter(usesHive).filter(o=>{ const m=o.colmeia.match(/^CM-([A-Z])(\d+)$/); return !m || m[1].charCodeAt(0)-65>=cols || +m[2]>rows; });
+      if(out.length){ err=`Não dá para diminuir: ${out.map(o=>o.colmeia.slice(3)+" (#"+o.num+")").join(", ")} ficaria fora da grade.`; return draw(); }
+      HIVE_DIM={cols, rows}; buildHive();
+      if(mesasDoc) queueWrite("mesas", ()=>mesasDoc.set({list:MESAS, cestas:CESTAS, colmeias:HIVE_DIM}));
+      toast(`Grade das colmeias: ${cols} × ${rows}`); close();
+    };
+  };
+  ov.onclick=e=>{ if(e.target===ov) close(); };
+  document.body.appendChild(ov); scanbar.hidden=true; draw();
+}
+function hiveHTML(target, pick){
   const by = {}; ORDERS.filter(usesHive).forEach(o=>by[o.colmeia]=o);
-  return `<div class="hive">${HIVE.map(s=>{ const o=by[s];
-    const cls = s===target ? "target" : !o ? "" : o.status==="pronto_envio" ? "envio" : o.status==="na_colmeia" ? "enc" : "res";
-    return `<div class="slot ${cls}" title="${o?esc(o.id+" · "+o.client):"Livre"}">${s.slice(3)}${o?`<b>${esc(o.num)}</b>`:""}</div>`; }).join("")}</div>
+  const cell = s => { const o=by[s];
+    const cls = s===target ? "target" : !o ? (pick?"pickable":"") : o.status==="pronto_envio" ? "envio" : o.status==="na_colmeia" ? "enc" : "res";
+    return pick && !o ? `<button type="button" class="slot ${cls}" data-hpick="${s}" title="Livre">${s.slice(3)}</button>`
+      : `<div class="slot ${cls}" title="${o?esc("#"+o.num+" · "+o.client):"Livre"}">${s.slice(3)}${o?`<b>${esc(o.num)}</b>`:""}</div>`; };
+  let g=`<span class="hh"></span>`; for(let c=0;c<HIVE_DIM.cols;c++) g+=`<span class="hh">${HIVE_COL(c)}</span>`;
+  for(let r=1;r<=HIVE_DIM.rows;r++){ g+=`<span class="hh">${r}</span>`; for(let c=0;c<HIVE_DIM.cols;c++) g+=cell("CM-"+HIVE_COL(c)+r); }
+  return `<div class="hive" style="grid-template-columns:18px repeat(${HIVE_DIM.cols},minmax(0,1fr))">${g}</div>
     <div class="legend2"><span><i></i>Livre</span><span><i style="background:var(--floor)"></i>Reservada</span><span><i style="background:var(--accent-soft)"></i>Aguarda encomenda</span><span><i style="background:var(--ok-soft)"></i>Encomenda chegou</span></div>`;
 }
 function asideHTML(){
@@ -1235,11 +1335,12 @@ function renderOrders(){
       `<div class="li sep" style="cursor:default"><span class="lc tnum">${esc(o.tray)}</span><span class="ln">#${esc(o.num)} · ${esc(o.client)}<small>${o.mode==="aguarda"?"Vai para a colmeia "+esc(o.colmeia||""):"Mesa"}${bigOnMesa(o)?" · itens grandes na "+bigSpots(o).map(mesaName).join(", "):""}</small></span>${can("coleta")||can("mesa") ? `<button class="mini" data-free="${esc(o.id)}">${isShared(o.tray)?"Liberar "+spotName(o.tray):bigOnMesa(o)?"Liberar bandeja e mesa":"Liberar bandeja"}</button>` : ""}</div>`).join("")}</div>${pgP.pager}</div>`:""}`;
   } else if(tab==="colmeias"){
     body = `
+    <div class="hivebar">${can("coleta")||can("mesa")?`<button class="btn primary" id="hiveNew">+ Nova encomenda na colmeia</button>`:""}${["admin","supervisor","estoque"].includes(myRole())?`<button class="mini" id="hiveDim">Tamanho da grade · ${HIVE_DIM.cols} colunas × ${HIVE_DIM.rows} linhas</button>`:""}</div>
     <div class="section"><div class="eyebrow">Mapa das colmeias</div>${hiveHTML(null)}</div>
     <div class="section"><div class="eyebrow">Pedidos nas colmeias · ${hive.length}</div>
       ${hive.length ? `<div class="list" style="margin-top:0">${hive.map(o=>{ const enc=o.items.filter(i=>i.qtyEnc>0);
         const eta=enc.map(i=>i.eta).filter(Boolean).sort()[0];
-        return `<div class="li sep" style="cursor:default"><span class="lc tnum">${esc(o.colmeia||"—")}</span><span class="ln">#${esc(o.num)} · ${esc(o.client)}<small>${enc.reduce((s,i)=>s+i.qtyEnc,0)} pç sob encomenda${eta?" · chega "+fmtDate(eta):""}</small></span>${o.status==="na_mesa" && (can("mesa")||can("coleta")) ? `<button class="mini" data-hive="${esc(o.id)}">Guardar</button>` : `<span class="chip enc">Na colmeia</span>`}</div>`; }).join("")}</div>` : `<div class="empty">Nenhum pedido aguardando encomenda nas colmeias.</div>`}
+        return `<div class="li sep" style="cursor:default"><span class="lc tnum">${esc((o.colmeia||"—").replace(/^CM-/,""))}</span><span class="ln">#${esc(o.num)} · ${esc(o.client)}<small>${o.hiveManual?`Cadastrada na colmeia${o.obs?" · "+esc(o.obs):""}`:`${enc.reduce((s,i)=>s+i.qtyEnc,0)} pç sob encomenda${eta?" · chega "+fmtDate(eta):""}`}</small></span>${o.status==="na_mesa" && (can("mesa")||can("coleta")) ? `<button class="mini" data-hive="${esc(o.id)}">Guardar</button>` : `<span class="chip enc">Na colmeia</span>`}</div>`; }).join("")}</div>` : `<div class="empty">Nenhum pedido aguardando encomenda nas colmeias.</div>`}
     </div>`;
   } else {
     body = `
@@ -1260,6 +1361,8 @@ function renderOrders(){
     ${body}`;
   bindNav();
   const rq=document.getElementById("refreshQ"); if(rq) rq.onclick=refreshQueue;
+  const hn=document.getElementById("hiveNew"); if(hn) hn.onclick=openHiveNew;
+  const hd=document.getElementById("hiveDim"); if(hd) hd.onclick=openHiveDim;
   app.querySelectorAll("[data-canal]").forEach(b=>b.onclick=()=>{ state.canal=b.dataset.canal; resetPage("fila"); try{ localStorage.setItem("ps-canal", state.canal); }catch(e){} render(); });
   bindLote();
   app.querySelectorAll("[data-restart]").forEach(b=>b.onclick=()=>restartOrder(b.dataset.restart, false));
@@ -1881,8 +1984,9 @@ function handleScan(raw){
     if(o?.tray && o.trayStatus==="mesa") return scanUnlink(v, o.id); return; }
   if(state.view==="store"){
     const o=ORDERS.find(x=>x.id===state.oid); if(!o) return;
-    if(v===o.colmeia){ feedback(true); setMsg(`Colmeia ${v} confirmada`,"good"); return finishStore(o); }
-    feedback(false); return setMsg(/^CM-\d{2}$/.test(v) ? `Colmeia errada: ${v}. Este pedido vai na ${o.colmeia}.` : `Código ${v} não é uma colmeia.`, "bad");
+    const hv=hiveCode(v);
+    if(hv===o.colmeia){ feedback(true); setMsg(`Colmeia ${hv.slice(3)} confirmada`,"good"); return finishStore(o); }
+    feedback(false); return setMsg(isHiveCode(hv) ? `Colmeia errada: ${hv.slice(3)}. Este pedido vai na ${o.colmeia.slice(3)}.` : `Código ${v} não é uma colmeia.`, "bad");
   }
   if(state.view!=="pick") return;
   const c = cur(); if(!c) return; const {o, it} = c;
@@ -2495,7 +2599,7 @@ function labelSet(){
   const t=state.lblType||"enderecos";
   if(t==="bandejas") return TRAYS.map(v=>({value:v, big:v, small:"Bandeja de separação", sub:"", fmt:"CODE128"}));
   if(t==="mesas"||t==="cestas"){ const K=SPOT_KINDS[t]; return K.get().filter(m=>!state.spotSel || state.spotSel===m.code).map(m=>({value:m.code, big:spotName(m.code).toUpperCase(), small:m.desc||K.def, sub:"", fmt:"CODE128"})); }
-  if(t==="colmeias") return HIVE.map(v=>({value:v, big:v, small:"Colmeia de expedição", sub:"", fmt:"CODE128"}));
+  if(t==="colmeias") return HIVE.map(v=>({value:v, big:v.slice(3), small:"Colmeia de encomenda", sub:v, fmt:"CODE128"}));
   if(t==="produtos") return Object.values(PRODUCTS).sort((a,b)=>a.code.localeCompare(b.code)).filter(p=>state.lblOnlyNoEan ? !p.ean : true)
     .map(p=>{ const e=p.ean && eanState(p.ean).c==="done"; return {value:e?p.ean:p.code, big:p.code, small:p.name, sub:e?"":"sem EAN · código interno", fmt:e?(p.ean.length===8?"EAN8":"EAN13"):"CODE128"}; });
   const rua=state.lblRua||"todas", lado=state.lblLado||"todos", only=state.lblOnlyUsed, ty=state.lblLocType||"todos";
@@ -2524,7 +2628,7 @@ function spotsAdminHTML(k){
 }
 function saveSpots(k, list){
   SPOT_KINDS[k].set(list);
-  if(mesasDoc) queueWrite("mesas", ()=>mesasDoc.set({list:MESAS, cestas:CESTAS}));
+  if(mesasDoc) queueWrite("mesas", ()=>mesasDoc.set({list:MESAS, cestas:CESTAS, colmeias:HIVE_DIM}));
   render();
 }
 function bindSpotsAdmin(){
@@ -3066,7 +3170,8 @@ render();
   transpDoc = db.doc("config/transportadoras");
   transpDoc.onSnapshot(snap=>{ const l=snap.exists?snap.data()?.list:null; TRANSP = l && typeof l==="object" ? JSON.parse(JSON.stringify(l)) : {}; rerender(); }, ()=>{ transpDoc=null; });
   mesasDoc = db.doc("config/mesas");
-  mesasDoc.onSnapshot(snap=>{ const d=snap.exists?snap.data():null, l=d?.list; if(Array.isArray(l) && l.length) MESAS=JSON.parse(JSON.stringify(l)); CESTAS=Array.isArray(d?.cestas)?JSON.parse(JSON.stringify(d.cestas)):[]; rerender(); }, ()=>{ mesasDoc=null; });
+  mesasDoc.onSnapshot(snap=>{ const d=snap.exists?snap.data():null, l=d?.list; if(Array.isArray(l) && l.length) MESAS=JSON.parse(JSON.stringify(l)); CESTAS=Array.isArray(d?.cestas)?JSON.parse(JSON.stringify(d.cestas)):[];
+    const hd=d?.colmeias; if(hd && hd.cols>0 && hd.rows>0){ HIVE_DIM={cols:Math.min(26,+hd.cols), rows:Math.min(30,+hd.rows)}; buildHive(); } rerender(); }, ()=>{ mesasDoc=null; });
   usersCol = db.collection("users");
   usersCol.onSnapshot(snap=>{ USERS = Object.fromEntries(snap.docs.map(d=>[d.id, JSON.parse(JSON.stringify(d.data()))])); authReady=true; rerender(); }, e=>{ usersCol=null; authReady=true; rerender(); });
   blockCol = db.collection("blocks");
