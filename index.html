@@ -233,7 +233,8 @@ html.tvmode body{background:var(--bg);color:var(--ink);overflow:hidden}
 .cpkpis .kp{font:inherit;color:inherit;text-align:left;cursor:pointer}.cpkpis .kp:hover{border-color:var(--accent)}
 .chip.warn{background:var(--accent-soft);color:var(--accent-ink)}
 .cpbtns{display:flex;gap:8px;flex-wrap:wrap}.bar .btn.ghost.cpbtn{color:var(--ink)}
-.hnf.nff{grid-template-columns:minmax(0,1fr) 140px 140px}@media (max-width:600px){.hnf.nff{grid-template-columns:1fr 1fr}.hnf.nff label:first-child{grid-column:1/-1}}.nfl{display:flex;gap:8px;align-items:baseline;width:100%}.nfl span{margin-left:auto;white-space:nowrap}.nfpv{min-width:0;font-size:13px}.nfadd{width:100%}.nfadd .tinput{font-size:13px}.rcq{display:flex;gap:6px;align-items:center;flex:none}.rcq .tinput{width:70px}.rcq .mini.on{background:var(--ok-soft);color:var(--ok);border-color:var(--ok)}.rcl.ok{background:var(--ok-soft)}.rcl.div{background:var(--bad-soft)}.bad-t{color:var(--bad)}.warn-t{color:var(--accent-ink)}
+.hnf.nff{grid-template-columns:minmax(0,1fr) 140px 140px}@media (max-width:600px){.hnf.nff{grid-template-columns:1fr 1fr}.hnf.nff label:first-child{grid-column:1/-1}}.nfl{display:flex;gap:8px;align-items:baseline;width:100%}.nfl span{margin-left:auto;white-space:nowrap}.nfpv{min-width:0;font-size:13px}.nfadd{width:100%}.nfadd .tinput{font-size:13px}.hvact{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;flex:none}.ok-t{color:var(--ok)}.li.hvli{flex-wrap:wrap}.li.hvli .ln{flex:1 1 0;min-width:140px}.li.hvli>.hvact,.li.hvli>.chip{margin-left:auto}@media (max-width:600px){.li.hvli>.hvact{width:100%}.li.hvli>.hvact .mini{flex:1}}
+.rcq{display:flex;gap:6px;align-items:center;flex:none}.rcq .tinput{width:70px}.rcq .mini.on{background:var(--ok-soft);color:var(--ok);border-color:var(--ok)}.rcl.ok{background:var(--ok-soft)}.rcl.div{background:var(--bad-soft)}.bad-t{color:var(--bad)}.warn-t{color:var(--accent-ink)}
 .rcpv{display:flex;flex-wrap:wrap;gap:4px}
 .cpfoot .btn{flex:none;width:auto;height:42px;padding:0 18px;font-size:15px}
 .phases.ph3{grid-template-columns:repeat(3,minmax(0,1fr))}.phases.ph3 .phase{font-size:12px;padding:8px}
@@ -856,7 +857,7 @@ function statusInfo(o){
   switch(o.status){
     case "aguardando": return {t:"Aguardando separação", c:"norm"};
     case "separando": return {t:"Em separação", c:"prog"};
-    case "pronto_envio": return {t: o.naLoja && !o.colmeia ? "Pronto na mesa · entregar ao cliente na loja" : o.colmeia && o.mode!=="aguarda" ? `Pronto · cliente retira na colmeia ${o.colmeia.slice(3)}` : o.mode==="encomenda" ? "Encomenda chegou · pronto para enviar" : o.mode==="aguarda" ? `Encomenda chegou · retirar da colmeia ${o.colmeia||""}` : o.remessa===2 ? "Encomenda chegou" : "Finalizado · na mesa", c:"done"};
+    case "pronto_envio": return {t: o.naLoja && !o.colmeia ? "Finalizado · entregue ao cliente na loja" : o.colmeia && o.mode!=="aguarda" ? `Pronto · cliente retira na colmeia ${o.colmeia.slice(3)}` : o.mode==="encomenda" ? "Encomenda chegou · pronto para enviar" : o.mode==="aguarda" ? `Encomenda chegou · retirar da colmeia ${o.colmeia||""}` : o.remessa===2 ? "Encomenda chegou" : "Finalizado · na mesa", c:"done"};
     case "encomenda": return {t:"Encomenda total · aguardando chegada", c:"enc"};
     case "analise_compras": return {t:"Aguardando decisão de Compras", c:"urg"};
     case "enc_pendente": return {t:"1º envio feito · aguardando encomenda", c:"enc"};
@@ -1340,9 +1341,17 @@ function hiveHTML(target, pick){
   return `<div class="hive" style="grid-template-columns:18px repeat(${HIVE_DIM.cols},minmax(0,1fr))">${g}</div>
     <div class="legend2"><span><i></i>Livre</span><span><i style="background:var(--floor)"></i>Reservada</span><span><i style="background:var(--accent-soft)"></i>Aguarda encomenda</span><span><i style="background:var(--ok-soft)"></i>Encomenda chegou</span></div>`;
 }
+// saída da colmeia: o cliente retirou ou as peças foram enviadas (transportadora)
+function colmeiaSaida(o, how){
+  const cm=(o.colmeia||"").slice(3), now=Date.now(), txt = how==="enviado" ? "enviado" : "retirado";
+  if(o.mode==="parcial" && (o.remessa||1)!==2 && hasEnc(o) && !encArrived(o)){ // 1º envio saiu; a encomenda continua em Compras
+    patchOrder(o.id,{status:"enc_pendente", colmeia:null, sentAt1:now, saida1:how, saida1By:ME.id||""}); toast(`1º envio do pedido ${o.num} ${txt} · colmeia ${cm} liberada · encomenda segue em Compras`); }
+  else { patchOrder(o.id,{status:"enviado", sentAt:now, saida:how, saidaBy:ME.id||""}); toast(`Pedido ${o.num} ${txt}${cm?` · colmeia ${cm} liberada`:""}`); }
+  rerender();
+}
 function asideHTML(){
   const today=new Date().toDateString();
-  const finished = o => o.status==="enviado" || (o.status==="pronto_envio" && o.mode!=="aguarda" && o.mode!=="encomenda" && !o.colmeia && !o.naLoja);
+  const finished = o => o.status==="enviado" || (o.status==="pronto_envio" && o.mode!=="aguarda" && o.mode!=="encomenda" && !o.colmeia);
   const list = [...ORDERS, ...DELETED.filter(o=>new Date(o.deletedAt||0).toDateString()===today)].filter(o=>!isEco(o)).filter(o=>o.status==="excluido" || !finished(o) || new Date(o.atMesaAt||o.pickedAt||o.sentAt||0).toDateString()===today).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   const pg = pageOf(list, "aside", 10);
   return `<h2>Pedidos na expedição</h2>
@@ -1361,7 +1370,7 @@ function asideHTML(){
         <details><summary>Tempos</summary>${timelineHTML(o)}</details>
         ${enc.length?`<details><summary>${enc.length} ref. sob encomenda</summary><ul>${enc.map(i=>`<li>${esc(i.code)} · ${i.qtyEnc} pç · chega ${fmtDate(i.eta)||"—"}</li>`).join("")}</ul></details>`:""}
         ${can("compras") && (o.status==="na_colmeia"||o.status==="encomenda"||o.status==="enc_pendente"||(o.status==="pronto_envio"&&o.mode==="parcial"&&o.remessa!==2&&enc.length))?`<div><button class="mini" data-arrived="${esc(o.id)}">Encomenda chegou</button></div>`:""}
-        ${o.status==="pronto_envio"&&o.naLoja&&!o.colmeia?`<div><button class="mini" data-sent="${esc(o.id)}">Entregue ao cliente</button></div>`:""}${o.status==="pronto_envio"&&o.colmeia?`<div><button class="mini" data-sent="${esc(o.id)}">Retirado · liberar colmeia ${esc((o.colmeia||"").slice(3))}</button></div>`:""}${o.status==="pronto_envio"&&o.mode==="encomenda"?`<div><button class="mini" data-sent="${esc(o.id)}">Enviado · finalizar</button></div>`:""}
+        ${o.status==="pronto_envio"&&o.colmeia?`<div><button class="mini" data-sent="${esc(o.id)}">Retirado · liberar colmeia ${esc((o.colmeia||"").slice(3))}</button></div>`:""}${o.status==="pronto_envio"&&o.mode==="encomenda"?`<div><button class="mini" data-sent="${esc(o.id)}">Enviado · finalizar</button></div>`:""}
       </div>`;}).join("") : `<div class="empty">Nenhum pedido na expedição. Importe uma pré-venda para começar.</div>`}</div>${pg.pager}</div>
     <div class="excol exhive"><h3>Colmeias de encomenda</h3>${hiveHTML(null)}</div></div>`;
 }
@@ -1369,13 +1378,7 @@ function bindAside(){
   app.querySelectorAll("[data-arrived]").forEach(b=>b.onclick=()=>{
     releaseEnc(b.dataset.arrived);
   });
-  app.querySelectorAll("[data-sent]").forEach(b=>b.onclick=()=>{
-    const o=ORDERS.find(x=>x.id===b.dataset.sent); if(!o) return;
-    if(o.mode==="parcial" && (o.remessa||1)!==2 && hasEnc(o) && !encArrived(o)){ // 1º envio retirado; a encomenda continua em Compras
-      patchOrder(o.id,{status:"enc_pendente", colmeia:null, sentAt1:Date.now()}); toast(`1º envio do pedido ${o.num} retirado · colmeia liberada · encomenda segue em Compras`); }
-    else { patchOrder(o.id,{status:"enviado", sentAt:Date.now()}); toast(o.colmeia ? `Pedido ${o.num} finalizado · colmeia ${o.colmeia.slice(3)} liberada` : `Pedido ${o.num} finalizado`); }
-    rerender();
-  });
+  app.querySelectorAll("[data-sent]").forEach(b=>b.onclick=()=>{ const o=ORDERS.find(x=>x.id===b.dataset.sent); if(o) colmeiaSaida(o, "retirou"); });
 }
 
 /* ================== COMPRAS: encomendas aos fornecedores ==================
@@ -2145,7 +2148,7 @@ function renderOrders(){
   const qCons = allQ.filter(o=>!isEco(o)), qEco = allQ.filter(isEco);
   const queue = canal==="ecommerce" ? qEco : qCons;
   const parked = VIS.filter(isSeparated).sort((a,b)=>(a.pickedAt||0)-(b.pickedAt||0));
-  const hive = VIS.filter(inHive).sort((a,b)=>(a.colmeia||"").localeCompare(b.colmeia||""));
+  const hive = VIS.filter(o=>inHive(o) || (usesHive(o) && o.status==="pronto_envio")).sort((a,b)=>(a.colmeia||"").localeCompare(b.colmeia||""));
   const hist = [...VIS.filter(inHistory), ...DELETED.filter(ecoOk)].sort((a,b)=>(b.deletedAt||b.pickedAt||0)-(a.deletedAt||a.pickedAt||0));
   const units = queue.reduce((s,o)=>s+pickList(o).reduce((a,x)=>a+x.need,0),0);
   const tabs = [["fila","Separação",queue.length+parked.length],["colmeias","Colmeias · encomenda",hive.length],["historico","Histórico",hist.length]];
@@ -2188,7 +2191,10 @@ function renderOrders(){
     <div class="section"><div class="eyebrow">Pedidos nas colmeias · ${hive.length}</div>
       ${hive.length ? `<div class="list" style="margin-top:0">${hive.map(o=>{ const enc=o.items.filter(i=>i.qtyEnc>0);
         const eta=enc.map(i=>i.eta).filter(Boolean).sort()[0];
-        return `<div class="li sep" style="cursor:default"><span class="lc tnum">${esc((o.colmeia||"—").replace(/^CM-/,""))}</span><span class="ln">#${esc(o.num)} · ${esc(o.client)}<small>${o.hiveManual?`Cadastrada na colmeia${o.obs?" · "+esc(o.obs):""}`:`${enc.reduce((s,i)=>s+i.qtyEnc,0)} pç sob encomenda${eta?" · chega "+fmtDate(eta):""}`}</small></span>${o.status==="na_mesa" && (can("mesa")||can("coleta")) ? `<button class="mini" data-hive="${esc(o.id)}">Guardar</button>` : `<span class="chip enc">Na colmeia</span>`}</div>`; }).join("")}</div>` : `<div class="empty">Nenhum pedido aguardando encomenda nas colmeias.</div>`}
+        return `<div class="li sep hvli" style="cursor:default"><span class="lc tnum">${esc((o.colmeia||"—").replace(/^CM-/,""))}</span><span class="ln">#${esc(o.num)} · ${esc(o.client)}<small>${o.status==="pronto_envio" ? `<b class="ok-t">${o.mode==="aguarda"||o.fase2?"Encomenda chegou · pronto":"Pronto"} para ${o.retira?"o cliente retirar":"enviar"}</b>${transpOf(o)&&!o.retira?" · "+esc(transpOf(o)):""}` : o.hiveManual?`Cadastrada na colmeia${o.obs?" · "+esc(o.obs):""}`:`${enc.reduce((s,i)=>s+i.qtyEnc,0)} pç sob encomenda${eta?" · chega "+fmtDate(eta):""}`}</small></span>
+          ${o.status==="na_mesa" && (can("mesa")||can("coleta")) ? `<button class="mini" data-hive="${esc(o.id)}">Guardar</button>`
+          : o.status==="pronto_envio" && (can("mesa")||can("coleta")||can("comercial")) ? `<span class="hvact"><button class="mini" data-hsai="${esc(o.id)}:retirou">Cliente retirou</button><button class="mini" data-hsai="${esc(o.id)}:enviado">Enviado</button></span>`
+          : `<span class="chip enc">${o.status==="pronto_envio"?"Pronto":"Aguardando encomenda"}</span>`}</div>`; }).join("")}</div>` : `<div class="empty">Nenhum pedido nas colmeias.</div>`}
     </div>`;
   } else {
     body = `
@@ -2219,6 +2225,7 @@ function renderOrders(){
   else app.querySelectorAll(".order").forEach(b=>{ b.style.cursor="default"; b.tabIndex=-1; });
   app.querySelectorAll("[data-free]").forEach(b=>b.onclick=()=>{ if(!b.dataset.c){ b.dataset.c="1"; b.textContent="Confirmar liberação"; b.classList.add("danger"); return; } const o=ORDERS.find(x=>x.id===b.dataset.free); if(o){ unlinkTray(o); toast(`${spotsTxt(o)} liberada · pedido ${o.num} foi para ${inHive(o)?"Encomendas":"Separados"}`); } });
   app.querySelectorAll("[data-hive]").forEach(b=>b.onclick=()=>{ state.oid=b.dataset.hive; state.fromMesa=false; state.view="store"; render(); scrollTo(0,0); });
+  app.querySelectorAll("[data-hsai]").forEach(b=>b.onclick=()=>{ const [id,how]=b.dataset.hsai.split(":"); if(!b.dataset.c){ b.dataset.c="1"; b.textContent=how==="enviado"?"Confirmar envio":"Confirmar retirada"; b.classList.add("danger"); return; } const o=ORDERS.find(x=>x.id===id); if(o) colmeiaSaida(o, how); });
 }
 function openOrder(id){
   const o=ORDERS.find(x=>x.id===id); if(!o || !ecoOk(o)) return;
