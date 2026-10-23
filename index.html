@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Picking Serena</title>
 <meta name="theme-color" content="#0F151C">
+<script>try{var t=localStorage.getItem("ps-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}</script>
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Picking Serena">
@@ -1012,7 +1013,7 @@ function topnav(){
   const names = {comercial:"Comercial", expedicao:"Separação", compras:"Compras", estoque:"Locais", usuarios:"Usuários"};
   return `<nav class="topnav" aria-label="Setores">
     <div class="brand">Picking <span>Serena</span></div>
-    <div class="navright"><div class="sync ${synced?"":"local"}" title="${synced?"Dados sincronizados entre os setores":"Sem sincronização: os dados ficam só nesta tela"}"><i></i>${synced?"Sincronizado":"Modo local"}</div>${bellHTML()}</div>
+    <div class="navright"><div class="sync ${synced?"":"local"}" title="${synced?"Dados sincronizados entre os setores":"Sem sincronização: os dados ficam só nesta tela"}"><i></i>${synced?"Sincronizado":"Modo local"}</div>${themeBtnHTML()}${bellHTML()}</div>
     <div class="seg mainnav" role="group">${allowedSectors().flatMap(k=> k==="expedicao"
       ? [["fila","Separação"],["historico","Separados"],["colmeias","Encomendas"]].map(([t,n])=>`<button data-sec="expedicao" data-tab="${t}" aria-pressed="${state.sector==="expedicao" && (state.sepTab||"fila")===t}">${n}</button>`)
       : [`<button data-sec="${k}" aria-pressed="${state.sector===k}">${names[k]}</button>`]).join("")}</div>
@@ -1024,6 +1025,7 @@ function bindNav(){
   const ex=document.getElementById("exitViewAs"); if(ex) ex.onclick=()=>{ state.viewAs=null; state.sector="usuarios"; state.view="orders"; render(); };
   fillNames(app.querySelector(".topnav"));
   const bell=document.getElementById("bellBtn"); if(bell) bell.onclick=toggleBell;
+  const th=document.getElementById("themeBtn"); if(th) th.onclick=toggleTheme;
 }
 
 /* ================== COMERCIAL ================== */
@@ -3471,6 +3473,23 @@ function bellState(){ const st=window.psPush?.state||"unsupported";
   if(st==="off") return "off";                           // push disponível mas desligado
   return SOUND ? "sound" : "off";                        // sem push neste aparelho: só o som
 }
+/* ---- Tema claro / escuro (fica salvo neste aparelho) ---- */
+const THEMES = { auto:{t:"Automático (segue o aparelho)", n:"light"}, light:{t:"Tema claro", n:"dark"}, dark:{t:"Tema escuro", n:"auto"} };
+function curTheme(){ try{ const t=localStorage.getItem("ps-theme"); return t==="light"||t==="dark" ? t : "auto"; }catch(e){ return "auto"; } }
+function applyTheme(t){
+  const r=document.documentElement; t==="auto" ? r.removeAttribute("data-theme") : r.setAttribute("data-theme", t);
+  try{ t==="auto" ? localStorage.removeItem("ps-theme") : localStorage.setItem("ps-theme", t); }catch(e){}
+  const dark = t==="dark" || (t==="auto" && matchMedia("(prefers-color-scheme: dark)").matches);
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#0F151C" : "#EDF0F3");
+}
+function themeBtnHTML(){
+  const t=curTheme(), icon = t==="dark" ? '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>'
+    : t==="light" ? '<circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.2M12 19.8V22M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2 12h2.2M19.8 12H22M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6"/>'
+    : '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/>';
+  return `<button class="bell" id="themeBtn" type="button" title="${THEMES[t].t} · toque para trocar" aria-label="${THEMES[t].t}. Trocar tema"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icon}</svg></button>`;
+}
+function toggleTheme(){ const n=THEMES[curTheme()].n; applyTheme(n); toast(THEMES[n].t); render(); }
+applyTheme(curTheme());
 function bellHTML(){
   if(!can("coleta")) return "";
   const b=bellState(), on=b!=="off";
