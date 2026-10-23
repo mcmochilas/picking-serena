@@ -6,7 +6,7 @@
    Nada aqui fala com o Supabase nem com a Magazord.
    ===================================================================== */
 (function(){
-  const KEY = "ps-test-db-v5", UKEY = "ps-test-user";
+  const KEY = "ps-test-db-v6", UKEY = "ps-test-user";
   const mem = {};
   const ls = {
     get(k){ try{ return localStorage.getItem(k); }catch(e){ return mem[k] ?? null; } },
@@ -64,6 +64,10 @@
     };
     orders.find(o=>o.id==="PV-90004").items[0].compra = { links:[{pid:"PC-ex1", qty:4, ped:"119193", prev:lateD, fcode:"ZP0476.00003"}] };
     orders.find(o=>o.id==="PV-90005").items[1].compra = { links:[{pid:"PC-ex2", qty:6, ped:"53456", prev:okD, fcode:"7102577"}] };
+    // nota fiscal de exemplo (Torralba) ainda não recebida, amarrada à pré-venda 90005
+    const invoices = { "NF-43261002923986000105550010000282551000000010": { id:"NF-43261002923986000105550010000282551000000010", chave:"43261002923986000105550010000282551000000010", num:"28255", serie:"1", emissao:iso(now-2*864e5), cnpj:"02923986000105", forn:"TORRALBA IND.COM.ART.METAIS PLAS", vols:3,
+      lines:[{code:"7102577", name:"PUX 1689 OEIRAS DOURADO 128MM", qty:20, un:"PC", ped:"53456", sku:"17333", alloc:[{oid:"PV-90005", i:1, qty:6}]}], received:null, createdAt:now-864e5 } };
+    orders.find(o=>o.id==="PV-90005").items[1].compra.nf = [{id:"NF-43261002923986000105550010000282551000000010", num:"28255", qty:6}];
     const users = clone(USERS0);
     Object.values(users).forEach(u=>u.addedAt=now-30*864e5);
     return {
@@ -71,6 +75,7 @@
       products,
       blocks: {},
       purchases,
+      invoices,
       users,
       config: {
         picking: { useTray:true },
