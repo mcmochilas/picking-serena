@@ -6,7 +6,7 @@
    Nada aqui fala com o Supabase nem com a Magazord.
    ===================================================================== */
 (function(){
-  const KEY = "ps-test-db-v3", UKEY = "ps-test-user";
+  const KEY = "ps-test-db-v4", UKEY = "ps-test-user";
   const mem = {};
   const ls = {
     get(k){ try{ return localStorage.getItem(k); }catch(e){ return mem[k] ?? null; } },
@@ -53,12 +53,22 @@
       {id:"MZ-50004", num:"0012610900004", client:"Paulo Mendes (exemplo)", canal:"ecommerce", origem:"Site", transportadora:"Azul Cargo", mode:"total", status:"aguardando", v2:true, remessa:1, createdAt:now-8*M, items:[it("14410",2)]},
       {id:"MZ-50005", num:"0012610900005", client:"Ana Ribeiro (exemplo)", canal:"ecommerce", origem:"Mercado Livre", transportadora:"Mercado Livre Coletas", mode:"total", status:"pronto_envio", v2:true, remessa:1, createdAt:now-90*M, startedAt:now-70*M, pickedAt:now-68*M, atMesaAt:now-68*M, items:[it("13088",1)], res:[{status:"ok",got:1}]}
     ];
+    // pedidos ao fornecedor de exemplo: um atrasado e um no prazo
+    const iso = ms => new Date(ms).toISOString().slice(0,10);
+    const lateD = iso(now-2*864e5), okD = iso(now+6*864e5);
+    const purchases = {
+      "PC-ex1": { id:"PC-ex1", forn:"ZEN ACESSORIOS PARA MOVEIS LTDA", num:"", prev:lateD, createdAt:now-8*864e5, lines:[{code:"ZP0476.00003", name:"PUX.KEN 416MM BRONZE", qty:10, ped:"119193", entrega:"", sku:"13088", links:[{oid:"PV-90004", i:0, qty:4}]}] },
+      "PC-ex2": { id:"PC-ex2", forn:"TORRALBA IND.COM.ART.METAIS PLAS", num:"53456", prev:okD, createdAt:now-1*864e5, lines:[{code:"7102577", name:"PUX 1689 OEIRAS DOURADO 128MM", qty:20, ped:"53456", entrega:"", sku:"17333", links:[{oid:"PV-90005", i:1, qty:6}]}] }
+    };
+    orders.find(o=>o.id==="PV-90004").items[0].compra = { links:[{pid:"PC-ex1", qty:4, ped:"119193", prev:lateD, fcode:"ZP0476.00003"}] };
+    orders.find(o=>o.id==="PV-90005").items[1].compra = { links:[{pid:"PC-ex2", qty:6, ped:"53456", prev:okD, fcode:"7102577"}] };
     const users = clone(USERS0);
     Object.values(users).forEach(u=>u.addedAt=now-30*864e5);
     return {
       orders: Object.fromEntries(orders.map(o=>[o.id,o])),
       products,
       blocks: {},
+      purchases,
       users,
       config: {
         picking: { useTray:true },

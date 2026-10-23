@@ -229,8 +229,12 @@ html.tvmode body{background:var(--bg);color:var(--ink);overflow:hidden}
 .mbox .merr{color:var(--bad);font-size:13px;min-height:18px;margin-top:4px}
 .mbox.xwide{width:min(860px,100%);max-height:92vh;overflow:auto}
 .bar .btn.cpbtn{flex:none;width:auto;height:44px;padding:0 18px;font-size:15px}
-.cpkpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}
-.cpkpis div{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px;min-width:0}
+.cpkpis .kp{font:inherit;color:inherit;text-align:left;cursor:pointer}.cpkpis .kp:hover{border-color:var(--accent)}
+.chip.warn{background:var(--accent-soft);color:var(--accent-ink)}
+.cpwait tr.late,.cpwait tr.late td{background:var(--bad-soft)}
+@media (max-width:600px){.cpwait tr.late td{background:none}}
+.cpkpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px}
+.cpkpis>div,.cpkpis>.kp{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px;min-width:0}
 .cpkpis b{display:block;font-size:26px;font-family:var(--display);line-height:1.1}.cpkpis small{color:var(--muted);font-size:12px}
 .cpkpis .bad b{color:var(--bad)}
 .cptools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:16px 0 10px}.cptools .seg{flex-wrap:wrap}.cpq{max-width:320px;flex:1;min-width:180px}
@@ -257,11 +261,13 @@ details.cpcard summary{display:flex;justify-content:space-between;align-items:ce
 .ppline.on{border-color:var(--accent);background:var(--accent-soft)}
 .pplines{display:flex;flex-direction:column;gap:8px;margin:12px 0 8px}
 .ppline{border:1px solid var(--line);border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
-.hnf.ppf{grid-template-columns:minmax(0,1fr) 200px}
+.hnf.ppf{grid-template-columns:minmax(0,1fr) 170px 180px}
 .pptop{display:grid;grid-template-columns:150px minmax(0,1fr) 80px auto;gap:6px;width:100%;align-items:center}
 .pplink{display:grid;grid-template-columns:auto minmax(0,1fr) 72px auto;gap:6px;align-items:center;width:100%;font-size:13px}
 .tinput.r{text-align:right}
-@media (max-width:600px){.cpkpis{grid-template-columns:1fr 1fr 1fr}.cpkpis b{font-size:20px}.pptop{grid-template-columns:minmax(0,1fr) 64px auto}.hnf.ppf{grid-template-columns:1fr}.pptop input[data-pf="name"]{grid-column:1/-1;grid-row:2}.cptab thead{display:none}.cptab tr{display:grid;grid-template-columns:auto 1fr auto;gap:2px 8px;padding:6px 0;border-bottom:1px solid var(--line)}.cptab td{border:0;padding:2px 0}.cptab td:nth-child(2){grid-column:2/4}.cptab td:nth-child(4)::before{content:"Previsão ";color:var(--muted)}}
+@media (max-width:600px){.cpkpis{grid-template-columns:1fr 1fr}.cpkpis b{font-size:20px}.pptop{grid-template-columns:minmax(0,1fr) 64px auto}.hnf.ppf{grid-template-columns:1fr}.pptop input[data-pf="name"]{grid-column:1/-1;grid-row:2}.cptab thead{display:none}.cptab tr{display:grid;grid-template-columns:auto 1fr auto;gap:2px 8px;padding:6px 0;border-bottom:1px solid var(--line)}.cptab td{border:0;padding:2px 0}.cptab:not(.cpwait) td:nth-child(2){grid-column:2/4}.cptab:not(.cpwait) td:nth-child(4)::before{content:"Previsão ";color:var(--muted)}
+.cpwait tr{grid-template-columns:1fr auto;padding:8px 6px}.cpwait td:nth-child(3),.cpwait td:nth-child(4),.cpwait td:nth-child(6){grid-column:1/-1}.cpwait td:nth-child(5){grid-column:1}.cpwait td:nth-child(7){grid-column:2;grid-row:1/3;align-self:start}.cpwait td.r{text-align:left}
+.bar:has(.cpbtn){flex-wrap:wrap}.bar .btn.cpbtn{width:100%}}
 .mbox.wide{width:min(560px,100%);max-height:92vh;overflow:auto}
 .hivebar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px}
 .hnpdf{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0 10px}
@@ -1352,20 +1358,36 @@ function encKind(o){
   }
   return {t:"Aguarda encomenda", c:"res", d: o.status==="na_colmeia" ? `Peças do estoque guardadas na colmeia ${cm}` : o.status==="na_mesa" ? `Peças do estoque na mesa, indo para a colmeia ${cm}` : `Peças do estoque na separação · vão para a colmeia ${cm}`};
 }
+// Prazo do fornecedor: previsão de chegada informada na importação do pedido (a mais tardia dos vínculos)
+const isoOf = d => !d ? "" : /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : /^\d{2}\/\d{2}\/\d{4}$/.test(d) ? d.split("/").reverse().join("-") : "";
+const prevOf = it => (it.compra?.links||[]).map(l=>isoOf(l.prev||l.entrega)).filter(Boolean).sort().pop() || "";
+const todayISO = () => { const d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10); };
+const daysTo = iso => Math.round((Date.parse(iso+"T12:00:00")-Date.parse(todayISO()+"T12:00:00"))/864e5);
+function prazoInfo(it){ const p=prevOf(it); if(!p || compraSt(it)==="chegou") return null; const d=daysTo(p);
+  return d<0 ? {c:"bad", t:`Atrasado ${-d} dia${d===-1?"":"s"}`, d, p} : d<=2 ? {c:"warn", t: d===0?"Chega hoje":`Chega em ${d} dia${d===1?"":"s"}`, d, p} : {c:"done", t:"No prazo", d, p}; }
 const COMPRA_LABEL = { falta:["A encomendar","bad"], parcial:["Encomendado em parte","prog"], pedido:["Encomendado","enc"], chegou:["Chegou","done"] };
 
 function renderCompras(){
   const tab = state.cTab || "abertas";
   const open = ORDERS.filter(encOpen).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
   const done = ORDERS.filter(o=>!isEco(o) && hasEnc(o) && encArrived(o) && o.status!=="excluido").sort((a,b)=>(b.arrivedAt||0)-(a.arrivedAt||0)).slice(0,60);
-  const allIt = open.flatMap(encItems), falta = allIt.filter(x=>compraSt(x)==="falta"||compraSt(x)==="parcial"), aguard = allIt.filter(x=>compraSt(x)==="pedido");
+  const allIt = open.flatMap(o=>encItems(o).map(x=>({...x, o}))), falta = allIt.filter(x=>compraSt(x)==="falta"||compraSt(x)==="parcial"), aguard = allIt.filter(x=>compraSt(x)==="pedido"||compraSt(x)==="parcial"), late = aguard.filter(x=>prazoInfo(x)?.c==="bad");
   const q = (state.cQ||"").trim().toLowerCase();
   const match = o => !q || [o.num,o.client,o.seller,...(o.items||[]).map(i=>i.code+" "+i.name)].join(" ").toLowerCase().includes(q);
   const purch = Object.values(PURCHASES).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   let body;
-  if(tab==="fornecedor"){
+  if(tab==="chegada"){
+    const rows = aguard.filter(x=>match(x.o)).sort((a,b)=>(prevOf(a)||"9999").localeCompare(prevOf(b)||"9999"));
+    body = rows.length ? `<div class="cpcard"><div class="cptwrap"><table class="cptab cpwait"><thead><tr><th>Previsão</th><th>Prazo</th><th>Pré-venda</th><th>Item</th><th class="r">Qtd</th><th>Fornecedor · pedido</th><th></th></tr></thead><tbody>
+      ${rows.map(x=>{ const pz=prazoInfo(x), links=x.compra?.links||[];
+        return `<tr class="${pz?.c==="bad"?"late":""}"><td class="tnum">${prevOf(x)?fmtDate(prevOf(x)):"—"}</td><td>${pz?`<span class="chip ${pz.c}">${pz.t}</span>`:`<span class="muted-s">sem previsão</span>`}</td>
+          <td><b class="mono">#${esc(x.o.num)}</b><div class="muted-s">${esc(x.o.client)}</div></td><td><span class="mono">${esc(x.code)}</span> ${esc(x.name)}</td><td class="r tnum">${compraQty(x)}${compraQty(x)<x.qtyEnc?`/${x.qtyEnc}`:""} pç</td>
+          <td>${links.map(l=>{ const p=PURCHASES[l.pid]; return `<div>${esc(p?.forn||"Fornecedor")}${(l.ped||p?.num)?" · ped. "+esc(l.ped||p.num):""}</div>`; }).join("")}</td>
+          <td class="r"><button class="mini" data-carr="${x.o.id}:${x.i}" data-v="1">Chegou</button></td></tr>`; }).join("")}</tbody></table></div></div>`
+      : `<div class="empty">${q?"Nada encontrado para essa busca.":"Nenhum item encomendado aguardando chegada."}</div>`;
+  } else if(tab==="fornecedor"){
     body = purch.length ? `<div class="cplist">${purch.map(p=>{ const links=p.lines.reduce((s,l)=>s+(l.links||[]).length,0);
-      return `<details class="cpcard"><summary><div class="cphead"><b>${esc(p.forn||"Fornecedor")}</b>${p.num?`<span class="muted-s">Pedido ${esc(p.num)}</span>`:""}<span class="muted-s">${new Date(p.createdAt).toLocaleDateString("pt-BR")}</span></div>
+      return `<details class="cpcard"><summary><div class="cphead"><b>${esc(p.forn||"Fornecedor")}</b>${p.num?`<span class="muted-s">Pedido ${esc(p.num)}</span>`:""}<span class="muted-s">importado ${new Date(p.createdAt).toLocaleDateString("pt-BR")}</span>${p.prev?`<span class="chip ${daysTo(p.prev)<0?"bad":"done"}">Previsão ${fmtDate(p.prev)}</span>`:""}</div>
         <span class="chip ${links?"enc":"bad"}">${p.lines.length} itens · ${links} vínculo${links===1?"":"s"}</span></summary>
         <div class="cptwrap"><table class="cptab"><thead><tr><th>Código</th><th>Item Serena</th><th>Descrição</th><th class="r">Qtd</th><th>Pedido · entrega</th><th>Pré-vendas</th></tr></thead><tbody>${p.lines.map(l=>`<tr><td class="mono">${esc(l.code)}</td><td class="mono">${esc(l.sku||"—")}</td><td>${esc(l.name||"")}</td><td class="r tnum">${l.qty||""}</td><td class="tnum">${esc(l.ped||p.num||"—")}${l.entrega?" · "+esc(fmtBR(l.entrega)):""}</td>
           <td>${(l.links||[]).map(k=>{ const o=ORDERS.find(x=>x.id===k.oid); return `<span class="cplink">#${esc(o?.num||k.oid.replace(/^PV-/,""))} · ${k.qty} pç</span>`; }).join(" ")||`<span class="muted-s">estoque</span>`}</td></tr>`).join("")}</tbody></table></div></details>`; }).join("")}</div>`
@@ -1379,8 +1401,8 @@ function renderCompras(){
   app.innerHTML = topnav() + `
     <header class="bar"><div class="grow"><h1>Compras · encomendas</h1><div class="sub">Itens que o comercial vendeu sob encomenda e o pedido feito ao fornecedor</div></div>
       <button class="btn primary cpbtn" id="cpImport">Importar pedido do fornecedor</button></header>
-    <div class="cpkpis"><div><b class="tnum">${open.length}</b><small>pré-vendas com encomenda</small></div><div class="${falta.length?"bad":""}"><b class="tnum">${falta.length}</b><small>itens a encomendar</small></div><div><b class="tnum">${aguard.length}</b><small>encomendados, aguardando chegada</small></div></div>
-    <div class="cptools"><div class="seg">${[["abertas",`Em aberto · ${open.length}`],["fornecedor",`Pedidos ao fornecedor · ${purch.length}`],["concluidas","Concluídas"]].map(([k,t])=>`<button data-ctab="${k}" aria-pressed="${tab===k}">${t}</button>`).join("")}</div>
+    <div class="cpkpis"><div><b class="tnum">${open.length}</b><small>pré-vendas com encomenda</small></div><button class="kp ${falta.length?"bad":""}" data-ctab="abertas"><b class="tnum">${falta.length}</b><small>itens a encomendar</small></button><button class="kp" data-ctab="chegada"><b class="tnum">${aguard.length}</b><small>encomendados, aguardando chegada</small></button><button class="kp ${late.length?"bad":""}" data-ctab="chegada"><b class="tnum">${late.length}</b><small>fora do prazo</small></button></div>
+    <div class="cptools"><div class="seg">${[["abertas",`Em aberto · ${open.length}`],["chegada",`Aguardando chegada · ${aguard.length}${late.length?` (${late.length} atrasado${late.length===1?"":"s"})`:""}`],["fornecedor",`Pedidos ao fornecedor · ${purch.length}`],["concluidas","Concluídas"]].map(([k,t])=>`<button data-ctab="${k}" aria-pressed="${tab===k}">${t}</button>`).join("")}</div>
       ${tab!=="fornecedor"?`<input class="tinput cpq" id="cpQ" placeholder="Buscar pré-venda, cliente ou código" value="${esc(state.cQ||"")}">`:""}</div>
     ${body}`;
   bindNav();
@@ -1402,7 +1424,7 @@ function compraCard(o, closed){
     <div class="cptwrap"><table class="cptab"><thead><tr><th>Código</th><th>Item</th><th class="r">Encomenda</th><th>Previsão</th><th>Situação</th><th></th></tr></thead><tbody>
     ${its.map(x=>{ const st=compraSt(x), [lt,lc]=COMPRA_LABEL[st], links=x.compra?.links||[];
       return `<tr><td class="mono">${esc(x.code)}</td><td>${esc(x.name)}</td><td class="r tnum"><b>${x.qtyEnc}</b> pç</td><td class="tnum">${fmtDate(x.eta)||"—"}</td>
-        <td><span class="chip ${lc}">${lt}${st==="parcial"?` · ${compraQty(x)}/${x.qtyEnc}`:""}</span>${links.map(l=>{ const p=PURCHASES[l.pid]; return `<div class="cpref">${esc(p?.forn||"Fornecedor")}${(l.ped||p?.num)?" · ped. "+esc(l.ped||p.num):""}${l.fcode?" · "+esc(l.fcode):""} · ${l.qty} pç${l.entrega?" · entrega "+esc(fmtBR(l.entrega)):""}${closed?"":` <button class="lnk" data-cunl="${o.id}:${x.i}:${esc(l.pid)}" title="Desfazer vínculo">desfazer</button>`}</div>`; }).join("")}</td>
+        <td><span class="chip ${lc}">${lt}${st==="parcial"?` · ${compraQty(x)}/${x.qtyEnc}`:""}</span>${(()=>{ const pz=prazoInfo(x); return pz?` <span class="chip ${pz.c}" title="Previsão do fornecedor ${fmtDate(pz.p)}">${pz.t} · ${fmtDate(pz.p)}</span>`:""; })()}${links.map(l=>{ const p=PURCHASES[l.pid]; return `<div class="cpref">${esc(p?.forn||"Fornecedor")}${(l.ped||p?.num)?" · ped. "+esc(l.ped||p.num):""}${l.fcode?" · "+esc(l.fcode):""} · ${l.qty} pç${l.entrega?" · entrega "+esc(fmtBR(l.entrega)):""}${closed?"":` <button class="lnk" data-cunl="${o.id}:${x.i}:${esc(l.pid)}" title="Desfazer vínculo">desfazer</button>`}</div>`; }).join("")}</td>
         <td class="r">${closed?"":st==="chegou"?`<button class="mini" data-carr="${o.id}:${x.i}" data-v="0">Desfazer chegada</button>`:`<button class="mini" data-carr="${o.id}:${x.i}" data-v="1">Chegou</button>`}</td></tr>`; }).join("")}
     </tbody></table></div>
     ${closed ? `<div class="cpfoot ok-line">Encomenda recebida em ${new Date(o.arrivedAt||Date.now()).toLocaleDateString("pt-BR")} · ${esc(statusInfo(o).t)}</div>`
@@ -1524,7 +1546,7 @@ const fornKey = (forn, code) => (String(forn||"").normalize("NFD").replace(/[\u0
 function skuFor(forn, code){ const k=fornKey(forn, code); const p=Object.values(PRODUCTS).find(p=>(p.forn||[]).includes(k)); return p ? p.code : ""; }
 
 function openPurchaseImport(){
-  const S = { forn:"", num:"", lines:[], busy:false, err:"", file:"", q:"", onlyLinked:false };
+  const S = { forn:"", num:"", prev:"", lines:[], busy:false, err:"", file:"", q:"", onlyLinked:false };
   const ov=document.createElement("div"); ov.className="modal";
   const close=()=>{ ov.remove(); render(); };
   // itens de pré-venda sob encomenda, com quanto ainda falta encomendar
@@ -1539,7 +1561,7 @@ function openPurchaseImport(){
     ov.innerHTML=`<div class="mbox xwide" role="dialog" aria-modal="true" aria-label="Importar pedido do fornecedor"><h2>Importar pedido do fornecedor</h2>
       <p>Envie o PDF do pedido ou do relatório de pedidos em aberto do fornecedor. Depois, nos itens que são encomenda de cliente, escolha a pré-venda. Itens sem vínculo ficam como compra para estoque.</p>
       <div class="hnpdf"><label class="mini tup">${S.busy?"Lendo PDF…":S.file?"Trocar PDF":"Escolher PDF do fornecedor"}<input type="file" id="ppPdf" accept="application/pdf,.pdf" hidden></label><span class="muted-s">${S.file?esc(S.file)+" · "+S.lines.length+" itens lidos · "+nLinked+" com pré-venda":"ou adicione os itens à mão"}</span></div>
-      <div class="hnf ppf"><label><span>Fornecedor</span><input class="tinput" id="ppForn" value="${esc(S.forn)}" placeholder="Nome do fornecedor"></label><label><span>Nº do pedido</span><input class="tinput" id="ppNum" value="${esc(S.num)}" placeholder="${S.lines.some(l=>l.ped)?"Vários · cada item tem o seu":""}"></label></div>
+      <div class="hnf ppf"><label><span>Fornecedor</span><input class="tinput" id="ppForn" value="${esc(S.forn)}" placeholder="Nome do fornecedor"></label><label><span>Previsão de chegada *</span><input class="tinput" type="date" id="ppPrev" value="${esc(S.prev)}" required></label><label><span>Nº do pedido</span><input class="tinput" id="ppNum" value="${esc(S.num)}" placeholder="${S.lines.some(l=>l.ped)?"Vários · cada item tem o seu":""}"></label></div>
       ${S.lines.length>6?`<div class="ppfilter"><input class="tinput" id="ppQ" placeholder="Filtrar itens por código ou descrição" value="${esc(S.q)}"><label><input type="checkbox" id="ppOnly" ${S.onlyLinked?"checked":""}> só com pré-venda</label></div>`:""}
       <div class="pplines">${vis.map(({l,j})=>`<div class="ppline ${(l.links||[]).some(k=>k.oid)?"on":""}">
         <div class="pptop"><input class="tinput mono" data-pf="code" data-j="${j}" value="${esc(l.code)}" placeholder="Código" aria-label="Código do fornecedor"><input class="tinput" data-pf="name" data-j="${j}" value="${esc(l.name)}" placeholder="Descrição" aria-label="Descrição"><input class="tinput r" data-pf="qty" data-j="${j}" type="number" min="0" value="${l.qty||""}" placeholder="Qtd" aria-label="Quantidade"><button class="icbtn del" data-pdel="${j}" title="Remover item" aria-label="Remover item">${ICON_TRASH}</button></div>
@@ -1556,7 +1578,7 @@ function openPurchaseImport(){
       <div class="merr">${esc(S.err)}</div>
       <div class="mact"><button class="btn ghost" id="mNo">Cancelar</button><button class="btn primary" id="mOk">Salvar pedido do fornecedor</button></div></div>`;
     const g=id=>ov.querySelector("#"+id);
-    g("ppForn").oninput=e=>S.forn=e.target.value; g("ppNum").oninput=e=>S.num=e.target.value;
+    g("ppForn").oninput=e=>S.forn=e.target.value; g("ppNum").oninput=e=>S.num=e.target.value; g("ppPrev").onchange=e=>{ S.prev=e.target.value; S.err=""; };
     g("ppForn").onchange=()=>setTimeout(()=>{ let n=0; S.lines.forEach(l=>{ if(!l.sku){ l.sku=skuFor(S.forn,l.code); if(l.sku) n++; } }); if(n){ toast(`${n} item(ns) reconhecido(s) pelo cadastro`); draw(); } });
     ov.querySelectorAll("[data-sku]").forEach(inp=>inp.onchange=()=>{ const l=S.lines[+inp.dataset.sku]; l.sku=inp.value.trim().toUpperCase().split(/\s+[·-]\s+/)[0]; if(l.sku && !PRODUCTS[l.sku] && !l.newName) l.newName=l.name;
       S.lines.forEach(o=>{ if(o!==l && !o.sku && o.code && o.code===l.code){ o.sku=l.sku; o.newName=l.newName; } }); // mesmo código do fornecedor em outras linhas
@@ -1566,6 +1588,7 @@ function openPurchaseImport(){
     const oc=g("ppOnly"); if(oc) oc.onchange=()=>{ S.onlyLinked=oc.checked; draw(); };
     g("ppPdf").onchange=async e=>{ const f=e.target.files[0]; if(!f) return; S.busy=true; S.err=""; draw();
       try{ const r=await readSupplierPdf(f); S.file=f.name; S.num=S.num||r.num; S.sig=r.sig;
+        if(!S.prev){ const ds=[r.entrega, ...r.lines.map(l=>l.entrega)].map(isoOf).filter(d=>d && d>=todayISO()).sort(); S.prev=ds.pop()||""; } // sugestão: a entrega mais tardia do PDF
         S.forn = S.forn || r.forn || (Object.values(PURCHASES).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).find(p=>p.sig && p.sig===r.sig)?.forn) || ""; S.lines=r.lines.map(l=>({...l, sku: skuFor(S.forn, l.code), links:[]}));
         if(!r.lines.length) S.err="Não encontrei a tabela de itens neste PDF. Adicione os itens à mão ou me mande este modelo para eu ensinar o sistema a ler."; }
       catch(x){ S.err="Não foi possível ler este PDF."; }
@@ -1583,6 +1606,7 @@ function openPurchaseImport(){
     g("mOk").onclick=()=>{
       const lines=S.lines.filter(l=>l.code||l.name).map(l=>({code:l.code, name:l.name, qty:+l.qty||0, ped:l.ped||"", entrega:l.entrega||"", sku:l.sku||"", links:(l.links||[]).filter(k=>k.oid&&k.i>=0&&+k.qty>0).map(k=>({oid:k.oid, i:k.i, qty:+k.qty}))}));
       if(!S.forn.trim()){ S.err="Informe o fornecedor."; return draw(); }
+      if(!S.prev){ S.err="Informe a previsão de chegada do pedido."; g("ppPrev").focus(); return draw(); }
       if(!lines.length){ S.err="Adicione pelo menos um item."; return draw(); }
       const over=lines.find(l=>l.qty && l.links.reduce((s,k)=>s+k.qty,0)>l.qty); if(over){ S.err=`O item ${over.code} tem mais peças vinculadas do que no pedido.`; return draw(); }
       const noName=S.lines.find(l=>l.sku && !PRODUCTS[l.sku] && !String(l.newName??l.name).trim()); if(noName){ S.err=`Informe o nome do novo produto ${noName.sku}.`; return draw(); }
@@ -1592,11 +1616,11 @@ function openPurchaseImport(){
         if(!cur){ saveProduct({code:l.sku, name:String(l.newName??l.name).trim().toUpperCase(), ean:"", loc:"", forn:[k]}); nNew++; }
         else if(!(cur.forn||[]).includes(k)){ saveProduct({...cur, forn:[...(cur.forn||[]), k]}); nMap++; }
         Object.values(PRODUCTS).filter(p=>p.code!==l.sku && (p.forn||[]).includes(k)).forEach(p=>saveProduct({...p, forn:p.forn.filter(x=>x!==k)})); }); // um código do fornecedor aponta para um só item
-      const id="PC-"+Date.now().toString(36), doc={id, forn:S.forn.trim(), num:S.num.trim(), file:S.file, sig:S.sig||"", lines, createdAt:Date.now(), createdBy:ME.id||""};
+      const id="PC-"+Date.now().toString(36), doc={id, forn:S.forn.trim(), num:S.num.trim(), prev:S.prev, file:S.file, sig:S.sig||"", lines, createdAt:Date.now(), createdBy:ME.id||""};
       PURCHASES[id]=doc; if(purchCol) queueWrite("pc-"+id, ()=>purchCol.doc(id).set(JSON.parse(JSON.stringify(doc))));
       // grava o vínculo em cada item da pré-venda (com o nº do pedido e a entrega do fornecedor)
-      const byOrder={}; lines.forEach(l=>l.links.forEach(k=>(byOrder[k.oid] ||= []).push({...k, ped:l.ped||doc.num, entrega:l.entrega, fcode:l.code})));
-      Object.entries(byOrder).forEach(([oid,ks])=>patchItems(oid, items=>ks.forEach(k=>{ const it=items[k.i]; if(!it) return; it.compra={...(it.compra||{}), links:[...((it.compra||{}).links||[]), {pid:id, qty:k.qty, ped:k.ped, entrega:k.entrega, fcode:k.fcode}]}; })));
+      const byOrder={}; lines.forEach(l=>l.links.forEach(k=>(byOrder[k.oid] ||= []).push({...k, ped:l.ped||doc.num, entrega:l.entrega, prev:S.prev, fcode:l.code})));
+      Object.entries(byOrder).forEach(([oid,ks])=>patchItems(oid, items=>ks.forEach(k=>{ const it=items[k.i]; if(!it) return; it.compra={...(it.compra||{}), links:[...((it.compra||{}).links||[]), {pid:id, qty:k.qty, ped:k.ped, entrega:k.entrega, prev:k.prev, fcode:k.fcode}]}; })));
       const nl=lines.reduce((s,l)=>s+l.links.length,0);
       toast(`Pedido do fornecedor salvo · ${nl} vínculo${nl===1?"":"s"} com pré-vendas${nMap?` · ${nMap} item(ns) relacionado(s)`:""}${nNew?` · ${nNew} produto(s) cadastrado(s)`:""}`); close();
     };
