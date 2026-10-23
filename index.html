@@ -810,12 +810,13 @@ function hiveCode(v){ // aceita CM-A1, A1 e as etiquetas antigas CM-01…CM-24
   let m=v.match(/^CM-?(\d{1,2})$/); if(m){ const n=+m[1]-1; return "CM-"+HIVE_COL(n%6)+(Math.floor(n/6)+1); }
   m=v.match(/^(?:CM-?)?([A-Z])0*(\d{1,2})$/); return m ? "CM-"+m[1]+(+m[2]) : v; }
 const isHiveCode = v => /^CM-[A-Z]\d{1,2}$/.test(v);
-const MODES = { total:{t:"Envio total", c:"norm"}, parcial:{t:"Envio parcial", c:"prog"}, aguarda:{t:"Aguarda encomenda", c:"urg"} };
+const MODES = { total:{t:"Envio total", c:"norm"}, parcial:{t:"Envio parcial", c:"prog"}, aguarda:{t:"Aguarda encomenda", c:"urg"}, encomenda:{t:"Encomenda total", c:"enc"} };
 function statusInfo(o){
   switch(o.status){
     case "aguardando": return {t:"Aguardando separação", c:"norm"};
     case "separando": return {t:"Em separação", c:"prog"};
-    case "pronto_envio": return {t: o.mode==="aguarda" ? `Encomenda chegou · retirar da colmeia ${o.colmeia||""}` : o.remessa===2 ? "Encomenda chegou" : "Finalizado · na mesa", c:"done"};
+    case "pronto_envio": return {t: o.mode==="encomenda" ? "Encomenda chegou · pronto para enviar" : o.mode==="aguarda" ? `Encomenda chegou · retirar da colmeia ${o.colmeia||""}` : o.remessa===2 ? "Encomenda chegou" : "Finalizado · na mesa", c:"done"};
+    case "encomenda": return {t:"Encomenda total · aguardando chegada", c:"enc"};
     case "enc_pendente": return {t:"1º envio feito · aguardando encomenda", c:"enc"};
     case "na_colmeia": return {t:"Na colmeia · aguardando encomenda", c:"enc"};
     case "na_mesa": return {t:`Na mesa · guardar na colmeia ${o.colmeia||""}`, c:"prog"};
@@ -829,6 +830,7 @@ function normalize(o){ // compatibilidade com pedidos gravados na versão anteri
   if(o.status==="aguardando_envio") o.status="pronto_envio";
   if(o.status==="aguardando_encomenda") o.status="na_colmeia";
   if(o.mode==="parcial" && o.colmeia && !o.v2) o.mode="aguarda";
+  if(o.mode==="aguarda" && !o.hiveManual && (o.items||[]).length && o.items.every(i=>(i.qtyEnc||0)>=i.qty) && ["na_colmeia","aguardando"].includes(o.status)){ o.mode="encomenda"; o.status="encomenda"; delete o.colmeia; } // tudo encomenda: sem colmeia
   if(o.colmeia) o.colmeia = hiveCode(o.colmeia);
   if(o.mode!=="aguarda") delete o.colmeia;
   o.canal ||= "consultiva"; // canal de venda: consultiva (pré-venda) ou ecommerce (fluxo futuro)
@@ -1108,6 +1110,7 @@ function draftHTML(d){
       <label class="mode"><input type="radio" name="mode" value="total" ${d.mode==="total"?"checked":""}><span><b>Envio total</b><small>Todas as peças têm pronta entrega. A expedição separa tudo e o pedido vai direto para o envio.</small></span></label>
       <label class="mode"><input type="radio" name="mode" value="parcial" ${d.mode==="parcial"?"checked":""}><span><b>Envio parcial</b><small>Envia agora o que tem em estoque. As peças encomendadas seguem depois, em um 2º envio.</small></span></label>
       <label class="mode"><input type="radio" name="mode" value="aguarda" ${d.mode==="aguarda"?"checked":""}><span><b>Aguarda encomenda</b><small>Separa o que tem em estoque e guarda na colmeia até chegar o restante. Envio único.</small></span></label>
+      <label class="mode"><input type="radio" name="mode" value="encomenda" ${d.mode==="encomenda"?"checked":""}><span><b>Encomenda total</b><small>Todos os itens são encomenda. Não passa pela separação nem usa colmeia: vai direto para Compras e é enviado quando chegar.</small></span></label>
     </div>
     <div class="flagrow"><label class="retira green ${d.retira?"on":""}"><input type="checkbox" id="retiraChk" ${d.retira?"checked":""}><span><b>Retira na Loja</b></span></label>
     <label class="retira naloja ${d.naLoja?"on":""}"><input type="checkbox" id="naLojaChk" ${d.naLoja?"checked":""}><span><b>Cliente está na loja</b></span></label></div></div>
@@ -1139,15 +1142,15 @@ function draftTotals(d){
 }
 function totalsHTML(t, d){
   const prev = ORDERS.find(o=>o.id===d.id);
-  const slot = d.mode==="aguarda" ? ((prev && usesHive(prev) && prev.colmeia) || freeSlot()) : null;
+  const slot = d.mode==="aguarda" && t.pick ? ((prev && usesHive(prev) && prev.colmeia) || freeSlot()) : null;
   return `<div><small>${d.mode==="parcial"?"1º envio":"Separar agora"}</small><b class="tnum">${t.pick}</b> pç · ${t.refsPick} ref.</div>
     ${d.mode!=="total"?`<div><small>${d.mode==="parcial"?"2º envio (encomenda)":"Sob encomenda"}</small><b class="tnum">${t.enc}</b> pç · ${t.refsEnc} ref.</div>`:""}
-    <div><small>Destino da separação</small><b>${d.mode==="aguarda" ? (slot ? "Colmeia "+slot : "Colmeias lotadas") : "Mesa de expedição"}</b></div>`;
+    <div><small>Destino da separação</small><b>${t.enc && !t.pick ? "Sem separação · direto para Compras" : d.mode==="aguarda" ? (slot ? "Colmeia "+slot.slice(3) : "Colmeias lotadas") : "Mesa de expedição"}</b></div>`;
 }
 function bindDraft(){
   const d = state.draft;
   document.getElementById("cancelDraft").onclick=()=>{ state.draft=null; state.draftErr=""; render(); };
-  app.querySelectorAll('input[name=mode]').forEach(r=>r.onchange=()=>{ d.mode=r.value; state.draftErr=""; render(); });
+  app.querySelectorAll('input[name=mode]').forEach(r=>r.onchange=()=>{ d.mode=r.value; state.draftErr=""; if(d.mode==="encomenda") d.items.forEach(it=>it.qtyEnc=it.qty); render(); });
   const dt=document.getElementById("dTransp"); if(dt) dt.oninput=()=>{ d.transportadora=dt.value.trim(); };
   const rc=document.getElementById("retiraChk"); if(rc) rc.onchange=()=>{ d.retira=rc.checked; if(!d.retira) d.naLoja=false; render(); };
   const nl=document.getElementById("naLojaChk"); if(nl) nl.onchange=()=>{ d.naLoja=nl.checked; if(d.naLoja) d.retira=true; render(); };
@@ -1178,13 +1181,14 @@ function bindDraft(){
   document.getElementById("sendBtn").onclick=sendDraft;
 }
 function sendDraft(){
-  const d = state.draft, m = d.mode, enc = m!=="total";
+  const d = state.draft, enc = d.mode!=="total"; let m = d.mode;
   const items = d.items.map(it=>({code:it.code, name:it.name, ean:it.ean, un:it.un, qty:it.qty, price:it.price, loc:it.loc?code(it.loc):"", qtyEnc: enc?(it.qtyEnc||0):0, eta: enc&&it.qtyEnc?it.eta:""}));
   const zeroQ = items.filter(it=>!(it.qty>0));
   if(zeroQ.length){ state.draftErr=`Quantidade zerada em: ${zeroQ.map(x=>x.code).join(", ")}. O PDF não foi lido corretamente; não dá para enviar assim.`; return render(); }
   const hasEnc = items.some(it=>it.qtyEnc>0), hasPick = items.some(it=>it.qty-it.qtyEnc>0);
   if(enc && !hasEnc){ state.draftErr="Informe pelo menos um item sob encomenda, ou escolha Envio total."; return render(); }
-  if(m==="parcial" && !hasPick){ state.draftErr="No envio parcial precisa haver peças em estoque para o 1º envio. Se tudo é sob encomenda, use Aguarda encomenda."; return render(); }
+  if(m==="encomenda" && hasPick){ state.draftErr="Na encomenda total todos os itens são encomenda. Se há peças em estoque, use Envio parcial ou Aguarda encomenda."; return render(); }
+  if(hasEnc && !hasPick) m = "encomenda"; // tudo encomenda: não separa e não usa colmeia
   const missing = items.map((it,i)=>it.qtyEnc>0 && !it.eta ? i : -1).filter(i=>i>=0);
   if(missing.length){ missing.forEach(i=>document.getElementById("eta-"+i)?.classList.add("invalid")); state.draftErr=""; toast("Informe a previsão de chegada dos itens sob encomenda."); return; }
   const noLoc = items.filter(it=>it.qty-it.qtyEnc>0 && !it.loc);
@@ -1193,12 +1197,12 @@ function sendDraft(){
   const slot = m==="aguarda" ? ((prev && usesHive(prev) && prev.colmeia) || freeSlot()) : null;
   if(m==="aguarda" && !slot){ state.draftErr="Todas as colmeias estão ocupadas. Libere uma colmeia antes de integrar este pedido."; return render(); }
   const o = { id:d.id, num:d.num, date:d.date, time:d.time, clientCode:d.clientCode, client:d.client, city:d.city, seller:d.seller, obs:d.obs, total:d.total,
-    mode:m, v2:true, items, remessa:1, status: hasPick ? "aguardando" : "na_colmeia", createdAt: Date.now(), createdBy: ME.id||"", canal:"consultiva", retira: !!(d.retira||d.naLoja), naLoja: !!d.naLoja, transportadora: (d.transportadora ?? carrierFromObs(d.obs)) || "" };
+    mode:m, v2:true, items, remessa:1, status: m==="encomenda" ? "encomenda" : "aguardando", createdAt: Date.now(), createdBy: ME.id||"", canal:"consultiva", retira: !!(d.retira||d.naLoja), naLoja: !!d.naLoja, transportadora: (d.transportadora ?? carrierFromObs(d.obs)) || "" };
   if(slot) o.colmeia = slot;
   res(o);
   state.draft=null; state.draftErr="";
   saveOrder(o);
-  toast((noLoc.length ? `${noLoc.length} item(ns) sem local · o separador procura no estoque · ` : "") + (m==="aguarda" ? (hasPick ? `Pré-venda ${o.num} enviada para separação · colmeia ${slot}` : `Pré-venda ${o.num} toda sob encomenda · colmeia ${slot} reservada`) : `Pré-venda ${o.num} enviada para separação · ${MODES[m].t.toLowerCase()}`));
+  toast((noLoc.length ? `${noLoc.length} item(ns) sem local · o separador procura no estoque · ` : "") + (m==="encomenda" ? `Pré-venda ${o.num} toda sob encomenda · enviada para Compras` : m==="aguarda" ? `Pré-venda ${o.num} enviada para separação · colmeia ${slot.slice(3)}` : `Pré-venda ${o.num} enviada para separação · ${MODES[m].t.toLowerCase()}`));
 }
 
 /* ---- Encomendas: o separador cadastra uma pré-venda e amarra a uma colmeia ---- */
@@ -1286,7 +1290,7 @@ function hiveHTML(target, pick){
 }
 function asideHTML(){
   const today=new Date().toDateString();
-  const finished = o => o.status==="enviado" || (o.status==="pronto_envio" && o.mode!=="aguarda");
+  const finished = o => o.status==="enviado" || (o.status==="pronto_envio" && o.mode!=="aguarda" && o.mode!=="encomenda");
   const list = [...ORDERS, ...DELETED.filter(o=>new Date(o.deletedAt||0).toDateString()===today)].filter(o=>!isEco(o)).filter(o=>o.status==="excluido" || !finished(o) || new Date(o.atMesaAt||o.pickedAt||o.sentAt||0).toDateString()===today).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   const pg = pageOf(list, "aside", 10);
   return `<h2>Pedidos na expedição</h2>
@@ -1304,20 +1308,18 @@ function asideHTML(){
         <div class="meta tnum"><span>⏱ ${o.status==="excluido" ? `excluído ${fmtDur((o.deletedAt||0)-(o.createdAt||0))} após a integração` : finished(o)&&(o.atMesaAt||o.pickedAt) ? `picking em ${fmtDur((o.atMesaAt||o.pickedAt)-o.createdAt)}` : `${since(o.createdAt)} desde a integração`}</span>${o.status==="separando"&&o.startedAt?`<span>separando há ${since(o.startedAt)}</span>`:""}</div>
         <details><summary>Tempos</summary>${timelineHTML(o)}</details>
         ${enc.length?`<details><summary>${enc.length} ref. sob encomenda</summary><ul>${enc.map(i=>`<li>${esc(i.code)} · ${i.qtyEnc} pç · chega ${fmtDate(i.eta)||"—"}</li>`).join("")}</ul></details>`:""}
-        ${can("compras") && (o.status==="na_colmeia"||o.status==="enc_pendente"||(o.status==="pronto_envio"&&o.mode==="parcial"&&o.remessa!==2&&enc.length))?`<div><button class="mini" data-arrived="${esc(o.id)}">Encomenda chegou</button></div>`:""}
-        ${o.status==="pronto_envio"&&o.mode==="aguarda"?`<div><button class="mini" data-sent="${esc(o.id)}">Retirado · liberar colmeia ${esc(o.colmeia||"")}</button></div>`:""}
+        ${can("compras") && (o.status==="na_colmeia"||o.status==="encomenda"||o.status==="enc_pendente"||(o.status==="pronto_envio"&&o.mode==="parcial"&&o.remessa!==2&&enc.length))?`<div><button class="mini" data-arrived="${esc(o.id)}">Encomenda chegou</button></div>`:""}
+        ${o.status==="pronto_envio"&&o.mode==="aguarda"?`<div><button class="mini" data-sent="${esc(o.id)}">Retirado · liberar colmeia ${esc((o.colmeia||"").slice(3))}</button></div>`:""}${o.status==="pronto_envio"&&o.mode==="encomenda"?`<div><button class="mini" data-sent="${esc(o.id)}">Enviado · finalizar</button></div>`:""}
       </div>`;}).join("") : `<div class="empty">Nenhum pedido na expedição. Importe uma pré-venda para começar.</div>`}</div>${pg.pager}</div>
     <div class="excol exhive"><h3>Colmeias de encomenda</h3>${hiveHTML(null)}</div></div>`;
 }
 function bindAside(){
   app.querySelectorAll("[data-arrived]").forEach(b=>b.onclick=()=>{
-    const o=ORDERS.find(x=>x.id===b.dataset.arrived); if(!o) return;
-    patchOrder(o.id,{status:"pronto_envio", remessa: o.mode==="parcial"?2:1, arrivedAt:Date.now()});
-    toast(o.mode==="aguarda" ? `Encomenda recebida · retire o pedido ${o.num} da colmeia ${o.colmeia} para envio` : `Encomenda recebida · 2º envio do pedido ${o.num} pronto`); rerender();
+    releaseEnc(b.dataset.arrived);
   });
   app.querySelectorAll("[data-sent]").forEach(b=>b.onclick=()=>{
     const o=ORDERS.find(x=>x.id===b.dataset.sent); if(!o) return;
-    patchOrder(o.id,{status:"enviado", sentAt:Date.now()}); toast(`Pedido ${o.num} finalizado · colmeia ${o.colmeia||""} liberada`);
+    patchOrder(o.id,{status:"enviado", sentAt:Date.now()}); toast(o.colmeia ? `Pedido ${o.num} finalizado · colmeia ${o.colmeia.slice(3)} liberada` : `Pedido ${o.num} finalizado`);
     rerender();
   });
 }
@@ -1331,15 +1333,15 @@ let PURCHASES = {}, purchCol = null;
 const encItems = o => (o.items||[]).map((it,i)=>({...it, i})).filter(x=>x.qtyEnc>0);
 const encArrived = o => !!o.arrivedAt || (o.mode==="parcial" && o.remessa===2);
 const encOpen = o => !isEco(o) && !["enviado","excluido"].includes(o.status) && hasEnc(o) && !encArrived(o);
-const canRelease = o => o.status==="na_colmeia" || o.status==="enc_pendente" || (o.status==="pronto_envio" && o.mode==="parcial" && o.remessa!==2);
+const canRelease = o => o.status==="na_colmeia" || o.status==="encomenda" || o.status==="enc_pendente" || (o.status==="pronto_envio" && o.mode==="parcial" && o.remessa!==2);
 const compraSt = it => it.compra?.st==="chegou" ? "chegou" : (it.compra?.links||[]).reduce((s,l)=>s+(+l.qty||0),0) >= it.qtyEnc ? "pedido" : (it.compra?.links||[]).length ? "parcial" : "falta";
 const compraQty = it => (it.compra?.links||[]).reduce((s,l)=>s+(+l.qty||0),0);
 function encKind(o){
   const pick = (o.items||[]).some(it=>it.qty-(it.qtyEnc||0)>0), cm = o.colmeia ? o.colmeia.slice(3) : "";
-  if(!pick) return {t:"Encomenda total", c:"enc", d:`Todos os itens são encomenda · não passa pela separação${cm?` · colmeia ${cm} reservada`:""}`};
+  if(!pick || o.mode==="encomenda") return {t:"Encomenda total", c:"enc", d:"Todos os itens são encomenda · não passa pela separação nem usa colmeia · enviar quando chegar"};
   if(o.mode==="parcial"){
     const sent = o.status==="pronto_envio" || o.status==="enviado" || !!o.pickedAt;
-    return {t:"Envio parcial", c:"prog", d: sent ? "1º envio já separado com as peças do estoque · falta só a encomenda" : "1º envio (peças do estoque) ainda na separação"};
+    return {t:"Envio parcial", c:"prog", d: sent ? "1º envio já feito com as peças do estoque (sem colmeia) · a encomenda segue no 2º envio" : "1º envio (peças do estoque) ainda na separação · a encomenda segue no 2º envio"};
   }
   return {t:"Aguarda encomenda", c:"res", d: o.status==="na_colmeia" ? `Peças do estoque guardadas na colmeia ${cm}` : o.status==="na_mesa" ? `Peças do estoque na mesa, indo para a colmeia ${cm}` : `Peças do estoque na separação · vão para a colmeia ${cm}`};
 }
@@ -1397,7 +1399,7 @@ function compraCard(o, closed){
         <td class="r">${closed?"":st==="chegou"?`<button class="mini" data-carr="${o.id}:${x.i}" data-v="0">Desfazer chegada</button>`:`<button class="mini" data-carr="${o.id}:${x.i}" data-v="1">Chegou</button>`}</td></tr>`; }).join("")}
     </tbody></table></div>
     ${closed ? `<div class="cpfoot ok-line">Encomenda recebida em ${new Date(o.arrivedAt||Date.now()).toLocaleDateString("pt-BR")} · ${esc(statusInfo(o).t)}</div>`
-      : allArr ? (canRelease(o) ? `<div class="cpfoot"><button class="btn primary" data-crel="${o.id}">Encomenda completa · liberar pedido</button><small>${o.mode==="aguarda"?`O pedido fica pronto para retirar da colmeia ${esc((o.colmeia||"").slice(3))} e o comercial é avisado.`:o.mode==="parcial"?"Libera o 2º envio e o comercial é avisado.":"O comercial é avisado que a encomenda chegou."}</small></div>`
+      : allArr ? (canRelease(o) ? `<div class="cpfoot"><button class="btn primary" data-crel="${o.id}">Encomenda completa · liberar pedido</button><small>${o.mode==="encomenda"?"O pedido fica pronto para enviar e o comercial é avisado.":o.mode==="aguarda"?`O pedido fica pronto para retirar da colmeia ${esc((o.colmeia||"").slice(3))} e o comercial é avisado.`:o.mode==="parcial"?"Libera o 2º envio e o comercial é avisado.":"O comercial é avisado que a encomenda chegou."}</small></div>`
         : `<div class="cpfoot"><small>Todos os itens chegaram. Para liberar, as peças do estoque precisam terminar a separação (${esc(statusInfo(o).t.toLowerCase())}).</small></div>`)
       : ""}
   </article>`;
@@ -1413,7 +1415,7 @@ function setItemArrived(oid, i, on){
 function releaseEnc(oid){
   const o=ORDERS.find(x=>x.id===oid); if(!o || !canRelease(o)) return;
   patchOrder(o.id,{status:"pronto_envio", remessa: o.mode==="parcial"?2:1, arrivedAt:Date.now(), arrivedBy:ME.id||""});
-  toast(o.mode==="aguarda" ? `Encomenda do pedido ${o.num} recebida · retirar da colmeia ${(o.colmeia||"").slice(3)}` : `Encomenda do pedido ${o.num} recebida · 2º envio liberado`); rerender();
+  toast(o.mode==="encomenda" ? `Encomenda do pedido ${o.num} recebida · pronto para enviar` : o.mode==="aguarda" ? `Encomenda do pedido ${o.num} recebida · retirar da colmeia ${(o.colmeia||"").slice(3)}` : `Encomenda do pedido ${o.num} recebida · 2º envio liberado`); rerender();
 }
 function unlinkPurchase(oid, i, pid){
   patchItems(oid, items=>{ const it=items[i]; if(it.compra) it.compra.links=(it.compra.links||[]).filter(l=>l.pid!==pid); });
