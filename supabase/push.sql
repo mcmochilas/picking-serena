@@ -109,3 +109,6 @@ begin
   if t not in ('orders','products','blocks','config','purchases') then raise exception 'tabela inválida: %', t; end if;
   execute format('update public.%I set data = data || $1, updated_at = now() where id = $2', t) using patch, doc_id;
 end $$;
+
+-- ---------- Aviso de pedido novo também quando Compras encaminha para a separação (queuedAt) ----------
+-- notify_new_order: dispara em INSERT, createdAt alterado ou queuedAt alterado; createdBy = coalesce(decidedBy, createdBy)
