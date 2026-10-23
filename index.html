@@ -233,7 +233,8 @@ html.tvmode body{background:var(--bg);color:var(--ink);overflow:hidden}
 .cpkpis .kp{font:inherit;color:inherit;text-align:left;cursor:pointer}.cpkpis .kp:hover{border-color:var(--accent)}
 .chip.warn{background:var(--accent-soft);color:var(--accent-ink)}
 .cpbtns{display:flex;gap:8px;flex-wrap:wrap}.bar .btn.ghost.cpbtn{color:var(--ink)}
-.hnf.nff{grid-template-columns:minmax(0,1fr) 140px 140px}@media (max-width:600px){.hnf.nff{grid-template-columns:1fr 1fr}.hnf.nff label:first-child{grid-column:1/-1}}.nfl{display:flex;gap:8px;align-items:baseline;width:100%}.nfl span{margin-left:auto;white-space:nowrap}.nfpv{min-width:0;font-size:13px}.nfadd{width:100%}.nfadd .tinput{font-size:13px}.rcpv{display:flex;flex-wrap:wrap;gap:4px}
+.hnf.nff{grid-template-columns:minmax(0,1fr) 140px 140px}@media (max-width:600px){.hnf.nff{grid-template-columns:1fr 1fr}.hnf.nff label:first-child{grid-column:1/-1}}.nfl{display:flex;gap:8px;align-items:baseline;width:100%}.nfl span{margin-left:auto;white-space:nowrap}.nfpv{min-width:0;font-size:13px}.nfadd{width:100%}.nfadd .tinput{font-size:13px}.rcq{display:flex;gap:6px;align-items:center;flex:none}.rcq .tinput{width:70px}.rcq .mini.on{background:var(--ok-soft);color:var(--ok);border-color:var(--ok)}.rcl.ok{background:var(--ok-soft)}.rcl.div{background:var(--bad-soft)}.bad-t{color:var(--bad)}
+.rcpv{display:flex;flex-wrap:wrap;gap:4px}
 .cpfoot .btn{flex:none;width:auto;height:42px;padding:0 18px;font-size:15px}
 .phases.ph3{grid-template-columns:repeat(3,minmax(0,1fr))}.phases.ph3 .phase{font-size:12px;padding:8px}
 .li.usrow .ln{white-space:normal;display:flex;flex-direction:column;overflow:visible}
@@ -1527,7 +1528,7 @@ function compraCard(o, closed){
     ${all.slice(0, hid ? 2 : all.length).map(x=>{ if(!(x.qtyEnc>0)) return `<tr class="cpstock"><td class="mono">${esc(x.code)}</td><td>${esc(x.name)}</td><td class="r tnum">${x.qty} pç</td><td class="r tnum">—</td><td class="tnum">—</td><td><span class="chip norm">Pronta entrega</span></td><td></td></tr>`;
       const st=compraSt(x), [lt,lc]=COMPRA_LABEL[st], links=x.compra?.links||[];
       return `<tr><td class="mono">${esc(x.code)}</td><td>${esc(x.name)}</td><td class="r tnum">${x.qty} pç</td><td class="r tnum"><b>${x.qtyEnc}</b> pç</td><td class="tnum">${fmtDate(x.eta)||"—"}</td>
-        <td><span class="chip ${lc}">${lt}${st==="parcial"?` · ${compraQty(x)}/${x.qtyEnc}`:""}</span>${(()=>{ const pz=prazoInfo(x); return pz?` <span class="chip ${pz.c}" title="Previsão do fornecedor ${fmtDate(pz.p)}">${pz.t} · ${fmtDate(pz.p)}</span>`:""; })()}${(x.compra?.nf||[]).map(nf=>{ const N=NFS[nf.id]; return `<div class="cpref">NF ${esc(nf.num)} · ${nf.qty} pç · ${N?.received?`<b>recebida ${new Date(N.received.at).toLocaleDateString("pt-BR")}</b>`:"a caminho"}</div>`; }).join("")}${links.map(l=>{ const p=PURCHASES[l.pid]; return `<div class="cpref">${esc(p?.forn||"Fornecedor")}${(l.ped||p?.num)?" · ped. "+esc(l.ped||p.num):""}${l.fcode?" · "+esc(l.fcode):""} · ${l.qty} pç${l.entrega?" · entrega "+esc(fmtBR(l.entrega)):""}${closed?"":` <button class="lnk" data-cunl="${o.id}:${x.i}:${esc(l.pid)}" title="Desfazer vínculo">desfazer</button>`}</div>`; }).join("")}</td>
+        <td><span class="chip ${lc}">${lt}${st==="parcial"?` · ${compraQty(x)}/${x.qtyEnc}`:""}</span>${(()=>{ const pz=prazoInfo(x); return pz?` <span class="chip ${pz.c}" title="Previsão do fornecedor ${fmtDate(pz.p)}">${pz.t} · ${fmtDate(pz.p)}</span>`:""; })()}${(x.compra?.nf||[]).map(nf=>{ const N=NFS[nf.id]; return `<div class="cpref">NF ${esc(nf.num)} · ${nf.qty} pç · ${N?.received?`<b>recebida ${new Date(N.received.at).toLocaleDateString("pt-BR")}</b>${N.received.alloc && nf.key && N.received.alloc[nf.key]!=null && N.received.alloc[nf.key]<nf.qty?` · <b class="bad-t">chegaram ${N.received.alloc[nf.key]} de ${nf.qty}</b>`:""}`:"a caminho"}</div>`; }).join("")}${links.map(l=>{ const p=PURCHASES[l.pid]; return `<div class="cpref">${esc(p?.forn||"Fornecedor")}${(l.ped||p?.num)?" · ped. "+esc(l.ped||p.num):""}${l.fcode?" · "+esc(l.fcode):""} · ${l.qty} pç${l.entrega?" · entrega "+esc(fmtBR(l.entrega)):""}${closed?"":` <button class="lnk" data-cunl="${o.id}:${x.i}:${esc(l.pid)}" title="Desfazer vínculo">desfazer</button>`}</div>`; }).join("")}</td>
         <td class="r">${closed?"":st==="chegou"?`<button class="mini" data-carr="${o.id}:${x.i}" data-v="0">Desfazer chegada</button>`:`<button class="mini" data-carr="${o.id}:${x.i}" data-v="1">Chegou</button>`}</td></tr>`; }).join("")}
     </tbody></table></div>${all.length>2 ? `<button class="lnk cpexp" data-cpexp="${o.id}">${open ? "Mostrar menos" : `Ver todos os ${all.length} itens (+${hid})`}</button>` : ""}`; })()}
     ${!closed && o.status==="na_colmeia" && can("devolver") ? `<div class="cpfoot"><button class="mini" data-cunst="${o.id}">Editar pedido · retirar da colmeia ${esc((o.colmeia||"").slice(3))}</button><small>Bipa a colmeia e as peças, devolve ao estoque e o pedido volta para "Para decidir".</small></div>` : ""}
@@ -1924,7 +1925,7 @@ function scanUnstore(v){
    ("Encomenda recebida"): o separador pega na área de recebimento e finaliza na mesa ou na colmeia. */
 let NFS = {}, nfCol = null;
 const nfQty = it => (it.compra?.nf||[]).reduce((s,n)=>s+(+n.qty||0),0);
-const nfRecv = it => (it.compra?.nf||[]).filter(n=>NFS[n.id]?.received).reduce((s,n)=>s+(+n.qty||0),0);
+const nfRecv = it => (it.compra?.nf||[]).reduce((s,n)=>{ const R=NFS[n.id]?.received; if(!R) return s; const v=n.key && R.alloc ? R.alloc[n.key] : undefined; return s + (v!=null ? +v : (+n.qty||0)); },0);
 const nfLabel = n => `NF ${n.num}${n.forn?" · "+n.forn:""}`;
 const onlyDigits = v => String(v||"").replace(/\D/g,"");
 function chaveInfo(ch){ const d=onlyDigits(ch); if(d.length!==44) return null; return { chave:d, cnpj:d.slice(6,20), serie:String(+d.slice(22,25)), num:String(+d.slice(25,34)) }; }
@@ -2028,7 +2029,7 @@ function saveNf(N){
   // grava a NF nos itens das pré-vendas (substitui amarração anterior desta mesma nota)
   const touched=new Set([...(prev?.lines||[]).flatMap(l=>(l.alloc||[]).map(a=>a.oid)), ...doc.lines.flatMap(l=>l.alloc.map(a=>a.oid))]);
   touched.forEach(oid=>patchItems(oid, items=>{ items.forEach(it=>{ if(it.compra?.nf) it.compra.nf=it.compra.nf.filter(n=>n.id!==id); });
-    doc.lines.forEach(l=>l.alloc.filter(a=>a.oid===oid).forEach(a=>{ const it=items[a.i]; if(!it) return; it.compra={...(it.compra||{}), nf:[...((it.compra||{}).nf||[]), {id, num:doc.num, qty:a.qty}]}; })); }));
+    doc.lines.forEach(l=>l.alloc.filter(a=>a.oid===oid).forEach(a=>{ const it=items[a.i]; if(!it) return; it.compra={...(it.compra||{}), nf:[...((it.compra||{}).nf||[]), {id, num:doc.num, qty:a.qty, key:oid+":"+a.i}]}; })); }));
   const n=doc.lines.reduce((s,l)=>s+l.alloc.length,0);
   toast(`NF ${doc.num} salva · ${n} amarração(ões) com pré-vendas${doc.received?" · já estava recebida":""}`);
   if(doc.received) setTimeout(()=>applyReceipt(id), 300);
@@ -2065,14 +2066,19 @@ function renderReceb(){
       ${state.rc.tmp?`<div class="hintbox">Esta nota ainda não foi importada por Compras. Você pode registrar a chegada mesmo assim; Compras amarra os itens depois.</div>`:""}
       <div class="uscount"><button class="mini" id="rcMinus" aria-label="Menos uma caixa">−</button><b class="tnum">${got}</b><span>${exp?`de ${exp} caixas`:"caixas"}</span><button class="mini" id="rcPlus" aria-label="Mais uma caixa">+</button></div>
       ${exp && got<exp ? `<small class="muted-s">Faltam ${exp-got} caixa(s). Se não vieram, confirme assim mesmo: fica registrado.</small>`:""}
-      ${(n.lines||[]).length?`<div class="list" style="margin-top:6px">${n.lines.map(l=>`<div class="li usrow" style="cursor:default"><span class="ln"><b class="mono">${esc(l.code)}</b> ${esc(l.name)}<small>${l.qty} pç${(l.alloc||[]).length?" · para "+l.alloc.map(a=>"#"+esc(ORDERS.find(o=>o.id===a.oid)?.num||"?")).join(", "):" · estoque"}</small></span></div>`).join("")}</div>`:""}
+      ${(n.lines||[]).length ? (()=>{ const chk=state.rc.chk, done=n.lines.filter((l,k)=>chk[k]).length;
+        return `<div class="eyebrow" style="margin-top:12px">Itens da nota · confira visualmente · ${done} de ${n.lines.length}</div>
+        <div class="list rclist" style="margin-top:6px">${n.lines.map((l,k)=>{ const c=chk[k], R=n.received?.lines?.[k], div = c ? c.qty!==l.qty : R ? R.qty!==l.qty : false;
+          return `<div class="li usrow rcl ${c||R?(div?"div":"ok"):""}" style="cursor:default"><span class="ln"><b class="mono">${esc(l.code)}</b> ${esc(l.name)}<small>Nota: <b>${l.qty}</b> pç${(l.alloc||[]).length?" · para "+l.alloc.map(a=>"#"+esc(ORDERS.find(o=>o.id===a.oid)?.num||"?")).join(", "):" · estoque"}${R?` · recebido <b>${R.qty}</b>`:""}</small></span>
+            ${n.received ? (div?`<span class="chip bad">Divergência</span>`:`<span class="chip done">OK</span>`) : `<span class="rcq"><input class="tinput r" type="number" min="0" data-rcq="${k}" value="${c?c.qty:l.qty}" aria-label="Quantidade recebida de ${esc(l.code)}"><button class="mini ${c&&!div?"on":""}" data-rcok="${k}">${c ? (div ? "Ajustado" : "✓ OK") : "OK"}</button></span>`}</div>`; }).join("")}</div>
+        ${!n.received ? `<small class="muted-s">Confira cada item e toque em OK. Se a quantidade for diferente, digite o que chegou e toque em OK.</small>`:""}`; })() : ""}
       ${pvs(n).length?`<div class="eyebrow" style="margin-top:10px">Pré-vendas atendidas</div><div class="rcpv">${pvs(n).map(o=>`<span class="cplink">#${esc(o.num)} · ${esc(o.client)}</span>`).join("")}</div>`:""}
-      ${n.received ? "" : `<button class="btn primary" id="rcOk" ${got?"":"disabled"}>Confirmar recebimento · ${got} caixa${got===1?"":"s"}</button>`}
+      ${n.received ? "" : (()=>{ const miss=(n.lines||[]).filter((l,k)=>!state.rc.chk[k]).length; return `<button class="btn primary" id="rcOk" ${got && !miss?"":"disabled"}>${!got ? "Conte as caixas" : miss ? `Faltam conferir ${miss} item(ns)` : `Confirmar recebimento · ${got} caixa${got===1?"":"s"}`}</button>`; })()}
       <button class="mini" id="rcBack" style="margin-top:8px">Voltar à lista</button></div>`;
   } else {
     body = `<div class="instr" style="margin-top:12px">${ICON_SCAN}<div>Bipe o <b>código de barras da nota fiscal impressa</b> (DANFE) que veio com as caixas, ou digite o número da NF.</div></div>
       <div class="section"><div class="eyebrow">Notas a receber · ${pend.length}</div>${pend.length?`<div class="list" style="margin-top:0">${pend.map(n=>`<button class="li" data-rcopen="${esc(n.id)}"><span class="lc tnum">${esc(n.num)}</span><span class="ln">${esc(n.forn)}<small>${n.vols?n.vols+" caixas · ":""}${pvs(n).map(o=>"#"+o.num).join(", ")||"estoque"}</small></span></button>`).join("")}</div>`:`<div class="empty">Nenhuma nota aguardando chegada.</div>`}</div>
-      <div class="section"><div class="eyebrow">Recebidas recentemente</div>${done.length?`<div class="list" style="margin-top:0">${done.map(n=>`<button class="li" data-rcopen="${esc(n.id)}"><span class="lc tnum">${esc(n.num)}</span><span class="ln">${esc(n.forn||"—")}<small>${new Date(n.received.at).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})} · ${n.received.vols} caixa(s)${n.lines?.length?"":" · aguardando Compras"}</small></span><span class="chip done">Recebida</span></button>`).join("")}</div>`:`<div class="empty">Nada recebido ainda.</div>`}</div>
+      <div class="section"><div class="eyebrow">Recebidas recentemente</div>${done.length?`<div class="list" style="margin-top:0">${done.map(n=>`<button class="li" data-rcopen="${esc(n.id)}"><span class="lc tnum">${esc(n.num)}</span><span class="ln">${esc(n.forn||"—")}<small>${new Date(n.received.at).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})} · ${n.received.vols} caixa(s)${n.lines?.length?"":" · aguardando Compras"}</small></span>${n.received.div?`<span class="chip bad">Divergência</span>`:`<span class="chip done">Recebida</span>`}</button>`).join("")}</div>`:`<div class="empty">Nada recebido ainda.</div>`}</div>
       <button class="demo" id="sim">Simular leitura da 1ª nota (demo)</button>`;
   }
   app.innerHTML = topnav() + `<header class="bar"><div class="grow"><h1>Recebimento</h1><div class="sub">Chegada de mercadoria dos fornecedores</div></div></header>${body}`;
@@ -2084,10 +2090,12 @@ function renderReceb(){
   if(g("rcPlus")) g("rcPlus").onclick=()=>{ state.rc.vols++; render(); };
   if(g("rcBack")) g("rcBack").onclick=()=>{ state.rc=null; render(); };
   if(g("rcOk")) g("rcOk").onclick=confirmReceb;
+  app.querySelectorAll("[data-rcok]").forEach(b=>b.onclick=()=>{ const k=+b.dataset.rcok, q=+(app.querySelector(`[data-rcq="${k}"]`)?.value)||0; state.rc.chk[k]={qty:Math.max(0,q)}; render(); });
+  app.querySelectorAll("[data-rcq]").forEach(i=>i.onchange=()=>{ const k=+i.dataset.rcq; if(state.rc.chk[k]) { state.rc.chk[k]={qty:Math.max(0,+i.value||0)}; render(); } });
   setMsg(state.rc ? "Conte as caixas e confirme" : "Bipe o código de barras da nota fiscal", "info");
   focusScan();
 }
-function openReceb(n){ if(!n) return; state.rc={ id:n.id, vols: n.received ? n.received.vols : 0 }; render(); scrollTo(0,0); }
+function openReceb(n){ if(!n) return; state.rc={ id:n.id, vols: n.received ? n.received.vols : 0, chk:{} }; render(); scrollTo(0,0); }
 function scanReceb(v){
   const ci=chaveInfo(v);
   if(state.rc && !state.rc.tmp && NFS[state.rc.id] && (ci ? NFS[state.rc.id].chave===ci.chave : NFS[state.rc.id].num===String(+onlyDigits(v)))){ feedback(true); state.rc.vols++; render(); return setMsg(`${state.rc.vols} caixa(s) contada(s)`,"good"); }
@@ -2096,15 +2104,19 @@ function scanReceb(v){
   else if(/^\d{1,9}$/.test(onlyDigits(v)) && onlyDigits(v).length===String(v).replace(/\s/g,"").length) found=Object.values(NFS).filter(n=>n.num===String(+onlyDigits(v)));
   if(found.length===1){ feedback(true); openReceb(found[0]); return setMsg(`NF ${found[0].num} · conte as caixas`,"good"); }
   if(found.length>1){ feedback(false); return setMsg(`Há ${found.length} notas com o número ${found[0].num}. Toque na nota certa na lista ou bipe o código de barras.`,"bad"); }
-  if(ci){ feedback(true); state.rc={ id:"NF-"+ci.chave, vols:0, tmp:{ id:"NF-"+ci.chave, chave:ci.chave, num:ci.num, serie:ci.serie, cnpj:ci.cnpj, forn:"", vols:0, lines:[] } }; render(); return setMsg(`NF ${ci.num} ainda não importada · registre a chegada`,"info"); }
+  if(ci){ feedback(true); state.rc={ id:"NF-"+ci.chave, vols:0, chk:{}, tmp:{ id:"NF-"+ci.chave, chave:ci.chave, num:ci.num, serie:ci.serie, cnpj:ci.cnpj, forn:"", vols:0, lines:[] } }; render(); return setMsg(`NF ${ci.num} ainda não importada · registre a chegada`,"info"); }
   feedback(false); setMsg(`Nota ${v} não encontrada. Bipe o código de barras da DANFE ou peça para Compras importar a nota.`,"bad");
 }
 function confirmReceb(){
   const rc=state.rc; if(!rc) return; const now=Date.now();
   const base = NFS[rc.id] || {...rc.tmp, createdAt:now};
-  const doc = {...base, received:{at:now, by:ME.id||"", vols:rc.vols, expected:base.vols||0}};
+  // conferência: o recebido de cada item vai primeiro para as pré-vendas (na ordem da amarração), o resto para estoque
+  const lines=(base.lines||[]).map((l,k)=>({qty: rc.chk[k] ? rc.chk[k].qty : l.qty, exp:l.qty})), alloc={};
+  (base.lines||[]).forEach((l,k)=>{ let left=lines[k].qty; (l.alloc||[]).forEach(a=>{ const q=Math.min(left, +a.qty||0); alloc[a.oid+":"+a.i]=q; left-=q; }); });
+  const div = lines.some(x=>x.qty!==x.exp) || (base.vols && rc.vols!==base.vols);
+  const doc = {...base, received:{at:now, by:ME.id||"", vols:rc.vols, expected:base.vols||0, lines, alloc, div}};
   NFS[doc.id]=doc; if(nfCol) queueWrite("nf-"+doc.id, ()=>nfCol.doc(doc.id).set(JSON.parse(JSON.stringify(doc))));
-  toast(`NF ${doc.num} recebida · ${rc.vols} caixa(s)${doc.lines?.length?"":" · Compras será avisado para amarrar"}`);
+  toast(`NF ${doc.num} recebida · ${rc.vols} caixa(s)${div?" · com divergência registrada":""}${doc.lines?.length?"":" · Compras será avisado para amarrar"}`);
   state.rc=null; applyReceipt(doc.id); render(); scrollTo(0,0);
 }
 
