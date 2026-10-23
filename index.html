@@ -1369,7 +1369,41 @@ async function askHvOut(oid, how){ const o=ORDERS.find(x=>x.id===oid); if(!o || 
 }
 /* ---- Modo link do celular (#cm=código): só a conferência da colmeia, sem login ---- */
 const HV_TK = window.psHive?.token || null;
-const tkShell = inner => `<header class="bar"><div class="grow"><h1>Picking Serena</h1><div class="sub">Saída da colmeia</div></div></header>${inner}`;
+const tkShell = (inner, sub="Saída da colmeia") => `<header class="bar"><div class="grow"><h1>Picking Serena</h1><div class="sub">${sub}</div></div></header>${inner}`;
+/* ---- Modo link do celular (#rc=código): conferência de UMA nota fiscal, sem login ---- */
+const RC_TK = window.psRc?.token || null;
+const rcByQR = () => !!window.psRc && innerWidth>=900 && !matchMedia("(pointer: coarse)").matches; // no computador: continua no celular pelo QR
+async function rcW(table, id, data){ const r = await window.psRc.write(RC_TK, table, id, data); if(!r || r.error) throw new Error(r?.error || "Falha ao salvar"); }
+const rcAdapter = table => ({ doc: id => ({ set: d => rcW(table, id, d), update: p => rcW(table, id, p) }) });
+async function askReceb(n){
+  if(!n) return;
+  if(n.received || !rcByQR()) return openReceb(n);
+  let t; try{ t = await window.psRc.create(n.id); }catch(e){ toast("Não foi possível gerar o QR code: "+(e.message||e)); return; }
+  openPhoneQR(APP_URL + "#rc=" + t, `A conferência da <b>NF ${esc(n.num)}</b>${n.forn?` · ${esc(n.forn)}`:""} abre no celular para você contar as caixas bipando a nota e conferir os itens.
+    <br><small class="muted-s">Não precisa entrar no sistema pelo celular. O link serve só para esta nota, por 4 horas (dá para parar e retomar), e o recebimento fica registrado no seu nome. O andamento é salvo e aparece aqui no computador.</small>`, ()=>openReceb(n));
+}
+function renderRcTk(){
+  const k = state.tk ||= {step:"load"}, sub="Recebimento de nota fiscal";
+  app.classList.remove("wide","sepwide","tv");
+  if(k.step==="go"){
+    if(state.rc){ scanbar.hidden=false; app.classList.add("picking"); return renderReceb(); }
+    scanbar.hidden=true; app.classList.remove("picking");
+    const n=NFS[k.nf], ok=!!n?.received;
+    app.innerHTML = tkShell(`<div class="product tkend ok"><div class="tkic">✓</div><h2>${ok?"Recebimento confirmado":"Conferência salva"}</h2><p>${ok?`NF ${esc(n.num)} recebida · ${n.received.vols} caixa(s)${n.received.div?" · com divergência registrada":""}.`:`O andamento da NF ${esc(n?.num||"")} ficou salvo. Para continuar, abra este mesmo link de novo (vale por 4 horas) ou continue pelo computador.`}</p><small class="muted-s">Pode fechar esta página.</small></div>`, sub);
+    return;
+  }
+  scanbar.hidden=true; app.classList.remove("picking");
+  if(k.step==="load"){
+    if(!k.busy){ k.busy=true; window.psRc.info(RC_TK).then(r=>{ k.busy=false;
+        if(!r || r.error){ k.step="err"; k.title=r?.done?"Nota já recebida":"Não foi possível abrir"; k.msg=r?.error||"Link inválido."; return render(); }
+        ME={id:r.byId||null, name:r.by||"", isOwner:false, avatarUrl:""}; k.by=r.by||""; k.nf=r.nf.id;
+        NFS={[r.nf.id]:r.nf}; ORDERS=[...(r.orders||[]).map(normalize), ...(r.hive||[])];
+        const hd=r.hiveDim; if(hd && hd.cols>0 && hd.rows>0){ HIVE_DIM={cols:Math.min(26,+hd.cols), rows:Math.min(30,+hd.rows)}; buildHive(); }
+        col=rcAdapter("orders"); nfCol=rcAdapter("invoices"); state.sector="recebimento"; k.step="go"; openReceb(r.nf);
+      }).catch(()=>{ k.busy=false; k.step="err"; k.title="Sem conexão"; k.msg="Verifique a internet e recarregue a página."; render(); }); }
+    app.innerHTML = tkShell(`<div class="empty">Abrindo a nota…</div>`, sub); return; }
+  app.innerHTML = tkShell(`<div class="product tkend"><div class="tkic">!</div><h2>${esc(k.title||"Não foi possível abrir")}</h2><p>${esc(k.msg||"")}</p><small class="muted-s">Pode fechar esta página.</small></div>`, sub);
+}
 function renderTk(){
   const k = state.tk ||= {step:"load"};
   app.classList.remove("wide","sepwide","tv");
@@ -2165,17 +2199,17 @@ function renderReceb(){
         ${!n.received ? `<small class="muted-s">Confira cada item e toque em OK. Se a quantidade for diferente, digite o que chegou e toque em OK.</small>`:""}`; })() : ""}
       ${pvs(n).length?`<div class="eyebrow" style="margin-top:10px">Pré-vendas atendidas</div><div class="rcpv">${pvs(n).map(o=>`<span class="cplink">#${esc(o.num)} · ${esc(o.client)}</span>`).join("")}</div>`:""}
       ${n.received ? "" : (()=>{ const miss=(n.lines||[]).filter((l,k)=>!state.rc.chk[k]).length; return `<button class="btn primary" id="rcOk" ${got && !miss?"":"disabled"}>${!got ? "Conte as caixas" : miss ? `Faltam conferir ${miss} item(ns)` : `Confirmar recebimento · ${got} caixa${got===1?"":"s"}`}</button>`; })()}
-      <button class="mini" id="rcBack" style="margin-top:8px">${n.received ? "Voltar à lista" : "Salvar e continuar depois"}</button>
-      ${!n.received && n.conf?.at ? `<small class="muted-s">Conferência salva automaticamente · última alteração ${new Date(n.conf.at).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}${n.conf.by?` por <span data-uid="${esc(n.conf.by)}"></span>`:""}</small>`:""}</div>`;
+      <button class="mini" id="rcBack" style="margin-top:8px">${n.received ? "Voltar à lista" : RC_TK ? "Salvar e terminar depois" : "Salvar e continuar depois"}</button>
+      ${!n.received && n.conf?.at ? `<small class="muted-s">Conferência salva automaticamente · última alteração ${new Date(n.conf.at).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}${n.conf.by && !RC_TK?` por <span data-uid="${esc(n.conf.by)}"></span>`:""}</small>`:""}</div>`;
   } else {
     body = `<div class="instr" style="margin-top:12px">${ICON_SCAN}<div>Bipe o <b>código de barras da nota fiscal impressa</b> (DANFE) que veio com as caixas, ou digite o número da NF.</div></div>
       <div class="section"><div class="eyebrow">Notas a receber · ${pend.length}</div>${pend.length?`<div class="list" style="margin-top:0">${pend.map(n=>`<button class="li" data-rcopen="${esc(n.id)}"><span class="lc tnum">${esc(n.num)}</span><span class="ln">${esc(n.forn||"Fornecedor a identificar")}<small>${n.conf?`<b class="warn-t">Em conferência · ${Object.keys(n.conf.chk||{}).length} de ${(n.lines||[]).length} itens · ${n.conf.vols||0} caixa(s)</b> · `:""}${n.vols?n.vols+" caixas · ":""}${pvs(n).map(o=>"#"+o.num).join(", ")||"estoque"}</small></span></button>`).join("")}</div>`:`<div class="empty">Nenhuma nota aguardando chegada.</div>`}</div>
       <div class="section"><div class="eyebrow">Recebidas recentemente</div>${done.length?`<div class="list" style="margin-top:0">${done.map(n=>`<button class="li" data-rcopen="${esc(n.id)}"><span class="lc tnum">${esc(n.num)}</span><span class="ln">${esc(n.forn||"—")}<small>${new Date(n.received.at).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})} · ${n.received.vols} caixa(s)${n.lines?.length?"":" · aguardando Compras"}</small></span>${n.received.div?`<span class="chip bad">Divergência</span>`:`<span class="chip done">Recebida</span>`}</button>`).join("")}</div>`:`<div class="empty">Nada recebido ainda.</div>`}</div>
       <button class="demo" id="sim">Simular leitura da 1ª nota (demo)</button>`;
   }
-  app.innerHTML = topnav() + `<header class="bar"><div class="grow"><h1>Recebimento</h1><div class="sub">Chegada de mercadoria dos fornecedores</div></div></header>${body}`;
+  app.innerHTML = (RC_TK ? "" : topnav()) + `<header class="bar"><div class="grow"><h1>Recebimento</h1><div class="sub">${RC_TK ? `Picking Serena · pelo celular${state.tk?.by?` · em nome de ${esc(state.tk.by)}`:""}` : "Chegada de mercadoria dos fornecedores"}</div></div></header>${body}`;
   bindNav();
-  app.querySelectorAll("[data-rcopen]").forEach(b=>b.onclick=()=>openReceb(NFS[b.dataset.rcopen]));
+  app.querySelectorAll("[data-rcopen]").forEach(b=>b.onclick=()=>askReceb(NFS[b.dataset.rcopen]));
   fillNames(app);
   const g=id=>document.getElementById(id);
   if(g("sim")) g("sim").onclick=()=>{ const n=pend[0]; if(n) handleScan(n.chave||n.num); else toast("Nenhuma nota para simular"); };
@@ -4180,6 +4214,7 @@ app.addEventListener("focusout", ()=>{ if(pendingRender) setTimeout(()=>{ const 
 function render(){
   pendingRender=false;
   if(HV_TK) return renderTk();
+  if(RC_TK) return renderRcTk();
   keepAwake(state.view==="tv" || (state.sector==="expedicao" && ["pick","tray","tomesa","store","mesa","trays"].includes(state.view)));
   if(!authReady){ scanbar.hidden=true; return renderLoading(); }
   if(!myRole()){ scanbar.hidden=true; app.classList.remove("picking"); return renderNoAccess(); }

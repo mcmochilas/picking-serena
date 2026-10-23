@@ -175,7 +175,28 @@
       DB.orders[k.oid] = { ...o, ...patch }; k.used_at = now; k.used_colmeia = cm; save(); emit("orders");
       return { ok:true, result, num:o.num, colmeia:o.colmeia }; }
   };
-  window.claude = HV_TOKEN ? { async use(){ return null; } } : { async use(name){ return name === "db" ? db : name === "user" ? user : name === "downloads" ? downloads : null; } };
+  const RC_TOKEN = (location.hash.match(/^#rc=([A-Za-z0-9_-]{20,})$/) || [])[1] || null;
+  const nfOids = n => [...new Set((n.lines||[]).flatMap(l=>(l.alloc||[]).map(a=>a.oid)))];
+  const ORDER_KEYS = ["items","fase2","res1","res","status","queuedAt","arrivedAt","arrivedBy","nfRecebida","tray","trayStatus","startedAt","pickedAt","atMesaAt","mode","colmeia"];
+  window.psRc = {
+    token: RC_TOKEN,
+    async create(nf){ const n=(DB.invoices||{})[nf]; if(!n) throw new Error("Nota não encontrada"); if(n.received) throw new Error("Esta nota já foi recebida");
+      const t = Array.from(crypto.getRandomValues(new Uint8Array(24)), b => b.toString(16).padStart(2,"0")).join("");
+      (DB.nf_tokens ||= {})[t] = { nf, created_by: meId, expires_at: Date.now() + 4*3600e3 }; save(); return t; },
+    async info(t){ const k=(DB.nf_tokens||{})[t]; if(!k) return {error:"Link inválido."}; if(k.expires_at<Date.now()) return {error:"Este link expirou. Gere um novo QR code no computador."};
+      const n=(DB.invoices||{})[k.nf]; if(!n) return {error:"Nota não encontrada."}; if(n.received) return {error:"Esta nota já foi recebida.", done:true};
+      const ids=nfOids(n);
+      return { by: DB.users[k.created_by]?.name||"", byId: k.created_by, nf: clone(n), orders: ids.map(id=>DB.orders[id]).filter(Boolean).map(clone),
+        hive: Object.values(DB.orders).filter(o=>o.colmeia && !["enviado","excluido"].includes(o.status) && !ids.includes(o.id)).map(o=>({id:o.id, colmeia:o.colmeia, status:o.status, mode:o.mode, retira:o.retira, naLoja:o.naLoja, canal:o.canal, stub:true})),
+        hiveDim: DB.config?.mesas?.colmeias || null }; },
+    async write(t, table, id, data){ const k=(DB.nf_tokens||{})[t]; if(!k || k.expires_at<Date.now()) return {error:"Link expirado."};
+      const n=(DB.invoices||{})[k.nf];
+      if(table==="invoices"){ if(id!==k.nf) return {error:"Nota inválida."}; if(n?.received) return {error:"Esta nota já foi recebida."}; DB.invoices[id]=clone(data); save(); emit("invoices"); return {ok:true}; }
+      if(table==="orders"){ if(!nfOids(n).includes(id)) return {error:"Pedido não pertence a esta nota."};
+        const clean=Object.fromEntries(Object.entries(data).filter(([key])=>ORDER_KEYS.includes(key))); DB.orders[id]={...DB.orders[id], ...clone(clean)}; save(); emit("orders"); return {ok:true}; }
+      return {error:"Tabela inválida."}; }
+  };
+  window.claude = (HV_TOKEN || RC_TOKEN) ? { async use(){ return null; } } : { async use(name){ return name === "db" ? db : name === "user" ? user : name === "downloads" ? downloads : null; } };
   window.psRefresh = async () => { Object.keys(DB).forEach(emit); };
   window.psAdmin = {
     async createUser({ name, login, role, consultiva, ecommerce }){

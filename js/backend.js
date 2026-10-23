@@ -24,7 +24,15 @@
     info: t => rpcJ("hive_token_info", { p_token: t }),
     confirm: (t, colmeia) => rpcJ("hive_token_confirm", { p_token: t, p_colmeia: colmeia })
   };
-  if(HV_TOKEN){ window.claude = { use: async () => null }; return; } // sem tela de login: só a conferência da colmeia
+  /* Recebimento de UMA nota pelo celular sem login (#rc=<código>) */
+  const RC_TOKEN = (location.hash.match(/^#rc=([A-Za-z0-9_-]{20,})$/) || [])[1] || null;
+  window.psRc = {
+    token: RC_TOKEN,
+    create: nf => rpcJ("create_nf_token", { p_nf: nf }),
+    info: t => rpcJ("nf_token_info", { p_token: t }),
+    write: (t, table, id, data) => rpcJ("nf_token_write", { p_token: t, p_table: table, p_id: id, p_data: data })
+  };
+  if(HV_TOKEN || RC_TOKEN){ window.claude = { use: async () => null }; return; } // sem tela de login: só a conferência pelo link
 
   let session = null, profile = null, readyResolve;
   const ready = new Promise(r => readyResolve = r);
