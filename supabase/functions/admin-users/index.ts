@@ -1,5 +1,5 @@
 // Picking Serena · gestão de usuários pelo Administrador (sem depender de e-mail)
-//  POST {action:"create", name, login, password, role, consultiva, ecommerce} -> cria a conta já confirmada e com nível
+//  POST {action:"create", name, login, password, role | roles[], consultiva, ecommerce} -> cria a conta já confirmada e com nível
 //  POST {action:"password", id, password}             -> define uma nova senha para a pessoa
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
 
@@ -11,6 +11,7 @@ const sb = createClient(URL_, KEY, { auth: { persistSession: false, autoRefreshT
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info", "Access-Control-Allow-Methods": "POST, OPTIONS" };
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...CORS, "Content-Type": "application/json" } });
 const ROLES = ["admin", "supervisor", "comercial", "estoque", "separador", "conferente", "painel", "compras"];
+const ORDER = ["admin", "supervisor", "compras", "comercial", "estoque", "conferente", "separador", "painel"]; // o primeiro marcado vira o nível principal
 const USER_DOMAIN = "usuarios.picking-serena.invalid"; // domínio reservado: nunca recebe e-mail
 const toEmail = (login: string) => {
   const l = String(login || "").trim().toLowerCase();
@@ -40,12 +41,13 @@ Deno.serve(async (req) => {
       if (!name) return json({ error: "Informe o nome." }, 400);
       if (!email) return json({ error: "Informe o e-mail ou um nome de usuário." }, 400);
       if (password.length < 6) return json({ error: "A senha precisa ter pelo menos 6 caracteres." }, 400);
-      if (!ROLES.includes(b.role)) return json({ error: "Nível de acesso inválido." }, 400);
+      const roles = [...new Set((Array.isArray(b.roles) && b.roles.length ? b.roles : [b.role]).map(String))].sort((x, y) => ORDER.indexOf(x) - ORDER.indexOf(y));
+      if (!roles.length || roles.some((r) => !ROLES.includes(r))) return json({ error: "Nível de acesso inválido." }, 400);
       const { data, error } = await sb.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { name } });
       if (error) return json({ error: pt(error.message) }, 400);
       const id = data.user!.id;
       // o gatilho do banco cria o perfil; aqui definimos nome, nível e canais que a pessoa separa
-      const { error: e2 } = await sb.from("profiles").upsert({ id, email, name, role: b.role, active: true, consultiva: b.consultiva !== false, ecommerce: !!b.ecommerce }, { onConflict: "id" });
+      const { error: e2 } = await sb.from("profiles").upsert({ id, email, name, role: roles[0], roles, active: true, consultiva: b.consultiva !== false, ecommerce: !!b.ecommerce }, { onConflict: "id" });
       if (e2) return json({ error: e2.message }, 500);
       return json({ id, email, login: email.endsWith("@" + USER_DOMAIN) ? email.split("@")[0] : email });
     }

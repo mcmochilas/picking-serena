@@ -77,8 +77,8 @@ Deno.serve(async (req) => {
     if (body.compras) { // nova encomenda para o setor de Compras
       if (req.headers.get("x-push-secret") !== await secret("push_webhook")) return json({ error: "não autorizado" }, 401);
       const o = body.compras;
-      const { data: people } = await sb.from("profiles").select("id").eq("active", true).eq("role", "compras");
-      const ids = (people || []).map((p) => p.id as string).filter((id) => id !== o.createdBy);
+      const { data: people } = await sb.from("profiles").select("id,role,roles").eq("active", true);
+      const ids = (people || []).filter((p) => [p.role, ...(p.roles || [])].includes("compras")).map((p) => p.id as string).filter((id) => id !== o.createdBy);
       const r = await sendTo(ids, {
         title: o.kind === "decidir" ? "Nova encomenda para decidir" : "Nova encomenda · envio parcial",
         body: `#${o.num} · ${o.client}${o.refs ? ` · ${o.refs} ref. sob encomenda` : ""}`,
@@ -91,7 +91,8 @@ Deno.serve(async (req) => {
       if (req.headers.get("x-push-secret") !== await secret("push_webhook")) return json({ error: "não autorizado" }, 401);
       const o = body.order;
       const eco = o.canal === "ecommerce";
-      const { data: people } = await sb.from("profiles").select("id,role,ecommerce,consultiva").eq("active", true).in("role", NOTIFY_ROLES);
+      const { data: all } = await sb.from("profiles").select("id,role,roles,ecommerce,consultiva").eq("active", true);
+      const people = (all || []).filter((p) => [p.role, ...(p.roles || [])].some((r) => NOTIFY_ROLES.includes(r))).map((p) => ({ ...p, role: [p.role, ...(p.roles || [])].includes("admin") ? "admin" : p.role }));
       // só avisa quem está liberado para separar aquele canal (Administrador recebe os dois)
       const ids = (people || []).filter((p) => p.role === "admin" || (eco ? p.ecommerce : p.consultiva)).map((p) => p.id as string).filter((id) => id !== o.createdBy);
       const r = await sendTo(ids, {
