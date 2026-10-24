@@ -198,6 +198,13 @@
   };
   window.claude = (HV_TOKEN || RC_TOKEN) ? { async use(){ return null; } } : { async use(name){ return name === "db" ? db : name === "user" ? user : name === "downloads" ? downloads : null; } };
   window.psRefresh = async () => { Object.keys(DB).forEach(emit); };
+  /* Lucas no ambiente de teste: respostas simuladas (o de verdade usa a API no servidor) */
+  window.psLucas = {
+    async status(){ return { configured: !!DB.lucasOn || true, model: DB.lucasModel || "claude-sonnet-5-5", kbUpdated: new Date().toISOString(), models:["claude-sonnet-5-5","claude-haiku-5-5","claude-opus-5-5"] }; },
+    async config(b){ if(b.model) DB.lucasModel=b.model; save(); return { ok:true }; },
+    async chat(messages, context){ await new Promise(r=>setTimeout(r, 900)); const last=messages[messages.length-1]||{}; const imgs=(last.images||[]).length;
+      return { text: `**Modo de teste.** No sistema oficial eu respondo com base no manual completo do Picking Serena.\n\nVocê perguntou: "${String(last.text||"").slice(0,200)}"${imgs?`\n\nRecebi ${imgs} print(s) da tela.`:""}\n\nTela atual: ${context?.screen||"—"}.\n\nExemplo de resposta:\n1. Abra a aba **Separação**.\n2. Toque no pedido.\n3. Siga as instruções da tela.` }; }
+  };
   window.psAdmin = {
     async createUser({ name, login, role, consultiva, ecommerce }){
       const id = "u-" + Math.random().toString(36).slice(2,8);

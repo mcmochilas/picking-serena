@@ -350,6 +350,12 @@
     return j;
   };
   window.psMagazord = body => callFn("magazord", body);
+  /* Lucas, o assistente: a chave da API fica no servidor */
+  window.psLucas = {
+    status: () => callFn("lucas", { action:"status" }),
+    config: b => callFn("lucas", { action:"config", ...b }),
+    chat: (messages, context) => callFn("lucas", { action:"chat", messages, context })
+  };
   const adminFn = async body => {
     const { data } = await sb.auth.getSession();
     const r = await fetch(cfg.SUPABASE_URL.replace(/\/$/,"") + "/functions/v1/admin-users", { method:"POST",
