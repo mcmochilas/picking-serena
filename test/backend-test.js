@@ -202,8 +202,19 @@
   window.psLucas = {
     async status(){ return { configured: !!DB.lucasOn || true, model: DB.lucasModel || "claude-sonnet-5-5", kbUpdated: new Date().toISOString(), models:["claude-sonnet-5-5","claude-haiku-5-5","claude-opus-5-5"] }; },
     async config(b){ if(b.model) DB.lucasModel=b.model; save(); return { ok:true }; },
-    async chat(messages, context){ await new Promise(r=>setTimeout(r, 900)); const last=messages[messages.length-1]||{}; const imgs=(last.images||[]).length;
-      return { text: `**Modo de teste.** No sistema oficial eu respondo com base no manual completo do Picking Serena.\n\nVocê perguntou: "${String(last.text||"").slice(0,200)}"${imgs?`\n\nRecebi ${imgs} print(s) da tela.`:""}\n\nTela atual: ${context?.screen||"—"}.\n\nExemplo de resposta:\n1. Abra a aba **Separação**.\n2. Toque no pedido.\n3. Siga as instruções da tela.` }; }
+    async chat(messages, context, thread){ await new Promise(r=>setTimeout(r, 900)); const last=messages[messages.length-1]||{}; const imgs=(last.images||[]).length, q=String(last.text||"");
+      const L = (DB.lucas ||= {threads:{}, logs:[], features:[]}); thread ||= crypto.randomUUID();
+      const feat = /(não tem|nao tem|seria bom|gostaria|poderia ter|dá pra criar|da pra criar|tem como criar|falta uma função)/i.test(q) ? "Pedido de função: " + q.slice(0,120) : "";
+      const t = L.threads[thread] ||= { id:thread, user_id:meId, title: q ? q.split(/\s+/).slice(0,7).join(" ") : "Dúvida com print", created_at:new Date().toISOString(), msgs:0, tags:[] };
+      const text = `**Modo de teste.** No sistema oficial eu respondo com base no manual completo do Picking Serena.\n\nVocê perguntou: "${q.slice(0,200)}"${imgs?`\n\nRecebi ${imgs} print(s) da tela.`:""}${feat?"\n\nEssa função ainda não existe; registrei o pedido para o Administrador avaliar.":""}\n\nTela atual: ${context?.screen||"—"}.`;
+      t.msgs++; t.updated_at=new Date().toISOString(); t.screen=context?.screen||""; if(feat && !t.tags.includes("nova_funcao")) t.tags.push("nova_funcao");
+      if(feat) L.features.push({ id: L.features.length+1, thread_id:thread, user_id:meId, description:feat, created_at:new Date().toISOString(), done:false });
+      L.logs.push({ thread_id:thread, at:new Date().toISOString(), question:q, answer:text, screen:context?.screen||"", images:imgs }); save();
+      return { text, thread, title:t.title, feature:!!feat }; },
+    async threads(){ const L=DB.lucas||{threads:{}}; return { threads: Object.values(L.threads).sort((a,b)=>String(b.updated_at).localeCompare(String(a.updated_at))).map(t=>({...t, user: DB.users[t.user_id]?.name||"Usuário"})) }; },
+    async thread(id){ const L=DB.lucas||{logs:[]}; return { messages: L.logs.filter(l=>l.thread_id===id) }; },
+    async features(){ const L=DB.lucas||{features:[],threads:{}}; return { features: [...L.features].reverse().map(f=>({...f, user:DB.users[f.user_id]?.name||"Usuário", doneByName: f.done_by?DB.users[f.done_by]?.name||"":"", threadTitle: L.threads[f.thread_id]?.title||""})) }; },
+    async featureDone(id, done){ const f=(DB.lucas?.features||[]).find(x=>x.id===+id); if(f){ f.done=!!done; f.done_at=done?new Date().toISOString():null; f.done_by=done?meId:null; save(); } return { ok:true }; }
   };
   window.psAdmin = {
     async createUser({ name, login, role, consultiva, ecommerce }){

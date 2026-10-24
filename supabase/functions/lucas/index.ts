@@ -1,7 +1,8 @@
 // Picking Serena · Lucas, o assistente do sistema
 //  POST {action:"status"}                         -> {configured, model, kbUpdated} (qualquer usuário logado)
 //  POST {action:"config", key?, model?}           -> grava a chave da API e o modelo (só Administrador)
-//  POST {action:"chat", messages:[...], context}  -> resposta do Lucas
+//  POST {action:"chat", thread, messages:[...], context}  -> resposta do Lucas (a conversa vira um chamado)
+//  POST {action:"threads"} / {action:"thread", id} / {action:"features"} / {action:"feature_done", id, done}  -> tela Chamados (só Administrador)
 // A chave da API fica só no servidor (app_secrets) e nunca volta para o navegador.
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
 
@@ -34,7 +35,14 @@ Como responder:
 - A mensagem pode ter vindo de um áudio transcrito: entenda erros de transcrição pelo contexto.
 - Você não executa ações no sistema e não altera pedidos; você só orienta.
 - Nunca peça nem aceite senhas, chaves ou dados de acesso.
-- Assuntos fora do sistema: responda educadamente que você só ajuda com o Picking Serena.`;
+- Assuntos fora do sistema: responda educadamente que você só ajuda com o Picking Serena.
+- Se a pessoa pedir ou perguntar por algo que o sistema ainda não faz, diga com clareza que essa função ainda não existe e que o pedido foi registrado para o Administrador avaliar.
+
+Registro do chamado (obrigatório): no FINAL de toda resposta, em uma linha separada, escreva exatamente
+<<<meta {"titulo": "...", "nova_funcao": null}>>>
+- "titulo": resumo do assunto da conversa inteira em até 8 palavras (ex.: "Dúvida sobre envio parcial", "Erro ao bipar a bandeja").
+- "nova_funcao": null; OU, se a pessoa pediu ou perguntou por uma funcionalidade que o sistema ainda NÃO tem segundo o manual, uma frase curta descrevendo a função desejada (ex.: "Imprimir etiqueta de envio pela tela da mesa").
+Essa linha é removida automaticamente antes de a pessoa ver a resposta.`;
 
 type InMsg = { role: "user" | "assistant"; text?: string; images?: { media_type: string; data: string }[] };
 
@@ -71,6 +79,40 @@ Deno.serve(async (req) => {
       }
       if (b.removeKey === true) { await sb.from("app_secrets").delete().eq("name", "anthropic_api_key"); }
       if (rows.length) { const { error } = await sb.from("app_secrets").upsert(rows, { onConflict: "name" }); if (error) return json({ error: error.message }, 500); }
+      return json({ ok: true });
+    }
+
+    const isAdmin = roles.includes("admin");
+    if (["threads", "thread", "features", "feature_done"].includes(b.action) && !isAdmin) return json({ error: "Só o Administrador vê os chamados." }, 403);
+    const names = async (ids: string[]) => {
+      const u = [...new Set(ids.filter(Boolean))]; if (!u.length) return {} as Record<string, string>;
+      const { data } = await sb.from("profiles").select("id,name,email").in("id", u);
+      return Object.fromEntries((data || []).map((p) => [p.id, p.name || String(p.email || "").split("@")[0]])) as Record<string, string>;
+    };
+    if (b.action === "threads") {
+      const { data, error } = await sb.from("assistant_threads").select("*").order("updated_at", { ascending: false }).limit(300);
+      if (error) return json({ error: error.message }, 500);
+      const nm = await names((data || []).map((t) => t.user_id));
+      return json({ threads: (data || []).map((t) => ({ ...t, user: nm[t.user_id] || "Usuário" })) });
+    }
+    if (b.action === "thread") {
+      const { data, error } = await sb.from("assistant_log").select("at,question,answer,screen,images").eq("thread_id", String(b.id)).order("at");
+      if (error) return json({ error: error.message }, 500);
+      return json({ messages: data || [] });
+    }
+    if (b.action === "features") {
+      const { data, error } = await sb.from("assistant_features").select("*").order("created_at", { ascending: false }).limit(500);
+      if (error) return json({ error: error.message }, 500);
+      const tids = [...new Set((data || []).map((f) => f.thread_id).filter(Boolean))];
+      const { data: th } = tids.length ? await sb.from("assistant_threads").select("id,title").in("id", tids) : { data: [] };
+      const tt = Object.fromEntries((th || []).map((t) => [t.id, t.title]));
+      const nm = await names([...(data || []).map((f) => f.user_id), ...(data || []).map((f) => f.done_by)]);
+      return json({ features: (data || []).map((f) => ({ ...f, user: nm[f.user_id] || "Usuário", doneByName: f.done_by ? nm[f.done_by] || "" : "", threadTitle: tt[f.thread_id] || "" })) });
+    }
+    if (b.action === "feature_done") {
+      const done = b.done === true;
+      const { error } = await sb.from("assistant_features").update({ done, done_at: done ? new Date().toISOString() : null, done_by: done ? u.user.id : null }).eq("id", Number(b.id));
+      if (error) return json({ error: error.message }, 500);
       return json({ ok: true });
     }
 
@@ -124,11 +166,28 @@ Deno.serve(async (req) => {
         const m = String(j?.error?.message || r.status);
         return json({ error: r.status === 429 || r.status === 529 ? "O Lucas está com muitas conversas agora. Tente de novo em instantes." : r.status === 401 ? "A chave da API do Lucas não é mais válida. Avise o Administrador." : "O Lucas não conseguiu responder agora (" + m.slice(0, 120) + ")." }, 502);
       }
-      const answer = (j.content || []).filter((c: { type: string }) => c.type === "text").map((c: { text: string }) => c.text).join("\n").trim();
+      const full = (j.content || []).filter((c: { type: string }) => c.type === "text").map((c: { text: string }) => c.text).join("\n").trim();
+      // separa o registro do chamado (título e pedido de função nova) da resposta
+      let meta: { titulo?: string; nova_funcao?: string | null } = {};
+      const mm = full.match(/<<<meta\s*(\{[\s\S]*?\})\s*>>>/);
+      if (mm) { try { meta = JSON.parse(mm[1]); } catch { /* */ } }
+      const answer = full.replace(/<<<meta[\s\S]*$/, "").trim();
       const last = raw[raw.length - 1];
-      await sb.from("assistant_log").insert({ user_id: u.user.id, question: String(last?.text || "").slice(0, 2000), answer: answer.slice(0, 4000), screen: String(ctx.screen || "").slice(0, 120),
+      const thread = /^[0-9a-f-]{36}$/i.test(String(b.thread || "")) ? String(b.thread) : crypto.randomUUID();
+      const { data: th } = await sb.from("assistant_threads").select("user_id,title,msgs,tags").eq("id", thread).maybeSingle();
+      if (th && th.user_id !== u.user.id) return json({ error: "Conversa inválida." }, 403);
+      const feat = typeof meta.nova_funcao === "string" && meta.nova_funcao.trim() ? meta.nova_funcao.trim().slice(0, 300) : "";
+      const tags = new Set<string>((th?.tags as string[]) || []); if (feat) tags.add("nova_funcao");
+      const title = (th?.title || String(meta.titulo || "").trim() || String(last?.text || "Dúvida com print").slice(0, 60)).slice(0, 120);
+      await sb.from("assistant_threads").upsert({ id: thread, user_id: u.user.id, title, msgs: (th?.msgs || 0) + 1, updated_at: new Date().toISOString(),
+        screen: String(ctx.screen || "").slice(0, 120), tags: [...tags], ...(th ? {} : { created_at: new Date().toISOString() }) }, { onConflict: "id" });
+      if (feat) {
+        const { data: ex } = await sb.from("assistant_features").select("id").eq("thread_id", thread).eq("description", feat).maybeSingle();
+        if (!ex) await sb.from("assistant_features").insert({ thread_id: thread, user_id: u.user.id, description: feat });
+      }
+      await sb.from("assistant_log").insert({ thread_id: thread, user_id: u.user.id, question: String(last?.text || "").slice(0, 2000), answer: answer.slice(0, 4000), screen: String(ctx.screen || "").slice(0, 120),
         images: Array.isArray(last?.images) ? last.images.length : 0, input_tokens: j.usage?.input_tokens ?? null, output_tokens: j.usage?.output_tokens ?? null });
-      return json({ text: answer || "Desculpe, não consegui formular uma resposta. Pode reformular a pergunta?" });
+      return json({ text: answer || "Desculpe, não consegui formular uma resposta. Pode reformular a pergunta?", thread, title, feature: !!feat });
     }
     return json({ error: "Ação inválida." }, 400);
   } catch (e) {

@@ -354,7 +354,11 @@
   window.psLucas = {
     status: () => callFn("lucas", { action:"status" }),
     config: b => callFn("lucas", { action:"config", ...b }),
-    chat: (messages, context) => callFn("lucas", { action:"chat", messages, context })
+    chat: (messages, context, thread) => callFn("lucas", { action:"chat", messages, context, thread }),
+    threads: () => callFn("lucas", { action:"threads" }),
+    thread: id => callFn("lucas", { action:"thread", id }),
+    features: () => callFn("lucas", { action:"features" }),
+    featureDone: (id, done) => callFn("lucas", { action:"feature_done", id, done })
   };
   const adminFn = async body => {
     const { data } = await sb.auth.getSession();

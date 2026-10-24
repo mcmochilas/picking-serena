@@ -256,6 +256,18 @@ Aba **Locais**: endereços dos produtos, EAN e etiquetas.
 - **Simular um nível**: ver o sistema como outro nível (só muda a sua tela).
 - **Integração Magazord**, **Logotipos das transportadoras**, **Usar bandeja**.
 - **Assistente Lucas**: configuração do assistente (chave da API e modelo).
+- A aba **Chamados** fica ao lado de Usuários (ver seção 10a).
+
+---
+
+## 10a. Lucas (assistente) e Chamados
+- **Lucas**: botão flutuante no canto inferior direito de todas as telas (menos Painel TV e links de QR code). Abre um chat para tirar dúvidas sobre o sistema, 24 horas.
+  - Dá para **escrever**, **falar** (botão do microfone: a fala vira texto) e **anexar prints da tela** (botão da imagem, colar com Ctrl+V ou arrastar; até 3 por mensagem).
+  - O botão **+** começa uma nova conversa. A conversa fica guardada no aparelho por 12 horas.
+  - Limite de 150 perguntas por pessoa a cada 24 horas.
+- **Chamados** (aba só do Administrador): lista todas as conversas com o Lucas, cada uma com um **título** que resume o assunto, quem perguntou, quando, quantas perguntas e em qual tela. **Ver conversa** mostra as perguntas e respostas.
+  - Quando alguém pede uma função que o sistema ainda não tem, o chamado recebe a etiqueta **Criar uma nova Função** e a função entra na aba **Novas funções**, uma lista de tarefas para o Administrador marcar como **criada** quando for publicada.
+  - Filtros: **Todos** / **Criar uma nova Função** e busca por assunto, pessoa ou tela.
 
 ---
 

@@ -5,3 +5,14 @@ create table if not exists public.assistant_log (id bigserial primary key, user_
   question text, answer text, screen text, images int not null default 0, input_tokens int, output_tokens int);
 alter table public.assistant_log enable row level security;
 create index if not exists assistant_log_user_at on public.assistant_log (user_id, at desc);
+
+-- Chamados: cada conversa com o Lucas vira um chamado com título; pedidos de funções novas viram tarefas do Administrador
+create table if not exists public.assistant_threads (id uuid primary key, user_id uuid not null, title text, created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(), msgs int not null default 0, screen text, tags text[] not null default '{}');
+alter table public.assistant_threads enable row level security;
+create index if not exists assistant_threads_upd on public.assistant_threads (updated_at desc);
+alter table public.assistant_log add column if not exists thread_id uuid;
+create index if not exists assistant_log_thread on public.assistant_log (thread_id, at);
+create table if not exists public.assistant_features (id bigserial primary key, thread_id uuid, user_id uuid, description text not null,
+  created_at timestamptz not null default now(), done boolean not null default false, done_at timestamptz, done_by uuid);
+alter table public.assistant_features enable row level security;
