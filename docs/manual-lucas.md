@@ -2,7 +2,7 @@
 
 Base de conhecimento do assistente **Lucas**. Descreve como o sistema funciona hoje, tela por tela e passo a passo. Sempre que uma atualização for publicada, este manual é atualizado junto.
 
-Última atualização: 24/10/2026.
+Última atualização: 24/10/2026 (ajuste de pré-venda).
 
 ---
 
@@ -83,6 +83,16 @@ Outros tipos que aparecem no sistema (definidos por Compras ou pelo administrado
 
 Ordem de prioridade na fila: Cliente está na loja → Retira na Loja → demais, por ordem de chegada.
 
+### 3.3a Ajuste de pré-venda (importar de novo uma pré-venda que já está no sistema)
+Quando o cliente muda o pedido (quantidade, modelo, item novo ou removido), o Comercial importa de novo o PDF da mesma pré-venda.
+- O sistema reconhece o número e mostra **Ajuste da pré-venda #X**, comparando as versões: quantidade que aumentou/diminuiu, **item novo**, **item removido** e **troca de modelo** (sai um item, entra outro). O tipo de envio e as marcações de retirada vêm preenchidos com os da versão anterior.
+- **Ainda não separado**: o botão é **Atualizar pré-venda**; o pedido só é atualizado e mantém a posição na fila.
+- **Já separado** (na bandeja, na mesa, na área de envio ou na colmeia): o botão é **Enviar ajuste para a separação**; vira uma tarefa de ajuste no **topo da fila** dos separadores.
+- **Sendo separado agora**: o separador vê o aviso "Pré-venda ajustada pelo Comercial"; o que falta coletar já vem com a quantidade nova e o que já foi coletado vira tarefa de ajuste depois.
+- **Pedido que já saiu** (enviado, retirado pelo cliente, entregue na loja ou 1º envio feito): **Ajuste bloqueado**; combine direto com a expedição.
+- Se o ajuste mexer em item de **encomenda**, Compras recebe o aviso "Pré-vendas ajustadas pelo Comercial · corrija o pedido ao fornecedor" no topo da tela de Compras e marca **Ciente** quando corrigir.
+- Na lateral, o pedido mostra "Ajuste pendente na separação" e depois "Ajuste da pré-venda concluído".
+
 ### 3.4 Pedidos na expedição (lateral)
 Lista os pedidos de Venda Consultiva do dia e os ainda abertos, com: número, situação, cliente, tipo de envio, quantas referências já foram separadas, faltas, tempo desde a integração, "Tempos" (linha do tempo) e referências sob encomenda.
 
@@ -120,6 +130,14 @@ Item de **encomenda que chegou** (2ª etapa): o local aparece como **Área de re
 Botões no topo da tela de separação: **voltar**, **reiniciar separação** (seta circular), **excluir separação** (lixeira, pede motivo), cronômetro e contador de itens.
 
 Pedido do e-commerce **cancelado na Magazord** durante a separação: aparece faixa vermelha "Pedido CANCELADO na Magazord · pare a separação e devolva as peças". Situação mudou: faixa amarela pedindo para confirmar com o responsável.
+
+### 4.2a Ajuste de pré-venda (separador)
+Pedidos que o Comercial refez aparecem no topo da fila, em **Ajustes de pré-venda** (faixa roxa "AJUSTE DE PRÉ-VENDA"), com o resumo (ex.: "retirar 4 pç · coletar 2 pç") e onde o pedido está.
+1. **Achar o pedido**: a tela diz onde ele está e o que mudou. Na bandeja ou na colmeia: bipe a etiqueta da bandeja/colmeia. Na mesa ou na área de envio: toque em **Encontrei o pedido**. Se o pedido já foi finalizado sem bandeja, ele provavelmente está na área de envio aguardando a transportadora.
+2. **Retirar**: tire as peças do pedido bipando cada uma, confirme e **devolva ao endereço do estoque bipando a etiqueta do endereço** (sem endereço: guarde e toque em **Guardei no estoque**).
+3. **Coletar**: vá ao local indicado, bipe cada peça, confirme e junte ao pedido.
+4. **Devolver**: coloque o pedido de volta no mesmo lugar (bandeja, mesa, colmeia ou área de envio) e toque em **Ajuste concluído**.
+Tudo fica registrado no histórico do pedido.
 
 ### 4.3 Depois da separação
 - Tela de conclusão mostra referências, tempo de picking e onde o pedido está (mesa, bandeja, colmeia).
