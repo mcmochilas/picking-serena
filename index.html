@@ -4387,7 +4387,7 @@ const lucasKey = () => "ps-lucas-" + (ME.id || "local");
 function lucasLoad(){ if(LUCAS.loaded===lucasKey()) return; LUCAS.loaded=lucasKey(); LUCAS.msgs=[]; LUCAS.thread=null;
   try{ const v=JSON.parse(localStorage.getItem(lucasKey())||"null"); if(v && Array.isArray(v.msgs) && Date.now()-(v.at||0) < 12*3600e3){ LUCAS.msgs=v.msgs; LUCAS.thread=v.thread||null; } }catch(e){} }
 function lucasSave(){ try{ localStorage.setItem(lucasKey(), JSON.stringify({at:Date.now(), thread:LUCAS.thread, msgs:LUCAS.msgs.slice(-30).map(m=>({role:m.role, text:m.text, nimg:(m.images||[]).length||m.nimg||0, err:m.err||false}))})); }catch(e){} }
-const lucasVisible = () => !!window.psLucas && authReady && !!myRole() && myRole()!=="painel" && state.view!=="tv" && !HV_TK && !RC_TK;
+const lucasVisible = () => !!window.psLucas && authReady && !!myRole() && !hasRole("painel") && state.view!=="tv" && location.hash!=="#tv" && !document.documentElement.classList.contains("tvmode") && !HV_TK && !RC_TK; // nunca no Painel TV
 const SECTOR_T = {comercial:"Comercial", expedicao:"Separação", colmeias:"Colmeias", compras:"Compras", recebimento:"Recebimento", estoque:"Locais", usuarios:"Usuários"};
 const VIEW_T = {orders:"", pick:"separando um pedido", tray:"bipar bandeja", mesa:"mesa de expedição", store:"guardar na colmeia", done:"pedido separado", tomesa:"levar à mesa", trays:"bandejas", unstore:"devolver peças da colmeia ao estoque", hvout:"saída da colmeia", labels:"etiquetas"};
 function lucasScreen(){ const sec = SECTOR_T[state.sector]||state.sector||""; const sub = state.sector==="expedicao" && state.view==="orders" ? ({fila:"fila de separação", historico:"Separados"})[state.sepTab||"fila"] : (VIEW_T[state.view] ?? state.view);
