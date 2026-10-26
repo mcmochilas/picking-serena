@@ -179,6 +179,13 @@ Aba **Colmeias** (Separação, Compras, Estoque, Administrador) ou lateral do Co
 - **Busca**: por número da pré-venda, nome do cliente, SKU ou descrição do produto (também pelo número do pedido ao fornecedor). Se a busca achar um produto, o card abre sozinho e destaca o item.
 - **Ver itens da pré-venda**: abre (com animação) todos os itens do pedido, mostrando o que está na colmeia e o que ainda é encomenda (com a situação de Compras e a previsão de chegada).
 
+### 6.1a Editar itens de um pedido na colmeia (Administrador)
+No pedido da lista de colmeias, o Administrador tem o link **Editar itens**. Na janela dá para:
+- mudar a **quantidade total** de cada item;
+- dividir cada item entre **Encomenda** e **Na colmeia** (já separado);
+- **excluir** itens (×) e **adicionar** itens pelo SKU ou descrição (marcando "encomenda" se for o caso).
+Ao **Salvar itens**: o que está "na colmeia" passa a contar como separado; mudanças em itens de encomenda são avisadas para Compras; se não sobrar nenhuma encomenda, o pedido fica **Pronto** (para retirar ou enviar); se voltar a ter encomenda, fica **Aguardando encomenda**. Tudo fica no histórico do pedido.
+
 ### 6.2 Novo pedido na colmeia (cadastro manual)
 Botão **+ Novo pedido na colmeia**:
 1. Escolha **por que vai para a colmeia**: **Cliente vai retirar** ou **Aguardando encomenda** (obrigatório).
