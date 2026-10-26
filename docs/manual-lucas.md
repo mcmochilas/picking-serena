@@ -39,6 +39,7 @@ Uma pessoa pode ter **mais de um nível**; as permissões se somam (ex.: "Compra
 | Supervisor | Todas as operações, sem gestão de usuários | Comercial, Separação, Separados, Colmeias, Compras, Recebimento, Locais |
 | Comercial | Importa pré-vendas, define tipo de envio, acompanha pedidos e colmeias | Comercial (com as colmeias na lateral) |
 | Compras | Encomendas aos fornecedores, notas fiscais, decisões de "Tem encomenda", devolução de peças da colmeia | Compras, Recebimento, Colmeias |
+| Financeiro | Cadastra pedidos na colmeia (Novo pedido na colmeia) e consulta as colmeias | Colmeias |
 | Estoque | Endereços, EANs, etiquetas, recebimento de mercadoria | Recebimento, Locais, Colmeias |
 | Separador | Coleta dos pedidos no celular | Separação, Separados, Colmeias |
 | Conferente | Mesa de expedição e guarda nas colmeias | Separação (mesa), Separados, Colmeias |
@@ -182,7 +183,9 @@ Aba **Colmeias** (Separação, Compras, Estoque, Administrador) ou lateral do Co
 Botão **+ Novo pedido na colmeia**:
 1. Escolha **por que vai para a colmeia**: **Cliente vai retirar** ou **Aguardando encomenda** (obrigatório).
 2. Importe o PDF da pré-venda ou preencha número e cliente (observação opcional).
-3. Escolha a colmeia livre (toque no mapa ou bipe a etiqueta) e **Guardar na colmeia**.
+3. **Aguardando encomenda**: marque **quais itens estão aguardando encomenda** e quantas peças de cada um (ou **Marcar todos** / "todas"). Os demais itens vão para a colmeia agora. Os itens marcados aparecem para Compras em **Em aberto** para encomendar. Sem o PDF não dá para marcar os itens.
+4. Escolha a colmeia livre (toque no mapa ou bipe a etiqueta) e **Guardar na colmeia**.
+Quem pode cadastrar: Separação, Conferente, Comercial, **Financeiro**, Supervisor e Administrador.
 
 ### 6.3 Tirar o pedido da colmeia (entrega ou envio)
 Botões no pedido: **Cliente irá retirar** ou **Enviar**.

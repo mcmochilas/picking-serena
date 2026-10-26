@@ -15,7 +15,7 @@ const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...CORS, "Content-Type": "application/json" } });
 const MODELS = ["claude-sonnet-5-5", "claude-haiku-5-5", "claude-opus-5-5"];
 const DAILY_LIMIT = 150; // mensagens por pessoa por dia
-const ROLE_T: Record<string, string> = { admin: "Administrador", supervisor: "Supervisor", comercial: "Comercial", compras: "Compras", estoque: "Estoque", separador: "Separador", conferente: "Conferente", painel: "Painel TV" };
+const ROLE_T: Record<string, string> = { admin: "Administrador", supervisor: "Supervisor", comercial: "Comercial", compras: "Compras", financeiro: "Financeiro", estoque: "Estoque", separador: "Separador", conferente: "Conferente", painel: "Painel TV" };
 
 async function secret(name: string) {
   const { data } = await sb.from("app_secrets").select("value").eq("name", name).maybeSingle();
