@@ -67,7 +67,9 @@ Tela dividida em duas partes: à esquerda a importação da pré-venda; à direi
 5. Escolha o **Tipo de envio** (item 3.2) e as marcações de retirada (item 3.3).
 6. Clique em **Enviar para expedição** (ou **Enviar para Compras**, no caso "Tem encomenda").
 
-Se a pré-venda já estiver no sistema, aparece um aviso: enviar de novo substitui o pedido atual.
+**Administrador**: antes de enviar, na tabela de itens dá para **ajustar a quantidade** de cada item, **excluir** (×) e **Adicionar item** pelo SKU ou descrição. Fica registrado no histórico do pedido que os itens foram ajustados pelo administrador.
+
+Se a pré-venda já estiver no sistema, vira um **ajuste de pré-venda** (ver 3.3a).
 "Não reconheci este PDF": o arquivo não está no formato da pré-venda/orçamento ou não tem a tabela de itens.
 
 ### 3.2 Tipos de envio
