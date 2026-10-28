@@ -791,14 +791,17 @@ button.slot{cursor:pointer;padding:0}
 
 <script>
 function brNum(s){ return parseFloat(String(s).replace(/[^\d,.-]/g,"").replace(/\./g,"").replace(",", ".")) || 0; }
+// id do pedido: condicionais têm numeração própria, então não se misturam com pré-vendas de mesmo número
+const pvId = p => (p && p.docType==="Condicional" ? "CD-" : "PV-") + p.num;
 function parsePresale(raw){
   const cells = raw.filter(c=>c.s && c.s.trim()).map(c=>({s:c.s.trim(), x:c.x, y:c.y, w:c.w, cx:c.x+c.w/2}));
   const lines=[];
   [...cells].sort((a,b)=>b.y-a.y||a.x-b.x).forEach(c=>{ let L=lines.find(l=>Math.abs(l.y-c.y)<2.5); if(!L){ L={y:c.y,cells:[]}; lines.push(L); } L.cells.push(c); });
   const all = lines.map(l=>l.cells.sort((a,b)=>a.x-b.x).map(c=>c.s).join(" ")).join("\n");
   const m = re => { const r=all.match(re); return r ? r.slice(1).map(x=>x && x.trim()) : null; };
-  // número: "Pré-venda - 123" ou "Orçamento - 123" (também aceita "Orçamento nº 123", "ORÇAMENTO: 123")
-  const num = m(/(?:Pr[ée]\s*-?\s*venda|Or[çc]amento)\s*(?:n[º°o.]*\s*)?[-–:#]?\s*(\d+)/i)?.[0];
+  // número: "Pré-venda - 123", "Orçamento - 123" ou "Condicional - 123" (também aceita "Orçamento nº 123", "CONDICIONAL: 123")
+  const numM = all.match(/(Pr[ée]\s*-?\s*venda|Or[çc]amento|Condicional)\s*(?:n[º°o.]*\s*)?[-–:#]?\s*(\d+)/i);
+  const num = numM?.[2], docType = !numM ? "" : /^cond/i.test(numM[1]) ? "Condicional" : /^or/i.test(numM[1]) ? "Orçamento" : "Pré-venda";
   const dt = m(/Data:\s*([\d/]+)\s*Hora:\s*([\d:]+)/) || [];
   const cli = m(/Cliente:\s*(\d+)\s*-\s*(.+?)(?:\s+CPF\/CNPJ:.*)?$/m) || [];
   const end = m(/Endere[çc]o:\s*(.+)$/m)?.[0] || "";
@@ -838,7 +841,7 @@ function parsePresale(raw){
     const g = k => r.cells.find(c=>c.col===k)?.s;
     return {code:r.code, name, ean, un:g("un")||"UN", qty:Math.round(brNum(g("qty"))), price:brNum(g("vl")||g("vb")), lineTotal:brNum(g("vt"))};
   });
-  return { num, date:dt[0]||"", time:dt[1]||"", clientCode:cli[0]||"", client:cli[1]||"", city: cm ? `${cm[1].trim()} - ${cm[2]}` : "", seller, obs, total, items };
+  return { num, docType, date:dt[0]||"", time:dt[1]||"", clientCode:cli[0]||"", client:cli[1]||"", city: cm ? `${cm[1].trim()} - ${cm[2]}` : "", seller, obs, total, items };
 }
 
 /* ================== Dados e utilidades ================== */
@@ -1070,7 +1073,7 @@ const EXAMPLE_PRESALE = { num:"36671", date:"21/10/2026", time:"14:05", clientCo
   ]};
 
 function startDraft(p){
-  const id = "PV-"+p.num;
+  const id = pvId(p);
   const prev = ORDERS.find(o=>o.id===id);
   state.draft = { ...p, id, mode:"total", dup: !!prev,
     items: p.items.map(it=>({...it, ean: it.ean || PRODUCTS[it.code]?.ean || "", loc:locFor(it.code), qtyEnc:0, eta:""})) };
@@ -1104,7 +1107,7 @@ function dropHTML(){
     <label class="drop" id="drop" for="pdfIn">
       <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 18v-6M9 15l3-3 3 3"/></svg>
       <b>${state.parsing ? "Lendo pré-venda…" : "Arraste o PDF da pré-venda aqui"}</b>
-      <small>ou clique para escolher o arquivo · formato "Pré-venda - Nº" ou "Orçamento - Nº" do sistema</small>
+      <small>ou clique para escolher o arquivo · formato "Pré-venda - Nº", "Orçamento - Nº" ou "Condicional - Nº" do sistema</small>
     </label>
     <input type="file" id="pdfIn" accept="application/pdf" hidden>
     ${state.draftErr ? `<div class="err">${esc(state.draftErr)}</div>` : ""}
@@ -1141,7 +1144,7 @@ async function importPdf(file){
     state.parsing=false; startDraft(p);
   }catch(e){
     console.warn(e); state.parsing=false;
-    state.draftErr = e?.message==="formato"||e?.message==="sem itens" ? "Não reconheci este PDF como uma pré-venda ou orçamento (não achei o número ou a tabela de itens)." : "Não foi possível ler o PDF. Tente de novo ou use outro arquivo.";
+    state.draftErr = e?.message==="formato"||e?.message==="sem itens" ? "Não reconheci este PDF como uma pré-venda, orçamento ou condicional (não achei o número ou a tabela de itens)." : "Não foi possível ler o PDF. Tente de novo ou use outro arquivo.";
     render();
   }
 }
@@ -1151,7 +1154,7 @@ function draftHTML(d){
   const tot = draftTotals(d);
   return `
     <div class="pshead">
-      <div><h3>Pré-venda</h3><div class="pv">${esc(d.num)}</div><div class="meta">${esc(d.date)} ${esc(d.time)}</div></div>
+      <div><h3>${esc(d.docType||"Pré-venda")}</h3><div class="pv">${esc(d.num)}</div><div class="meta">${esc(d.date)} ${esc(d.time)}</div></div>
       <button class="mini" id="cancelDraft">Descartar e importar outra</button>
     </div>
     ${d.adjust ? adjPreviewHTML(d) : ""}
@@ -1273,7 +1276,7 @@ function sendDraft(){
   items.forEach(it=>{ const p=PRODUCTS[it.code]; if(!p) saveProduct({code:it.code, name:it.name, ean:it.ean, loc:it.loc?code(it.loc):""}); else if(!p.ean && it.ean && !validateProduct({...p, ean:it.ean})) saveProduct({...p, ean:it.ean}); });
   const prev = ORDERS.find(o=>o.id===d.id);
   const slot = null; // a colmeia é escolhida quando Compras encaminha para a separação
-  const o = { id:d.id, num:d.num, date:d.date, time:d.time, clientCode:d.clientCode, client:d.client, city:d.city, seller:d.seller, obs:d.obs, total:d.total,
+  const o = { id:d.id, num:d.num, docType:d.docType||"", date:d.date, time:d.time, clientCode:d.clientCode, client:d.client, city:d.city, seller:d.seller, obs:d.obs, total:d.total,
     mode:m, v2:true, items, remessa:1, status: toCompras ? "analise_compras" : "aguardando", modeCom: m, createdAt: Date.now(), createdBy: ME.id||"", canal:"consultiva", retira: !!(d.retira||d.naLoja), naLoja: !!d.naLoja, transportadora: (d.transportadora ?? carrierFromObs(d.obs)) || "" };
   if(slot) o.colmeia = slot;
   if(d.adminEdited) o.hist=[{t:Date.now(), by:ME.id||"", ev:"Itens da pré-venda ajustados pelo administrador antes de enviar"}];
@@ -1310,7 +1313,7 @@ function openHiveNew(){
     const g=id=>ov.querySelector("#"+id);
     g("hnNum").oninput=e=>f.num=e.target.value; g("hnCli").oninput=e=>f.cli=e.target.value; g("hnObs").oninput=e=>f.obs=e.target.value;
     g("hnPdf").onchange=async e=>{ const file=e.target.files[0]; if(!file) return; busyPdf=true; err=""; draw();
-      try{ p=await readPresalePdf(file); f.enc={}; f.num=p.num||f.num; f.cli=p.client||f.cli; f.obs=p.obs||f.obs; }catch(x){ p=null; err="Não reconheci este PDF como uma pré-venda ou orçamento."; }
+      try{ p=await readPresalePdf(file); f.enc={}; f.num=p.num||f.num; f.cli=p.client||f.cli; f.obs=p.obs||f.obs; }catch(x){ p=null; err="Não reconheci este PDF como uma pré-venda, orçamento ou condicional."; }
       busyPdf=false; draw(); };
     const setSlot=v=>{ const c=hiveCode(v); if(!HIVE.includes(c)){ err=v?`"${v}" não é uma colmeia desta grade.`:""; return draw(); }
       const occ=ORDERS.find(o=>usesHive(o)&&o.colmeia===c); if(occ){ err=`Colmeia ${c.slice(3)} ocupada pela pré-venda ${occ.num}.`; return draw(); }
@@ -1330,12 +1333,12 @@ function openHiveNew(){
       if(!f.why){ err="Escolha por que o pedido vai para a colmeia."; return draw(); }
       if(f.why==="encomenda" && p && p.num===num && p.items.length && !p.items.some((it,i)=>(f.enc[i]||0)>0)){ err="Marque quais itens estão aguardando encomenda."; return draw(); }
       if(!sel){ err="Escolha uma colmeia livre."; return draw(); }
-      const id="PV-"+num, ex=ORDERS.find(o=>o.id===id && !["enviado","excluido"].includes(o.status));
+      const id=pvId({num, docType: p&&p.num===num ? p.docType : ""}), ex=ORDERS.find(o=>o.id===id && !["enviado","excluido"].includes(o.status));
       if(ex){ err=`A pré-venda ${num} já está no sistema (${statusInfo(ex).t}).`; return draw(); }
       if(ORDERS.some(o=>usesHive(o)&&o.colmeia===sel)){ err=`Colmeia ${sel.slice(3)} acabou de ser ocupada. Escolha outra.`; sel=freeSlot(); return draw(); }
       const now=Date.now(), obs=f.obs.trim();
       const items=(p&&p.num===num ? p.items : []).map((it,i)=>({code:it.code, name:it.name, ean:it.ean||PRODUCTS[it.code]?.ean||"", un:it.un, qty:it.qty, price:it.price, loc:"", qtyEnc: f.why==="encomenda" ? Math.min(it.qty, f.enc[i]||0) : 0, eta:""}));
-      saveOrder({ id, num, date:p?.date||"", time:p?.time||"", clientCode:p?.clientCode||"", client:cli, city:p?.city||"", seller:p?.seller||"", obs, total:p?.total||0,
+      saveOrder({ id, num, docType: p&&p.num===num ? p.docType||"" : "", date:p?.date||"", time:p?.time||"", clientCode:p?.clientCode||"", client:cli, city:p?.city||"", seller:p?.seller||"", obs, total:p?.total||0,
         ...(f.why==="retira" ? {mode:"total", retira:true, status:"pronto_envio", pickedAt:now} : {mode:"aguarda", status:"na_colmeia"}),
         v2:true, items, remessa:1, colmeia:sel, createdAt:now, storedAt:now, createdBy:ME.id||"", canal:"consultiva",
         hiveManual:true, transportadora:carrierFromObs(obs)||"" });
@@ -1551,7 +1554,7 @@ function asideHTML(){
       const enc=o.items.filter(i=>i.qtyEnc>0), falt=o.items.filter((it,i)=>r[i].status==="miss"||r[i].status==="part");
       const pl=pickList(o), done=pl.filter(x=>r[x.i].status!=="pend").length;
       return `<div class="qcard">
-        <div class="row"><span class="pvn">${esc(o.num)}${o.mode==="aguarda"&&o.colmeia?" · Colmeia "+esc(o.colmeia.slice(3)):""}</span><span class="chip ${st.c}">${st.t}</span></div>
+        <div class="row"><span class="pvn">${esc(o.num)}${o.docType==="Condicional"?" · Condicional":""}${o.mode==="aguarda"&&o.colmeia?" · Colmeia "+esc(o.colmeia.slice(3)):""}</span><span class="chip ${st.c}">${st.t}</span></div>
         <div class="cl">${esc(o.client)}</div>${urgBar(o)}${o.adj && o.adj.status==="pendente" ? `<div class="adjbar sm">Ajuste pendente na separação · ${esc(adjSummary(o.adj))}</div>` : o.adj && o.adj.status==="ok" && Date.now()-(o.adj.doneAt||0) < 24*3600e3 ? `<div class="adjbar sm ok">Ajuste da pré-venda concluído</div>` : ""}
         ${o.status==="excluido"?`<div class="delnote">Excluído às ${fmtClock(o.deletedAt)}${USERS_NAME(o.deletedBy)} · motivo: ${esc(o.deleteReason||"")}</div>`:""}
         <div class="meta tnum"><span>${MODES[o.mode]?.t||""}</span>${pl.length?`<span>Separado ${done}/${pl.length} ref.</span>`:""}${(o.tray&&["separando","mesa"].includes(o.trayStatus))||bigOnMesa(o)&&o.trayStatus!=="livre"?`<span>${esc(spotsTxt(o))}</span>`:""}${falt.length?`<span style="color:var(--bad)">${falt.length} com falta</span>`:""}</div>
@@ -1870,10 +1873,10 @@ function openPurchaseImport(){
     const op=g("pvOpen"); if(op) op.onclick=()=>{ S.pv={p:null, enc:{}, busy:false, err:""}; draw(); };
     const cl=g("pvClose"); if(cl) cl.onclick=()=>{ S.pv=null; draw(); };
     const f=g("pvPdf"); if(f) f.onchange=async e=>{ const file=e.target.files[0]; if(!file) return; S.pv.busy=true; S.pv.err=""; draw();
-      try{ const p=await readPresalePdf(file); const ex=ORDERS.find(o=>o.id==="PV-"+p.num && !["enviado","excluido"].includes(o.status));
+      try{ const p=await readPresalePdf(file); const ex=ORDERS.find(o=>o.id===pvId(p) && !["enviado","excluido"].includes(o.status));
         if(ex){ S.pv.p=null; S.pv.err=`A pré-venda ${p.num} já está no sistema (${statusInfo(ex).t}). ${hasEnc(ex)?"Ela já aparece na lista para vincular.":"Ela não tem itens sob encomenda."}`; }
         else { S.pv.p=p; S.pv.enc={}; } }
-      catch(x){ S.pv.p=null; S.pv.err="Não reconheci este PDF como uma pré-venda ou orçamento."; }
+      catch(x){ S.pv.p=null; S.pv.err="Não reconheci este PDF como uma pré-venda, orçamento ou condicional."; }
       S.pv.busy=false; draw(); };
     ov.querySelectorAll("[data-pve]").forEach(i=>i.onchange=()=>{ S.pv.enc[+i.dataset.pve]=Math.max(0,Math.min(S.pv.p.items[+i.dataset.pve].qty,+i.value||0)); setTimeout(draw); });
     const sv=g("pvSave"); if(sv) sv.onclick=()=>{ const p=S.pv.p, now=Date.now();
@@ -1883,7 +1886,7 @@ function openPurchaseImport(){
       const mode = pick ? "aguarda" : "encomenda", slot = pick ? freeSlot() : null;
       if(pick && !slot){ S.pv.err="Todas as colmeias estão ocupadas. Libere uma colmeia ou marque tudo para encomendar."; return draw(); }
       items.forEach(it=>{ if(!PRODUCTS[it.code]) saveProduct({code:it.code, name:it.name, ean:it.ean, loc:""}); });
-      const o={ id:"PV-"+p.num, num:p.num, date:p.date, time:p.time, clientCode:p.clientCode, client:p.client, city:p.city, seller:p.seller, obs:p.obs, total:p.total,
+      const o={ id:pvId(p), num:p.num, docType:p.docType||"", date:p.date, time:p.time, clientCode:p.clientCode, client:p.client, city:p.city, seller:p.seller, obs:p.obs, total:p.total,
         mode, modeCom:mode, v2:true, items, remessa:1, status: pick ? "aguardando" : "encomenda", createdAt:now, createdBy:ME.id||"", decidedAt:now, decidedBy:ME.id||"",
         canal:"consultiva", fromCompras:true, transportadora: carrierFromObs(p.obs)||"", ...(pick?{colmeia:slot, queuedAt:now}:{}) };
       saveOrder(o);

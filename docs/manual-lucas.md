@@ -60,7 +60,7 @@ Separadores também têm canais liberados: **Venda Consultiva** (pré-vendas) e/
 Tela dividida em duas partes: à esquerda a importação da pré-venda; à direita **Pedidos na expedição** e **Colmeias**.
 
 ### 3.1 Importar uma pré-venda
-1. **Arraste o PDF** da pré-venda (formato "Pré-venda - Nº" ou "Orçamento - Nº" do sistema de vendas) para a área indicada, ou clique para escolher o arquivo.
+1. **Arraste o PDF** da pré-venda (formato "Pré-venda - Nº", "Orçamento - Nº" ou **"Condicional - Nº"** do sistema de vendas) para a área indicada, ou clique para escolher o arquivo. O tipo do documento aparece no topo (Pré-venda, Orçamento ou Condicional). A condicional tem numeração própria: uma condicional e uma pré-venda com o mesmo número são pedidos diferentes.
 2. O sistema lê número, data, cliente, cidade, vendedor, observações, valor e itens.
 3. Confira a **Transportadora** (o sistema tenta identificar pela observação; dá para digitar ou escolher da lista).
 4. Itens sem endereço mostram "sem local": dá para digitar o endereço ali mesmo (ex.: `R1-LB-BIN-8.M`) e **Salvar**, ou enviar assim mesmo.
@@ -70,7 +70,7 @@ Tela dividida em duas partes: à esquerda a importação da pré-venda; à direi
 **Administrador**: antes de enviar, na tabela de itens dá para **ajustar a quantidade** de cada item, **excluir** (×) e **Adicionar item** pelo SKU ou descrição. Fica registrado no histórico do pedido que os itens foram ajustados pelo administrador.
 
 Se a pré-venda já estiver no sistema, vira um **ajuste de pré-venda** (ver 3.3a).
-"Não reconheci este PDF": o arquivo não está no formato da pré-venda/orçamento ou não tem a tabela de itens.
+"Não reconheci este PDF": o arquivo não está no formato da pré-venda/orçamento/condicional ou não tem a tabela de itens.
 
 ### 3.2 Tipos de envio
 - **Envio total**: tudo tem pronta entrega. A separação coleta tudo e o pedido vai para o envio.
