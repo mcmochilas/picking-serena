@@ -6,7 +6,7 @@
    Nada aqui fala com o Supabase nem com a Magazord.
    ===================================================================== */
 (function(){
-  const KEY = "ps-test-db-v7", UKEY = "ps-test-user";
+  const KEY = "ps-test-db-v8", UKEY = "ps-test-user";
   const mem = {};
   const ls = {
     get(k){ try{ return localStorage.getItem(k); }catch(e){ return mem[k] ?? null; } },
@@ -35,7 +35,9 @@
       ["16120","PUXADOR ZEN 160MM DOURADO","7908204761204"],
       ["17333","PUXADOR ARCO 128MM ROSE","7908204773337"]
     ];
-    const products = {}; P.forEach(([code,name,ean])=>products[code]={code,name,ean,loc:""});
+    // endereços de exemplo, para o mapa do estoque aparecer na separação
+    const LOCS = {"13088":"R1-LA-BIN-2.B","12045":"R1-LB-BIN-3.D","14410":"R2-LA-GAV-1.C","15002":"R2-LB-COL-4.A","16120":"R3-LA-BIN-1.E","17333":"R3-LB-BIN-4.F"};
+    const products = {}; P.forEach(([code,name,ean])=>products[code]={code,name,ean,loc:LOCS[code]||""});
     const it = (code,qty,enc=0)=>{ const p=products[code]; return {code, name:p.name, ean:p.ean, un:"PC", qty, price:12.5, loc:"", qtyEnc:enc, eta: enc?new Date(now+5*864e5).toISOString().slice(0,10):""}; };
     const base = { v2:true, remessa:1, date:"23/10/2026", time:"09:00", seller:"EVELIN", city:"PORTO BELO - SC", total:350 };
     const orders = [
@@ -75,7 +77,7 @@
     return {
       orders: Object.fromEntries(orders.map(o=>[o.id,o])),
       products,
-      blocks: {},
+      blocks: Object.fromEntries([[1,"A","BIN"],[1,"B","BIN"],[2,"A","GAV"],[2,"B","COL"],[3,"A","BIN"],[3,"B","BIN"]].map(([r,l,t])=>[`R${r}-L${l}-${t}-1-4-A-F`, {r,l,t,n1:1,n2:4,c1:"A",c2:"F"}])),
       purchases,
       invoices,
       users,

@@ -216,6 +216,8 @@ html.tvmode body{background:var(--bg);color:var(--ink);overflow:hidden}
 .ordwrap{position:relative;display:flex;flex-direction:column}
 .ordwrap.acts1 .order .meta{padding-right:48px}
 .ordwrap.acts2 .order .meta{padding-right:96px}
+.ordwrap.acts3 .order .meta{padding-right:144px}
+.order .meta .sepby b{font-weight:700}
 .ord-acts{position:absolute;right:12px;bottom:12px;display:flex;gap:8px;z-index:1}
 .icbtn{width:40px;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--bg,var(--surface));color:var(--muted);display:grid;place-items:center;cursor:pointer;padding:0}
 .icbtn:active{transform:scale(.95)}
@@ -1350,9 +1352,10 @@ function openHiveNew(){
 }
 /* ---- Administrador: editar um pedido (tipo de envio, retirada, transportadora, situação, bandeja/mesa, colmeia, observação) ---- */
 const ST_EDIT = [["aguardando","Aguardando separação"],["separando","Em separação"],["na_mesa","Na mesa"],["na_colmeia","Na colmeia · aguardando encomenda"],["pronto_envio","Pronto (para enviar/retirar)"],["enviado","Finalizado · enviado/retirado"],["analise_compras","Aguardando decisão de Compras"],["encomenda","Encomenda total · aguardando chegada"],["enc_pendente","1º envio feito · aguardando encomenda"]];
+const sepUsers = keep => Object.entries(USERS).filter(([id,u])=>id===keep || (u.active!==false && userRoles(u).some(r=>CANAL_ROLES.includes(r)))).sort((a,b)=>String(a[1].name||"").localeCompare(String(b[1].name||"")));
 function openOrderEdit(id){
   const o=ORDERS.find(x=>x.id===id); if(!o || !hasRole("admin")) return;
-  const f={ mode:o.mode||"total", ret: o.naLoja?"naLoja":o.retira?"retira":"", transp: transpOf(o)||"", status:o.status, tray:o.tray||"", colmeia:o.colmeia||"", obs:o.obs||"" };
+  const f={ canal:isEco(o)?"ecommerce":"consultiva", sep:sepOf(o), mode:o.mode||"total", ret: o.naLoja?"naLoja":o.retira?"retira":"", transp: transpOf(o)||"", status:o.status, tray:o.tray||"", colmeia:o.colmeia||"", obs:o.obs||"" };
   const used=new Set(ORDERS.filter(x=>usesHive(x) && x.id!==o.id).map(x=>x.colmeia));
   const ov=document.createElement("div"); ov.className="modal"; document.body.appendChild(ov); scanbar.hidden=true;
   const close=()=>{ ov.remove(); render(); };
@@ -1360,6 +1363,8 @@ function openOrderEdit(id){
   ov.innerHTML=`<div class="mbox wide oedit" role="dialog" aria-modal="true" aria-label="Editar pedido ${esc(o.num)}"><h2>Editar pedido #${esc(o.num)}</h2>
     <p>${esc(o.client)} · ${isEco(o)?"E-commerce":"Venda Consultiva"} · situação atual: <b>${esc(statusInfo(o).t)}</b></p>
     <div class="oegrid">
+      <label><span>Canal</span><select class="tin" id="oeCanal">${opt("consultiva","Venda Consultiva",f.canal)}${opt("ecommerce","E-commerce",f.canal)}</select></label>
+      <label><span>Separador</span><select class="tin" id="oeSep">${opt("","Nenhum · qualquer separador pega na fila",f.sep)}${sepUsers(f.sep).map(([id,u])=>opt(id, (u.name||u.login||"Usuário")+" · "+[u.consultiva!==false&&"Consultiva",u.ecommerce&&"E-commerce"].filter(Boolean).join(" e ")+(u.active===false?" · inativo":""), f.sep)).join("")}</select></label>
       <label><span>Tipo de envio</span><select class="tin" id="oeMode">${Object.entries(MODES).map(([k,m])=>opt(k,m.t,f.mode)).join("")}</select></label>
       <label><span>Retirada</span><select class="tin" id="oeRet">${opt("","Transportadora / entrega",f.ret)}${opt("retira","Retira na Loja",f.ret)}${opt("naLoja","Cliente está na loja",f.ret)}</select></label>
       <label><span>Transportadora</span><input class="tin" id="oeTransp" list="oeTList" value="${esc(f.transp)}" placeholder="Não identificada"><datalist id="oeTList">${[...new Set([...ORDERS.map(transpOf).filter(Boolean),...Object.keys(TRANSP)])].sort().map(n=>`<option value="${esc(n)}">`).join("")}</datalist></label>
@@ -1375,15 +1380,22 @@ function openOrderEdit(id){
   ov.onclick=e=>{ if(e.target===ov) close(); };
   g("mNo").onclick=close;
   g("mOk").onclick=()=>{
-    const n={ mode:g("oeMode").value, ret:g("oeRet").value, transp:g("oeTransp").value.trim(), status:g("oeSt").value, tray:g("oeTray").value.trim().toUpperCase(), colmeia:g("oeHive").value, obs:g("oeObs").value.trim() };
+    const n={ canal:g("oeCanal").value, sep:g("oeSep").value, mode:g("oeMode").value, ret:g("oeRet").value, transp:g("oeTransp").value.trim(), status:g("oeSt").value, tray:g("oeTray").value.trim().toUpperCase(), colmeia:g("oeHive").value, obs:g("oeObs").value.trim() };
     if(n.colmeia && ORDERS.some(x=>usesHive(x) && x.id!==o.id && x.colmeia===n.colmeia)){ g("oeErr").textContent=`A colmeia ${n.colmeia.slice(3)} está ocupada.`; return; }
-    const patch={}, ch=[];
+    const su=n.sep && n.sep!==f.sep && USERS[n.sep];
+    if(su && !userRoles(su).includes("admin") && !(n.canal==="ecommerce" ? su.ecommerce : su.consultiva!==false)){ g("oeErr").textContent=`${su.name||"Essa pessoa"} não separa ${n.canal==="ecommerce"?"E-commerce":"Venda Consultiva"}. Marque o canal no cadastro dela em Usuários ou escolha outro separador.`; return; }
+    const patch={}, ch=[], uname=id=>USERS[id]?.name||USERS[id]?.login||"usuário";
+    if(n.canal!==f.canal){ patch.canal=n.canal; if(n.canal==="ecommerce" && !o.origem) patch.origem="Site"; ch.push(`canal: ${f.canal==="ecommerce"?"E-commerce":"Venda Consultiva"} → ${n.canal==="ecommerce"?"E-commerce":"Venda Consultiva"}`); }
+    if(n.sep!==f.sep){ patch.assignTo=n.sep;
+      if(o.status==="separando" && n.status==="separando"){ if(n.sep) patch.startedBy=n.sep; else { n.status="aguardando"; patch.status="aguardando"; patch.startedBy=""; patch.queuedAt=Date.now(); } }
+      ch.push(n.sep ? `separador: ${f.sep?uname(f.sep)+" → ":""}${uname(n.sep)}` : `separador: ${uname(f.sep)} → volta para a fila`); }
     if(n.mode!==f.mode){ patch.mode=n.mode; ch.push(`tipo de envio: ${MODES[f.mode]?.t||f.mode} → ${MODES[n.mode]?.t}`); }
     if(n.ret!==f.ret){ patch.retira=n.ret==="retira"||n.ret==="naLoja"; patch.naLoja=n.ret==="naLoja"; ch.push(`retirada: ${n.ret==="naLoja"?"cliente está na loja":n.ret==="retira"?"retira na loja":"transportadora/entrega"}`); }
     if(n.transp!==f.transp){ patch.transportadora=n.transp; ch.push(`transportadora: ${n.transp||"—"}`); }
-    if(n.status!==f.status){ patch.status=n.status; ch.push(`situação: ${(ST_EDIT.find(x=>x[0]===f.status)||[,f.status])[1]} → ${(ST_EDIT.find(x=>x[0]===n.status)||[,n.status])[1]}`);
+    if(n.status!==f.status && !patch.status){ patch.status=n.status; ch.push(`situação: ${(ST_EDIT.find(x=>x[0]===f.status)||[,f.status])[1]} → ${(ST_EDIT.find(x=>x[0]===n.status)||[,n.status])[1]}`);
       if(n.status==="enviado" && !o.sentAt) patch.sentAt=Date.now();
       if(n.status==="aguardando"){ patch.queuedAt=Date.now(); patch.startedAt=null; patch.startedBy=""; } }
+    if(patch.status==="separando" && !o.startedBy && n.sep){ patch.startedBy=n.sep; patch.startedAt=o.startedAt||Date.now(); }
     if(n.tray!==f.tray){ patch.tray=n.tray; patch.trayStatus=n.tray ? (o.trayStatus && o.trayStatus!=="livre" ? o.trayStatus : "mesa") : ""; ch.push(`bandeja/mesa: ${n.tray||"liberada"}`); }
     if(n.colmeia!==f.colmeia){ patch.colmeia=n.colmeia||null; ch.push(`colmeia: ${n.colmeia?n.colmeia.slice(3):"liberada"}`); }
     if(n.obs!==f.obs){ patch.obs=n.obs; ch.push("observação"); }
@@ -2403,7 +2415,7 @@ function renderOrders(){
   const tab = state.sector==="colmeias" ? "colmeias" : (state.sepTab || "fila"), eco = canEco(), cons = canCons();
   const VIS = ORDERS.filter(ecoOk);
   const canal = eco && cons ? (state.canal || "consultiva") : eco ? "ecommerce" : "consultiva";
-  const allQ = VIS.filter(o=>(o.status==="aguardando"||o.status==="separando") && pickList(o).length).sort(byUrg);
+  const allQ = VIS.filter(o=>(o.status==="aguardando"||o.status==="separando") && pickList(o).length && !notMine(o)).sort(byUrg);
   const qCons = allQ.filter(o=>!isEco(o)), qEco = allQ.filter(isEco);
   const queue = canal==="ecommerce" ? qEco : qCons;
   const parked = VIS.filter(isSeparated).sort((a,b)=>(a.pickedAt||0)-(b.pickedAt||0));
@@ -2440,15 +2452,15 @@ function renderOrders(){
       ${queue.length ? `<div class="qgrid">` + pgQ.items.map(o=>{
         const pl=pickList(o), r=res(o), done=pl.filter(x=>r[x.i].status!=="pend").length, enc=o.items.filter(i=>i.qtyEnc>0).length;
         const aisles=[...new Set(pl.filter(x=>x.loc).map(x=>"R"+x.loc.r))].join(" · "), semLoc=pl.filter(x=>!x.loc).length;
-        const acts = can("coleta") ? (o.status==="separando"?2:1) : 0;
+        const acts = (can("coleta") ? (o.status==="separando"?2:1) : 0) + (hasRole("admin")?1:0);
         return `<div class="ordwrap acts${acts}"><button class="order ${o.mode==="aguarda"||urgKind(o)?"urgent":""} ${o.naLoja?"urg-loja":o.retira?"urg-retira":""}" data-oid="${esc(o.id)}">
           ${urgBar(o)}
           <div class="row"><span class="num">#${esc(o.num)}${newIds.has(o.id)&&o.status==="aguardando"?` <span class="chip newc">Novo</span>`:""}</span>${o.status==="separando"?`<span class="chip prog">Em separação</span>`:o.fase2?`<span class="chip done">Encomenda recebida</span>`:isEco(o)?`<span class="chip eco">${esc(o.origem||"Site")}</span>`:`<span class="chip ${MODES[o.mode].c}">${MODES[o.mode].t}</span>`}</div>
           ${o.mzCancelado?`<div class="mzcancel">CANCELADO na Magazord · não enviar</div>`:o.mzMudou?`<div class="mzcancel warn">Situação mudou na Magazord: ${esc(o.mzSituacaoDesc||o.mzSituacao)} · confirme antes de enviar</div>`:""}
           <div class="client">${esc(o.client)}</div>
-          <div class="meta tnum"><span>${pl.length} ref. · ${pl.reduce((a,x)=>a+x.need,0)} pç</span>${aisles?`<span>Ruas ${aisles}</span>`:""}${semLoc?`<span style="color:var(--bad)">${semLoc} sem local</span>`:""}${o.status==="separando"&&o.startedAt?`<span>Separando há ${since(o.startedAt)}</span>`:`<span>Na fila há ${since(o.createdAt)}</span>`}${o.tray&&o.status==="separando"?`<span>Bandeja ${esc(o.tray)}</span>`:""}${isEco(o)?transpBadge(o.transportadora):`${transpOf(o)?transpBadge(transpOf(o)):""}`+(o.mode==="aguarda"?`<span>Colmeia ${esc(o.colmeia)}</span>`:`<span>Destino: mesa de expedição</span>`)}${enc?`<span>${enc} ref. sob encomenda</span>`:""}</div>
+          <div class="meta tnum"><span>${pl.length} ref. · ${pl.reduce((a,x)=>a+x.need,0)} pç</span>${aisles?`<span>Ruas ${aisles}</span>`:""}${semLoc?`<span style="color:var(--bad)">${semLoc} sem local</span>`:""}${o.status==="separando"&&o.startedAt?`<span>Separando há ${since(o.startedAt)}</span>`:`<span>Na fila há ${since(o.createdAt)}</span>`}${o.tray&&o.status==="separando"?`<span>Bandeja ${esc(o.tray)}</span>`:""}${isEco(o)?transpBadge(o.transportadora):`${transpOf(o)?transpBadge(transpOf(o)):""}`+(o.mode==="aguarda"?`<span>Colmeia ${esc(o.colmeia)}</span>`:`<span>Destino: mesa de expedição</span>`)}${enc?`<span>${enc} ref. sob encomenda</span>`:""}${sepOf(o)?`<span class="sepby">Separador: <b>${esc(USERS[sepOf(o)]?.name||USERS[sepOf(o)]?.login||"—")}</b></span>`:""}</div>
           ${done?`<div class="prog-bar"><i style="width:${done/pl.length*100}%"></i></div>`:""}
-        </button>${acts?`<div class="ord-acts">${o.status==="separando"?`<button class="icbtn" data-restart="${esc(o.id)}" aria-label="Reiniciar separação" title="Reiniciar separação">${ICON_RESTART}</button>`:""}<button class="icbtn del" data-delord="${esc(o.id)}" aria-label="Excluir separação" title="Excluir separação">${ICON_TRASH}</button></div>`:""}</div>`;}).join("") + `</div>` + pgQ.pager : `<div class="empty">Nenhum pedido aguardando separação.</div>`}
+        </button>${acts?`<div class="ord-acts">${hasRole("admin")?`<button class="icbtn" data-qedit="${esc(o.id)}" aria-label="Trocar separador ou canal" title="Trocar separador ou canal">${ICON_EDIT}</button>`:""}${can("coleta")&&o.status==="separando"?`<button class="icbtn" data-restart="${esc(o.id)}" aria-label="Reiniciar separação" title="Reiniciar separação">${ICON_RESTART}</button>`:""}${can("coleta")?`<button class="icbtn del" data-delord="${esc(o.id)}" aria-label="Excluir separação" title="Excluir separação">${ICON_TRASH}</button>`:""}</div>`:""}</div>`;}).join("") + `</div>` + pgQ.pager : `<div class="empty">Nenhum pedido aguardando separação.</div>`}
     </div>
     ${parked.length?`<div class="section"><div class="eyebrow">Separados · com bandeja ou mesa · ${parked.length}</div>${pgP.top}<div class="list" style="margin-top:0">${pgP.items.map(o=>
       `<div class="li sep" style="cursor:default"><span class="lc tnum">${esc(o.tray)}</span><span class="ln">#${esc(o.num)} · ${esc(o.client)}<small>${o.mode==="aguarda"?"Vai para a colmeia "+esc(o.colmeia||""):"Mesa"}${bigOnMesa(o)?" · itens grandes na "+bigSpots(o).map(mesaName).join(", "):""}</small></span>${can("coleta")||can("mesa") ? `<button class="mini" data-free="${esc(o.id)}">${isShared(o.tray)?"Liberar "+spotName(o.tray):bigOnMesa(o)?"Liberar bandeja e mesa":"Liberar bandeja"}</button>` : ""}</div>`).join("")}</div>${pgP.pager}</div>`:""}`;
@@ -2490,6 +2502,7 @@ function renderOrders(){
   bindLote();
   app.querySelectorAll("[data-restart]").forEach(b=>b.onclick=()=>restartOrder(b.dataset.restart, false));
   app.querySelectorAll("[data-delord]").forEach(b=>b.onclick=()=>deleteOrder(b.dataset.delord));
+  app.querySelectorAll("[data-qedit]").forEach(b=>b.onclick=()=>openOrderEdit(b.dataset.qedit));
   if(can("coleta")) app.querySelectorAll(".order[data-oid]").forEach(b=>b.onclick=()=>openOrder(b.dataset.oid));
   else app.querySelectorAll(".order[data-oid]").forEach(b=>{ b.style.cursor="default"; b.tabIndex=-1; });
   app.querySelectorAll("[data-free]").forEach(b=>b.onclick=()=>{ if(!b.dataset.c){ b.dataset.c="1"; b.textContent="Confirmar liberação"; b.classList.add("danger"); return; } const o=ORDERS.find(x=>x.id===b.dataset.free); if(o){ unlinkTray(o); toast(`${spotsTxt(o)} liberada · pedido ${o.num} foi para ${inHive(o)?"Colmeias":"Separados"}`); } });
@@ -2497,6 +2510,7 @@ function renderOrders(){
 }
 function openOrder(id){
   const o=ORDERS.find(x=>x.id===id); if(!o || !ecoOk(o)) return;
+  if(notMine(o)){ toast(`O pedido #${o.num} foi passado para outro separador`); return; }
   newIds.delete(id); alertQueue=alertQueue.filter(x=>x!==id); showAlert();
   state.oid=id; state.phase=startPhase(o); state.count=0; state.bigItem=false;
   const r=res(o), pl=pickList(o), k=pl.findIndex(x=>r[x.i].status==="pend");
@@ -2625,6 +2639,7 @@ function elevSVG(l){
 }
 
 /* ================== Reiniciar / excluir separação ================== */
+const ICON_EDIT = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>`;
 const ICON_RESTART = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>`;
 const ICON_TRASH = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>`;
 /* Janela simples de confirmação, com campo de texto opcional (obrigatório quando input.min) */
@@ -2734,7 +2749,7 @@ const LOTE_BY = { canal:{t:"Canal", f:"origem"}, transportadora:{t:"Transportado
 const loteVal = (o, by) => o[LOTE_BY[by].f] || (by==="canal" ? "Site" : "Sem transportadora");
 const loteMatch = (o, L=state.lote) => !!L && isEco(o) && L.vals.includes(loteVal(o, L.by));
 function lotePending(L=state.lote){ // pedidos do lote ainda por separar (os meus em andamento primeiro)
-  return ORDERS.filter(o=>loteMatch(o,L) && pickList(o).length && !o.mzCancelado && !o.mzMudou &&
+  return ORDERS.filter(o=>loteMatch(o,L) && pickList(o).length && !o.mzCancelado && !o.mzMudou && !notMine(o) &&
       (o.status==="aguardando" || (o.status==="separando" && (!o.startedBy || o.startedBy===ME.id))))
     .sort((a,b)=>((b.status==="separando")-(a.status==="separando")) || (a.createdAt||0)-(b.createdAt||0));
 }
@@ -2757,7 +2772,7 @@ function bindLote(){
   const en=document.getElementById("loteEnd"); if(en) en.onclick=()=>{ state.lote=null; saveLote(); toast("Lote encerrado"); render(); };
 }
 function openLoteModal(){
-  const avail = ORDERS.filter(o=>isEco(o) && ecoOk(o) && pickList(o).length && !o.mzCancelado && !o.mzMudou && (o.status==="aguardando" || (o.status==="separando" && o.startedBy===ME.id)));
+  const avail = ORDERS.filter(o=>isEco(o) && ecoOk(o) && pickList(o).length && !o.mzCancelado && !o.mzMudou && !notMine(o) && (o.status==="aguardando" || (o.status==="separando" && o.startedBy===ME.id)));
   let by="transportadora", sel=new Set();
   const ov=document.createElement("div"); ov.className="modal"; document.body.appendChild(ov); scanbar.hidden=true;
   const close=()=>{ ov.remove(); render(); };
@@ -2866,6 +2881,7 @@ function taskCard(it){
 }
 function renderPick(){
   const c = cur(); if(!c || !c.it){ state.view="orders"; return render(); }
+  if(notMine(c.o) || !ecoOk(c.o)){ toast(`O Administrador passou o pedido #${c.o.num} para outra pessoa`); state.view="orders"; state.oid=null; return render(); }
   const {o, r, pl, it} = c, l=it.loc, prev = state.idx>0 ? pl[state.idx-1] : null;
   const done = pl.filter(x=>r[x.i].status!=="pend").length;
   app.innerHTML = `
@@ -3940,6 +3956,9 @@ const urgText = o => o.naLoja ? "URGENTE · CLIENTE NA LOJA" : "URGENTE · RETIR
 const urgBar = (o, st="") => urgKind(o) ? `<div class="retirabar ${o.naLoja?"":"rb-green"}"${st?` style="${st}"`:""}>${urgText(o)}</div>` : "";
 const byUrg = (a,b) => (urgRank(b) - urgRank(a)) || (a.createdAt||0)-(b.createdAt||0);
 const ecoOk = o => isEco(o) ? canEco() : canCons();
+/* Pedido passado pelo Administrador para um separador: só essa pessoa (e admin/supervisor) pega */
+const sepOf = o => o.status==="separando" && o.startedBy ? o.startedBy : (o.assignTo||"");
+const notMine = o => !!o.assignTo && o.assignTo!==ME.id && !hasRole("admin","supervisor");
 // Colmeias fica ao lado de Separação; para quem não separa, vem depois do setor principal (e nunca é a tela inicial)
 function allowedSectors(){ const sep=canSector("expedicao"); return (sep ? ["comercial","expedicao","colmeias","compras","recebimento","estoque","chamados","usuarios"] : ["comercial","compras","recebimento","estoque","colmeias","chamados","usuarios"]).filter(canSector); }
 
