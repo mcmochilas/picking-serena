@@ -217,6 +217,7 @@ html.tvmode body{background:var(--bg);color:var(--ink);overflow:hidden}
 .ordwrap.acts1 .order .meta{padding-right:48px}
 .ordwrap.acts2 .order .meta{padding-right:96px}
 .ordwrap.acts3 .order .meta{padding-right:144px}
+.hiedh.tm3,.hiedr.tm3{grid-template-columns:minmax(0,1fr) 70px 100px}
 .order .meta .sepby b{font-weight:700}
 .ord-acts{position:absolute;right:12px;bottom:12px;display:flex;gap:8px;z-index:1}
 .icbtn{width:40px;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--bg,var(--surface));color:var(--muted);display:grid;place-items:center;cursor:pointer;padding:0}
@@ -1353,6 +1354,47 @@ function openHiveNew(){
 /* ---- Administrador: editar um pedido (tipo de envio, retirada, transportadora, situação, bandeja/mesa, colmeia, observação) ---- */
 const ST_EDIT = [["aguardando","Aguardando separação"],["separando","Em separação"],["na_mesa","Na mesa"],["na_colmeia","Na colmeia · aguardando encomenda"],["pronto_envio","Pronto (para enviar/retirar)"],["enviado","Finalizado · enviado/retirado"],["analise_compras","Aguardando decisão de Compras"],["encomenda","Encomenda total · aguardando chegada"],["enc_pendente","1º envio feito · aguardando encomenda"]];
 const sepUsers = keep => Object.entries(USERS).filter(([id,u])=>id===keep || (u.active!==false && userRoles(u).some(r=>CANAL_ROLES.includes(r)))).sort((a,b)=>String(a[1].name||"").localeCompare(String(b[1].name||"")));
+/* Transferir de canal: confirmar o tipo de envio, como o Comercial faz ao subir a pré-venda */
+function askTransferMode(o, canal){
+  return new Promise(resolve=>{
+    const pm=o.modeCom||o.mode, t={ mode: pm==="parcial" ? "parcial" : (pm==="temenc"||pm==="encomenda"||pm==="aguarda") ? "temenc" : "total",
+      enc:(o.items||[]).map(it=>it.qtyEnc||0), retira:!!(o.retira||o.naLoja), naLoja:!!o.naLoja }, its=o.items||[];
+    let err="";
+    const ov=document.createElement("div"); ov.className="modal"; document.body.appendChild(ov);
+    const done=v=>{ ov.remove(); resolve(v); };
+    const draw=()=>{
+      ov.innerHTML=`<div class="mbox wide tmode" role="dialog" aria-modal="true" aria-label="Tipo de envio"><h2>Tipo de envio · #${esc(o.num)}</h2>
+        <p>O pedido vai para <b>${canal==="ecommerce"?"E-commerce":"Venda Consultiva"}</b>. Confirme como ele será enviado, igual ao Comercial quando sobe a pré-venda.</p>
+        <div class="modes" role="radiogroup">
+          <label class="mode"><input type="radio" name="tmode" value="total" ${t.mode==="total"?"checked":""}><span><b>Envio total</b><small>Todas as peças têm pronta entrega. A expedição separa tudo e o pedido vai direto para o envio.</small></span></label>
+          <label class="mode"><input type="radio" name="tmode" value="parcial" ${t.mode==="parcial"?"checked":""}><span><b>Envio parcial</b><small>Envia agora o que tem em estoque. Os itens marcados como encomenda vão para Compras encomendar e seguem depois, em um 2º envio.</small></span></label>
+          <label class="mode"><input type="radio" name="tmode" value="temenc" ${t.mode==="temenc"?"checked":""}><span><b>Tem encomenda</b><small>O pedido vai para Compras, que define o que encomendar, se separa o que tem na loja (colmeia) ou aguarda chegar tudo, e informa o prazo.</small></span></label>
+        </div>
+        <div class="flagrow"><label class="retira green ${t.retira?"on":""}"><input type="checkbox" id="tmRet" ${t.retira?"checked":""}><span><b>Retira na Loja</b></span></label>
+          <label class="retira naloja ${t.naLoja?"on":""}"><input type="checkbox" id="tmLoja" ${t.naLoja?"checked":""}><span><b>Cliente está na loja</b></span></label></div>
+        ${t.mode==="parcial" ? `<div class="hiedt" style="margin-top:12px"><div class="hiedh tm3"><span>Item</span><span class="r">Qtd.</span><span class="r">Encomenda</span></div>
+          ${its.map((it,i)=>`<div class="hiedr tm3"><span><b class="mono">${esc(it.code)}</b> ${esc(it.name)}</span><b class="r tnum">${it.qty}</b><input class="tin r" type="number" min="0" max="${it.qty}" step="1" value="${t.enc[i]||0}" data-tme="${i}" aria-label="Encomenda de ${esc(it.code)}"></div>`).join("")}</div>`
+          : t.mode==="temenc" ? `<div class="hintbox">Não precisa marcar os itens: o pedido vai inteiro para Compras, que decide o que encomendar e o que separar da loja.</div>` : ""}
+        <div class="merr">${esc(err)}</div>
+        <div class="mact"><button class="btn ghost" id="tmNo">Voltar</button><button class="btn primary" id="tmOk">${t.mode==="temenc"?"Transferir e enviar para Compras":"Confirmar transferência"}</button></div></div>`;
+      const q=k=>ov.querySelector(k);
+      ov.querySelectorAll('input[name=tmode]').forEach(r=>r.onchange=()=>{ t.mode=r.value; err=""; draw(); });
+      q("#tmRet").onchange=e=>{ t.retira=e.target.checked; if(!t.retira) t.naLoja=false; draw(); };
+      q("#tmLoja").onchange=e=>{ t.naLoja=e.target.checked; if(t.naLoja) t.retira=true; draw(); };
+      ov.querySelectorAll("[data-tme]").forEach(inp=>inp.onchange=()=>{ const i=+inp.dataset.tme; t.enc[i]=Math.max(0,Math.min(its[i].qty,Math.round(+inp.value||0))); if(err){ err=""; q(".merr").textContent=""; } });
+      q("#tmNo").onclick=()=>done(null);
+      q("#tmOk").onclick=()=>{
+        ov.querySelectorAll("[data-tme]").forEach(inp=>{ const i=+inp.dataset.tme; t.enc[i]=Math.max(0,Math.min(its[i].qty,Math.round(+inp.value||0))); });
+        let mode=t.mode;
+        if(mode==="parcial"){ const hasEnc=t.enc.some(x=>x>0), hasPick=its.some((it,i)=>it.qty-(t.enc[i]||0)>0);
+          if(!hasEnc){ err="Informe pelo menos um item sob encomenda, ou escolha Envio total."; return draw(); }
+          if(!hasPick) mode="temenc"; }
+        done({mode, enc:t.enc.slice(), retira:t.retira||t.naLoja, naLoja:t.naLoja});
+      };
+    };
+    draw();
+  });
+}
 function openOrderEdit(id){
   const o=ORDERS.find(x=>x.id===id); if(!o || !hasRole("admin")) return;
   const f={ canal:isEco(o)?"ecommerce":"consultiva", sep:sepOf(o), mode:o.mode||"total", ret: o.naLoja?"naLoja":o.retira?"retira":"", transp: transpOf(o)||"", status:o.status, tray:o.tray||"", colmeia:o.colmeia||"", obs:o.obs||"" };
@@ -1379,13 +1421,28 @@ function openOrderEdit(id){
   const g=k=>ov.querySelector("#"+k);
   ov.onclick=e=>{ if(e.target===ov) close(); };
   g("mNo").onclick=close;
-  g("mOk").onclick=()=>{
+  g("mOk").onclick=async()=>{
     const n={ canal:g("oeCanal").value, sep:g("oeSep").value, mode:g("oeMode").value, ret:g("oeRet").value, transp:g("oeTransp").value.trim(), status:g("oeSt").value, tray:g("oeTray").value.trim().toUpperCase(), colmeia:g("oeHive").value, obs:g("oeObs").value.trim() };
     if(n.colmeia && ORDERS.some(x=>usesHive(x) && x.id!==o.id && x.colmeia===n.colmeia)){ g("oeErr").textContent=`A colmeia ${n.colmeia.slice(3)} está ocupada.`; return; }
     const su=n.sep && n.sep!==f.sep && USERS[n.sep];
     if(su && !userRoles(su).includes("admin") && !(n.canal==="ecommerce" ? su.ecommerce : su.consultiva!==false)){ g("oeErr").textContent=`${su.name||"Essa pessoa"} não separa ${n.canal==="ecommerce"?"E-commerce":"Venda Consultiva"}. Marque o canal no cadastro dela em Usuários ou escolha outro separador.`; return; }
     const patch={}, ch=[], uname=id=>USERS[id]?.name||USERS[id]?.login||"usuário";
-    if(n.canal!==f.canal){ patch.canal=n.canal; if(n.canal==="ecommerce" && !o.origem) patch.origem="Site"; ch.push(`canal: ${f.canal==="ecommerce"?"E-commerce":"Venda Consultiva"} → ${n.canal==="ecommerce"?"E-commerce":"Venda Consultiva"}`); }
+    let tm=null;
+    if(n.canal!==f.canal){
+      // mesmo passo do Comercial: confirmar o tipo de envio antes de transferir
+      ov.style.display="none"; tm=await askTransferMode(o, n.canal); ov.style.display="";
+      if(!tm) return;
+      patch.canal=n.canal; if(n.canal==="ecommerce" && !o.origem) patch.origem="Site"; ch.push(`canal: ${f.canal==="ecommerce"?"E-commerce":"Venda Consultiva"} → ${n.canal==="ecommerce"?"E-commerce":"Venda Consultiva"}`);
+      const m=tm.mode, items=(o.items||[]).map((it,i)=>({...it, qtyEnc: m==="total" ? 0 : m==="temenc" ? it.qty : Math.min(it.qty, tm.enc[i]||0), eta: m==="total" ? "" : it.eta||""}));
+      patch.items=items; patch.mode=m; patch.modeCom=m; n.mode=m; patch.retira=tm.retira; patch.naLoja=tm.naLoja; n.ret=tm.naLoja?"naLoja":tm.retira?"retira":"";
+      if(n.ret!==f.ret) ch.push(`retirada: ${n.ret==="naLoja"?"cliente está na loja":n.ret==="retira"?"retira na loja":"transportadora/entrega"}`);
+      f.ret=n.ret; f.mode=m; // já registrado aqui
+      ch.push(`tipo de envio confirmado: ${MODES[m].t}`);
+      if(m==="temenc" && ["aguardando","separando"].includes(o.status)){
+        Object.assign(patch, {status:"analise_compras", res:null, startedAt:null, startedBy:"", assignTo:"", tray:"", trayStatus:""}); n.status=f.status="analise_compras"; n.sep=f.sep;
+      } else if(m!=="temenc" && o.status==="analise_compras"){ patch.status="aguardando"; patch.queuedAt=Date.now(); n.status=f.status="aguardando"; }
+      if(m!=="total"){ const ec=adjEncChanges(o, items); if(ec.length) patch.adjCompras={at:Date.now(), by:ME.id||"", changes:ec, ok:false}; }
+    }
     if(n.sep!==f.sep){ patch.assignTo=n.sep;
       if(o.status==="separando" && n.status==="separando"){ if(n.sep) patch.startedBy=n.sep; else { n.status="aguardando"; patch.status="aguardando"; patch.startedBy=""; patch.queuedAt=Date.now(); } }
       ch.push(n.sep ? `separador: ${f.sep?uname(f.sep)+" → ":""}${uname(n.sep)}` : `separador: ${uname(f.sep)} → volta para a fila`); }
