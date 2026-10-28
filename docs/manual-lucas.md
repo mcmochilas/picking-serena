@@ -116,6 +116,12 @@ Aba **Separação**. Mostra os pedidos **Aguardando separação** e **Em separa�
 - Embaixo aparece **Separados · com bandeja ou mesa**: pedidos já separados que ainda ocupam bandeja/mesa, com o botão **Liberar bandeja** (ou "Liberar bandeja e mesa").
 - **Painel TV**: abre o painel da fila para deixar numa TV.
 
+### 4.1a Trocar o separador ou o canal de um pedido (Administrador)
+Na fila, cada pedido tem um **lápis** (só o Administrador vê). Ele abre "Editar pedido", que tem dois campos no topo:
+- **Separador**: escolhe quem vai separar o pedido. Se o pedido ainda está na fila, ele fica **reservado** para essa pessoa: os outros separadores não o veem mais e o card mostra "Separador: Nome". Se já está em separação, passa para a nova pessoa e o que já foi bipado continua valendo; quem estava separando sai da tela com o aviso "O Administrador passou o pedido para outra pessoa". **Nenhum** devolve o pedido para a fila, para qualquer separador pegar. Só aparecem pessoas com nível Separador, Supervisor ou Conferente. Se a pessoa não separa aquele canal (opção Venda Consultiva / E-commerce no cadastro em Usuários), o sistema não deixa salvar.
+- **Canal**: passa o pedido de **Venda Consultiva para E-commerce** ou o contrário. Antes de concluir, abre a tela **Tipo de envio**, igual à do Comercial ao subir a pré-venda: Envio total (vai para a fila), Envio parcial (marque quantas peças de cada item são encomenda; Compras é avisado) ou Tem encomenda (o pedido vai para Compras decidir). Também tem Retira na Loja e Cliente está na loja. **Voltar** cancela a transferência sem salvar nada.
+Tudo fica registrado no histórico do pedido com o nome do Administrador. O mesmo "Editar" existe na aba Separados.
+
 ### 4.2 Separar um pedido, passo a passo
 Toque no pedido para começar. O cronômetro de picking começa a contar. No topo da tela aparecem o número do pedido e o **nome do cliente** (Venda Consultiva e E-commerce).
 1. **Bandeja** (se a configuração "Usar bandeja" estiver ligada): bipe uma bandeja vazia. Sem bandeja ou peças grandes: toque em **usar a Mesa** (ou bipe a etiqueta de outra mesa). Para juntar vários pedidos, bipe uma **cesta**.
@@ -154,7 +160,7 @@ Tudo fica registrado no histórico do pedido.
 ### 4.5 Separados
 Aba **Separados**: histórico dos pedidos separados (e os excluídos do dia), com transportadora, cliente, horário, tempo de picking e situação.
 - Filtro **Todos · Venda Consultiva · E-commerce** e busca por número do pedido ou cliente.
-- **Editar** (só Administrador): altera tipo de envio, retirada, transportadora, situação (onde está no fluxo), bandeja/mesa, colmeia e observação. Tudo fica registrado no histórico do pedido. Voltar a situação para "Aguardando separação" recoloca o pedido na fila e avisa os separadores.
+- **Editar** (só Administrador): altera canal (com confirmação do tipo de envio), separador, tipo de envio, retirada, transportadora, situação (onde está no fluxo), bandeja/mesa, colmeia e observação. Tudo fica registrado no histórico do pedido. Voltar a situação para "Aguardando separação" recoloca o pedido na fila e avisa os separadores.
 
 ### 4.6 Painel TV
 Endereço `/#tv` (botão **Painel TV**). Mostra a fila de separação em letras grandes, com som de alerta (toque em "Ativar som") e **Tela cheia**. O nível "Painel TV" só vê esta tela.
