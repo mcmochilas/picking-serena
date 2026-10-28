@@ -117,7 +117,7 @@ Aba **Separação**. Mostra os pedidos **Aguardando separação** e **Em separa�
 - **Painel TV**: abre o painel da fila para deixar numa TV.
 
 ### 4.2 Separar um pedido, passo a passo
-Toque no pedido para começar. O cronômetro de picking começa a contar.
+Toque no pedido para começar. O cronômetro de picking começa a contar. No topo da tela aparecem o número do pedido e o **nome do cliente** (Venda Consultiva e E-commerce).
 1. **Bandeja** (se a configuração "Usar bandeja" estiver ligada): bipe uma bandeja vazia. Sem bandeja ou peças grandes: toque em **usar a Mesa** (ou bipe a etiqueta de outra mesa). Para juntar vários pedidos, bipe uma **cesta**.
 2. **Local**: a tela mostra o endereço (Rua-Lado-Tipo-Nível.Coluna, ex.: R1-LB-BIN-8.M), o desenho do móvel e o **mapa com a rota**. Vá até o local.
 3. **Bipe o produto** (EAN da embalagem ou o código do produto). Produto errado: o sistema avisa "Código X não é de nenhuma peça deste pedido".
