@@ -6,7 +6,7 @@
    Nada aqui fala com o Supabase nem com a Magazord.
    ===================================================================== */
 (function(){
-  const KEY = "ps-test-db-v8", UKEY = "ps-test-user";
+  const KEY = "ps-test-db-v9", UKEY = "ps-test-user";
   const mem = {};
   const ls = {
     get(k){ try{ return localStorage.getItem(k); }catch(e){ return mem[k] ?? null; } },
@@ -72,6 +72,9 @@
         {code:"7105213", name:"PUX 1688 OEIRAS PRETO FOS 96MM", qty:50, un:"PC", ped:"53456", sku:"", alloc:[]},
         {code:"7101633", name:"PUX 200 TUCSON DOURADO", qty:40, un:"PC", ped:"53456", sku:"", alloc:[]}], received:null, createdAt:now-864e5 } };
     orders.find(o=>o.id==="PV-90005").items[1].compra.nf = [{id:"NF-43261002923986000105550010000282551000000010", num:"28255", qty:6, key:"PV-90005:1"}];
+    // avisos de pré-venda ajustada para Compras
+    orders.find(o=>o.id==="PV-90004").adjCompras = {at:now-3*60*M, by:"u-com", ok:false, changes:[{code:"13088", name:"PUXADOR ANIELA 128MM NIQUEL", from:2, to:4, qtyFrom:8, qtyTo:10}]};
+    orders.find(o=>o.id==="PV-90007").adjCompras = {at:now-50*M, by:"u-com", ok:false, changes:[{code:"15002", name:"PUXADOR PERFIL 2M ALUMINIO", from:2, to:4, qtyFrom:2, qtyTo:4}, {code:"16120", name:"PUXADOR ZEN 160MM DOURADO", from:0, to:10, qtyFrom:0, qtyTo:10}]};
     const users = clone(USERS0);
     Object.values(users).forEach(u=>u.addedAt=now-30*864e5);
     return {
