@@ -93,7 +93,7 @@ Quando o cliente muda o pedido (quantidade, modelo, item novo ou removido), o Co
 - **Já separado** (na bandeja, na mesa, na área de envio ou na colmeia): o botão é **Enviar ajuste para a separação**; vira uma tarefa de ajuste no **topo da fila** dos separadores.
 - **Sendo separado agora**: o separador vê o aviso "Pré-venda ajustada pelo Comercial"; o que falta coletar já vem com a quantidade nova e o que já foi coletado vira tarefa de ajuste depois.
 - **Pedido que já saiu** (enviado, retirado pelo cliente, entregue na loja ou 1º envio feito): **Ajuste bloqueado**; combine direto com a expedição.
-- Se o ajuste mexer em item de **encomenda**, Compras recebe o aviso "Pré-vendas ajustadas pelo Comercial · corrija o pedido ao fornecedor" no topo da tela de Compras e marca **Ciente** quando corrigir.
+- Se o ajuste mexer em item de **encomenda**, Compras recebe o aviso "Pré-vendas ajustadas pelo Comercial · corrija o pedido ao fornecedor" no topo da tela de Compras, um balão por pré-venda, e fecha o balão no **×** quando corrigir.
 - Na lateral, o pedido mostra "Ajuste pendente na separação" e depois "Ajuste da pré-venda concluído".
 
 ### 3.4 Pedidos na expedição (lateral)
@@ -230,6 +230,10 @@ O card mostra cada item com as colunas **Vendido**, **Encomendar** e **Da loja**
 - **Separar o que tem na loja** (parte encomenda, parte da loja): as peças da loja vão para a separação e ficam guardadas numa colmeia livre (indicada na tela) até a encomenda chegar.
 - **Nada a encomendar**: vai para a separação como envio total (os separadores são avisados).
 Depois toque em **Confirmar e encaminhar**. O card também mostra o que o Comercial pediu e se o cliente retira ou está na loja.
+- **Editar itens** (só Administrador): no card "Para decidir", abre uma janela para mudar a quantidade, excluir item (×) ou adicionar item pelo SKU ou descrição. Ao salvar, o card atualiza e Compras segue decidindo. Fica registrado no histórico do pedido.
+
+### 7.1a Avisos de pré-venda ajustada
+No topo da tela de Compras aparecem os avisos "Pré-vendas ajustadas · corrija o pedido ao fornecedor", **um balão por pré-venda**, com o número, horário, cliente e o que mudou em cada item (encomenda e quantidade vendida). Depois de corrigir o pedido ao fornecedor, feche o balão no **×** (conta como "Compras ciente" e fica no histórico do pedido). Com mais de um aviso aparece **Dispensar todos**.
 
 ### 7.2 Importar o pedido feito ao fornecedor (PDF)
 Botão **Importar pedido do fornecedor**. Fornecedores reconhecidos: Living, Zen, Italy (Italyline), Torralba, Jador.
