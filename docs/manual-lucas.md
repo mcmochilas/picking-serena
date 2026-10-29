@@ -233,7 +233,7 @@ Depois toque em **Confirmar e encaminhar**. O card também mostra o que o Comerc
 - **Editar itens** (só Administrador): no card "Para decidir", abre uma janela para mudar a quantidade, excluir item (×) ou adicionar item pelo SKU ou descrição. Ao salvar, o card atualiza e Compras segue decidindo. Fica registrado no histórico do pedido.
 
 ### 7.1a Avisos de pré-venda ajustada
-No topo da tela de Compras aparecem os avisos "Pré-vendas ajustadas · corrija o pedido ao fornecedor", **um balão por pré-venda**, com o número, horário, cliente e o que mudou em cada item (encomenda e quantidade vendida). Depois de corrigir o pedido ao fornecedor, feche o balão no **×** (conta como "Compras ciente" e fica no histórico do pedido). Com mais de um aviso aparece **Dispensar todos**.
+No topo da tela de Compras aparecem os avisos "Pré-vendas ajustadas · corrija o pedido ao fornecedor", **um balão por pré-venda**, com o número, horário, cliente e o que mudou em cada item (encomenda e quantidade vendida). Depois de corrigir o pedido ao fornecedor, feche o balão no **×** (conta como "Compras ciente" e fica no histórico do pedido). Com mais de um aviso aparece **Dispensar todos**. Os avisos aparecem em **carrossel**, até 3 por vez no computador (2 em tela média, 1 no celular); com mais avisos, use as setas **‹ ›** ao lado do contador (ex.: "1–3 de 5") ou arraste para o lado.
 
 ### 7.2 Importar o pedido feito ao fornecedor (PDF)
 Botão **Importar pedido do fornecedor**. Fornecedores reconhecidos: Living, Zen, Italy (Italyline), Torralba, Jador.
