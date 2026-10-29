@@ -6,7 +6,7 @@
    Nada aqui fala com o Supabase nem com a Magazord.
    ===================================================================== */
 (function(){
-  const KEY = "ps-test-db-v9", UKEY = "ps-test-user";
+  const KEY = "ps-test-db-v10", UKEY = "ps-test-user";
   const mem = {};
   const ls = {
     get(k){ try{ return localStorage.getItem(k); }catch(e){ return mem[k] ?? null; } },
@@ -75,6 +75,9 @@
     // avisos de pré-venda ajustada para Compras
     orders.find(o=>o.id==="PV-90004").adjCompras = {at:now-3*60*M, by:"u-com", ok:false, changes:[{code:"13088", name:"PUXADOR ANIELA 128MM NIQUEL", from:2, to:4, qtyFrom:8, qtyTo:10}]};
     orders.find(o=>o.id==="PV-90007").adjCompras = {at:now-50*M, by:"u-com", ok:false, changes:[{code:"15002", name:"PUXADOR PERFIL 2M ALUMINIO", from:2, to:4, qtyFrom:2, qtyTo:4}, {code:"16120", name:"PUXADOR ZEN 160MM DOURADO", from:0, to:10, qtyFrom:0, qtyTo:10}]};
+    orders.find(o=>o.id==="PV-90005").adjCompras = {at:now-30*M, by:"u-com", ok:false, changes:[{code:"17333", name:"PUXADOR ARCO 128MM ROSE", from:6, to:8, qtyFrom:6, qtyTo:8}]};
+    orders.find(o=>o.id==="PV-90008").adjCompras = {at:now-20*M, by:"u-com", ok:false, changes:[{code:"17333", name:"PUXADOR ARCO 128MM ROSE", from:12, to:10, qtyFrom:12, qtyTo:10}]};
+    orders.find(o=>o.id==="PV-90009").adjCompras = {at:now-10*M, by:"u-com", ok:false, changes:[{code:"16120", name:"PUXADOR ZEN 160MM DOURADO", from:6, to:8, qtyFrom:6, qtyTo:8}]};
     const users = clone(USERS0);
     Object.values(users).forEach(u=>u.addedAt=now-30*864e5);
     return {
