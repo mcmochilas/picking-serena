@@ -1101,7 +1101,7 @@ function startDraft(p){
   const zero = p.items.filter(it=>!(it.qty>0)).map(it=>it.code);
   state.draftErr = zero.length ? `Não consegui ler a quantidade de: ${zero.join(", ")}. Confira o PDF antes de enviar.` : ""; render();
 }
-function freeSlot(){ const used=new Set(ORDERS.filter(usesHive).map(o=>o.colmeia)); return HIVE.find(s=>!used.has(s)) || null; }
+function freeSlot(){ const used=new Set([...ORDERS.filter(usesHive).map(o=>o.colmeia), ...ORDERS.filter(o=>o.adj?.status==="pendente" && o.adj.moveTo).map(o=>o.adj.moveTo)]); /* reservada para um ajuste */ return HIVE.find(s=>!used.has(s)) || null; }
 
 function renderComercial(){
   const d = state.draft;
@@ -1191,7 +1191,7 @@ function draftHTML(d){
     <div class="flagrow"><label class="retira green ${d.retira?"on":""}"><input type="checkbox" id="retiraChk" ${d.retira?"checked":""}><span><b>Retira na Loja</b></span></label>
     <label class="retira naloja ${d.naLoja?"on":""}"><input type="checkbox" id="naLojaChk" ${d.naLoja?"checked":""}><span><b>Cliente está na loja</b></span></label></div></div>
     <div><h2 style="margin-bottom:10px">3. Itens ${par?"· marque o que é sob encomenda":""}</h2>
-    ${d.mode==="temenc"?`<div class="hintbox">Não precisa marcar os itens: a pré-venda vai inteira para Compras, que decide o que encomendar e o que separar da loja.</div>`:""}
+    ${d.mode==="temenc"?`<div class="hintbox">${(()=>{ const pv=d.adjust && ORDERS.find(o=>o.id===d.id); return pv && adjPicked(pv) ? "Ajuste de pedido já separado: os itens novos e o aumento de quantidade vão para Compras decidir o que encomendar e o que separar da loja. O que separarem da loja vai para a mesma colmeia do pedido; o que já foi separado continua lá." : "Não precisa marcar os itens: a pré-venda vai inteira para Compras, que decide o que encomendar e o que separar da loja."; })()}</div>`:""}
     <div class="tablewrap"><table class="items">
       <thead><tr><th>Cód.</th><th>Descrição</th><th>Endereço</th><th class="num">Qtd</th>${par?`<th>Sob encomenda</th>`:""}<th class="num">Separar agora</th>${hasRole("admin")?`<th></th>`:""}</tr></thead>
       <tbody>${d.items.map((it,i)=>{
@@ -1663,10 +1663,11 @@ function bindAside(){
    1) importar o PDF do pedido feito ao fornecedor e relacionar cada linha às pré-vendas (manual);
    2) marcar a chegada dos itens e liberar o pedido para o envio/retirada. */
 let PURCHASES = {}, purchCol = null;
-const encItems = o => (o.items||[]).map((it,i)=>({...it, i})).filter(x=>x.qtyEnc>0);
+const encItems = o => (o.items||[]).map((it,i)=>({...it, i, qtyEnc:(it.qtyEnc||0)-(it.qtyDec||0)})).filter(x=>x.qtyEnc>0); // qtyDec: aguardando Compras decidir (ajuste)
+const decPend = o => (o.items||[]).some(it=>it.qtyDec>0);
 const encArrived = o => !!o.arrivedAt || (o.mode==="parcial" && o.remessa===2);
-const encOpen = o => !isEco(o) && !["enviado","excluido","analise_compras"].includes(o.status) && hasEnc(o) && !encArrived(o);
-const toDecide = o => o.status==="analise_compras";
+const encOpen = o => !isEco(o) && !["enviado","excluido","analise_compras"].includes(o.status) && encItems(o).length>0 && !encArrived(o);
+const toDecide = o => o.status==="analise_compras" || (decPend(o) && !["enviado","excluido"].includes(o.status));
 const canRelease = o => o.status==="na_colmeia" || o.status==="encomenda" || o.status==="enc_pendente" || (o.status==="pronto_envio" && o.mode==="parcial" && o.remessa!==2);
 const compraSt = it => it.compra?.st==="chegou" ? "chegou" : nfRecv(it)>=it.qtyEnc && it.qtyEnc>0 ? "chegou" : nfQty(it)>=it.qtyEnc && it.qtyEnc>0 ? "faturado" : nfQty(it)>0 ? "fatparc" : (it.compra?.links||[]).reduce((s,l)=>s+(+l.qty||0),0) >= it.qtyEnc ? "pedido" : (it.compra?.links||[]).length ? "parcial" : "falta";
 const compraQty = it => (it.compra?.links||[]).reduce((s,l)=>s+(+l.qty||0),0);
@@ -1775,7 +1776,49 @@ function decidePlanText(pl, o){
   if(pl.kind==="total") return `<b>Nada a encomendar</b>: vai para a separação como envio total (${pl.pick} pç).`;
   const slot=freeSlot(); return `<b>Separar o que tem na loja</b>: ${pl.refsPick} ref. · ${pl.pick} pç vão para a separação e ficam na ${slot?`colmeia <b>${slot.slice(3)}</b>`:"colmeia (<b>todas ocupadas</b>)"} · encomendar ${pl.enc} pç.`;
 }
+/* Ajuste de pedido já separado enviado como "Tem encomenda": Compras decide só os itens novos / o aumento */
+function decideAdjCard(o){
+  state.dq ||= {}; const its=(o.items||[]).map((it,i)=>({...it,i})).filter(x=>x.qtyDec>0);
+  const qs = state.dq[o.id] ||= Object.fromEntries(its.map(x=>[x.i, x.qtyDec]));
+  const w=adjWhere(o), enc=its.reduce((s,x)=>s+(qs[x.i]??x.qtyDec),0), loja=its.reduce((s,x)=>s+x.qtyDec,0)-enc;
+  return `<article class="cpcard dec" data-dec="${o.id}">
+    <div class="cphead"><b class="mono">#${esc(o.num)}</b><span class="chip urg">Para decidir · ajuste</span><span class="muted-s">Pedido já separado · ${esc(w.k==="envio"?"na área de envio":w.t.split(".")[0])}</span>${o.naLoja?`<span class="retirabar">CLIENTE NA LOJA</span>`:o.retira?`<span class="retirabar rb-green">RETIRA NA LOJA</span>`:""}</div>
+    <div class="cpcli">${esc(o.client)}<small>${[o.seller?"Vendedor "+esc(o.seller):"", o.decAdj?.at?"ajustada há "+since(o.decAdj.at):""].filter(Boolean).join(" · ")}</small></div>
+    <div class="cpnote">O Comercial ajustou a pré-venda com <b>Tem encomenda</b>. Decida só os itens novos (ou o aumento): o que encomendar e o que separar da loja. O que for da loja vai para ${o.colmeia?`a colmeia <b>${esc(o.colmeia.slice(3))}</b> do pedido`:"junto do pedido; se ficar alguma encomenda, o pedido inteiro é guardado numa colmeia livre"}.</div>
+    <div class="cptwrap"><table class="cptab cpdec"><thead><tr><th>Código</th><th>Item</th><th class="r">Novo no ajuste</th><th class="r">Encomendar</th><th class="r">Da loja</th></tr></thead><tbody>
+    ${its.map(x=>{ const e=Math.max(0,Math.min(x.qtyDec, qs[x.i]??x.qtyDec)); return `<tr><td class="mono">${esc(x.code)}</td><td>${esc(x.name)}${PRODUCTS[x.code]?.loc?`<div class="muted-s">${esc(fullLoc(PRODUCTS[x.code].loc))}</div>`:""}</td><td class="r tnum">${x.qtyDec}${x.qty>x.qtyDec?`<div class="muted-s">de ${x.qty} no pedido</div>`:""}</td>
+      <td class="r"><div class="encin"><input type="number" min="0" max="${x.qtyDec}" step="1" value="${e}" data-daq="${o.id}:${x.i}" aria-label="Encomendar de ${esc(x.code)}"></div></td><td class="r tnum"><b>${x.qtyDec-e}</b></td></tr>`; }).join("")}
+    </tbody></table></div>
+    <div class="decplan">${enc&&loja?`<b>Encomendar ${enc} pç</b> e <b>separar ${loja} pç da loja</b> (vira tarefa de ajuste para o separador).`:enc?`<b>Encomendar ${enc} pç</b>.`:`<b>Nada a encomendar</b>: ${loja} pç vão ser separadas da loja (tarefa de ajuste para o separador).`}</div>
+    <div class="cpfoot"><button class="btn primary cpbtn" data-daok="${o.id}">Confirmar e encaminhar</button></div>
+  </article>`;
+}
+function decideAdjOrder(oid){
+  const o=ORDERS.find(x=>x.id===oid); if(!o || !decPend(o)) return;
+  const qs=state.dq?.[oid]||{}, now=Date.now(), tasks=[];
+  const items=(o.items||[]).map((it,i)=>{ if(!(it.qtyDec>0)) return it;
+    const e=Math.max(0,Math.min(it.qtyDec, qs[i]??it.qtyDec)), loja=it.qtyDec-e, {qtyDec, ...rest}=it;
+    if(loja>0) tasks.push({code:it.code, name:it.name, ean:it.ean||PRODUCTS[it.code]?.ean||"", kind:"add", qty:loja});
+    const qtyEnc=Math.max(0,(it.qtyEnc||0)-loja); return {...rest, qtyEnc, eta: qtyEnc ? (it.eta||"") : ""}; });
+  const anyEnc=items.some(it=>it.qtyEnc>0), needHive = anyEnc && o.mode!=="parcial";
+  let moveTo=null, patch={items};
+  if(needHive && !o.colmeia){ moveTo=freeSlot(); if(!moveTo){ toast("Todas as colmeias estão ocupadas. Libere uma colmeia para encaminhar este pedido."); return; } } // a colmeia é gravada quando o separador guardar
+  if(needHive && o.colmeia) patch.mode="aguarda";
+  if(needHive && o.colmeia && o.status==="pronto_envio") patch.status="na_colmeia"; // já está na colmeia: agora aguarda a encomenda
+  const r=JSON.parse(JSON.stringify(o.res||items.map(()=>({status:"pend",got:0}))));
+  items.forEach((it,i)=>{ const need=Math.max(0,it.qty-(it.qtyEnc||0)), cur=r[i]||{status:"pend",got:0}; if((cur.got||0)<need) r[i]={...cur, status:"pend"}; });
+  patch.res=r;
+  if(tasks.length || moveTo){ const prevT = o.adj && o.adj.status==="pendente" ? o.adj.tasks||[] : [];
+    patch.adj={at:now, by:ME.id||"", status:"pendente", tasks:[...prevT, ...tasks].sort((a,b)=>(a.kind==="remove"?0:1)-(b.kind==="remove"?0:1)), changes:o.decAdj?.changes||o.adj?.changes||[], ver:(o.adj?.ver||0)+1, where:adjWhere(o), ...(moveTo?{moveTo}:{})}; }
+  const enc=tasks.length ? (o.items||[]).reduce((s,it)=>s+(it.qtyDec||0),0)-tasks.reduce((s,t)=>s+t.qty,0) : (o.items||[]).reduce((s,it)=>s+(it.qtyDec||0),0);
+  patch.decAdj={...(o.decAdj||{}), done:true, decidedAt:now, decidedBy:ME.id||""};
+  patch.hist=[...(o.hist||[]), {t:now, by:ME.id||"", ev:`Compras decidiu o ajuste · encomendar ${enc} pç${tasks.length?` · separar da loja ${tasks.reduce((s,t)=>s+t.qty,0)} pç`:""}${moveTo?` · colmeia ${moveTo.slice(3)}`:""}`}];
+  patchOrder(oid, patch); delete state.dq[oid];
+  toast(`#${o.num}: ${tasks.length?"o separador recebe o ajuste no topo da fila":"itens novos ficam como encomenda"}${moveTo?` · guardar na colmeia ${moveTo.slice(3)}`:""}`);
+  rerender();
+}
 function decideCard(o){
+  if(o.status!=="analise_compras" && decPend(o)) return decideAdjCard(o);
   state.dq ||= {}; const qs = state.dq[o.id] ||= Object.fromEntries(o.items.map((it,i)=>[i, it.qtyEnc||0]));
   const pl=decidePlan(o, qs), sug = MODES[o.modeCom||o.mode]?.t || "";
   return `<article class="cpcard dec" data-dec="${o.id}">
@@ -1800,6 +1843,8 @@ function bindDecide(){
   app.querySelectorAll("[data-dall]").forEach(b=>b.onclick=()=>{ const o=ORDERS.find(x=>x.id===b.dataset.dall); o.items.forEach((it,i)=>{ state.dq[o.id][i]=it.qty; const inp=app.querySelector(`[data-dq="${o.id}:${i}"]`); if(inp) inp.value=it.qty; }); upd(o.id); });
   app.querySelectorAll("[data-dok]").forEach(b=>b.onclick=()=>decideOrder(b.dataset.dok));
   app.querySelectorAll("[data-ditems]").forEach(b=>b.onclick=()=>openDecideItems(b.dataset.ditems));
+  app.querySelectorAll("[data-daq]").forEach(inp=>inp.onchange=()=>{ const [oid,i]=inp.dataset.daq.split(":"); state.dq ||= {}; state.dq[oid] ||= {}; state.dq[oid][+i]=Math.max(0,Math.round(+inp.value||0)); rerender(); });
+  app.querySelectorAll("[data-daok]").forEach(b=>b.onclick=()=>decideAdjOrder(b.dataset.daok));
 }
 /* ---- Administrador: editar itens e quantidades de uma pré-venda que está com Compras para decidir ---- */
 function openDecideItems(id){
@@ -2575,7 +2620,7 @@ function renderOrders(){
       return `<div class="section"><div class="eyebrow">Ajustes de pré-venda · ${aq.length}</div><div class="qgrid">${aq.map(o=>`<button class="order urgent adjord" data-adj="${esc(o.id)}" ${can("coleta")?"":"disabled"}>
         <div class="adjbar">AJUSTE DE PRÉ-VENDA</div>
         <div class="row"><span class="pvn">#${esc(o.num)}</span><span class="chip urg">${esc(adjSummary(o.adj))}</span></div>
-        <div class="cl">${esc(o.client)}</div><div class="meta"><span>${esc(adjWhere(o).t.split(".")[0])}</span></div></button>`).join("")}</div></div>`; })()}
+        <div class="cl">${esc(o.client)}</div><div class="meta"><span>${esc(adjW(o).t.split(".")[0])}</span></div></button>`).join("")}</div></div>`; })()}
     <div class="section"><div class="eyebrow">Fila de separação</div>${pgQ.top}
       ${queue.length ? `<div class="qgrid">` + pgQ.items.map(o=>{
         const pl=pickList(o), r=res(o), done=pl.filter(x=>r[x.i].status!=="pend").length, enc=o.items.filter(i=>i.qtyEnc>0).length;
@@ -4622,6 +4667,7 @@ function adjWhere(o){
   if(o.status==="na_mesa") return {k:"mesa", t:`Na mesa de expedição${o.colmeia?` (aguardando guardar na colmeia ${o.colmeia.slice(3)})`:""}`};
   return {k:"envio", t:"Este pedido já foi separado, o picking foi finalizado e ele não tem bandeja vinculada. Provavelmente está na área de envio, aguardando a coleta da transportadora."};
 }
+const adjW = o => o.adj?.where || adjWhere(o); // onde estava quando o ajuste foi criado (antes de mudar para a colmeia)
 const adjPending = o => !!o.adj && o.adj.status==="pendente";
 const adjReady = o => adjPending(o) && o.status!=="separando";
 const adjSummary = a => { const r=a.tasks.filter(t=>t.kind==="remove").reduce((s,t)=>s+t.qty,0), c=a.tasks.filter(t=>t.kind==="add").reduce((s,t)=>s+t.qty,0);
@@ -4645,23 +4691,29 @@ function sendAdjust(d){
   const prev=ORDERS.find(o=>o.id===d.id);
   const blk=adjBlocked(prev); if(blk){ state.draftErr=blk; return render(); }
   const picked=adjPicked(prev), keepMode = d.mode===d.modePreset;
-  if(picked && d.mode==="temenc" && !keepMode){ state.draftErr="Este pedido já foi separado: escolha Envio total ou Envio parcial para o ajuste."; return render(); }
-  const mode = keepMode ? prev.mode : d.mode, enc = mode!=="total";
+  // já separado + "Tem encomenda": o que entrou de novo (item novo ou aumento) vai para Compras decidir; o já separado fica onde está
+  const toDec = picked && d.mode==="temenc";
+  if(toDec && prev.status==="separando"){ state.draftErr=`O pedido #${prev.num} está sendo separado agora. Aguarde terminar a separação para enviar o ajuste como Tem encomenda.`; return render(); }
+  const mode = keepMode || toDec ? prev.mode : d.mode, enc = mode!=="total";
   const items = d.items.map(it=>{ const old=(prev.items||[]).find(x=>x.code===it.code);
+    if(toDec){ const oq=old?.qty||0, oe=Math.min(it.qty, old?.qtyEnc||0), delta=Math.max(0, it.qty-oq), qtyEnc=Math.min(it.qty, oe+delta), qtyDec=Math.min(qtyEnc, Math.min(it.qty, old?.qtyDec||0)+delta);
+      return {code:it.code, name:it.name, ean:it.ean, un:it.un, qty:it.qty, price:it.price, loc:it.loc?code(it.loc):"", qtyEnc, ...(qtyDec?{qtyDec}:{}), eta: qtyEnc-qtyDec>0 ? (old?.eta||"") : "", ...(old?.compra?{compra:old.compra}:{})}; }
     // tipo de envio mantido: item que era todo encomenda continua encomenda (o aumento também); item de estoque continua de estoque
     let qtyEnc = !enc ? 0 : d.mode==="temenc" && !keepMode ? it.qty
       : keepMode && prev.mode!=="parcial" ? (old ? (old.qtyEnc>=old.qty ? it.qty : Math.min(it.qty, old.qtyEnc||0)) : (prev.mode==="encomenda" ? it.qty : 0))
       : Math.min(it.qty, it.qtyEnc||0);
     return {code:it.code, name:it.name, ean:it.ean, un:it.un, qty:it.qty, price:it.price, loc:it.loc?code(it.loc):"", qtyEnc, eta: qtyEnc ? (old?.eta||it.eta||"") : "", ...(old?.compra?{compra:old.compra}:{})}; });
   const zeroQ=items.filter(it=>!(it.qty>0)); if(zeroQ.length){ state.draftErr=`Quantidade zerada em: ${zeroQ.map(x=>x.code).join(", ")}. O PDF não foi lido corretamente.`; return render(); }
-  if(mode==="parcial" && !items.some(it=>it.qtyEnc>0)){ state.draftErr="Envio parcial: informe pelo menos um item sob encomenda, ou escolha Envio total."; return render(); }
+  if(mode==="parcial" && !toDec && !items.some(it=>it.qtyEnc>0)){ state.draftErr="Envio parcial: informe pelo menos um item sob encomenda, ou escolha Envio total."; return render(); }
   items.forEach(it=>{ const p=PRODUCTS[it.code]; if(!p) saveProduct({code:it.code, name:it.name, ean:it.ean, loc:it.loc||""}); });
   const now=Date.now(), ch=adjChanges(prev.items||[], items), encCh=adjEncChanges(prev, items);
-  const head={ date:d.date, time:d.time, clientCode:d.clientCode, client:d.client, city:d.city, seller:d.seller, obs:d.obs, total:d.total, mode, modeCom: keepMode ? (prev.modeCom||prev.mode) : d.mode,
+  const head={ date:d.date, time:d.time, clientCode:d.clientCode, client:d.client, city:d.city, seller:d.seller, obs:d.obs, total:d.total, mode, modeCom: toDec ? "temenc" : keepMode ? (prev.modeCom||prev.mode) : d.mode,
     retira: !!(d.retira||d.naLoja), naLoja: !!d.naLoja, transportadora: (d.transportadora ?? carrierFromObs(d.obs)) || "" };
   const ev = "Pré-venda ajustada pelo Comercial" + (ch.length ? " · " + ch.map(adjChangeTxt).join(" · ") : " (sem mudança de itens)");
   const hist=[...(prev.hist||[]), {t:now, by:ME.id||"", ev}];
-  const adjCompras = encCh.length || (hasEnc(prev) && ch.length) ? {at:now, by:ME.id||"", changes: encCh.length ? encCh : ch.map(x=>({code:x.code, name:x.name, from:0, to:0, qtyFrom:x.from, qtyTo:x.to})), ok:false} : (prev.adjCompras||null);
+  const anyDec = toDec && items.some(it=>it.qtyDec>0);
+  if(anyDec) head.decAdj = {at:now, by:ME.id||"", changes:ch};
+  const adjCompras = anyDec ? (prev.adjCompras||null) : encCh.length || (hasEnc(prev) && ch.length) ? {at:now, by:ME.id||"", changes: encCh.length ? encCh : ch.map(x=>({code:x.code, name:x.name, from:0, to:0, qtyFrom:x.from, qtyTo:x.to})), ok:false} : (prev.adjCompras||null);
   let o;
   if(!picked){
     // ainda não separado: só atualiza (mantém a posição na fila)
@@ -4694,13 +4746,14 @@ function sendAdjust(d){
   }
   state.draft=null; state.draftErr="";
   saveOrder(o);
-  toast(o.adj && o.adj.status==="pendente" ? `Ajuste da pré-venda ${o.num} enviado · o separador vai ${adjSummary(o.adj)}` : `Pré-venda ${o.num} atualizada${adjCompras&&!adjCompras.ok?" · Compras foi avisado":""}`);
+  toast((anyDec ? `Ajuste da pré-venda ${o.num} enviado para Compras decidir os itens novos` + (o.adj && o.adj.status==="pendente" ? ` · o separador vai ${adjSummary(o.adj)}` : "")
+    : o.adj && o.adj.status==="pendente" ? `Ajuste da pré-venda ${o.num} enviado · o separador vai ${adjSummary(o.adj)}` : `Pré-venda ${o.num} atualizada${adjCompras&&!adjCompras.ok?" · Compras foi avisado":""}`));
 }
 
 /* ---- tela do separador: executar o ajuste ---- */
 function startAdjust(oid){
   const o=ORDERS.find(x=>x.id===oid); if(!o || !adjReady(o) || !can("coleta")) return;
-  const w=adjWhere(o);
+  const w=adjW(o);
   state.aj={oid, phase: w.code && (w.k==="tray"||w.k==="colmeia") ? "find" : "findBtn", idx:0, step:"prod", cnt:0, done:{}};
   patchOrder(o.id, {adj:{...o.adj, startedAt:Date.now(), startedBy:ME.id||""}});
   state.view="adjust"; render(); scrollTo(0,0);
@@ -4715,12 +4768,13 @@ function finishAdjust(){
   const r=JSON.parse(JSON.stringify(o.res||[]));
   o.adj.tasks.filter(t=>t.kind==="add").forEach(t=>{ let q=t.qty; (o.items||[]).forEach((it,i)=>{ if(it.code!==t.code || !q) return; const need=Math.max(0,it.qty-(it.qtyEnc||0)), cur=r[i]||{status:"pend",got:0}, put=Math.min(q, need-(cur.got||0));
     if(put>0){ cur.got=(cur.got||0)+put; q-=put; } cur.status = cur.got>=need ? "ok" : cur.got>0 ? "part" : "miss"; r[i]=cur; }); });
-  patchOrder(o.id, {res:r, adj:{...o.adj, status:"ok", doneAt:now, doneBy:ME.id||""}, hist:[...(o.hist||[]), {t:now, by:ME.id||"", ev:"Ajuste da pré-venda concluído pela separação · "+adjSummary(o.adj)}]});
+  const mv = o.adj.moveTo ? {colmeia:o.adj.moveTo, mode:"aguarda", status:"na_colmeia", storedAt:now, tray:"", trayStatus:""} : {};
+  patchOrder(o.id, {res:r, ...mv, adj:{...o.adj, status:"ok", doneAt:now, doneBy:ME.id||""}, hist:[...(o.hist||[]), {t:now, by:ME.id||"", ev:"Ajuste da pré-venda concluído pela separação · "+adjSummary(o.adj)+(o.adj.moveTo?` · guardado na colmeia ${o.adj.moveTo.slice(3)}`:"")}]});
   toast(`Ajuste do pedido #${o.num} concluído`); state.aj=null; state.view="orders"; render(); scrollTo(0,0);
 }
 function renderAdjust(){
   const c=ajCur(); if(!c){ state.aj=null; state.view="orders"; return render(); }
-  const {a, o, tasks, t}=c, w=adjWhere(o), doneN=tasks.filter((x,k)=>a.done[k]).length;
+  const {a, o, tasks, t}=c, w=adjW(o), doneN=tasks.filter((x,k)=>a.done[k]).length;
   const L = t ? usLoc(t) : null;
   const ph=(k,n,txt)=>{ const ord=["find","tasks","back"], cur=ord.indexOf(a.phase==="findBtn"?"find":a.phase), me=ord.indexOf(k); return `<div class="phase ${me<cur?"ok":me===cur?"on":""}"><span class="n">${me<cur?"✓":n}</span>${txt}</div>`; };
   let main;
@@ -4757,8 +4811,8 @@ function renderAdjust(){
       <button class="btn primary" id="ajOk" ${a.cnt>=t.qty?"":"disabled"}>Confirmar ${t.qty} pç coletadas</button>
       <button class="demo" id="sim">Simular leitura da peça (demo)</button></div>`;
   else main=`<div class="product">
-      <div class="eyebrow">Tudo feito</div><h2 style="margin:0">Devolva o pedido ao lugar</h2>
-      <div class="adjwhere">${esc(w.k==="envio" ? "Deixe o pedido de volta na área de envio, aguardando a transportadora." : w.t)}</div>
+      <div class="eyebrow">Tudo feito</div><h2 style="margin:0">${o.adj.moveTo?"Guarde o pedido na colmeia":"Devolva o pedido ao lugar"}</h2>
+      <div class="adjwhere">${o.adj.moveTo ? `Agora o pedido tem encomenda: guarde todas as peças na colmeia ${esc(o.adj.moveTo.slice(3))} até a encomenda chegar.` : esc(w.k==="envio" ? "Deixe o pedido de volta na área de envio, aguardando a transportadora." : w.t)}</div>
       <button class="btn primary" id="ajDone">Ajuste concluído</button></div>`;
   app.innerHTML = `
     <header class="bar"><button class="back" id="back" aria-label="Voltar para a fila"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
@@ -4782,7 +4836,7 @@ function renderAdjust(){
   focusScan();
 }
 function scanAdjust(v){
-  const c=ajCur(); if(!c) return; const {a, o, t}=c, w=adjWhere(o);
+  const c=ajCur(); if(!c) return; const {a, o, t}=c, w=adjW(o);
   if(a.phase==="find"){
     const ok = w.k==="colmeia" ? hiveCode(v)===w.code : normSpot(v)===w.code;
     if(ok){ feedback(true); ajNext(); return setMsg("Pedido encontrado","good"); }
