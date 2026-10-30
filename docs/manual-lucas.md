@@ -91,6 +91,7 @@ Quando o cliente muda o pedido (quantidade, modelo, item novo ou removido), o Co
 - O sistema reconhece o número e mostra **Ajuste da pré-venda #X**, comparando as versões: quantidade que aumentou/diminuiu, **item novo**, **item removido** e **troca de modelo** (sai um item, entra outro). O tipo de envio e as marcações de retirada vêm preenchidos com os da versão anterior.
 - **Ainda não separado**: o botão é **Atualizar pré-venda**; o pedido só é atualizado e mantém a posição na fila.
 - **Já separado** (na bandeja, na mesa, na área de envio ou na colmeia): o botão é **Enviar ajuste para a separação**; vira uma tarefa de ajuste no **topo da fila** dos separadores.
+- **Já separado + Tem encomenda** (ex.: entrou item novo, parte de pronta entrega e parte encomenda): escolha **Tem encomenda** no ajuste. Os itens novos e o aumento de quantidade vão para **Compras** decidir (aparece em "Para decidir" com a etiqueta **Ajuste**); o que já foi separado continua onde está. O que Compras decidir separar da loja vira tarefa de ajuste para o separador, que coleta e junta na **mesma colmeia** do pedido. Se o pedido ainda não estava em colmeia e passou a ter encomenda, o sistema reserva uma colmeia livre e o separador guarda o pedido inteiro nela no fim do ajuste. Se o pedido estiver sendo separado naquele momento, espere terminar para enviar o ajuste como Tem encomenda.
 - **Sendo separado agora**: o separador vê o aviso "Pré-venda ajustada pelo Comercial"; o que falta coletar já vem com a quantidade nova e o que já foi coletado vira tarefa de ajuste depois.
 - **Pedido que já saiu** (enviado, retirado pelo cliente, entregue na loja ou 1º envio feito): **Ajuste bloqueado**; combine direto com a expedição.
 - Se o ajuste mexer em item de **encomenda**, Compras recebe o aviso "Pré-vendas ajustadas pelo Comercial · corrija o pedido ao fornecedor" no topo da tela de Compras, um balão por pré-venda, e fecha o balão no **×** quando corrigir.
@@ -230,6 +231,7 @@ O card mostra cada item com as colunas **Vendido**, **Encomendar** e **Da loja**
 - **Separar o que tem na loja** (parte encomenda, parte da loja): as peças da loja vão para a separação e ficam guardadas numa colmeia livre (indicada na tela) até a encomenda chegar.
 - **Nada a encomendar**: vai para a separação como envio total (os separadores são avisados).
 Depois toque em **Confirmar e encaminhar**. O card também mostra o que o Comercial pediu e se o cliente retira ou está na loja.
+- **Para decidir · Ajuste**: pré-venda já separada que o Comercial ajustou com Tem encomenda. O card mostra só o que entrou de novo (coluna "Novo no ajuste"); digite quanto encomendar, o restante é separado da loja e vira tarefa de ajuste para o separador juntar na colmeia do pedido.
 - **Editar itens** (só Administrador): no card "Para decidir", abre uma janela para mudar a quantidade, excluir item (×) ou adicionar item pelo SKU ou descrição. Ao salvar, o card atualiza e Compras segue decidindo. Fica registrado no histórico do pedido.
 
 ### 7.1a Avisos de pré-venda ajustada
