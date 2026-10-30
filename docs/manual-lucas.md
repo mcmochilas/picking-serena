@@ -173,6 +173,7 @@ Endereço `/#tv` (botão **Painel TV**). Mostra a fila de separação em letras 
 - Se a situação mudar na Magazord, o pedido sai da fila sozinho (se voltar para a 5, volta para a fila).
 - A transportadora vem do próprio pedido; o logotipo aparece se estiver cadastrado em **Usuários → Logotipos das transportadoras**.
 - Configuração da integração: **Usuários → Integração Magazord** (Administrador): Importar agora, ver última importação.
+- **Pedido manual**: pedido criado no painel da Magazord pela equipe (não comprado no site nem no marketplace). Aparece na fila de separação com a tag roxa **MANUAL** e o card destacado em roxo (o quadro do cliente na tela de separação também fica roxo). Ao tocar para começar, o sistema pergunta "Iniciar separação de pedido manual?": **Cancelar** volta para a fila sem mexer no pedido; **Continuar** inicia a separação. Pedidos manuais **não entram na Separação em lote**; são separados um a um pela fila.
 
 ---
 
