@@ -110,6 +110,7 @@ function mapOrder(d: any, idx: { byEan: Map<string, any>; byId: Map<string, any>
     transportadora: r0.transportadoraNome || "", servico: r0.transportadoraServicoDescricao || "",
     mode: "total", v2: true, remessa: 1, status: "aguardando", items: [...items.values()],
     createdAt: toMs(d.dataHora), importedAt: Date.now(), mzSituacao: d.pedidoSituacao, createdBy: "",
+    mzOrigem: d.origem ?? null, mzTipoCad: d.tipoCadastroPM ?? null, // como o pedido foi criado na Magazord (site, manual, marketplace)
   };
 }
 async function patchOrder(id: string, data: any, patch: Record<string, unknown>) {
@@ -136,6 +137,9 @@ async function sync(horas = JANELA_HORAS) {
     if (cur) {
       // saiu da fila sozinho porque a situação mudou e agora voltou para a 5: volta para a fila
       if (cur.status === "excluido" && cur.mzAuto) { await patchOrder("MZ-" + o.id, cur, { status: "aguardando", mzAuto: false, deletedAt: null, deleteReason: "", mzSituacao: SITUACAO_IMPORTAR, mzSituacaoDesc: "" }); restored++; }
+      else if (!("mzOrigem" in cur) && ["aguardando", "separando"].includes(cur.status)) { // pedidos importados antes de guardar a origem
+        try { const d = await mz(`/v2/site/pedido/${encodeURIComponent(String(o.codigo))}`); const det = (d.body as any)?.data; if (det) await patchOrder("MZ-" + o.id, cur, { mzOrigem: det.origem ?? null, mzTipoCad: det.tipoCadastroPM ?? null }); } catch { /* tenta na próxima */ }
+      }
       continue;
     }
     try {
@@ -216,6 +220,16 @@ Deno.serve(async (req) => {
         out[q] = { status: r.status, meta, rows: listOf(body).map((o: any) => [o.id, o.dataHora, o.pedidoSituacao, o.pedidoSituacaoDescricao, o.lojaDoMarketplaceNome]), err: r.status >= 400 ? (typeof body === "string" ? body.slice(0, 200) : body?.message || body?.error) : undefined };
       }
       return json(out);
+    }
+    if (b.action === "origens" && internal) { // diagnóstico: como a Magazord marca a origem (site, manual, marketplace)
+      const r = await mz("/v2/site/pedido?limit=" + Math.min(Number(b.n) || 40, 100) + "&page=1&orderDirection=desc");
+      const out: Record<string, Record<string, number>> = {};
+      for (const o of listOf(r.body)) {
+        const d = await mz(`/v2/site/pedido/${encodeURIComponent(String(o.codigo))}`); const det = (d.body as any)?.data; if (!det) continue;
+        const key = `origem=${JSON.stringify(det.origem)} tipoCadastroPM=${JSON.stringify(det.tipoCadastroPM)} mkt=${det.lojaDoMarketplaceNome || det.marketplaceNome || "-"} vend=${det.codigoVendedor ? "sim" : "não"} src=${String(det.pedidoTrackingSource ?? "-").slice(0, 30)}`;
+        (out[key] ||= {})[String(det.pedidoSituacaoDescricao || "")] = ((out[key] ||= {})[String(det.pedidoSituacaoDescricao || "")] || 0) + 1;
+      }
+      return json({ ok: true, out });
     }
     if (b.action === "test" || b.action === "probe") {
       const q = b.query || "?limit=50&page=1";

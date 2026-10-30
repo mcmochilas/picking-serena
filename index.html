@@ -140,6 +140,9 @@ button:focus-visible{outline:3px solid var(--route);outline-offset:2px}
 .flagrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}.flagrow .retira{margin-top:10px}
 @media (max-width:560px){.flagrow{grid-template-columns:1fr}}
 .order.urg-loja{border-color:var(--bad);box-shadow:0 0 0 1px var(--bad) inset}
+.chip.manualc{background:#6D28D9;color:#fff;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.order.manual{border-color:#7C3AED;border-left:6px solid #7C3AED;background:color-mix(in srgb,#7C3AED 9%,var(--surface));box-shadow:0 0 0 1px #7C3AED inset}
+.pickcli.manual{border-color:#7C3AED;background:color-mix(in srgb,#7C3AED 9%,var(--surface))}.pickcli .chip.manualc{margin-left:auto;flex:none}
 .order.urg-retira{border-color:var(--ok);box-shadow:0 0 0 1px var(--ok) inset;border-left-color:var(--ok)}
 .retirabar{background:var(--bad);color:#fff;font-weight:800;font-size:12px;letter-spacing:.08em;border-radius:6px;padding:4px 8px;align-self:flex-start}
 .retirabar.rb-green{background:var(--ok)}
@@ -2626,9 +2629,9 @@ function renderOrders(){
         const pl=pickList(o), r=res(o), done=pl.filter(x=>r[x.i].status!=="pend").length, enc=o.items.filter(i=>i.qtyEnc>0).length;
         const aisles=[...new Set(pl.filter(x=>x.loc).map(x=>"R"+x.loc.r))].join(" · "), semLoc=pl.filter(x=>!x.loc).length;
         const acts = (can("coleta") ? (o.status==="separando"?2:1) : 0) + (hasRole("admin")?1:0);
-        return `<div class="ordwrap acts${acts}"><button class="order ${o.mode==="aguarda"||urgKind(o)?"urgent":""} ${o.naLoja?"urg-loja":o.retira?"urg-retira":""}" data-oid="${esc(o.id)}">
+        return `<div class="ordwrap acts${acts}"><button class="order ${o.mode==="aguarda"||urgKind(o)?"urgent":""} ${o.naLoja?"urg-loja":o.retira?"urg-retira":""} ${isManual(o)?"manual":""}" data-oid="${esc(o.id)}">
           ${urgBar(o)}
-          <div class="row"><span class="num">#${esc(o.num)}${newIds.has(o.id)&&o.status==="aguardando"?` <span class="chip newc">Novo</span>`:""}</span>${o.status==="separando"?`<span class="chip prog">Em separação</span>`:o.fase2?`<span class="chip done">Encomenda recebida</span>`:isEco(o)?`<span class="chip eco">${esc(o.origem||"Site")}</span>`:`<span class="chip ${MODES[o.mode].c}">${MODES[o.mode].t}</span>`}</div>
+          <div class="row"><span class="num">#${esc(o.num)}${newIds.has(o.id)&&o.status==="aguardando"?` <span class="chip newc">Novo</span>`:""}${isManual(o)?" "+manualTag(o):""}</span>${o.status==="separando"?`<span class="chip prog">Em separação</span>`:o.fase2?`<span class="chip done">Encomenda recebida</span>`:isEco(o)?`<span class="chip eco">${esc(o.origem||"Site")}</span>`:`<span class="chip ${MODES[o.mode].c}">${MODES[o.mode].t}</span>`}</div>
           ${o.mzCancelado?`<div class="mzcancel">CANCELADO na Magazord · não enviar</div>`:o.mzMudou?`<div class="mzcancel warn">Situação mudou na Magazord: ${esc(o.mzSituacaoDesc||o.mzSituacao)} · confirme antes de enviar</div>`:""}
           <div class="client">${esc(o.client)}</div>
           <div class="meta tnum"><span>${pl.length} ref. · ${pl.reduce((a,x)=>a+x.need,0)} pç</span>${aisles?`<span>Ruas ${aisles}</span>`:""}${semLoc?`<span style="color:var(--bad)">${semLoc} sem local</span>`:""}${o.status==="separando"&&o.startedAt?`<span>Separando há ${since(o.startedAt)}</span>`:`<span>Na fila há ${since(o.createdAt)}</span>`}${o.tray&&o.status==="separando"?`<span>Bandeja ${esc(o.tray)}</span>`:""}${isEco(o)?transpBadge(o.transportadora):`${transpOf(o)?transpBadge(transpOf(o)):""}`+(o.mode==="aguarda"?`<span>Colmeia ${esc(o.colmeia)}</span>`:`<span>Destino: mesa de expedição</span>`)}${enc?`<span>${enc} ref. sob encomenda</span>`:""}${sepOf(o)?`<span class="sepby">Separador: <b>${esc(USERS[sepOf(o)]?.name||USERS[sepOf(o)]?.login||"—")}</b></span>`:""}</div>
@@ -3065,7 +3068,7 @@ function renderPick(){
       <span class="timer" title="Tempo de picking">⏱ ${since(o.startedAt)}</span>
       <span class="badge tnum">${state.idx+1}/${pl.length}</span>
     </header>
-    <div class="pickcli"><span>Cliente</span><b>${esc(o.client||"Não informado")}</b></div>
+    <div class="pickcli ${isManual(o)?"manual":""}"><span>Cliente</span><b>${esc(o.client||"Não informado")}</b>${manualTag(o)}</div>
     ${o.mzCancelado?`<div class="mzcancel big">Pedido CANCELADO na Magazord · pare a separação e devolva as peças</div>`:o.mzMudou?`<div class="mzcancel big warn">A situação deste pedido mudou na Magazord para "${esc(o.mzSituacaoDesc||o.mzSituacao)}" · confirme com o responsável antes de continuar</div>`:""}
     ${urgBar(o,"margin-top:8px")}
     ${adjPending(o) ? `<div class="adjbar" style="margin-top:8px">PRÉ-VENDA AJUSTADA PELO COMERCIAL · as peças que faltam já estão com a quantidade nova. Depois de terminar, o ajuste (${esc(adjSummary(o.adj))}) aparece no topo da fila.</div>` : ""}
@@ -4122,6 +4125,8 @@ function canEco(){ if(!db) return true; if(state.viewAs) return false; if(myRole
 /* Venda Consultiva: idem, com a opção "Venda Consultiva" em Usuários */
 function canCons(){ if(!db) return true; if(state.viewAs) return true; if(myRole()==="admin") return true; return !!(ME.id && USERS[ME.id]?.consultiva); }
 const isEco = o => o.canal==="ecommerce";
+const isManual = o => isEco(o) && Number(o.mzOrigem)===3; // Magazord: origem 1 = site, 2 = marketplace, 3 = pedido manual (painel)
+const manualTag = o => isManual(o) ? `<span class="chip manualc">Manual</span>` : "";
 // Urgência: "Cliente está na loja" (vermelho) primeiro, depois "Retira na Loja" (verde)
 const urgKind = o => o.naLoja ? "loja" : o.retira ? "retira" : "";
 const urgRank = o => o.naLoja ? 2 : o.retira ? 1 : 0;

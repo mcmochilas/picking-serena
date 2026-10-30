@@ -6,7 +6,7 @@
    Nada aqui fala com o Supabase nem com a Magazord.
    ===================================================================== */
 (function(){
-  const KEY = "ps-test-db-v10", UKEY = "ps-test-user";
+  const KEY = "ps-test-db-v11", UKEY = "ps-test-user";
   const mem = {};
   const ls = {
     get(k){ try{ return localStorage.getItem(k); }catch(e){ return mem[k] ?? null; } },
@@ -53,7 +53,7 @@
       {...base, id:"PV-90010", num:"90010", client:"CASA LINDA PLANEJADOS (EXEMPLO)", clientCode:"110", obs:"VEM RETIRAR", mode:"encomenda", modeCom:"encomenda", status:"analise_compras", canal:"consultiva", retira:true, transportadora:"", createdAt:now-50*M, items:[it("14410",10,10), it("17333",2,2)]},
       {id:"MZ-50001", num:"0012610900001", client:"Fernanda Alves (exemplo)", canal:"ecommerce", origem:"Mercado Livre", transportadora:"Mercado Livre Coletas", mode:"total", status:"aguardando", v2:true, remessa:1, createdAt:now-30*M, items:[it("13088",1)]},
       {id:"MZ-50002", num:"0012610900002", client:"Ricardo Gomes (exemplo)", canal:"ecommerce", origem:"Mercado Livre", transportadora:"Mercado Livre Coletas", mode:"total", status:"aguardando", v2:true, remessa:1, createdAt:now-22*M, items:[it("12045",2)]},
-      {id:"MZ-50003", num:"0012610900003", client:"Juliana Costa (exemplo)", canal:"ecommerce", origem:"Site", transportadora:"Correios", mode:"total", status:"aguardando", v2:true, remessa:1, createdAt:now-15*M, items:[it("17333",1), it("16120",1)]},
+      {id:"MZ-50003", num:"0012610900003", client:"Juliana Costa (exemplo)", canal:"ecommerce", origem:"Site", mzOrigem:3, transportadora:"Correios", mode:"total", status:"aguardando", v2:true, remessa:1, createdAt:now-15*M, items:[it("17333",1), it("16120",1)]},
       {id:"MZ-50004", num:"0012610900004", client:"Paulo Mendes (exemplo)", canal:"ecommerce", origem:"Site", transportadora:"Azul Cargo", mode:"total", status:"aguardando", v2:true, remessa:1, createdAt:now-8*M, items:[it("14410",2)]},
       {id:"MZ-50005", num:"0012610900005", client:"Ana Ribeiro (exemplo)", canal:"ecommerce", origem:"Mercado Livre", transportadora:"Mercado Livre Coletas", mode:"total", status:"pronto_envio", v2:true, remessa:1, createdAt:now-90*M, startedAt:now-70*M, pickedAt:now-68*M, atMesaAt:now-68*M, items:[it("13088",1)], res:[{status:"ok",got:1}]}
     ];
