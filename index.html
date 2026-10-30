@@ -2679,10 +2679,19 @@ function renderOrders(){
   app.querySelectorAll("[data-restart]").forEach(b=>b.onclick=()=>restartOrder(b.dataset.restart, false));
   app.querySelectorAll("[data-delord]").forEach(b=>b.onclick=()=>deleteOrder(b.dataset.delord));
   app.querySelectorAll("[data-qedit]").forEach(b=>b.onclick=()=>openOrderEdit(b.dataset.qedit));
-  if(can("coleta")) app.querySelectorAll(".order[data-oid]").forEach(b=>b.onclick=()=>openOrder(b.dataset.oid));
+  if(can("coleta")) app.querySelectorAll(".order[data-oid]").forEach(b=>b.onclick=()=>openOrderAsk(b.dataset.oid));
   else app.querySelectorAll(".order[data-oid]").forEach(b=>{ b.style.cursor="default"; b.tabIndex=-1; });
   app.querySelectorAll("[data-free]").forEach(b=>b.onclick=()=>{ if(!b.dataset.c){ b.dataset.c="1"; b.textContent="Confirmar liberação"; b.classList.add("danger"); return; } const o=ORDERS.find(x=>x.id===b.dataset.free); if(o){ unlinkTray(o); toast(`${spotsTxt(o)} liberada · pedido ${o.num} foi para ${inHive(o)?"Colmeias":"Separados"}`); } });
   bindHiveList();
+}
+/* Pedido manual do e-commerce: confirmar antes de começar a separar */
+async function openOrderAsk(id){
+  const o=ORDERS.find(x=>x.id===id); if(!o) return;
+  if(isManual(o) && o.status==="aguardando"){
+    const ok=await askModal({title:"Iniciar separação de pedido manual?", text:`O pedido <b>#${esc(o.num)}</b> · ${esc(o.client||"cliente")} é um <b>pedido manual</b> do e-commerce. Deseja realmente iniciar a separação?`, okText:"Continuar"});
+    if(!ok) return;
+  }
+  openOrder(id);
 }
 function openOrder(id){
   const o=ORDERS.find(x=>x.id===id); if(!o || !ecoOk(o)) return;
@@ -2925,7 +2934,7 @@ const LOTE_BY = { canal:{t:"Canal", f:"origem"}, transportadora:{t:"Transportado
 const loteVal = (o, by) => o[LOTE_BY[by].f] || (by==="canal" ? "Site" : "Sem transportadora");
 const loteMatch = (o, L=state.lote) => !!L && isEco(o) && L.vals.includes(loteVal(o, L.by));
 function lotePending(L=state.lote){ // pedidos do lote ainda por separar (os meus em andamento primeiro)
-  return ORDERS.filter(o=>loteMatch(o,L) && pickList(o).length && !o.mzCancelado && !o.mzMudou && !notMine(o) &&
+  return ORDERS.filter(o=>loteMatch(o,L) && !isManual(o) && pickList(o).length && !o.mzCancelado && !o.mzMudou && !notMine(o) &&
       (o.status==="aguardando" || (o.status==="separando" && (!o.startedBy || o.startedBy===ME.id))))
     .sort((a,b)=>((b.status==="separando")-(a.status==="separando")) || (a.createdAt||0)-(b.createdAt||0));
 }
@@ -2939,7 +2948,7 @@ function loteBoxHTML(){
   if(L){ const n=lotePending().length;
     return `<div class="lotebox on"><div><div class="eyebrow">Separação em lote · ${esc(LOTE_BY[L.by].t)}</div><b>${L.vals.map(esc).join(" · ")}</b><small>${L.done||0} separado(s) · ${n} restante(s)</small></div>
       <div class="lotebtns"><button class="btn primary sm" id="loteGo" ${n?"":"disabled"}>${n?"Continuar":"Sem pedidos"}</button><button class="btn ghost sm" id="loteEnd">Encerrar</button></div></div>`; }
-  return `<div class="lotebox"><div><b>Separação em lote</b><small>Escolha por canal ou por transportadora e separe um pedido atrás do outro.</small></div>
+  return `<div class="lotebox"><div><b>Separação em lote</b><small>Escolha por canal ou por transportadora e separe um pedido atrás do outro. Pedidos manuais ficam fora do lote.</small></div>
     <button class="btn primary playbtn" id="loteNew" aria-label="Iniciar separação em lote" title="Iniciar separação em lote"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg></button></div>`;
 }
 function bindLote(){
@@ -2948,7 +2957,7 @@ function bindLote(){
   const en=document.getElementById("loteEnd"); if(en) en.onclick=()=>{ state.lote=null; saveLote(); toast("Lote encerrado"); render(); };
 }
 function openLoteModal(){
-  const avail = ORDERS.filter(o=>isEco(o) && ecoOk(o) && pickList(o).length && !o.mzCancelado && !o.mzMudou && !notMine(o) && (o.status==="aguardando" || (o.status==="separando" && o.startedBy===ME.id)));
+  const avail = ORDERS.filter(o=>isEco(o) && !isManual(o) && ecoOk(o) && pickList(o).length && !o.mzCancelado && !o.mzMudou && !notMine(o) && (o.status==="aguardando" || (o.status==="separando" && o.startedBy===ME.id)));
   let by="transportadora", sel=new Set();
   const ov=document.createElement("div"); ov.className="modal"; document.body.appendChild(ov); scanbar.hidden=true;
   const close=()=>{ ov.remove(); render(); };
