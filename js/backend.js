@@ -72,7 +72,8 @@
         const emit = () => { if(loaded) cb({ docs: [...rows].map(([id,d]) => ({ id, exists:true, data:()=>d })) }); };
         const listen = () => sb.channel(`rt-${t}-${uid()}`)
           .on("postgres_changes", { event:"*", schema:"public", table:t }, p => {
-            if(p.eventType === "DELETE") rows.delete(p.old.id); else rows.set(p.new.id, p.new.data);
+            if(p.eventType === "DELETE"){ if(!rows.has(p.old.id)) return; rows.delete(p.old.id); }
+            else { const prev = rows.get(p.new.id); if(prev !== undefined && JSON.stringify(prev) === JSON.stringify(p.new.data)) return; rows.set(p.new.id, p.new.data); } // nada mudou: não redesenha a tela
             emit();
           }).subscribe();
         let ch = listen();
@@ -92,8 +93,10 @@
       async update(p){ const { error } = await sb.rpc("merge_doc", { t, doc_id:id, patch:p }); if(error) throw toErr(error); },
       async delete(){ const { error } = await sb.from(t).delete().eq("id", id); if(error) throw toErr(error); },
       onSnapshot(cb, onErr){
+        let last; // só avisa quando ESTE documento muda (e não quando outro da mesma tabela muda, como o status da integração a cada 2 min)
         return docCollection(t).onSnapshot(s => {
-          const d = s.docs.find(x => x.id === id);
+          const d = s.docs.find(x => x.id === id), j = d ? JSON.stringify(d.data()) : "∅";
+          if(j === last) return; last = j;
           cb(d ? { id, exists:true, data:d.data } : { id, exists:false, data:()=>undefined });
         }, onErr);
       }
