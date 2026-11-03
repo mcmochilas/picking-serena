@@ -114,6 +114,7 @@ Botão no topo do Comercial. Mostra códigos de barras de exemplo na tela para t
 Aba **Separação**. Mostra os pedidos **Aguardando separação** e **Em separação**, já na ordem de prioridade (urgentes primeiro, com faixa vermelha "CLIENTE NA LOJA" ou verde "RETIRA NA LOJA").
 - Quem separa os dois canais vê o seletor **Venda Consultiva / E-commerce** com a quantidade de cada um.
 - **Separação em lote** (e-commerce): escolha por canal (site/marketplace) ou por transportadora e separe um pedido atrás do outro.
+  - **Pular pedido** (ícone ⏭ no topo da tela de separação, só durante o lote): pergunta "Pular o pedido #X?"; ao confirmar, o pedido volta para a fila normal (outro separador pode pegar) e o lote segue para o próximo. Se já tinha peças coletadas, devolva-as aos locais (a coleta volta a zero); a bandeja é liberada. O pedido pulado não volta no mesmo lote e fica no histórico como "Pulado na separação em lote".
 - Embaixo aparece **Separados · com bandeja ou mesa**: pedidos já separados que ainda ocupam bandeja/mesa, com o botão **Liberar bandeja** (ou "Liberar bandeja e mesa").
 - **Painel TV**: abre o painel da fila para deixar numa TV.
 
