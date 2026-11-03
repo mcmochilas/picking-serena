@@ -607,7 +607,8 @@ body.pda .keyhint{display:block}
 .stkbox .stkrow b{font-size:22px}
 .stkbox .stkat{font-size:13px;color:var(--muted);margin-bottom:6px}
 .stkbox .stkmsg{padding:14px 0;color:var(--muted);font-size:14px}
-.stkbox .stkmsg.err{color:var(--bad)}
+.stkbox .stkfail{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;padding:14px 0 10px}
+.stkbox .stkfail b{font-size:16px;color:var(--ink)}
 .task .do{display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px}
 .task .do svg{width:22px;height:22px;color:var(--accent-ink)}
 .task .ok-line{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--ok)}
@@ -3044,7 +3045,7 @@ async function openStock(it){
     const re=ov.querySelector("#stkRe"); if(re) re.onclick=consultar;
     ov.querySelector("#stkOk").focus();
   };
-  const falha=msg=>{ if(vivo) draw(`<div class="stkmsg err"><b>Não foi possível consultar o estoque.</b><br>${esc(msg)}</div>`, true); };
+  const falha=()=>{ if(vivo) draw(`<div class="stkfail"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="var(--bad)"/><path d="M8.5 8.5l7 7M15.5 8.5l-7 7" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg><b>Não foi possível consultar o estoque</b></div>`, true); };
   ov.onclick=e=>{ if(e.target===ov) close(); };
   ov.addEventListener("keydown",e=>{ if(e.key==="Escape"){ e.preventDefault(); close(); } else if(e.key==="Enter" && e.target.id!=="stkRe"){ e.preventDefault(); close(); } e.stopPropagation(); });
   async function consultar(){
