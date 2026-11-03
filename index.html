@@ -600,6 +600,14 @@ body.pda .keyhint{display:block}
 .task .row{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .task .pn{font-weight:600;font-size:16px;line-height:1.25}
 .task .pm{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:2px}
+.task .stkbtn{flex:none;align-self:flex-start;color:var(--accent-ink)}
+.stkbox .stklist{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:4px 0 10px}
+.stkbox .stkrow{display:flex;justify-content:space-between;align-items:baseline;padding:12px 14px;font-size:15px}
+.stkbox .stkrow+.stkrow{border-top:1px solid var(--line)}
+.stkbox .stkrow b{font-size:22px}
+.stkbox .stkat{font-size:13px;color:var(--muted);margin-bottom:6px}
+.stkbox .stkmsg{padding:14px 0;color:var(--muted);font-size:14px}
+.stkbox .stkmsg.err{color:var(--bad)}
 .task .do{display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px}
 .task .do svg{width:22px;height:22px;color:var(--accent-ink)}
 .task .ok-line{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--ok)}
@@ -3021,6 +3029,48 @@ async function deleteOrder(id){
 
 /* ================== EXPEDIÇÃO: coleta ================== */
 const BACK_BTN = `<button class="back" id="back" aria-label="Voltar aos pedidos"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>`;
+const ICON_INFO = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>`;
+/* ---- Estoque do item em separação: consulta na hora no AdSomos, via extensão do Chrome da loja ---- */
+async function openStock(it){
+  const ov=document.createElement("div"); ov.className="modal"; document.body.appendChild(ov); scanbar.hidden=true;
+  let vivo=true; const close=()=>{ vivo=false; ov.remove(); render(); };
+  const fmtN=v=>Number(v).toLocaleString("pt-BR",{maximumFractionDigits:3});
+  const fmtH=iso=>new Date(iso).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  const draw=(body,retry)=>{
+    ov.innerHTML=`<div class="mbox stkbox" role="dialog" aria-modal="true" aria-label="Estoque do produto ${esc(it.code)}"><h2>Estoque</h2>
+      <p><b class="tnum">${esc(it.code)}</b> · ${esc(it.name)}</p>${body}
+      <div class="mact">${retry?`<button class="btn ghost" id="stkRe">Tentar de novo</button>`:""}<button class="btn primary" id="stkOk">Fechar</button></div></div>`;
+    ov.querySelector("#stkOk").onclick=close;
+    const re=ov.querySelector("#stkRe"); if(re) re.onclick=consultar;
+    ov.querySelector("#stkOk").focus();
+  };
+  const falha=msg=>{ if(vivo) draw(`<div class="stkmsg err"><b>Não foi possível consultar o estoque.</b><br>${esc(msg)}</div>`, true); };
+  ov.onclick=e=>{ if(e.target===ov) close(); };
+  ov.addEventListener("keydown",e=>{ if(e.key==="Escape"){ e.preventDefault(); close(); } else if(e.key==="Enter" && e.target.id!=="stkRe"){ e.preventDefault(); close(); } e.stopPropagation(); });
+  async function consultar(){
+    draw(`<div class="stkmsg">Consultando no AdSomos…</div>`);
+    const sb=window.psSupabase; if(!sb) return falha("Sem conexão com o servidor.");
+    const { data:id, error } = await sb.rpc("estoque_solicitar", { p_produto: String(it.code) });
+    if(error){ const m=String(error.message||"");
+      return falha(m.includes("EXTENSAO_OFFLINE") ? "A extensão do computador da loja não está ligada (Chrome fechado ou computador desligado)."
+        : m.includes("ADSOMOS_FECHADO") ? "O AdSomos não está aberto no computador da loja."
+        : "Tente de novo em instantes."); }
+    const ate=Date.now()+20000;
+    while(vivo && Date.now()<ate){
+      await new Promise(r=>setTimeout(r,800)); if(!vivo) return;
+      const { data:c } = await sb.from("estoque_consultas").select("status,fisico,reservado,erro,respondido_em").eq("id", id).maybeSingle();
+      if(!c || c.status==="pendente" || c.status==="processando") continue;
+      if(c.status==="erro") return falha(c.erro||"Erro no AdSomos.");
+      return draw(`<div class="stklist">
+          <div class="stkrow"><span>Físico</span><b class="tnum">${fmtN(c.fisico)}</b></div>
+          <div class="stkrow"><span>Reservado</span><b class="tnum">${fmtN(c.reservado)}</b></div>
+        </div>
+        <div class="stkat">Última consulta: ${fmtH(c.respondido_em)}</div>`);
+    }
+    falha("O AdSomos demorou para responder.");
+  }
+  consultar();
+}
 const ICON_SCAN = `<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3M7 8v8M10 8v8M13 8v8M16 8v8"/></svg>`;
 const cur = () => { const o=ORDERS.find(x=>x.id===state.oid); if(!o) return null; const pl=pickList(o); return {o, r:res(o), pl, it:pl[state.idx]}; };
 const scanCode = it => it.ean || it.code;
@@ -3032,7 +3082,7 @@ const freeTray = o => TRAYS.find(t=>!trayBusy(t, o.id));
 const LOCOK = l => `<div class="locok"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Endereço <b>${code(l)}</b> confirmado</div>`;
 
 function taskCard(it){
-  const head = `<div class="row"><div class="grow"><div class="pn">${esc(it.name)}</div><div class="pm tnum">Cód. ${esc(it.code)} · ${it.need} pç</div></div></div>`;
+  const head = `<div class="row"><div class="grow"><div class="pn">${esc(it.name)}</div><div class="pm tnum">Cód. ${esc(it.code)} · ${it.need} pç</div></div><button type="button" class="icbtn stkbtn" id="stkInfo" aria-label="Estoque do produto ${esc(it.code)}" title="Estoque">${ICON_INFO}</button></div>`;
   if(state.phase==="tray"){ const o=ORDERS.find(x=>x.id===state.oid), ft=o&&freeTray(o); return `
     <div class="task">${head}
       <div class="row"><div class="do">${ICON_SCAN}Bipe uma bandeja vazia</div><button class="btn ghost sm" id="miss">Falta</button></div>
@@ -3111,6 +3161,7 @@ function renderPick(){
   document.getElementById("restartPick").onclick = ()=>restartOrder(o.id, true);
   document.getElementById("deletePick").onclick = ()=>deleteOrder(o.id);
   const rp=document.getElementById("replay"); if(rp) rp.onclick = ()=>animateRoute(true);
+  const si=document.getElementById("stkInfo"); if(si) si.onclick = ()=>openStock(it);
   const sim=document.getElementById("sim"); if(sim) sim.onclick = ()=> handleScan(state.phase==="tray" ? freeTray(o) : scanCode(it));
   const um=document.getElementById("useMesa"); if(um) um.onclick = ()=> handleScan(defMesa());
   const bOn=document.getElementById("bigOn"); if(bOn) bOn.onclick = ()=> handleScan(defMesa());
