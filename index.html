@@ -607,6 +607,14 @@ body.pda .keyhint{display:block}
 .stkbox .stkrow b{font-size:22px}
 .stkbox .stkat{font-size:13px;color:var(--muted);margin-bottom:6px}
 .stkbox .stkmsg{padding:14px 0;color:var(--muted);font-size:14px}
+.stkbox .stkseg{margin:2px 0 12px}.stkbox .stkseg button{flex:1}
+.stkbox .stkmov{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:6px 0 4px}
+.stkbox .stkmi{padding:9px 12px}
+.stkbox .stkmi+.stkmi{border-top:1px solid var(--line)}
+.stkbox .stkmh{display:flex;justify-content:space-between;gap:8px;font-size:15px}
+.stkbox .stkms{font-size:12.5px;color:var(--muted);margin-top:2px;line-height:1.35}
+.stkbox .stkempty{font-size:13px;color:var(--muted);padding:8px 0 4px}
+.stkbox .stkat{margin-top:10px}
 .stkbox .stkfail{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;padding:14px 0 10px}
 .stkbox .stkfail b{font-size:16px;color:var(--ink)}
 .task .do{display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px}
@@ -3031,46 +3039,60 @@ async function deleteOrder(id){
 /* ================== EXPEDIÇÃO: coleta ================== */
 const BACK_BTN = `<button class="back" id="back" aria-label="Voltar aos pedidos"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>`;
 const ICON_INFO = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>`;
-/* ---- Estoque do item em separação: consulta na hora no AdSomos, via extensão do Chrome da loja ---- */
+/* ---- Estoque do item em separação: consulta na hora no AdSomos, via extensão do Chrome da loja ----
+   Aba "Estoque": físico e reservado. Aba "Movimentações": até 3 entradas e as devoluções dos últimos 45 dias. */
 async function openStock(it){
   const ov=document.createElement("div"); ov.className="modal"; document.body.appendChild(ov); scanbar.hidden=true;
-  let vivo=true; const close=()=>{ vivo=false; ov.remove(); render(); };
+  let vivo=true, aba="saldo", seq=0; const cache={};
+  const close=()=>{ vivo=false; ov.remove(); render(); };
   const fmtN=v=>Number(v).toLocaleString("pt-BR",{maximumFractionDigits:3});
   const fmtH=iso=>new Date(iso).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
-  const draw=(body,retry)=>{
+  const fmtD=ymd=>{ const [y,m,d]=String(ymd).split("-"); return d&&m&&y ? `${d}/${m}/${y}` : esc(ymd); };
+  const FAIL=`<div class="stkfail"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="var(--bad)"/><path d="M8.5 8.5l7 7M15.5 8.5l-7 7" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg><b>Não foi possível consultar o estoque</b></div>`;
+  const movRows=(lst,vazio)=> lst.length ? `<div class="stkmov">${lst.map(m=>`<div class="stkmi"><div class="stkmh"><b class="tnum">${fmtD(m.data)}</b><b class="tnum">${fmtN(m.qtd)} pç</b></div><div class="stkms">${esc(m.op)}${m.nota?` · NF ${esc(m.nota)}`:""}</div>${m.parceiro?`<div class="stkms">${esc(m.parceiro)}</div>`:""}</div>`).join("")}</div>` : `<div class="stkempty">${vazio}</div>`;
+  const corpo=r=>{
+    if(!r) return `<div class="stkmsg">Consultando no AdSomos…</div>`;
+    if(r.fail) return FAIL;
+    if(aba==="saldo") return `<div class="stklist">
+        <div class="stkrow"><span>Físico</span><b class="tnum">${fmtN(r.fisico)}</b></div>
+        <div class="stkrow"><span>Reservado</span><b class="tnum">${fmtN(r.reservado)}</b></div>
+      </div><div class="stkat">Última consulta: ${fmtH(r.respondido_em)}</div>`;
+    const d=r.dados||{}, dias=d.dias||45;
+    return `<div class="eyebrow">Últimas entradas · ${dias} dias</div>${movRows(d.entradas||[],"Nenhuma entrada no período.")}
+      <div class="eyebrow" style="margin-top:12px">Devoluções · ${dias} dias</div>${movRows(d.devolucoes||[],"Nenhuma devolução no período.")}
+      <div class="stkat">Última consulta: ${fmtH(r.respondido_em)}</div>`;
+  };
+  const draw=()=>{
+    const r=cache[aba];
     ov.innerHTML=`<div class="mbox stkbox" role="dialog" aria-modal="true" aria-label="Estoque do produto ${esc(it.code)}"><h2>Estoque</h2>
-      <p><b class="tnum">${esc(it.code)}</b> · ${esc(it.name)}</p>${body}
-      <div class="mact">${retry?`<button class="btn ghost" id="stkRe">Tentar de novo</button>`:""}<button class="btn primary" id="stkOk">Fechar</button></div></div>`;
+      <p><b class="tnum">${esc(it.code)}</b> · ${esc(it.name)}</p>
+      <div class="seg stkseg" role="tablist"><button type="button" role="tab" data-aba="saldo" aria-pressed="${aba==="saldo"}">Estoque</button><button type="button" role="tab" data-aba="mov" aria-pressed="${aba==="mov"}">Movimentações</button></div>
+      ${corpo(r)}
+      <div class="mact">${r&&r.fail?`<button class="btn ghost" id="stkRe">Tentar de novo</button>`:""}<button class="btn primary" id="stkOk">Fechar</button></div></div>`;
     ov.querySelector("#stkOk").onclick=close;
-    const re=ov.querySelector("#stkRe"); if(re) re.onclick=consultar;
+    const re=ov.querySelector("#stkRe"); if(re) re.onclick=()=>consultar(aba);
+    ov.querySelectorAll("[data-aba]").forEach(b=>b.onclick=()=>{ aba=b.dataset.aba; if(!cache[aba]) consultar(aba); else draw(); });
     ov.querySelector("#stkOk").focus();
   };
-  const falha=()=>{ if(vivo) draw(`<div class="stkfail"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="var(--bad)"/><path d="M8.5 8.5l7 7M15.5 8.5l-7 7" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg><b>Não foi possível consultar o estoque</b></div>`, true); };
   ov.onclick=e=>{ if(e.target===ov) close(); };
-  ov.addEventListener("keydown",e=>{ if(e.key==="Escape"){ e.preventDefault(); close(); } else if(e.key==="Enter" && e.target.id!=="stkRe"){ e.preventDefault(); close(); } e.stopPropagation(); });
-  async function consultar(){
-    draw(`<div class="stkmsg">Consultando no AdSomos…</div>`);
-    const sb=window.psSupabase; if(!sb) return falha("Sem conexão com o servidor.");
-    const { data:id, error } = await sb.rpc("estoque_solicitar", { p_produto: String(it.code) });
-    if(error){ const m=String(error.message||"");
-      return falha(m.includes("EXTENSAO_OFFLINE") ? "A extensão do computador da loja não está ligada (Chrome fechado ou computador desligado)."
-        : m.includes("ADSOMOS_FECHADO") ? "O AdSomos não está aberto no computador da loja."
-        : "Tente de novo em instantes."); }
+  ov.addEventListener("keydown",e=>{ if(e.key==="Escape"){ e.preventDefault(); close(); } else if(e.key==="Enter" && e.target.id==="stkOk"){ e.preventDefault(); close(); } e.stopPropagation(); });
+  async function consultar(tipo){
+    const meu=++seq; delete cache[tipo]; if(aba===tipo) draw();
+    const fim=r=>{ if(!vivo) return; cache[tipo]=r; if(aba===tipo) draw(); };
+    const sb=window.psSupabase; if(!sb) return fim({fail:true});
+    const { data:id, error } = await sb.rpc("estoque_solicitar", { p_produto: String(it.code), p_tipo: tipo });
+    if(error) return fim({fail:true});
     const ate=Date.now()+20000;
     while(vivo && Date.now()<ate){
       await new Promise(r=>setTimeout(r,800)); if(!vivo) return;
-      const { data:c } = await sb.from("estoque_consultas").select("status,fisico,reservado,erro,respondido_em").eq("id", id).maybeSingle();
+      const { data:c } = await sb.from("estoque_consultas").select("status,fisico,reservado,dados,respondido_em").eq("id", id).maybeSingle();
       if(!c || c.status==="pendente" || c.status==="processando") continue;
-      if(c.status==="erro") return falha(c.erro||"Erro no AdSomos.");
-      return draw(`<div class="stklist">
-          <div class="stkrow"><span>Físico</span><b class="tnum">${fmtN(c.fisico)}</b></div>
-          <div class="stkrow"><span>Reservado</span><b class="tnum">${fmtN(c.reservado)}</b></div>
-        </div>
-        <div class="stkat">Última consulta: ${fmtH(c.respondido_em)}</div>`);
+      if(c.status==="erro" || (tipo==="mov" && !c.dados)) return fim({fail:true});
+      return fim(c);
     }
-    falha("O AdSomos demorou para responder.");
+    fim({fail:true});
   }
-  consultar();
+  draw(); consultar("saldo");
 }
 const ICON_SCAN = `<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3M7 8v8M10 8v8M13 8v8M16 8v8"/></svg>`;
 const cur = () => { const o=ORDERS.find(x=>x.id===state.oid); if(!o) return null; const pl=pickList(o); return {o, r:res(o), pl, it:pl[state.idx]}; };
