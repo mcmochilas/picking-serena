@@ -446,6 +446,18 @@ details.cpcard summary{display:flex;justify-content:space-between;align-items:ce
 .scanbar.good{background:var(--ok-soft)} .scanbar.bad{background:var(--bad-soft)}
 .cam{display:flex;align-items:center;gap:6px;border:0;border-radius:12px;background:var(--ink);color:var(--bg);padding:0 14px;height:48px;font-weight:600;flex:none}
 .scanfield{flex:1;min-width:0;position:relative}
+.scancfg{flex:none;width:44px;height:48px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);display:grid;place-items:center}
+body.scan-reader .cam{display:none}
+body.scan-reader .scanfield input{font-size:16px;border-width:2px;border-color:var(--route)}
+body.scan-cam .cam{flex:1;justify-content:center;height:56px;font-size:16px}
+body.scan-cam .scanfield{flex:none;width:52px}body.scan-cam .scanfield input{padding:0;color:transparent;caret-color:transparent;border-color:var(--line)}body.scan-cam .scanfield input::placeholder{color:transparent}
+body.scan-cam .scanfield:has(.kbd.on){flex:1;width:auto}body.scan-cam .scanfield:has(.kbd.on) input{padding:0 44px 0 12px;color:var(--ink);caret-color:auto}body.scan-cam .scanfield:has(.kbd.on) input::placeholder{color:var(--muted)}
+body.scan-cam .scanfield .kbd{right:2px}
+.scanopt .scanico{font-size:22px;margin-bottom:2px}
+.directbar{margin-top:8px;padding:10px 12px;border-radius:12px;background:var(--ok-soft);border:1px solid var(--ok);color:var(--ink);font-size:13px;line-height:1.4}
+.unitask .unitcount{display:flex;align-items:baseline;gap:10px;justify-content:center;margin:6px 0 2px}.unitask .unitcount b{font-size:48px;line-height:1;font-family:var(--mono)}.unitask .unitcount span{color:var(--muted);font-size:15px}
+.unitbar{height:10px;border-radius:6px;background:var(--line);overflow:hidden;margin-bottom:6px}.unitbar i{display:block;height:100%;background:var(--ok);transition:width .2s}
+.camhint.good{color:#7CF29A}.camhint.bad{color:#FF8A80}
 .scanfield input{width:100%;height:48px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:0 44px 0 12px;font-family:var(--mono);font-size:15px}
 .scanfield input:focus{outline:2px solid var(--route);outline-offset:0}
 .scanfield .kbd{position:absolute;right:4px;top:4px;width:40px;height:40px;border:0;background:none;border-radius:8px;display:grid;place-items:center;color:var(--muted)}
@@ -829,6 +841,7 @@ button.slot{cursor:pointer;padding:0}
 <div class="scanbar" id="scanbar" hidden>
   <div class="scanmsg info" id="scanmsg" aria-live="polite"></div>
   <div class="in">
+    <button class="scancfg" id="scanCfg" aria-label="Tipo de leitura: câmera ou leitor" title="Tipo de leitura"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
     <button class="cam" id="cam" aria-label="Ler código com a câmera"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h3l2-2.5h6L17 7h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Câmera</button>
     <div class="scanfield">
       <input id="scan" inputmode="none" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Leitor pronto: bipe o código" aria-label="Código lido">
@@ -2569,7 +2582,8 @@ function orderTimeline(o){
   if(o.decidedAt) add(o.decidedAt, `Compras decidiu · ${MODES[o.mode]?.t||o.mode}`, o.decidedBy);
   (o.restarts||[]).forEach(r=>add(r.at, `Separação reiniciada${r.done?` (${r.done} item(ns) já coletados voltaram a zero)`:""}`, r.by, "warn"));
   if(o.startedAt) add(o.startedAt, "Separação iniciada", o.startedBy);
-  if(o.pickedAt) add(o.pickedAt, `Separação concluída${o.startedAt&&o.pickedAt>o.startedAt?` · picking ${fmtDur(o.pickedAt-o.startedAt).replace(/ \d+s$/,"")}`:""}`, o.pickedBy, "ok");
+  if(o.pickedAt && o.conferidoLocal) add(o.pickedAt, "Conferido no local, peça por peça (cliente na loja)", o.pickedBy, "ok");
+  else if(o.pickedAt) add(o.pickedAt, `Separação concluída${o.startedAt&&o.pickedAt>o.startedAt?` · picking ${fmtDur(o.pickedAt-o.startedAt).replace(/ \d+s$/,"")}`:""}`, o.pickedBy, "ok");
   if(o.atMesaAt && o.atMesaAt!==o.pickedAt) add(o.atMesaAt, "Na mesa de expedição");
   if(o.storedAt) add(o.storedAt, `Guardado na colmeia${o.colmeia?" "+o.colmeia.slice(3):""}`);
   if(o.arrivedAt) add(o.arrivedAt, "Encomenda chegou · volta para a separação", o.arrivedBy, "ok");
@@ -3160,7 +3174,9 @@ const cur = () => { const o=ORDERS.find(x=>x.id===state.oid); if(!o) return null
 const scanCode = it => it.ean || it.code;
 const hasTray = o => !!o.tray && o.trayStatus==="separando";
 let CONFIG = {requireLoc:false, useTray:true}, cfgDoc = null; // configuração da separação
-const startPhase = o => (CONFIG.useTray && o && !hasTray(o)) ? "tray" : "prod";
+/* Venda consultiva · Envio total · Cliente na loja: conferência peça por peça no local, sem bandeja e sem mesa; vai na sacola direto para o vendedor */
+const pickDirect = o => !!o && !isEco(o) && !!o.naLoja && o.mode==="total" && !o.fase2;
+const startPhase = o => pickDirect(o) ? "prod" : (CONFIG.useTray && o && !hasTray(o)) ? "tray" : "prod";
 const LOCGO = l => `<div class="locgo">Pegue no local <b>${code(l)}</b></div>`;
 const freeTray = o => TRAYS.find(t=>!trayBusy(t, o.id));
 const LOCOK = l => `<div class="locok"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Endereço <b>${code(l)}</b> confirmado</div>`;
@@ -3181,6 +3197,16 @@ function taskCard(it){
       : `<button class="btn ghost sm spotbtn" id="bigOn">Não cabe na bandeja · colocar na ${mesaName(defMesa())}</button>${MESAS.length>1?`<div class="spotline">Ou bipe a etiqueta de outra mesa.</div>`:""}`)
     : o && isMesaCode(o.tray) ? `<div class="spotline">Pedido na <b>${mesaName(o.tray)}</b></div>` : "";
   const inCesta = o && isCestaCode(o.tray) ? `<div class="spotline">Pedido na <b>${spotName(o.tray)}</b></div>` : "";
+  if(state.phase==="unit") return `
+    <div class="task unitask">
+      <div class="ok-line"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Produto confirmado · conferência no local</div>
+      ${head}
+      <div class="unitcount"><b class="tnum" id="cnt">${state.count}</b><span class="tnum">de ${it.need} pç bipadas</span></div>
+      <div class="unitbar"><i id="cbar" style="width:${Math.round(state.count/it.need*100)}%"></i></div>
+      <div class="row"><div class="do">${ICON_SCAN}Bipe cada peça e coloque na sacola</div></div>
+      <div class="row"><button class="undo" id="undo" ${state.count?"":"disabled"}>Desfazer 1</button><button class="btn ghost sm" id="miss">Encerrar com ${state.count} (falta)</button></div>
+      <button class="demo" id="sim">Simular leitura (demo)</button>
+    </div>`;
   if(state.phase==="qty") return `
     <div class="task">
       <div class="ok-line"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Produto confirmado</div>
@@ -3216,6 +3242,7 @@ function renderPick(){
     <div class="pickcli ${isManual(o)?"manual":""}"><span>Cliente</span><b>${esc(o.client||"Não informado")}</b>${manualTag(o)}</div>
     ${o.mzCancelado?`<div class="mzcancel big">Pedido CANCELADO na Magazord · pare a separação e devolva as peças</div>`:o.mzMudou?`<div class="mzcancel big warn">A situação deste pedido mudou na Magazord para "${esc(o.mzSituacaoDesc||o.mzSituacao)}" · confirme com o responsável antes de continuar</div>`:""}
     ${urgBar(o,"margin-top:8px")}
+    ${pickDirect(o) ? `<div class="directbar">Conferência no local: bipe <b>cada peça</b> no endereço, coloque na sacola e entregue direto ao vendedor. Não vai para a mesa.</div>` : ""}
     ${adjPending(o) ? `<div class="adjbar" style="margin-top:8px">PRÉ-VENDA AJUSTADA PELO COMERCIAL · as peças que faltam já estão com a quantidade nova. Depois de terminar, o ajuste (${esc(adjSummary(o.adj))}) aparece no topo da fila.</div>` : ""}
     ${state.lote && loteMatch(o) ? `<div class="lotebadge">Lote · ${esc(state.lote.vals.join(" · "))} · ${lotePending().length} restante(s)</div>` : ""}
     ${!isEco(o)&&transpOf(o)?`<div class="ecoinfo">${transpBadge(transpOf(o))}</div>`:""}
@@ -3252,13 +3279,14 @@ function renderPick(){
   const um=document.getElementById("useMesa"); if(um) um.onclick = ()=> handleScan(defMesa());
   const bOn=document.getElementById("bigOn"); if(bOn) bOn.onclick = ()=> handleScan(defMesa());
   const bOff=document.getElementById("bigOff"); if(bOff) bOff.onclick = ()=>{ state.bigItem=false; render(); };
-  const miss=document.getElementById("miss"); if(miss) miss.onclick = ()=>{ if(state.phase!=="qty") state.count=0; commit(state.count===0 ? "miss" : state.count>=it.need ? "ok" : "part"); };
+  const ud=document.getElementById("undo"); if(ud && state.phase==="unit") ud.onclick=()=>{ if(state.count>0){ state.count--; render(); setMsg(`${state.count} de ${it.need} pç bipadas. Bipe a próxima peça.`,"info"); } };
+  const miss=document.getElementById("miss"); if(miss) miss.onclick = ()=>{ if(state.phase!=="qty" && state.phase!=="unit") state.count=0; commit(state.count===0 ? "miss" : state.count>=it.need ? "ok" : "part"); };
   const qOut=document.getElementById("q"), okQ=document.getElementById("okQty");
   const setQ = v => { state.count=Math.max(0,Math.min(it.need,v)); qOut.value=state.count; okQ.textContent=`Confirmar ${state.count} pç`; };
   if(qOut){ document.getElementById("minus").onclick=()=>setQ(state.count-1); document.getElementById("plus").onclick=()=>setQ(state.count+1);
     okQ.onclick=()=> commit(state.count>=it.need ? "ok" : state.count===0 ? "miss" : "part"); }
   app.querySelectorAll(".li[data-k]").forEach(b=>b.onclick=()=>{ const k=+b.dataset.k; if(r[pl[k].i].status==="ok"){ toast("Item já finalizado"); return; } goItem(k); if(r[pl[k].i].status!=="pend") setMsg("Item com falta: se encontrou a peça, bipe novamente","info"); });
-  setMsg(state.phase==="tray" ? "Bipe a bandeja ou a mesa" : state.phase==="qty" ? `Conte ${it.need} pç e confirme` : "Bipe o produto", "info");
+  setMsg(state.phase==="tray" ? "Bipe a bandeja ou a mesa" : state.phase==="qty" ? `Conte ${it.need} pç e confirme` : state.phase==="unit" ? `${state.count} de ${it.need} pç bipadas. Bipe a próxima peça.` : pickDirect(o) ? `Bipe a 1ª peça (${it.need} pç no total)` : "Bipe o produto", "info");
   if(l) requestAnimationFrame(()=>animateRoute(false));
   focusScan();
 }
@@ -3344,6 +3372,7 @@ function finishAtMesa(o){
     toast(`Picking finalizado em ${fmtDur(now-(o.startedAt||now))}`);
     state.view="store"; render(); scrollTo(0,0); setMsg(`Guarde na colmeia ${slot.slice(3)} e bipe a etiqueta dela`,"info"); return;
   }
+  if(pickDirect(o)){ patchOrder(o.id, {status:"pronto_envio", remessa:1, pickedAt:now, pickedBy:ME.id||"", conferidoLocal:true, res:r}); state.view="done"; render(); scrollTo(0,0); return; }
   patchOrder(o.id, {status:"pronto_envio", remessa: o.fase2 && o.mode==="parcial" ? 2 : 1, pickedAt:now, atMesaAt:now, pickedBy:ME.id||"", receivedBy:ME.id||"", res:r, ...(hasTray(o)?{trayStatus:"mesa"}:{})});
   state.view="done"; render(); scrollTo(0,0);
 }
@@ -3381,9 +3410,9 @@ function renderDone(){
     <header class="bar">${BACK_BTN}<div class="grow"><h1>#${esc(o.num)}</h1><div class="sub">${esc(o.client)}</div></div></header>
     <div class="done">
       <div class="big"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
-      <h2>${o.semPecas ? "Nenhuma peça coletada" : o.trayStatus==="lavagem" ? "Separação concluída" : o.status==="na_colmeia" ? "Guardado na colmeia "+esc(o.colmeia) : "Picking finalizado na mesa"}</h2>
-      <div class="want">${o.trayStatus==="lavagem" ? `Leve a bandeja <b>${esc(o.tray||"")}</b> para a <b>mesa de expedição</b>.` : o.status==="na_colmeia" ? `O pedido aguarda a encomenda na colmeia.` : `O pedido está na <b>mesa de expedição</b>.`}</div>
-      <div class="meta" style="justify-content:center">${o.status==="na_colmeia" ? "" : o.mode==="aguarda" ? `Na mesa: guardar na colmeia ${esc(o.colmeia)} até chegar a encomenda (${enc.reduce((s,i)=>s+i.qtyEnc,0)} pç)`
+      <h2>${o.semPecas ? "Nenhuma peça coletada" : o.conferidoLocal ? (o.handedAt ? "Entregue ao vendedor" : "Conferido no local") : o.trayStatus==="lavagem" ? "Separação concluída" : o.status==="na_colmeia" ? "Guardado na colmeia "+esc(o.colmeia) : "Picking finalizado na mesa"}</h2>
+      <div class="want">${o.conferidoLocal && !o.semPecas ? (o.handedAt ? `Sacola entregue${o.seller?` ao vendedor <b>${esc(o.seller)}</b>`:" ao vendedor"} às ${fmtClock(o.handedAt)}.` : `Coloque as <b>${units} pç</b> na sacola e entregue direto${o.seller?` ao vendedor <b>${esc(o.seller)}</b>`:" ao vendedor"}. O cliente está na loja.`) : o.trayStatus==="lavagem" ? `Leve a bandeja <b>${esc(o.tray||"")}</b> para a <b>mesa de expedição</b>.` : o.status==="na_colmeia" ? `O pedido aguarda a encomenda na colmeia.` : `O pedido está na <b>mesa de expedição</b>.`}</div>
+      <div class="meta" style="justify-content:center">${o.conferidoLocal ? "Não vai para a mesa de expedição" : o.status==="na_colmeia" ? "" : o.mode==="aguarda" ? `Na mesa: guardar na colmeia ${esc(o.colmeia)} até chegar a encomenda (${enc.reduce((s,i)=>s+i.qtyEnc,0)} pç)`
         : o.mode==="parcial" ? `Na mesa: 1º envio. ${enc.reduce((s,i)=>s+i.qtyEnc,0)} pç seguem no 2º envio.` : `Na mesa: conferir e embalar para envio`}</div>
       <div class="summary">
         <div><b class="tnum">${units}/${total}</b><small>peças</small></div>
@@ -3396,6 +3425,7 @@ function renderDone(){
         <div class="do">${ICON_SCAN}<span>Depois da conferência no packing, <b>bipe a ${esc(trayLabel(o.tray))}</b> para desvinculá-la deste pedido.</span></div>
         <button class="btn ghost sm" id="unlinkBtn">Desvincular ${esc(spotsTxt(o))}</button></div>`
       : o.tray && o.trayStatus==="livre" ? `<div class="ok-line" style="justify-content:center">${esc(spotsTxt(o))} liberada</div>` : ""}
+      ${o.conferidoLocal && !o.semPecas && !o.handedAt ? `<div class="actions" style="width:100%;margin-top:14px"><button class="btn primary" id="handSeller">Entreguei ao vendedor</button></div>` : ""}
       ${miss && canRescan(o) ? `<div class="actions" style="width:100%;margin-top:14px"><button class="btn ghost" id="rescanMiss">Encontrou? Voltar e bipar ${miss>1?"itens em falta":"o item em falta"}</button></div>` : ""}
       ${state.lote && loteMatch(o) ? (()=>{ const n=lotePending().length; return `<div class="actions" style="width:100%;margin-top:14px;flex-direction:column"><button class="btn primary" id="nextOrder">${n?`Próximo do lote · ${n} restante(s)`:"Concluir lote"}</button><button class="btn ghost sm" id="loteStop">Encerrar lote</button></div>`; })()
         : `<div class="actions" style="width:100%;margin-top:14px"><button class="btn primary" id="nextOrder">Próximo pedido</button></div>`}
@@ -3403,8 +3433,10 @@ function renderDone(){
   document.getElementById("back").onclick = ()=>{ state.view="orders"; render(); };
   const ub=document.getElementById("unlinkBtn"); if(ub) ub.onclick=()=>{ if(!ub.dataset.c){ ub.dataset.c="1"; ub.textContent="Confirmar: peças já saíram da bandeja"; ub.classList.add("danger"); return; } unlinkTray(o); };
   if(o.tray && o.trayStatus==="mesa") setMsg(`Bipe a ${trayLabel(o.tray)} para desvincular`,"info");
+  else if(o.conferidoLocal) setMsg(o.handedAt ? "Pedido entregue ao vendedor" : "Coloque na sacola e entregue ao vendedor", o.handedAt?"good":"info");
   const ls=document.getElementById("loteStop"); if(ls) ls.onclick=()=>{ state.lote=null; saveLote(); toast("Lote encerrado"); state.view="orders"; render(); };
   const rs=document.getElementById("rescanMiss"); if(rs) rs.onclick=()=>rescanMiss(o);
+  const hs=document.getElementById("handSeller"); if(hs) hs.onclick=()=>{ const now=Date.now(); patchOrder(o.id, {handedAt:now, handedBy:ME.id||"", hist:[...(o.hist||[]), {t:now, by:ME.id||"", ev:`Conferido no local e entregue ao vendedor${o.seller?" "+o.seller:""} (cliente na loja)`}]}); toast(`Pedido #${o.num} entregue ao vendedor`); render(); };
   document.getElementById("nextOrder").onclick = ()=>{
     if(state.lote && loteMatch(o)) return loteNext();
     const nx = ORDERS.filter(x=>(x.status==="aguardando"||x.status==="separando") && pickList(x).length).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0))[0];
@@ -3460,7 +3492,7 @@ function handleScan(raw){
   if(state.sector==="recebimento") return scanReceb(String(raw||"").trim());
   if(state.view==="done"){ const o=ORDERS.find(x=>x.id===state.oid);
     if(o && canRescan(o)){ const r0=res(o), pl0=pickList(o), k=pl0.findIndex(x=>(r0[x.i].status==="miss"||r0[x.i].status==="part") && ((!!x.ean && v===x.ean) || v===x.code));
-      if(k>=0){ rescanMiss(o, k); if(state.phase!=="tray"){ state.phase="qty"; state.count=pl0[k].need; render(); } feedback(true); return setMsg(state.phase==="tray" ? "Item em falta encontrado. Bipe a bandeja e depois a peça." : `Item que estava em falta encontrado. Conte ${pl0[k].need} pç no total e confirme.`,"good"); } }
+      if(k>=0){ rescanMiss(o, k); if(pickDirect(o)){ state.phase="unit"; state.count=Math.min(pl0[k].need,(r0[pl0[k].i].got||0)+1); if(state.count>=pl0[k].need){ commit("ok"); feedback(true); return; } render(); feedback(true); return setMsg(`${state.count} de ${pl0[k].need} pç bipadas. Bipe as demais.`,"good"); } if(state.phase!=="tray"){ state.phase="qty"; state.count=pl0[k].need; render(); } feedback(true); return setMsg(state.phase==="tray" ? "Item em falta encontrado. Bipe a bandeja e depois a peça." : `Item que estava em falta encontrado. Conte ${pl0[k].need} pç no total e confirme.`,"good"); } }
     if(o?.tray && o.trayStatus==="mesa") return scanUnlink(v, o.id); return; }
   if(state.view==="store"){
     const o=ORDERS.find(x=>x.id===state.oid); if(!o) return;
@@ -3473,6 +3505,8 @@ function handleScan(raw){
   const isLoc = LOC_RE.test(v), isProd = (!!it.ean && v===it.ean) || v===it.code;
   if(!isProd && !isLoc && state.phase!=="tray"){ // achou um item que tinha ficado em falta: volta para ele
     const r0=res(o), pl0=pickList(o), k=pl0.findIndex((x,j)=>j!==state.idx && (r0[x.i].status==="miss"||r0[x.i].status==="part") && ((!!x.ean && v===x.ean) || v===x.code));
+    if(k>=0 && pickDirect(o)){ feedback(true); state.idx=k; state.phase="unit"; state.count=Math.min(pl0[k].need,(r0[pl0[k].i].got||0)+1); if(state.count>=pl0[k].need){ commit("ok"); return; } render(); scrollTo({top:0,behavior:"smooth"});
+      return setMsg(`Item em falta encontrado: ${state.count} de ${pl0[k].need} pç bipadas. Bipe as demais.`,"good"); }
     if(k>=0){ feedback(true); state.bigItem=false; state.idx=k; state.phase="qty"; state.count=pl0[k].need; render(); scrollTo({top:0,behavior:"smooth"});
       return setMsg(`Item que estava em falta encontrado. Conte ${pl0[k].need} pç no total e confirme.`,"good"); }
   }
@@ -3502,6 +3536,12 @@ function handleScan(raw){
   if(isMesa(v)){
     if(isMesaCode(o.tray)){ feedback(true); return setMsg(`Este pedido já está todo na ${mesaName(o.tray)}. Bipe o produto.`,"info"); }
     feedback(true); state.bigItem=v; render(); setMsg(`Este item vai na ${mesaName(v)}. `+(state.phase==="qty"?"Conte e confirme.":"Bipe o produto."),"good"); return;
+  }
+  if(isProd && pickDirect(o)){ // conferência peça por peça
+    if(state.phase!=="unit"){ state.phase="unit"; state.count=0; }
+    state.count=Math.min(it.need, state.count+1); feedback(true);
+    if(state.count>=it.need){ commit("ok"); return; }
+    render(); setMsg(`${state.count} de ${it.need} pç bipadas. Bipe a próxima peça.`,"good"); return;
   }
   if(isProd){
     if(state.phase==="qty"){ feedback(true); return setMsg("Produto já confirmado. Conte e confirme a quantidade.","info"); }
@@ -3544,6 +3584,26 @@ document.getElementById("kbd").onclick = ()=>{
   scanIn.placeholder = on ? "Digite o código e toque Enter" : "Leitor pronto: bipe o código";
   scanIn.blur(); setTimeout(()=>scanIn.focus(),50);
 };
+/* Tipo de leitura, escolhido por cada separador neste aparelho: câmera do celular ou leitor de código (Bluetooth/USB) */
+const scanModeKey = () => "ps-scanmode:"+(ME.id||"");
+function scanMode(){ try{ return localStorage.getItem(scanModeKey()) || "leitor"; }catch(e){ return "leitor"; } }
+function applyScanMode(){ const m=scanMode(); document.body.classList.toggle("scan-cam", m==="camera"); document.body.classList.toggle("scan-reader", m!=="camera");
+  const c=document.getElementById("cam"); if(c) c.lastChild.textContent = m==="camera" ? "Abrir câmera" : "Câmera";
+  if(scanIn.getAttribute("inputmode")==="none") scanIn.placeholder = m==="camera" ? "Toque em Abrir câmera" : "Leitor pronto: bipe o código"; }
+document.getElementById("scanCfg").onclick = ()=>{
+  const cur=scanMode(), ov=document.createElement("div"); ov.className="modal"; document.body.appendChild(ov);
+  const opt=(v,t,d,ic)=>`<label class="mode scanopt"><input type="radio" name="smode" value="${v}" ${cur===v?"checked":""}><span>${ic}<b>${t}</b><small>${d}</small></span></label>`;
+  ov.innerHTML=`<div class="mbox" role="dialog" aria-modal="true" aria-label="Tipo de leitura"><h2>Como você vai bipar?</h2><p>Escolha uma vez neste aparelho. A tela de separação se ajusta ao tipo de leitura.</p>
+    <div class="modes" role="radiogroup">
+      ${opt("camera","Câmera do celular","Botão grande para abrir a câmera. A câmera fica aberta e lê um código atrás do outro, até você fechar.",'<span class="scanico" aria-hidden="true">📷</span>')}
+      ${opt("leitor","Leitor de código (Bluetooth/USB)","Sem botão de câmera: é só bipar com o leitor. O campo fica sempre pronto para a próxima leitura.",'<span class="scanico" aria-hidden="true">🔫</span>')}
+    </div>
+    <div class="mact"><button class="btn ghost" id="mNo">Cancelar</button><button class="btn primary" id="mOk">Salvar</button></div></div>`;
+  const close=()=>{ ov.remove(); focusScan(); };
+  ov.querySelector("#mNo").onclick=close; ov.onclick=e=>{ if(e.target===ov) close(); };
+  ov.querySelector("#mOk").onclick=()=>{ const v=ov.querySelector("input[name=smode]:checked")?.value||"leitor"; try{ localStorage.setItem(scanModeKey(), v); }catch(e){}
+    applyScanMode(); close(); toast(v==="camera" ? "Leitura pela câmera do celular" : "Leitura pelo leitor de código"); };
+};
 const camFile=document.getElementById("camfile");
 let liveBlocked = false;
 document.getElementById("cam").onclick = async ()=>{
@@ -3562,7 +3622,8 @@ async function openLiveScanner(){
   const v=ov.querySelector("video"); v.srcObject=stream;
   try{ await v.play(); }catch(e){}
   try{ const t=stream.getVideoTracks()[0], c=t.getCapabilities?.(); if(c?.focusMode?.includes("continuous")) await t.applyConstraints({advanced:[{focusMode:"continuous"}]}); }catch(e){}
-  let stop=false;
+  let stop=false, lastTxt="", lastAt=0; const hint=ov.querySelector(".camhint");
+  if(scanMode()==="camera" && scanMsg.textContent) hint.textContent=scanMsg.textContent;
   const close=()=>{ stop=true; stream.getTracks().forEach(t=>t.stop()); ov.remove(); focusScan(); };
   ov.querySelector("#camClose").onclick=close;
   let det=null; try{ if("BarcodeDetector" in window){ const f=await BarcodeDetector.getSupportedFormats(); if(f.includes("ean_13")) det=new BarcodeDetector({formats:["ean_13","ean_8","code_128"].filter(x=>f.includes(x))}); } }catch(e){}
@@ -3581,7 +3642,15 @@ async function openLiveScanner(){
         try{ txt=reader.decode(new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(new ZXing.HTMLCanvasElementLuminanceSource(cv)))).getText(); }catch(e){}
       }
     }catch(e){}
+    if(txt && scanMode()==="camera" && SCAN_VIEWS.includes(state.view)){ // câmera contínua: lê um código atrás do outro
+      const now=Date.now();
+      if(!(txt===lastTxt && now-lastAt<1300) && now-lastAt>700){ lastTxt=txt; lastAt=now; handleScan(txt); try{ navigator.vibrate && navigator.vibrate(60); }catch(e){}
+        hint.textContent = scanMsg.textContent || txt; hint.className = "camhint "+(scanMsg.className.match(/good|bad|info/)?.[0]||""); }
+      if(!SCAN_VIEWS.includes(state.view) || document.querySelector(".modal")){ close(); return; }
+      setTimeout(tick, det ? 80 : 120); return;
+    }
     if(txt){ close(); handleScan(txt); return; }
+    if(scanMode()==="camera" && (!SCAN_VIEWS.includes(state.view) || document.querySelector(".modal"))){ close(); return; }
     setTimeout(tick, det ? 80 : 120);
   };
   tick();
@@ -4661,6 +4730,7 @@ function rerender(){
 }
 app.addEventListener("focusout", ()=>{ if(pendingRender) setTimeout(()=>{ const ae=document.activeElement; if(pendingRender && !(ae && /INPUT|SELECT/.test(ae.tagName) && app.contains(ae))){ pendingRender=false; render(); } }, 250); });
 function render(){
+  try{ applyScanMode(); }catch(e){}
   pendingRender=false;
   if(HV_TK) return renderTk();
   if(RC_TK) return renderRcTk();
