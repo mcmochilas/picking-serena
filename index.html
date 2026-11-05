@@ -3595,8 +3595,8 @@ document.getElementById("scanCfg").onclick = ()=>{
   const opt=(v,t,d,ic)=>`<label class="mode scanopt"><input type="radio" name="smode" value="${v}" ${cur===v?"checked":""}><span>${ic}<b>${t}</b><small>${d}</small></span></label>`;
   ov.innerHTML=`<div class="mbox" role="dialog" aria-modal="true" aria-label="Tipo de leitura"><h2>Como você vai bipar?</h2><p>Escolha uma vez neste aparelho. A tela de separação se ajusta ao tipo de leitura.</p>
     <div class="modes" role="radiogroup">
-      ${opt("camera","Câmera do celular","Botão grande para abrir a câmera. A câmera fica aberta e lê um código atrás do outro, até você fechar.",'<span class="scanico" aria-hidden="true">📷</span>')}
-      ${opt("leitor","Leitor de código (Bluetooth/USB)","Sem botão de câmera: é só bipar com o leitor. O campo fica sempre pronto para a próxima leitura.",'<span class="scanico" aria-hidden="true">🔫</span>')}
+      ${opt("camera","Câmera do celular","Botão grande para abrir a câmera. A câmera fica aberta e lê um código atrás do outro, até você fechar.",`<span class="scanico" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h3l2-2.5h6L17 7h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg></span>`)}
+      ${opt("leitor","Leitor de código (Bluetooth/USB)","Sem botão de câmera: é só bipar com o leitor. O campo fica sempre pronto para a próxima leitura.",`<span class="scanico" aria-hidden="true">${ICON_SCAN}</span>`)}
     </div>
     <div class="mact"><button class="btn ghost" id="mNo">Cancelar</button><button class="btn primary" id="mOk">Salvar</button></div></div>`;
   const close=()=>{ ov.remove(); focusScan(); };
