@@ -162,6 +162,7 @@ Tudo fica registrado no histórico do pedido.
 ### 4.5 Separados
 Aba **Separados**: histórico dos pedidos separados (e os excluídos do dia), com transportadora, cliente, horário, tempo de picking e situação.
 - Filtro **Todos · Venda Consultiva · E-commerce** e busca por número do pedido ou cliente.
+- **Histórico (seta no canto direito do card)**: abre o card e mostra a linha do tempo do pedido, com data, hora e quem fez: entrada (integrado, importado da Magazord ou cadastrado na colmeia), decisão de Compras, início/reinício/conclusão da separação (com tempo de picking), mesa, colmeia, chegada da encomenda, ajustes e edições, pedido pulado no lote, envio/retirada ou exclusão (com motivo). Cores: azul = entrada, verde = etapa concluída, roxo = ajuste/edição, vermelho = exclusão. Pedidos antigos podem ter menos registros.
 - **Editar** (só Administrador): altera canal (com confirmação do tipo de envio), separador, tipo de envio, retirada, transportadora, situação (onde está no fluxo), bandeja/mesa, colmeia e observação. Tudo fica registrado no histórico do pedido. Voltar a situação para "Aguardando separação" recoloca o pedido na fila e avisa os separadores.
 
 ### 4.6 Painel TV
