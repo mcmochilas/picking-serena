@@ -458,7 +458,7 @@ body.scan-cam .scanfield .kbd{right:2px}
 .traystep h2{margin:0;font-size:24px}.traystep p{margin:0;color:var(--muted)}.traystep .tsico{width:72px;height:72px;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,var(--route) 12%,transparent);color:var(--route)}
 .traystep .tssum{display:flex;gap:16px;margin:4px 0 6px;font-size:14px;color:var(--muted)}.traystep .tssum b{color:var(--ink);font-size:16px}
 .traystep .spotbtn{width:100%;margin-top:6px}.traystep .demo{align-self:center}.traystep .spotline{font-size:13px;color:var(--muted)}
-html:not(.ps-test) .demo{display:none!important}
+html:not(.ps-test):not(.can-sim) .demo{display:none!important}
 .directbar{margin-top:8px;padding:10px 12px;border-radius:12px;background:var(--ok-soft);border:1px solid var(--ok);color:var(--ink);font-size:13px;line-height:1.4}
 .unitask .unitcount{display:flex;align-items:baseline;gap:10px;justify-content:center;margin:6px 0 2px}.unitask .unitcount b{font-size:48px;line-height:1;font-family:var(--mono)}.unitask .unitcount span{color:var(--muted);font-size:15px}
 .unitbar{height:10px;border-radius:6px;background:var(--line);overflow:hidden;margin-bottom:6px}.unitbar i{display:block;height:100%;background:var(--ok);transition:width .2s}
@@ -2779,8 +2779,9 @@ function openOrder(id){
   const o=ORDERS.find(x=>x.id===id); if(!o || !ecoOk(o)) return;
   if(notMine(o)){ toast(`O pedido #${o.num} foi passado para outro separador`); return; }
   newIds.delete(id); alertQueue=alertQueue.filter(x=>x!==id); showAlert();
-  state.oid=id; state.phase=startPhase(o); state.count=0; state.bigItem=false;
+  state.oid=id; state.count=0; state.bigItem=false;
   const r=res(o), pl=pickList(o), k=pl.findIndex(x=>r[x.i].status==="pend");
+  state.idx=Math.max(0,k); state.phase=startPhase(o);
   if(k<0){ finishAtMesa(o); scrollTo(0,0); return; }
   if(o.status!=="separando") patchOrder(id, {status:"separando", startedAt:o.startedAt||Date.now(), startedBy:o.startedBy||ME.id||"", res:r});
   state.idx=k; state.view="pick"; render(); scrollTo(0,0);
@@ -3181,7 +3182,10 @@ const hasTray = o => !!o.tray && o.trayStatus==="separando";
 let CONFIG = {requireLoc:false, useTray:true}, cfgDoc = null; // configuração da separação
 /* Venda consultiva · Envio total · Cliente na loja: conferência peça por peça no local, sem bandeja e sem mesa; vai na sacola direto para o vendedor */
 const pickDirect = o => !!o && !isEco(o) && !!o.naLoja && o.mode==="total" && !o.fase2;
-const startPhase = o => pickDirect(o) ? "prod" : (CONFIG.useTray && o && !hasTray(o)) ? "tray" : "prod";
+/* E-commerce: o separador bipa a etiqueta do ENDEREÇO (não o produto), confirma a quantidade e leva para a mesa */
+const ecoLoc = (o, it) => !!o && isEco(o) && !!it?.loc;
+const curItem = o => { const pl=o?pickList(o):[]; return pl[state.idx]; };
+const startPhase = o => pickDirect(o) ? "prod" : (CONFIG.useTray && o && !hasTray(o)) ? "tray" : ecoLoc(o, curItem(o)) ? "loc" : "prod";
 const LOCGO = l => `<div class="locgo">Pegue no local <b>${code(l)}</b></div>`;
 const freeTray = o => TRAYS.find(t=>!trayBusy(t, o.id));
 const LOCOK = l => `<div class="locok"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Endereço <b>${code(l)}</b> confirmado</div>`;
@@ -3202,6 +3206,12 @@ function taskCard(it){
       : `<button class="btn ghost sm spotbtn" id="bigOn">Não cabe na bandeja · colocar na ${mesaName(defMesa())}</button>${MESAS.length>1?`<div class="spotline">Ou bipe a etiqueta de outra mesa.</div>`:""}`)
     : o && isMesaCode(o.tray) ? `<div class="spotline">Pedido na <b>${mesaName(o.tray)}</b></div>` : "";
   const inCesta = o && isCestaCode(o.tray) ? `<div class="spotline">Pedido na <b>${spotName(o.tray)}</b></div>` : "";
+  if(state.phase==="loc"){ const o=ORDERS.find(x=>x.id===state.oid); return `
+    <div class="task">${head}
+      <div class="row"><div class="do">${ICON_SCAN}<span>Bipe a etiqueta do endereço <b class="mono" style="white-space:nowrap">${esc(code(it.loc))}</b></span></div><button class="btn ghost sm" id="miss">Falta</button></div>
+      <button class="demo" id="sim">Simular leitura do endereço (demo)</button>
+      ${o && isMesaCode(o.tray) ? `<div class="spotline">Pedido na <b>${mesaName(o.tray)}</b></div>` : o && isCestaCode(o.tray) ? `<div class="spotline">Pedido na <b>${spotName(o.tray)}</b></div>` : ""}
+    </div>`; }
   if(state.phase==="unit") return `
     <div class="task unitask">
       <div class="ok-line"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Produto confirmado · conferência no local</div>
@@ -3281,7 +3291,7 @@ function renderPick(){
   document.getElementById("deletePick").onclick = ()=>deleteOrder(o.id);
   const rp=document.getElementById("replay"); if(rp) rp.onclick = ()=>animateRoute(true);
   const si=document.getElementById("stkInfo"); if(si) si.onclick = ()=>openStock(it);
-  const sim=document.getElementById("sim"); if(sim) sim.onclick = ()=> handleScan(state.phase==="tray" ? freeTray(o) : scanCode(it));
+  const sim=document.getElementById("sim"); if(sim) sim.onclick = ()=> handleScan(state.phase==="tray" ? freeTray(o) : state.phase==="loc" && it.loc ? code(it.loc) : scanCode(it));
   const um=document.getElementById("useMesa"); if(um) um.onclick = ()=> handleScan(defMesa());
   const bOn=document.getElementById("bigOn"); if(bOn) bOn.onclick = ()=> handleScan(defMesa());
   const bOff=document.getElementById("bigOff"); if(bOff) bOff.onclick = ()=>{ state.bigItem=false; render(); };
@@ -3292,7 +3302,7 @@ function renderPick(){
   if(qOut){ document.getElementById("minus").onclick=()=>setQ(state.count-1); document.getElementById("plus").onclick=()=>setQ(state.count+1);
     okQ.onclick=()=> commit(state.count>=it.need ? "ok" : state.count===0 ? "miss" : "part"); }
   app.querySelectorAll(".li[data-k]").forEach(b=>b.onclick=()=>{ const k=+b.dataset.k; if(r[pl[k].i].status==="ok"){ toast("Item já finalizado"); return; } goItem(k); if(r[pl[k].i].status!=="pend") setMsg("Item com falta: se encontrou a peça, bipe novamente","info"); });
-  setMsg(state.phase==="tray" ? "Bipe a bandeja ou a mesa" : state.phase==="qty" ? `Conte ${it.need} pç e confirme` : state.phase==="unit" ? `${state.count} de ${it.need} pç bipadas. Bipe a próxima peça.` : pickDirect(o) ? `Bipe a 1ª peça (${it.need} pç no total)` : "Bipe o produto", "info");
+  setMsg(state.phase==="tray" ? "Bipe a bandeja ou a mesa" : state.phase==="qty" ? `Conte ${it.need} pç e confirme` : state.phase==="unit" ? `${state.count} de ${it.need} pç bipadas. Bipe a próxima peça.` : state.phase==="loc" && it.loc ? `Bipe a etiqueta do endereço ${code(it.loc)}` : pickDirect(o) ? `Bipe a 1ª peça (${it.need} pç no total)` : "Bipe o produto", "info");
   if(l && state.phase!=="tray") requestAnimationFrame(()=>animateRoute(false));
   focusScan();
 }
@@ -3532,6 +3542,9 @@ function handleScan(raw){
       return setMsg(`Item que estava em falta encontrado. Conte ${pl0[k].need} pç no total e confirme.`,"good"); }
   }
   if(state.phase==="loc" && !it.loc) state.phase = startPhase(o);
+  if(state.phase==="loc" && ecoLoc(o,it) && (v===code(it.loc) || isProd)){ // e-commerce: endereço (ou o próprio produto) confirma o item
+    feedback(true); state.phase="qty"; state.count=it.need; render(); setMsg(`${isProd?"Produto":"Endereço"} confirmado. Pegue ${it.need} pç, coloque na bandeja e confirme.`,"good"); return;
+  }
   if(state.phase==="loc"){
     if(v===code(it.loc)){ feedback(true); state.count=0;
       if(hasTray(o)){ state.phase="prod"; render(); setMsg(`Endereço ${v} confirmado. Bipe as peças.`,"good"); }
@@ -3551,7 +3564,7 @@ function handleScan(raw){
     const other = trayBusy(v, o.id);
     if(other){ feedback(false); return setMsg(other.trayStatus==="separando" ? `Bandeja ${v} está em uso no pedido ${other.num}. Pegue outra.` : `Bandeja ${v} ainda está vinculada ao pedido ${other.num}. Desvincule antes em Bandejas.`,"bad"); }
     feedback(true); patchOrder(o.id, {tray:v, trayStatus:"separando"});
-    state.phase="prod"; state.count=0; render(); setMsg(isShared(v) ? `Pedido vai na ${spotName(v)}. Bipe o produto.` : `Bandeja ${v} vinculada. Bipe o produto.`,"good"); return;
+    const nl=ecoLoc(o,it); state.phase=nl?"loc":"prod"; state.count=0; render(); const nx=nl?`Bipe a etiqueta do endereço ${code(it.loc)}.`:"Bipe o produto."; setMsg(isShared(v) ? `Pedido vai na ${spotName(v)}. ${nx}` : `Bandeja ${v} vinculada. ${nx}`,"good"); return;
   }
   if(isCesta(v)){ feedback(false); return setMsg(o.tray===v ? `Este pedido já está na ${spotName(v)}. Bipe o produto.` : `A cesta é bipada no início do pedido, no lugar da bandeja.`, o.tray===v?"info":"bad"); }
   if(isMesa(v)){
@@ -4605,6 +4618,7 @@ function openUserModal(id){
       <div class="ucfg-f"><span class="eyebrow">Níveis de acesso</span><small>Marque um ou mais. A pessoa soma as permissões de todos os níveis marcados.</small>
         <div class="ucroles">${ROLE_ORDER.filter(k=>ROLES[k]).map(k=>`<label class="ucrole ${ur.includes(k)?"on":""}"><input type="checkbox" data-ucr="${k}" ${ur.includes(k)?"checked":""}><span><b>${ROLES[k].t}</b><small>${esc(ROLES[k].d)}</small></span></label>`).join("")}</div></div>
       <label class="ucfg-sw"><input type="checkbox" id="ucActive" ${cur.active!==false?"checked":""}><span><b>Ativo</b><small>Desligado: a pessoa não acessa o sistema.</small></span></label>
+      <label class="ucfg-sw"><input type="checkbox" id="ucSim" ${cur.sim?"checked":""}><span><b>Pode usar a simulação de bip</b><small>Mostra os botões "Simular leitura" nas telas de bipar (para treinar ou quando o código não lê). Desligado: só bipando de verdade.</small></span></label>
       ${sep?`<div class="eyebrow" style="margin-top:12px">Pode separar</div>
       <label class="ucfg-sw"><input type="checkbox" id="ucCons" ${cur.consultiva?"checked":""}><span><b>Venda Consultiva</b><small>Pedidos das pré-vendas.</small></span></label>
       <label class="ucfg-sw"><input type="checkbox" id="ucEco" ${cur.ecommerce?"checked":""}><span><b>E-commerce</b><small>Pedidos do site e marketplaces (Magazord).</small></span></label>`:""}
@@ -4617,6 +4631,7 @@ function openUserModal(id){
       l=sortRoles(l); if(!l.length){ toast("Mantenha pelo menos um nível de acesso"); draw(); return; }
       saveUser(id,{role:l[0], roles:l}); toast(`Níveis: ${rolesTxt(l)}`); draw(); });
     ov.querySelector("#ucActive").onchange=e=>{ saveUser(id,{active:e.target.checked}); toast(e.target.checked?"Usuário ativado":"Usuário desativado"); draw(); };
+    ov.querySelector("#ucSim").onchange=e=>{ saveUser(id,{sim:e.target.checked}); toast(e.target.checked?"Simulação de bip liberada":"Simulação de bip bloqueada"); draw(); };
     const c=ov.querySelector("#ucCons"); if(c) c.onchange=()=>{ saveUser(id,{consultiva:c.checked}); toast(c.checked?"Liberado para Venda Consultiva":"Venda Consultiva bloqueada"); };
     const e2=ov.querySelector("#ucEco"); if(e2) e2.onchange=()=>{ saveUser(id,{ecommerce:e2.checked}); toast(e2.checked?"Liberado para E-commerce":"E-commerce bloqueado"); };
     const pg=ov.querySelector("#ucPwGo"); if(pg) pg.onclick=async()=>{ const v=ov.querySelector("#ucPw").value; if(v.length<6){ toast("A senha precisa ter pelo menos 6 caracteres"); return; }
@@ -4752,6 +4767,7 @@ function rerender(){
 app.addEventListener("focusout", ()=>{ if(pendingRender) setTimeout(()=>{ const ae=document.activeElement; if(pendingRender && !(ae && /INPUT|SELECT/.test(ae.tagName) && app.contains(ae))){ pendingRender=false; render(); } }, 250); });
 function render(){
   try{ applyScanMode(); }catch(e){}
+  document.documentElement.classList.toggle("can-sim", !!(ME.id && USERS[ME.id]?.sim)); // Administrador libera a simulação de bip por usuário
   pendingRender=false;
   if(HV_TK) return renderTk();
   if(RC_TK) return renderRcTk();
