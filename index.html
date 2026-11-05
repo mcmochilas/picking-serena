@@ -659,6 +659,17 @@ body.pda .keyhint{display:block}
 
 .li.sep .ln{display:flex;flex-direction:column;white-space:normal}
 .li.hrow{align-items:center;gap:10px}
+.li.hrow.htlwrap{flex-wrap:wrap}.htlwrap .hmain{min-width:0}
+.htlbtn{flex:none;width:34px;height:34px}.htlbtn .xpchev{width:18px;height:18px;transition:transform .3s cubic-bezier(.2,.8,.2,1)}.htlbtn[aria-expanded="true"] .xpchev{transform:rotate(180deg)}
+.htlbox{flex-basis:100%;width:100%}.htlbox:not(.xopen){display:none}
+.htl{list-style:none;margin:8px 0 2px;padding:12px 0 0 4px;border-top:1px dashed var(--line)}
+.htl li{position:relative;display:flex;gap:12px;padding:0 0 14px 0}
+.htl li:not(:last-child)::before{content:"";position:absolute;left:5px;top:14px;bottom:0;width:2px;background:var(--line)}
+.htld{width:12px;height:12px;border-radius:50%;background:var(--surface);border:2px solid var(--muted);flex:none;margin-top:3px;position:relative;z-index:1}
+.htl li.k-start .htld{border-color:var(--route,#2A5BC8);background:var(--route,#2A5BC8)}.htl li.k-ok .htld{border-color:var(--ok);background:var(--ok)}.htl li.k-end .htld{border-color:var(--ok);background:var(--ok);box-shadow:0 0 0 3px var(--ok-soft)}
+.htl li.k-bad .htld{border-color:var(--bad);background:var(--bad)}.htl li.k-warn .htld,.htl li.k-edit .htld{border-color:#6D28D9;background:#6D28D9}
+.htl li>div{display:flex;flex-direction:column;gap:1px;min-width:0;font-size:13px}.htl time{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}.htlt{overflow-wrap:anywhere}.htl small{color:var(--muted);font-size:12px}
+@media (prefers-reduced-motion: reduce){.htlbtn .xpchev{transition:none}}
 .hmain{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .htop{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
 .hnum{font-family:var(--mono);font-size:14px;overflow-wrap:anywhere}
@@ -2550,6 +2561,31 @@ function sepTab(o){ return isSeparated(o) ? "fila" : inHive(o) ? "colmeias" : in
 
 /* Cards expansíveis com animação: botão com seta + caixa que abre/fecha a altura suavemente */
 const ICON_CHEV = `<svg class="xpchev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>`;
+/* Linha do tempo do pedido (Separados): junta as datas do fluxo com o histórico registrado */
+function orderTimeline(o){
+  const ev=[], add=(t,txt,by,k)=>{ if(t) ev.push({t:+t, txt, by:by||"", k:k||""}); };
+  const how = x => x==="retirou" ? "Retirado pelo cliente" : x==="entregue" ? "Entregue ao cliente" : "Enviado";
+  add(o.createdAt, isEco(o) ? `Pedido importado da Magazord · ${o.origem||"Site"}${isManual(o)?" · manual":""}` : (o.hiveManual ? "Pré-venda cadastrada direto na colmeia" : "Pré-venda integrada pelo Comercial"), o.createdBy, "start");
+  if(o.decidedAt) add(o.decidedAt, `Compras decidiu · ${MODES[o.mode]?.t||o.mode}`, o.decidedBy);
+  (o.restarts||[]).forEach(r=>add(r.at, `Separação reiniciada${r.done?` (${r.done} item(ns) já coletados voltaram a zero)`:""}`, r.by, "warn"));
+  if(o.startedAt) add(o.startedAt, "Separação iniciada", o.startedBy);
+  if(o.pickedAt) add(o.pickedAt, `Separação concluída${o.startedAt&&o.pickedAt>o.startedAt?` · picking ${fmtDur(o.pickedAt-o.startedAt).replace(/ \d+s$/,"")}`:""}`, o.pickedBy, "ok");
+  if(o.atMesaAt && o.atMesaAt!==o.pickedAt) add(o.atMesaAt, "Na mesa de expedição");
+  if(o.storedAt) add(o.storedAt, `Guardado na colmeia${o.colmeia?" "+o.colmeia.slice(3):""}`);
+  if(o.arrivedAt) add(o.arrivedAt, "Encomenda chegou · volta para a separação", o.arrivedBy, "ok");
+  if(o.sentAt1) add(o.sentAt1, `1º envio · ${how(o.saida1)}`, o.saida1By, "ok");
+  if(o.sentAt) add(o.sentAt, how(o.saida), o.saidaBy, "end");
+  if(o.deletedAt) add(o.deletedAt, `Excluído${o.deleteReason?" · "+o.deleteReason:""}`, o.deletedBy, "bad");
+  (o.hist||[]).forEach(h=>add(h.t, h.ev, h.by, /exclu|cancel/i.test(h.ev)?"bad":/ajust|editad|pulado|separador:|canal:/i.test(h.ev)?"edit":""));
+  const seen=new Set();
+  return ev.filter(e=>{ const k=e.t+"|"+e.txt; if(seen.has(k)) return false; seen.add(k); return true; }).sort((a,b)=>a.t-b.t);
+}
+function timelineHTML(o){
+  const ev=orderTimeline(o), uname=id=>id && (USERS[id]?.name||USERS[id]?.login) || "";
+  if(!ev.length) return `<div class="muted-s">Sem registros para este pedido.</div>`;
+  const dt=t=>new Date(t).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+  return `<ol class="htl">${ev.map(e=>`<li class="${e.k?"k-"+e.k:""}"><span class="htld" aria-hidden="true"></span><div><time datetime="${new Date(e.t).toISOString()}">${dt(e.t)}</time><span class="htlt">${esc(e.txt)}</span>${uname(e.by)?`<small>por ${esc(uname(e.by))}</small>`:""}</div></li>`).join("")}</ol>`;
+}
 const xpBtn = (attr, open, tOpen, tClose) => `<button class="lnk xpbtn" ${attr} aria-expanded="${open}" data-t1="${esc(tOpen)}" data-t0="${esc(tClose)}">${ICON_CHEV}<span>${esc(open?tClose:tOpen)}</span></button>`;
 function xpToggle(box, btn, open){
   if(btn){ btn.setAttribute("aria-expanded", open); const sp=btn.querySelector("span"); if(sp) sp.textContent = open ? btn.dataset.t0 : btn.dataset.t1; }
@@ -2673,10 +2709,13 @@ function renderOrders(){
       <div class="eyebrow">Pedidos separados · ${hist.length}</div>${pgH.top}
       ${hist.length ? `<div class="list" style="margin-top:0">${pgH.items.map(o=>{ const st=statusInfo(o), pk=o.pickedAt&&o.startedAt?o.pickedAt-o.startedAt:null;
         const tp=transpOf(o), fin=/^Finalizado/.test(st.t);
-        return `<div class="li hrow" style="cursor:default"><div class="hmain"><div class="htop"><b class="hnum tnum">#${esc(o.num)}</b>${tp?transpBadge(tp):isEco(o)?"":`<span class="muted-s">sem transportadora</span>`}</div>
+        const hop=(state.histOpen||[]).includes(o.id);
+        return `<div class="li hrow htlwrap" style="cursor:default"><div class="hmain"><div class="htop"><b class="hnum tnum">#${esc(o.num)}</b>${tp?transpBadge(tp):isEco(o)?"":`<span class="muted-s">sem transportadora</span>`}</div>
           <div class="hcli">${esc(o.client)}</div>
           <small>${o.status==="excluido"?`Excluído ${fmtClock(o.deletedAt)} · motivo: ${esc(o.deleteReason||"")}`:fmtClock(o.pickedAt)}${pk!=null?" · picking "+fmtDur(pk).replace(/ \d+s$/,""):""}${o.tray||bigOnMesa(o)?" · "+esc(spotsTxt(o)):""}</small></div>
-          <span class="chip ${st.c} ${fin?"okc":""}" title="${esc(st.t)}">${fin?"OK":esc(st.t.split(" · ")[0])}</span>${canEditOrd && o.status!=="excluido" ? `<button class="mini hedit" data-oedit="${esc(o.id)}" title="Editar pedido">Editar</button>`:""}</div>`; }).join("")}</div>${pgH.pager}` : `<div class="empty">${histAll.length?"Nenhum pedido encontrado com este filtro.":"Nenhum pedido separado ainda."}</div>`}
+          <span class="chip ${st.c} ${fin?"okc":""}" title="${esc(st.t)}">${fin?"OK":esc(st.t.split(" · ")[0])}</span>${canEditOrd && o.status!=="excluido" ? `<button class="mini hedit" data-oedit="${esc(o.id)}" title="Editar pedido">Editar</button>`:""}
+          <button type="button" class="icbtn sm htlbtn" data-htl="${esc(o.id)}" aria-expanded="${hop}" aria-label="${hop?"Esconder":"Ver"} histórico do pedido ${esc(o.num)}" title="Histórico">${ICON_CHEV}</button>
+          <div class="htlbox${hop?" xopen":""}">${hop?timelineHTML(o):""}</div></div>`; }).join("")}</div>${pgH.pager}` : `<div class="empty">${histAll.length?"Nenhum pedido encontrado com este filtro.":"Nenhum pedido separado ainda."}</div>`}
     </div>`;
   }
   app.innerHTML = topnav() + `
@@ -2692,6 +2731,11 @@ function renderOrders(){
   app.querySelectorAll("[data-hcanal]").forEach(b=>b.onclick=()=>{ state.histCanal=b.dataset.hcanal; resetPage("hist"); render(); });
   const hqi=document.getElementById("histQ"); if(hqi) hqi.oninput=()=>{ state.histQ=hqi.value; resetPage("hist"); const pos=hqi.selectionStart; render(); const n=document.getElementById("histQ"); if(n){ n.focus(); try{ n.setSelectionRange(pos,pos); }catch(e){} } };
   app.querySelectorAll("[data-oedit]").forEach(b=>b.onclick=()=>openOrderEdit(b.dataset.oedit));
+  app.querySelectorAll("[data-htl]").forEach(b=>b.onclick=()=>{ const id=b.dataset.htl, row=b.closest(".htlwrap"), box=row.querySelector(".htlbox"), open=b.getAttribute("aria-expanded")!=="true";
+    const o=[...ORDERS,...DELETED].find(x=>x.id===id); if(open && o) box.innerHTML=timelineHTML(o);
+    state.histOpen = open ? [...new Set([...(state.histOpen||[]), id])] : (state.histOpen||[]).filter(x=>x!==id);
+    b.setAttribute("aria-label", (open?"Esconder":"Ver")+" histórico do pedido "+(o?.num||""));
+    xpToggle(box, b, open); });
   app.querySelectorAll("[data-adj]").forEach(b=>b.onclick=()=>startAdjust(b.dataset.adj));
   app.querySelectorAll("[data-canal]").forEach(b=>b.onclick=()=>{ state.canal=b.dataset.canal; resetPage("fila"); try{ localStorage.setItem("ps-canal", state.canal); }catch(e){} render(); });
   bindLote();

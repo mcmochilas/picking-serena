@@ -6,7 +6,7 @@
    Nada aqui fala com o Supabase nem com a Magazord.
    ===================================================================== */
 (function(){
-  const KEY = "ps-test-db-v11", UKEY = "ps-test-user";
+  const KEY = "ps-test-db-v12", UKEY = "ps-test-user";
   const mem = {};
   const ls = {
     get(k){ try{ return localStorage.getItem(k); }catch(e){ return mem[k] ?? null; } },
@@ -78,6 +78,8 @@
     orders.find(o=>o.id==="PV-90005").adjCompras = {at:now-30*M, by:"u-com", ok:false, changes:[{code:"17333", name:"PUXADOR ARCO 128MM ROSE", from:6, to:8, qtyFrom:6, qtyTo:8}]};
     orders.find(o=>o.id==="PV-90008").adjCompras = {at:now-20*M, by:"u-com", ok:false, changes:[{code:"17333", name:"PUXADOR ARCO 128MM ROSE", from:12, to:10, qtyFrom:12, qtyTo:10}]};
     orders.find(o=>o.id==="PV-90009").adjCompras = {at:now-10*M, by:"u-com", ok:false, changes:[{code:"16120", name:"PUXADOR ZEN 160MM DOURADO", from:6, to:8, qtyFrom:6, qtyTo:8}]};
+    Object.assign(orders.find(o=>o.id==="PV-90008"), {createdBy:"u-com", startedBy:"u-sep", pickedBy:"u-sep", restarts:[{at:now-2*24*60*M+12*M, by:"u-sep", done:1}],
+      hist:[{t:now-2*24*60*M+5*M, by:"u-admin", ev:"Editado pelo administrador · separador: Separador Teste"}, {t:now-2*24*60*M+40*M, by:"u-com", ev:"Pré-venda ajustada pelo Comercial · 13088 · PUXADOR ANIELA 128MM NIQUEL: 6 → 8 pç (+2)"}]});
     const users = clone(USERS0);
     Object.values(users).forEach(u=>u.addedAt=now-30*864e5);
     return {
