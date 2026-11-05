@@ -454,6 +454,11 @@ body.scan-cam .scanfield{flex:none;width:52px}body.scan-cam .scanfield input{pad
 body.scan-cam .scanfield:has(.kbd.on){flex:1;width:auto}body.scan-cam .scanfield:has(.kbd.on) input{padding:0 44px 0 12px;color:var(--ink);caret-color:auto}body.scan-cam .scanfield:has(.kbd.on) input::placeholder{color:var(--muted)}
 body.scan-cam .scanfield .kbd{right:2px}
 .scanopt .scanico{font-size:22px;margin-bottom:2px}
+.traystep{margin-top:14px;background:var(--surface);border:2px dashed var(--route);border-radius:18px;padding:24px 18px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px}
+.traystep h2{margin:0;font-size:24px}.traystep p{margin:0;color:var(--muted)}.traystep .tsico{width:72px;height:72px;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,var(--route) 12%,transparent);color:var(--route)}
+.traystep .tssum{display:flex;gap:16px;margin:4px 0 6px;font-size:14px;color:var(--muted)}.traystep .tssum b{color:var(--ink);font-size:16px}
+.traystep .spotbtn{width:100%;margin-top:6px}.traystep .demo{align-self:center}.traystep .spotline{font-size:13px;color:var(--muted)}
+html:not(.ps-test) .demo{display:none!important}
 .directbar{margin-top:8px;padding:10px 12px;border-radius:12px;background:var(--ok-soft);border:1px solid var(--ok);color:var(--ink);font-size:13px;line-height:1.4}
 .unitask .unitcount{display:flex;align-items:baseline;gap:10px;justify-content:center;margin:6px 0 2px}.unitask .unitcount b{font-size:48px;line-height:1;font-family:var(--mono)}.unitask .unitcount span{color:var(--muted);font-size:15px}
 .unitbar{height:10px;border-radius:6px;background:var(--line);overflow:hidden;margin-bottom:6px}.unitbar i{display:block;height:100%;background:var(--ok);transition:width .2s}
@@ -3247,6 +3252,7 @@ function renderPick(){
     ${state.lote && loteMatch(o) ? `<div class="lotebadge">Lote · ${esc(state.lote.vals.join(" · "))} · ${lotePending().length} restante(s)</div>` : ""}
     ${!isEco(o)&&transpOf(o)?`<div class="ecoinfo">${transpBadge(transpOf(o))}</div>`:""}
     ${isEco(o)?`<div class="ecoinfo"><span class="chip eco">${esc(o.origem||"Site")}</span>${transpBadge(o.transportadora)}${o.servico&&o.servico!==o.transportadora?`<span class="muted-s">${esc(o.servico)}</span>`:""}</div>`:""}
+    ${state.phase==="tray" ? trayStepHTML(o, pl, r) : `
     <div class="steps">${pl.map((x,k)=>{ const s=r[x.i].status; return `<i class="${s==="ok"||s==="part"?"ok":s==="miss"?"miss":k===state.idx?"cur":""}"></i>`; }).join("")}</div>
     ${l ? `<div class="loc">
       <div class="grow"><div class="eyebrow">Local</div>
@@ -3268,7 +3274,7 @@ function renderPick(){
     <div class="list" style="margin-top:6px">
       ${pl.map((x,k)=>{ const s=r[x.i].status; const ic = s==="ok"?"✓":s==="miss"?"!":s==="part"?r[x.i].got:"";
         return `<button class="li ${k===state.idx?"cur":""}" data-k="${k}"><span class="st ${s}">${ic}</span><span class="ln"><b class="tnum">${esc(x.code)}</b> <small>${x.loc ? `${x.loc.n}.${x.loc.c} · R${x.loc.r}-L${x.loc.l}` : "sem local"}</small></span><span class="tnum">${r[x.i].spot?mesaName(r[x.i].spot)+" · ":""}${x.need} pç</span></button>`;}).join("")}
-    </div>`;
+    </div>`}`;
   document.getElementById("back").onclick = ()=>{ state.view="orders"; render(); };
   document.getElementById("restartPick").onclick = ()=>restartOrder(o.id, true);
   const sk=document.getElementById("skipPick"); if(sk) sk.onclick=()=>skipLote(o.id);
@@ -3287,8 +3293,23 @@ function renderPick(){
     okQ.onclick=()=> commit(state.count>=it.need ? "ok" : state.count===0 ? "miss" : "part"); }
   app.querySelectorAll(".li[data-k]").forEach(b=>b.onclick=()=>{ const k=+b.dataset.k; if(r[pl[k].i].status==="ok"){ toast("Item já finalizado"); return; } goItem(k); if(r[pl[k].i].status!=="pend") setMsg("Item com falta: se encontrou a peça, bipe novamente","info"); });
   setMsg(state.phase==="tray" ? "Bipe a bandeja ou a mesa" : state.phase==="qty" ? `Conte ${it.need} pç e confirme` : state.phase==="unit" ? `${state.count} de ${it.need} pç bipadas. Bipe a próxima peça.` : pickDirect(o) ? `Bipe a 1ª peça (${it.need} pç no total)` : "Bipe o produto", "info");
-  if(l) requestAnimationFrame(()=>animateRoute(false));
+  if(l && state.phase!=="tray") requestAnimationFrame(()=>animateRoute(false));
   focusScan();
+}
+/* 1º passo ao abrir o pedido: só a bandeja (os produtos aparecem depois de bipar a bandeja) */
+function trayStepHTML(o, pl, r){
+  const ft=freeTray(o), pcs=pl.reduce((s,x)=>s+x.need,0);
+  return `<div class="traystep">
+    <div class="tsico" aria-hidden="true"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h18l-2 6H5z"/><path d="M3 13l2-6h14l2 6"/><path d="M9 16h6"/></svg></div>
+    <div class="eyebrow">Passo 1 · antes de começar</div>
+    <h2>Bipe uma bandeja vazia</h2>
+    <p>Depois da bandeja aparecem os produtos para bipar.</p>
+    <div class="tssum"><span><b class="tnum">${pl.length}</b> referência(s)</span><span><b class="tnum">${pcs}</b> peça(s)</span></div>
+    ${ft?`<button class="demo" id="sim">Simular bandeja ${ft} (demo)</button>`:`<div class="err">Todas as bandejas estão em uso. Use uma mesa.</div>`}
+    <button class="btn ghost spotbtn" id="useMesa">Sem bandeja ou peças grandes · usar a ${mesaName(defMesa())}</button>
+    ${MESAS.length>1?`<div class="spotline">Ou bipe a etiqueta de outra mesa (${MESAS.map(m=>mesaName(m.code)).join(", ")}).</div>`:""}
+    ${CESTAS.length?`<div class="spotline">Para juntar vários pedidos, bipe uma cesta (${CESTAS.map(m=>spotName(m.code)).join(", ")}).</div>`:""}
+  </div>`;
 }
 function goItem(k){ state.bigItem=false; state.idx=k; state.phase=startPhase(ORDERS.find(x=>x.id===state.oid)); state.count=0; render(); scrollTo({top:0,behavior:"smooth"}); }
 function updateCount(){

@@ -5,6 +5,8 @@
    mas os dados ficam só neste navegador, com pedidos de exemplo.
    Nada aqui fala com o Supabase nem com a Magazord.
    ===================================================================== */
+document.documentElement.classList.add("ps-test"); // no teste os botões "Simular leitura (demo)" continuam visíveis
+
 (function(){
   const KEY = "ps-test-db-v12", UKEY = "ps-test-user";
   const mem = {};
