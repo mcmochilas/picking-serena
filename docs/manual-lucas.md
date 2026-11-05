@@ -128,7 +128,7 @@ Tudo fica registrado no histórico do pedido com o nome do Administrador. O mesm
 Toque no pedido para começar. O cronômetro de picking começa a contar. No topo da tela aparecem o número do pedido e o **nome do cliente** (Venda Consultiva e E-commerce).
 1. **Bandeja** (se a configuração "Usar bandeja" estiver ligada): ao abrir o pedido aparece só a tela **"Passo 1 · Bipe uma bandeja vazia"** (com o total de referências e peças); os produtos aparecem depois de bipar a bandeja. Sem bandeja ou peças grandes: toque em **usar a Mesa** (ou bipe a etiqueta de outra mesa). Para juntar vários pedidos, bipe uma **cesta**.
 2. **Local**: a tela mostra o endereço (Rua-Lado-Tipo-Nível.Coluna, ex.: R1-LB-BIN-8.M), o desenho do móvel e o **mapa com a rota**. Vá até o local.
-3. **Bipe o produto** (EAN da embalagem ou o código do produto). Produto errado: o sistema avisa "Código X não é de nenhuma peça deste pedido".
+3. **Bipe o produto** (EAN da embalagem ou o código do produto) na Venda Consultiva. **No E-commerce, bipe a etiqueta do endereço** (o produto também é aceito; produto sem endereço cadastrado: bipe o produto). Produto errado: o sistema avisa "Código X não é de nenhuma peça deste pedido".
 4. **Quantidade**: conte as peças, ajuste com − / + (ou digite a quantidade e Enter) e toque em **Confirmar N pç**.
 5. Item **não cabe na bandeja**: toque em "Não cabe na bandeja · colocar na Mesa".
 6. **Falta**: não achou a peça (ou achou menos)? Toque em **Falta** (ou "Encerrar com N (falta)"). Fica registrado como falta/parcial.
@@ -140,6 +140,9 @@ Item de **encomenda que chegou** (2ª etapa): o local aparece como **Área de re
 
 ### 4.2b Conferência no local (Envio total + Cliente na loja)
 Pedido da Venda Consultiva com **Envio total** e **Cliente está na loja** não usa bandeja nem vai para a mesa. A tela mostra o aviso verde "Conferência no local". Em cada endereço, **bipe cada peça** (contador "2 de 4 pç bipadas"); ao completar a quantidade o sistema passa sozinho para o próximo item. Há **Desfazer 1** e **Encerrar com N (falta)**. No fim aparece "Coloque as N pç na sacola e entregue direto ao vendedor": entregue e toque em **Entreguei ao vendedor**. Fica no histórico como "Conferido no local" e "Entregue ao vendedor". Os demais tipos de envio seguem o fluxo normal (bandeja → produto → quantidade → mesa).
+
+### 4.2d Simulação de bip (permissão)
+Os botões "Simular leitura (demo)" só aparecem para quem o Administrador liberar: **Usuários → abrir a pessoa → "Pode usar a simulação de bip"**. Desmarcado (padrão): só bipando de verdade.
 
 ### 4.2c Tipo de leitura (engrenagem)
 Na barra de leitura, embaixo, a **engrenagem** abre "Como você vai bipar?". Cada separador escolhe uma vez no seu aparelho:
