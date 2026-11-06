@@ -452,7 +452,7 @@ body.scan-cam .in:has(.kbd.on) .cam{display:none}
 .slot{position:relative}.slotn{position:absolute;top:2px;right:3px;font-style:normal;font-size:9px;font-weight:700;background:var(--ink);color:var(--bg);border-radius:8px;min-width:14px;height:14px;line-height:14px;text-align:center;padding:0 3px}
 button.slot{padding:0;cursor:pointer;font-family:var(--mono)}button.slot:hover{outline:2px solid var(--route);outline-offset:1px}
 .scancfg{flex:none;width:44px;height:48px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);display:grid;place-items:center}
-body.scan-reader .cam{display:none}
+body.scan-reader .cam{display:none}body.scan-col .scanfield .kbd{display:none}body.scan-col .scanfield input{padding-right:12px}
 body.scan-reader .scanfield input{font-size:16px;border-width:2px;border-color:var(--route)}
 body.scan-cam .cam{flex:1;justify-content:center;height:56px;font-size:16px}
 body.scan-cam .scanfield{flex:none;width:52px}body.scan-cam .scanfield input{cursor:pointer}body.scan-cam .scanfield input{padding:0;color:transparent;caret-color:transparent;border-color:var(--line)}body.scan-cam .scanfield input::placeholder{color:transparent}
@@ -3715,7 +3715,7 @@ scanIn.addEventListener("keydown", e=>{
 // Leitores configurados sem "Enter" no final: processa quando a digitação para
 scanIn.addEventListener("input", ()=>{
   clearTimeout(autoT);
-  if(scanIn.getAttribute("inputmode")!=="none") return;
+  if(scanIn.getAttribute("inputmode")!=="none" && scanMode()!=="coletor") return;
   autoT=setTimeout(()=>{ const v=scanIn.value.trim(); if(v.length>=6){ wedgeN=0; handleScan(v); scanIn.value=""; } }, 180);
 });
 let buf="", bufT;
@@ -3735,8 +3735,11 @@ document.getElementById("kbd").onclick = ()=>{
 /* Tipo de leitura, escolhido por cada separador neste aparelho: câmera do celular ou leitor de código (Bluetooth/USB) */
 const scanModeKey = () => "ps-scanmode:"+(ME.id||"");
 function scanMode(){ try{ return localStorage.getItem(scanModeKey()) || "leitor"; }catch(e){ return "leitor"; } }
-function applyScanMode(){ const m=scanMode(); document.body.classList.toggle("scan-cam", m==="camera"); document.body.classList.toggle("scan-reader", m!=="camera");
+function applyScanMode(){ const m=scanMode(); document.body.classList.toggle("scan-cam", m==="camera"); document.body.classList.toggle("scan-reader", m!=="camera"); document.body.classList.toggle("scan-col", m==="coletor");
   const c=document.getElementById("cam"); if(c) c.lastChild.textContent = m==="camera" ? "Abrir câmera" : "Câmera";
+  // Coletor (leitor embutido no aparelho Android): o leitor "digita" pelo teclado do sistema, então o campo precisa aceitar teclado
+  if(m==="coletor"){ if(scanIn.getAttribute("inputmode")!=="text"){ scanIn.setAttribute("inputmode","text"); scanIn.setAttribute("enterkeyhint","done"); } scanIn.placeholder="Coletor pronto: aperte o gatilho"; return; }
+  if(scanIn.getAttribute("inputmode")==="text" && !document.getElementById("kbd").classList.contains("on")) scanIn.setAttribute("inputmode","none");
   if(scanIn.getAttribute("inputmode")==="none") scanIn.placeholder = m==="camera" ? "Toque em Abrir câmera" : "Leitor pronto: bipe o código"; }
 document.getElementById("scanCfg").onclick = ()=>{
   const cur=scanMode(), ov=document.createElement("div"); ov.className="modal"; document.body.appendChild(ov);
@@ -3745,12 +3748,13 @@ document.getElementById("scanCfg").onclick = ()=>{
     <div class="modes" role="radiogroup">
       ${opt("camera","Câmera do celular","Botão grande para abrir a câmera. A câmera fica aberta e lê um código atrás do outro, até você fechar.",`<span class="scanico" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h3l2-2.5h6L17 7h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg></span>`)}
       ${opt("leitor","Leitor de código (Bluetooth/USB)","Sem botão de câmera: é só bipar com o leitor. O campo fica sempre pronto para a próxima leitura.",`<span class="scanico" aria-hidden="true">${ICON_SCAN}</span>`)}
+      ${opt("coletor","Coletor (leitor embutido no aparelho)","Para coletor Android com gatilho de leitura. O campo fica pronto para o leitor do aparelho; se o teclado aparecer, pode ignorar e bipar.",`<span class="scanico" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M10 5h4M9 9h6v5H9z"/></svg></span>`)}
     </div>
     <div class="mact"><button class="btn ghost" id="mNo">Cancelar</button><button class="btn primary" id="mOk">Salvar</button></div></div>`;
   const close=()=>{ ov.remove(); focusScan(); };
   ov.querySelector("#mNo").onclick=close; ov.onclick=e=>{ if(e.target===ov) close(); };
   ov.querySelector("#mOk").onclick=()=>{ const v=ov.querySelector("input[name=smode]:checked")?.value||"leitor"; try{ localStorage.setItem(scanModeKey(), v); }catch(e){}
-    applyScanMode(); close(); toast(v==="camera" ? "Leitura pela câmera do celular" : "Leitura pelo leitor de código"); };
+    applyScanMode(); close(); toast(v==="camera" ? "Leitura pela câmera do celular" : v==="coletor" ? "Leitura pelo coletor" : "Leitura pelo leitor de código"); };
 };
 const camFile=document.getElementById("camfile");
 let liveBlocked = false;
