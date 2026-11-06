@@ -169,7 +169,7 @@ Tudo fica registrado no histórico do pedido.
 
 ### 4.4 Mesa de expedição (Conferente)
 - **Receber os pedidos separados**: quando o pedido chegar na mesa, toque em receber / bipe. Se o pedido for de colmeia, a tela indica em qual colmeia guardar.
-- **Guardar na colmeia**: leve as peças à colmeia indicada e **bipe a etiqueta da colmeia** para confirmar. Colmeia errada é recusada.
+- **Guardar na colmeia**: o sistema **não escolhe** a colmeia: o separador escolhe, coloca as peças e **bipa a etiqueta da colmeia**; o pedido fica ligado à colmeia bipada. Se a colmeia já tiver outra pré-venda, o sistema pergunta se quer **Guardar junto**. Se o pedido já estava numa colmeia (ex.: volta da encomenda), ela aparece como sugestão, mas dá para bipar outra.
 
 ### 4.5 Separados
 Aba **Separados**: histórico dos pedidos separados (e os excluídos do dia), com transportadora, cliente, horário, tempo de picking e situação.
@@ -252,7 +252,7 @@ Compras recebe **aviso no sistema (som + mensagem)** e **notificação no celula
 ### 7.1 Decidir um "Tem encomenda"
 O card mostra cada item com as colunas **Vendido**, **Encomendar** e **Da loja**. Em "Encomendar" digite quantas peças de cada item serão encomendadas (ou marque "todas"; o botão **Encomendar tudo** marca todos). O sistema mostra o resultado da decisão:
 - **Encomenda total** (encomendar tudo): não passa pela separação nem usa colmeia; espera chegar tudo.
-- **Separar o que tem na loja** (parte encomenda, parte da loja): as peças da loja vão para a separação e ficam guardadas numa colmeia livre (indicada na tela) até a encomenda chegar.
+- **Separar o que tem na loja** (parte encomenda, parte da loja): as peças da loja vão para a separação e o separador guarda na colmeia que bipar até a encomenda chegar.
 - **Nada a encomendar**: vai para a separação como envio total (os separadores são avisados).
 Depois toque em **Confirmar e encaminhar**. O card também mostra o que o Comercial pediu e se o cliente retira ou está na loja.
 - **Para decidir · Ajuste**: pré-venda já separada que o Comercial ajustou com Tem encomenda. O card mostra só o que entrou de novo (coluna "Novo no ajuste"); digite quanto encomendar, o restante é separado da loja e vira tarefa de ajuste para o separador juntar na colmeia do pedido.
