@@ -180,6 +180,8 @@ Aba **Separados**: histórico dos pedidos separados (e os excluídos do dia), co
 ### 4.6 Painel TV
 Endereço `/#tv` (botão **Painel TV**). Mostra a fila de separação em letras grandes, com som de alerta (toque em "Ativar som") e **Tela cheia**. O nível "Painel TV" só vê esta tela.
 
+**Aviso de voz (cliente na loja):** quando há pedido com **Cliente está na loja** esperando separação, depois do alerta sonoro uma voz diz "Atenção. Pedido (número, dígito por dígito). Cliente aguarda na loja para retirada." Se em **1 minuto** o pedido não entrar em separação, o aviso é repetido (a cada minuto, até alguém iniciar). Para funcionar, toque em **Ativar som** na TV (fica "Som e voz ligados"). A voz é a do navegador da TV: se houver voz masculina em português ela é usada; senão, a voz disponível fica mais grave.
+
 ---
 
 ## 5. Pedidos do e-commerce (Magazord)
