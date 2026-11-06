@@ -450,9 +450,12 @@ details.cpcard summary{display:flex;justify-content:space-between;align-items:ce
 body.scan-reader .cam{display:none}
 body.scan-reader .scanfield input{font-size:16px;border-width:2px;border-color:var(--route)}
 body.scan-cam .cam{flex:1;justify-content:center;height:56px;font-size:16px}
-body.scan-cam .scanfield{flex:none;width:52px}body.scan-cam .scanfield input{padding:0;color:transparent;caret-color:transparent;border-color:var(--line)}body.scan-cam .scanfield input::placeholder{color:transparent}
+body.scan-cam .scanfield{flex:none;width:52px}body.scan-cam .scanfield input{cursor:pointer}body.scan-cam .scanfield input{padding:0;color:transparent;caret-color:transparent;border-color:var(--line)}body.scan-cam .scanfield input::placeholder{color:transparent}
 body.scan-cam .scanfield:has(.kbd.on){flex:1;width:auto}body.scan-cam .scanfield:has(.kbd.on) input{padding:0 44px 0 12px;color:var(--ink);caret-color:auto}body.scan-cam .scanfield:has(.kbd.on) input::placeholder{color:var(--muted)}
 body.scan-cam .scanfield .kbd{right:2px}
+body.scan-cam .scanfield:not(:has(.kbd.on)){width:auto}body.scan-cam .scanfield:not(:has(.kbd.on)) input{width:0;min-width:0;padding:0;border:0;position:absolute;opacity:0;pointer-events:none}
+body.scan-cam .scanfield:not(:has(.kbd.on)) .kbd{position:static;width:auto;height:56px;padding:0 12px;gap:2px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);font-size:11px;font-weight:600;grid-auto-flow:row}
+body.scan-cam .scanfield:not(:has(.kbd.on)) .kbd::after{content:"Digitar"}
 .scanopt .scanico{font-size:22px;margin-bottom:2px}
 .traystep{margin-top:14px;background:var(--surface);border:2px dashed var(--route);border-radius:18px;padding:24px 18px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px}
 .traystep h2{margin:0;font-size:24px}.traystep p{margin:0;color:var(--muted)}.traystep .tsico{width:72px;height:72px;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,var(--route) 12%,transparent);color:var(--route)}
@@ -3735,6 +3738,8 @@ document.getElementById("scanCfg").onclick = ()=>{
 };
 const camFile=document.getElementById("camfile");
 let liveBlocked = false;
+/* Leitura pela câmera: tocar no campo do código também abre a câmera (o teclado continua no botão ao lado) */
+scanIn.addEventListener("pointerdown", e=>{ if(scanMode()==="camera" && scanIn.getAttribute("inputmode")==="none"){ e.preventDefault(); document.getElementById("cam").click(); } });
 document.getElementById("cam").onclick = async ()=>{
   if(liveBlocked){ camFile.value=""; ensureZXing().catch(()=>{}); camFile.click(); return; }
   const ok = await openLiveScanner();
