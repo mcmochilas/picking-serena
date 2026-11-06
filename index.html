@@ -3087,14 +3087,14 @@ function renderTV(){
       <div class="brand">Picking <span>Serena</span><small>Painel da separação</small></div>
       <div class="tvclock"><b class="tnum" id="tvClock">${d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</b><small>${d.toLocaleDateString("pt-BR",{weekday:"long", day:"2-digit", month:"long"})}</small></div>
       <div class="tvtools"><div class="sync ${synced?"":"local"}"><i></i>${synced?"Ao vivo":"Sem conexão"}</div>
-        ${audioCtx && audioCtx.state==="running" ? `<span class="tvsound" title="Aviso sonoro de novo pedido ligado">🔊 Som ligado</span>` : `<button class="refbtn" id="tvSound" title="A TV só toca som depois de um toque na tela">🔇 Ativar som</button>`}
+        ${audioCtx && audioCtx.state==="running" ? `<span class="tvsound" title="Aviso sonoro de novo pedido e aviso de voz para cliente na loja ligados">🔊 Som e voz ligados</span>` : `<button class="refbtn" id="tvSound" title="A TV só toca som depois de um toque na tela">🔇 Ativar som</button>`}
         ${document.fullscreenElement?"":`<button class="refbtn" id="tvFull">Tela cheia</button>`}
         ${painel?`<button class="refbtn" onclick="psLogout&&psLogout()">Sair</button>`:`<a class="refbtn" href="/#expedicao" id="tvExit">Voltar ao sistema</a>`}</div>
     </header>
     ${!synced?`<div class="banner">Sem conexão com o banco de dados. Os dados podem estar desatualizados.</div>`:""}
     <div class="tvgrid">${TV_CANAIS.map(([c,t])=>tvColumn(c,t)).join("")}</div>`;
   fillNames(app); tvFit();
-  const snd=document.getElementById("tvSound"); if(snd) snd.onclick=()=>{ unlockAudio(); chime(true); setTimeout(render, 300); };
+  const snd=document.getElementById("tvSound"); if(snd) snd.onclick=()=>{ unlockAudio(); chime(true); try{ speechSynthesis.speak(new SpeechSynthesisUtterance(" ")); }catch(e){} setTimeout(()=>tvSay("Aviso de voz ligado."), 900); setTimeout(render, 300); };
   const f=document.getElementById("tvFull"); if(f) f.onclick=()=>{ unlockAudio(); document.documentElement.requestFullscreen?.().then(()=>render()).catch(()=>{}); };
   const ex=document.getElementById("tvExit"); if(ex) ex.onclick=e=>{ e.preventDefault(); history.replaceState(null,"","/#expedicao"); state.view="orders"; state.sector="expedicao"; document.documentElement.classList.remove("tvmode"); render(); };
   // a cada minuto: busca tudo de novo (garante a fila mesmo se o tempo real cair) e redesenha
@@ -4795,6 +4795,31 @@ function chime(force){
       g.gain.setValueAtTime(0.0001,t0+dt); g.gain.exponentialRampToValueAtTime(.45,t0+dt+.02); g.gain.exponentialRampToValueAtTime(.0001,t0+dt+.28);
       o.connect(g); g.connect(c.destination); o.start(t0+dt); o.stop(t0+dt+.3); }); }catch(e){}
 }
+/* Painel da TV: pedido com CLIENTE NA LOJA esperando separação → voz masculina diz o número e o aviso; repete a cada 1 min até entrar em separação */
+const TV_SAID = {}; let tvVoice=null;
+function pickMaleVoice(){
+  const vs=(window.speechSynthesis?.getVoices()||[]).filter(v=>/^pt/i.test(v.lang));
+  const br=vs.filter(v=>/BR/i.test(v.lang)), pool=br.length?br:vs;
+  return pool.find(v=>/daniel|felipe|ricardo|ant[oô]nio|thiago|f[aá]bio|donato|julio|humberto|male|masculin|homem/i.test(v.name)) || pool[0] || null;
+}
+try{ speechSynthesis.onvoiceschanged = ()=>{ tvVoice=pickMaleVoice(); }; }catch(e){}
+function tvSay(text){
+  try{ if(!window.speechSynthesis) return; tvVoice ||= pickMaleVoice();
+    const u=new SpeechSynthesisUtterance(text); u.lang="pt-BR"; if(tvVoice) u.voice=tvVoice;
+    const male = tvVoice && /daniel|felipe|ricardo|ant[oô]nio|thiago|f[aá]bio|donato|julio|humberto|male|masculin|homem/i.test(tvVoice.name);
+    u.pitch = male ? 0.95 : 0.6; u.rate=0.95; u.volume=1; speechSynthesis.speak(u); }catch(e){}
+}
+const tvDigits = n => String(n||"").replace(/\D/g,"").split("").join(" ");
+function tvAnnounceTick(){
+  if(!(state.view==="tv" || myRole()==="painel")) return;
+  const now=Date.now(), wait=ORDERS.filter(o=>o.status==="aguardando" && o.naLoja && !o.startedBy && pickList(o).length);
+  const ids=new Set(wait.map(o=>o.id)); Object.keys(TV_SAID).forEach(k=>{ if(!ids.has(k)) delete TV_SAID[k]; });
+  const due=wait.filter(o=>!TV_SAID[o.id] || now-TV_SAID[o.id]>=60000);
+  if(!due.length) return;
+  due.forEach(o=>TV_SAID[o.id]=now);
+  setTimeout(()=>due.forEach(o=>tvSay(`Atenção. Pedido ${tvDigits(o.num)}. Cliente aguarda na loja para retirada.`)), 1200); // depois do aviso sonoro
+}
+setInterval(tvAnnounceTick, 5000);
 function checkNewOrders(){
   const tv = state.view==="tv" || myRole()==="painel"; // painel da TV: todos os canais, só som (sem janela de aviso)
   const open = ORDERS.filter(o=>o.status==="aguardando" && pickList(o).length && (tv || ecoOk(o)));
