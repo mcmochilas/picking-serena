@@ -147,6 +147,7 @@ Os botões "Simular leitura (demo)" só aparecem para quem o Administrador liber
 ### 4.2c Tipo de leitura (engrenagem)
 Na barra de leitura, embaixo, a **engrenagem** abre "Como você vai bipar?". Cada separador escolhe uma vez no seu aparelho:
 - **Leitor de código (Bluetooth/USB)**: sem botão de câmera; o campo fica sempre pronto, é só bipar. É o padrão.
+- **Coletor (leitor embutido no aparelho)**: para coletor Android com gatilho. O campo aceita o teclado do sistema, que é por onde o leitor do coletor escreve o código ("Coletor pronto: aperte o gatilho"). Se o teclado aparecer, pode ignorar e bipar. Use esta opção se o coletor só lê com o teclado aberto.
 - **Câmera do celular**: botão grande **Abrir câmera** (tocar no campo do código também abre a câmera; para digitar, use o botão **Digitar** ao lado); ao abrir, espera cerca de 2 s ("Posicione o código no quadro…") para dar tempo de apontar; depois a câmera fica aberta e lê um código atrás do outro, com uma pausa de ~1 s entre leituras (vibra e mostra o resultado a cada leitura) até tocar em Fechar. O botão de teclado continua para digitar o código.
 
 Botões no topo da tela de separação: **voltar**, **reiniciar separação** (seta circular), **excluir separação** (lixeira, pede motivo), cronômetro e contador de itens.
@@ -213,7 +214,7 @@ Ao **Salvar itens**: o que está "na colmeia" passa a contar como separado; muda
 Botão **+ Novo pedido na colmeia**:
 1. Escolha **por que vai para a colmeia**: **Cliente vai retirar** ou **Aguardando encomenda** (obrigatório).
 2. Importe o PDF da pré-venda ou preencha número e cliente (observação opcional).
-3. **Aguardando encomenda**: marque **quais itens estão aguardando encomenda** e quantas peças de cada um (ou **Marcar todos** / "todas"). Os demais itens vão para a colmeia agora. Os itens marcados aparecem para Compras em **Em aberto** para encomendar. Sem o PDF não dá para marcar os itens.
+3. **Aguardando encomenda**: se a pré-venda foi **desmembrada** (todos os itens dela estão aqui e a encomenda está em outra pré-venda), marque **"A encomenda está em outra pré-venda"** (e, se souber, o nº dela): não precisa marcar itens, todos vão para a colmeia e o pedido fica "Aguardando a pré-venda da encomenda"; depois cadastre a outra pré-venda e bipe a mesma colmeia (Salvar junto). Caso contrário, marque **quais itens estão aguardando encomenda** e quantas peças de cada um (ou **Marcar todos** / "todas"). Os demais itens vão para a colmeia agora. Os itens marcados aparecem para Compras em **Em aberto** para encomendar. Sem o PDF não dá para marcar os itens.
 4. **Salvar e bipar a colmeia** (padrão): no computador aparece um **QR code**; leia com o celular, o app abre na tela "Bipe a colmeia" (com o seu login), bipe a colmeia livre e confirme "Deseja salvar a colmeia X?". A janela do computador mostra "✓ Guardado na colmeia X". No celular, vai direto para a tela de bipar. Até ser bipado, o pedido fica em **Colmeias → "Aguardando colmeia"** (botão **Bipar colmeia**). No iPhone, o QR abre no Safari; se o login estiver só no atalho do app, abra o atalho e use "Aguardando colmeia". Também dá para escolher a colmeia direto no computador em "Ou escolher a colmeia aqui".
 Quem pode cadastrar: Separação, Conferente, Comercial, **Financeiro**, Supervisor e Administrador.
 
