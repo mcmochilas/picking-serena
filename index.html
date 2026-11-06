@@ -467,7 +467,7 @@ html:not(.ps-test):not(.can-sim) .demo{display:none!important}
 .hnpick{margin-top:8px}.hnpick summary{cursor:pointer;color:var(--muted);font-size:13px;padding:4px 0}
 .hvpend{border:1px solid var(--route);background:color-mix(in srgb,var(--route) 7%,var(--surface));border-radius:14px;padding:10px 12px;margin-bottom:12px}
 .hvpendi{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}.hvpendi:first-of-type{border-top:0}.hvpendi small{display:block;color:var(--muted);font-size:12px}
-.hvpop{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0}.hvpop small{color:var(--muted)}
+.hvpop{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0}.hvpopit{margin-top:10px;padding-top:8px;border-top:1px dashed var(--line)}.hvpopit .hvitems{margin-top:4px}.hvpop small{color:var(--muted)}
 .qrdone{font-size:20px;padding:30px 10px;text-align:center;color:var(--ok);font-weight:600}
 .directbar{margin-top:8px;padding:10px 12px;border-radius:12px;background:var(--ok-soft);border:1px solid var(--ok);color:var(--ink);font-size:13px;line-height:1.4}
 .unitask .unitcount{display:flex;align-items:baseline;gap:10px;justify-content:center;margin:6px 0 2px}.unitask .unitcount b{font-size:48px;line-height:1;font-family:var(--mono)}.unitask .unitcount span{color:var(--muted);font-size:15px}
@@ -2361,6 +2361,7 @@ function scanHiveLookup(v){
   const close=()=>{ ov.remove(); render(); };
   ov.innerHTML=`<div class="mbox" role="dialog" aria-modal="true" aria-label="Colmeia ${esc(c.slice(3))}"><h2>Colmeia ${esc(c.slice(3))}</h2>
     ${here.length ? here.map(o=>{ const st=statusInfo(o), n=(o.items||[]).reduce((s,it)=>s+(it.qty||0),0); return `<div class="hvpop"><div><b class="mono">#${esc(o.num)}</b> · ${esc(o.client)}</div><small>${esc(st.t)} · ${n} pç${o.storedAt?` · guardado ${fmtClock(o.storedAt)}`:""}</small>
+      ${(o.items||[]).length ? `<div class="hvpopit"><div class="eyebrow">Itens da pré-venda · ${(o.items||[]).length}</div><div class="hvitems">${o.items.map(it=>hvItemHTML(o,it,false)).join("")}</div></div>` : `<div class="muted-s" style="margin-top:6px">Pedido cadastrado sem itens${o.obs?" · "+esc(o.obs):""}.</div>`}
       ${canHiveMove()?`<button class="btn primary" data-hvmv="${esc(o.id)}" style="margin-top:10px;width:100%">Alterar colmeia</button>`:""}</div>`; }).join("")
       : `<p>Colmeia livre.</p>${pend.length && canHiveStore() ? `<div class="eyebrow">Guardar aqui um pedido aguardando colmeia</div>${pend.map(o=>`<button class="li" data-hvst="${esc(o.id)}"><span class="ln"><b class="mono">#${esc(o.num)}</b> ${esc(o.client)}</span></button>`).join("")}`:""}`}
     ${here.length && !canHiveMove() ? `<small class="muted-s">Para mudar o pedido de colmeia, peça ao Administrador a permissão "Pode mudar pedidos de colmeia".</small>`:""}
