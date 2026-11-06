@@ -147,7 +147,7 @@ Os botões "Simular leitura (demo)" só aparecem para quem o Administrador liber
 ### 4.2c Tipo de leitura (engrenagem)
 Na barra de leitura, embaixo, a **engrenagem** abre "Como você vai bipar?". Cada separador escolhe uma vez no seu aparelho:
 - **Leitor de código (Bluetooth/USB)**: sem botão de câmera; o campo fica sempre pronto, é só bipar. É o padrão.
-- **Câmera do celular**: botão grande **Abrir câmera**; a câmera fica aberta e lê um código atrás do outro (vibra e mostra o resultado a cada leitura) até tocar em Fechar. O botão de teclado continua para digitar o código.
+- **Câmera do celular**: botão grande **Abrir câmera** (tocar no campo do código também abre a câmera; para digitar, use o botão **Digitar** ao lado); a câmera fica aberta e lê um código atrás do outro (vibra e mostra o resultado a cada leitura) até tocar em Fechar. O botão de teclado continua para digitar o código.
 
 Botões no topo da tela de separação: **voltar**, **reiniciar separação** (seta circular), **excluir separação** (lixeira, pede motivo), cronômetro e contador de itens.
 
@@ -218,7 +218,7 @@ Botão **+ Novo pedido na colmeia**:
 Quem pode cadastrar: Separação, Conferente, Comercial, **Financeiro**, Supervisor e Administrador.
 
 ### 6.2a Mudar um pedido de colmeia
-No celular, na aba **Colmeias**, bipe a etiqueta de uma colmeia: abre a janela com o pedido que está nela. Toque em **Alterar colmeia**, bipe a nova colmeia (livre) e confirme "Deseja salvar a nova localização...?". Fica no histórico "Colmeia alterada: A1 → C1". O botão aparece só para o Administrador e para quem tiver a permissão **Usuários → abrir a pessoa → "Pode mudar pedidos de colmeia"**. Bipar uma colmeia livre mostra "Colmeia livre" e permite guardar ali um pedido que está aguardando colmeia.
+No celular, na aba **Colmeias**, bipe a etiqueta de uma colmeia: abre a janela com o pedido que está nela e a lista de **itens da pré-venda** (o que está na colmeia e o que é encomenda). Toque em **Alterar colmeia**, bipe a nova colmeia (livre) e confirme "Deseja salvar a nova localização...?". Fica no histórico "Colmeia alterada: A1 → C1". O botão aparece só para o Administrador e para quem tiver a permissão **Usuários → abrir a pessoa → "Pode mudar pedidos de colmeia"**. Bipar uma colmeia livre mostra "Colmeia livre" e permite guardar ali um pedido que está aguardando colmeia.
 
 ### 6.3 Tirar o pedido da colmeia (entrega ou envio)
 Botões no pedido: **Cliente irá retirar** ou **Enviar**.
