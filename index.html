@@ -467,6 +467,7 @@ body.scan-cam .scanfield:not(:has(.kbd.on)) .kbd::after{content:"Digitar"}
 .traystep .tssum{display:flex;gap:16px;margin:4px 0 6px;font-size:14px;color:var(--muted)}.traystep .tssum b{color:var(--ink);font-size:16px}
 .traystep .spotbtn{width:100%;margin-top:6px}.traystep .demo{align-self:center}.traystep .spotline{font-size:13px;color:var(--muted)}
 html:not(.ps-test):not(.can-sim) .demo{display:none!important}
+.hnoutra{display:flex;gap:10px;align-items:flex-start;margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;cursor:pointer}.hnoutra input{margin-top:3px;width:18px;height:18px}.hnoutra small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
 .hnbip{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border:1px dashed var(--route);border-radius:12px;margin-top:10px;font-size:14px}.hnbip span{color:var(--muted)}.hnbip b{color:var(--ink)}
 .linkbtn{background:none;border:0;padding:0;color:var(--route);text-decoration:underline;cursor:pointer;font:inherit}
 .hnpick{margin-top:8px}.hnpick summary{cursor:pointer;color:var(--muted);font-size:13px;padding:4px 0}
@@ -1378,7 +1379,7 @@ function sendDraft(){
 
 /* ---- Encomendas: o separador cadastra uma pré-venda e amarra a uma colmeia ---- */
 function openHiveNew(){
-  const f={num:"", cli:"", obs:"", why:"", enc:{}}; let p=null, sel=null, err="", busyPdf=false;
+  const f={num:"", cli:"", obs:"", why:"", enc:{}, outra:false, outraNum:""}; let p=null, sel=null, err="", busyPdf=false;
   const ov=document.createElement("div"); ov.className="modal";
   const close=()=>{ ov.remove(); render(); };
   const draw=()=>{
@@ -1391,7 +1392,9 @@ function openHiveNew(){
       <div class="hnpdf"><label class="mini tup">${busyPdf?"Lendo PDF…":p?"Trocar PDF":"Importar PDF da pré-venda"}<input type="file" id="hnPdf" accept="application/pdf,.pdf" hidden></label><span class="muted-s">${p?`Pré-venda ${esc(p.num)} · ${p.items.length} itens lidos`:"ou preencha abaixo"}</span></div>
       <div class="hnf"><label><span>Nº da pré-venda</span><input class="tinput" id="hnNum" inputmode="numeric" value="${esc(f.num)}"></label><label><span>Cliente</span><input class="tinput" id="hnCli" value="${esc(f.cli)}"></label></div>
       <label class="hnl"><span>Observação</span><input class="tinput" id="hnObs" value="${esc(f.obs)}" placeholder="Opcional"></label>
-      ${f.why==="encomenda" ? `<div class="hnenc"><div class="hnench"><span>Quais itens estão aguardando encomenda?</span>${p&&p.items.length?`<button type="button" class="mini" id="hnEncAll">Marcar todos</button>`:""}</div>
+      ${f.why==="encomenda" ? `<label class="hnoutra"><input type="checkbox" id="hnOutra" ${f.outra?"checked":""}><span><b>A encomenda está em outra pré-venda</b><small>Pré-venda desmembrada: todos estes itens já estão aqui e vão para a colmeia; o pedido aguarda a outra pré-venda (a da encomenda), que você adiciona depois na mesma colmeia.</small></span></label>
+      ${f.outra ? `<label class="hnl"><span>Nº da pré-venda da encomenda</span><input class="tinput" id="hnOutraNum" inputmode="numeric" value="${esc(f.outraNum)}" placeholder="Opcional · se já souber"></label>` : ""}` : ""}
+      ${f.why==="encomenda" && !f.outra ? `<div class="hnenc"><div class="hnench"><span>Quais itens estão aguardando encomenda?</span>${p&&p.items.length?`<button type="button" class="mini" id="hnEncAll">Marcar todos</button>`:""}</div>
         ${p && p.items.length ? `<div class="hnencl">${p.items.map((it,i)=>{ const e=f.enc[i]||0; return `<div class="hnenci ${e?"on":""}"><span class="grow"><b class="mono">${esc(it.code)}</b> ${esc(it.name)}<small>${it.qty} pç na pré-venda${e&&e<it.qty?` · ${it.qty-e} pç vão para a colmeia agora`:e?"":" · vai para a colmeia agora"}</small></span>
           <span class="encin"><input type="number" min="0" max="${it.qty}" step="1" value="${e}" data-hne="${i}" aria-label="Aguardando encomenda de ${esc(it.code)}"><label><input type="checkbox" data-hneall="${i}" ${e===it.qty?"checked":""}>todas</label></span></div>`; }).join("")}</div>
           <small class="muted-s">${(()=>{ const n=p.items.filter((it,i)=>(f.enc[i]||0)>0).length; return n ? `${n} de ${p.items.length} itens aguardando encomenda · Compras vê em "Em aberto" para encomendar.` : "Marque pelo menos um item que está aguardando encomenda."; })()}</small>`
@@ -1414,6 +1417,8 @@ function openHiveNew(){
     g("hnSlot").onchange=e=>setSlot(e.target.value);
     ov.querySelectorAll("[data-hpick]").forEach(b=>b.onclick=()=>setSlot(b.dataset.hpick));
     ov.querySelectorAll("[data-why]").forEach(b=>b.onclick=()=>{ f.why=b.dataset.why; err=""; draw(); });
+    const ho=ov.querySelector("#hnOutra"); if(ho) ho.onchange=()=>{ f.outra=ho.checked; err=""; draw(); };
+    const hon=ov.querySelector("#hnOutraNum"); if(hon) hon.oninput=e=>f.outraNum=e.target.value;
     ov.querySelectorAll("[data-hne]").forEach(inp=>{ inp.oninput=()=>{ const i=+inp.dataset.hne, q=p.items[i].qty; f.enc[i]=Math.max(0,Math.min(q,Math.round(+inp.value||0))); }; inp.onchange=()=>{ inp.oninput(); setTimeout(draw); }; });
     ov.querySelectorAll("[data-hneall]").forEach(cb=>cb.onchange=()=>{ const i=+cb.dataset.hneall; f.enc[i]=cb.checked?p.items[i].qty:0; draw(); });
     const ea=ov.querySelector("#hnEncAll"); if(ea) ea.onclick=()=>{ p.items.forEach((it,i)=>f.enc[i]=it.qty); draw(); };
@@ -1423,17 +1428,17 @@ function openHiveNew(){
       if(!num){ err="Informe o número da pré-venda."; return draw(); }
       if(!cli){ err="Informe o cliente."; return draw(); }
       if(!f.why){ err="Escolha por que o pedido vai para a colmeia."; return draw(); }
-      if(f.why==="encomenda" && p && p.num===num && p.items.length && !p.items.some((it,i)=>(f.enc[i]||0)>0)){ err="Marque quais itens estão aguardando encomenda."; return draw(); }
+      if(f.why==="encomenda" && !f.outra && p && p.num===num && p.items.length && !p.items.some((it,i)=>(f.enc[i]||0)>0)){ err="Marque quais itens estão aguardando encomenda."; return draw(); }
       const id=pvId({num, docType: p&&p.num===num ? p.docType : ""}), ex=ORDERS.find(o=>o.id===id && !["enviado","excluido"].includes(o.status));
       if(ex){ err=`A pré-venda ${num} já está no sistema (${statusInfo(ex).t}).`; return draw(); }
       const now=Date.now(), obs=f.obs.trim();
-      const items=(p&&p.num===num ? p.items : []).map((it,i)=>({code:it.code, name:it.name, ean:it.ean||PRODUCTS[it.code]?.ean||"", un:it.un, qty:it.qty, price:it.price, loc:"", qtyEnc: f.why==="encomenda" ? Math.min(it.qty, f.enc[i]||0) : 0, eta:""}));
+      const items=(p&&p.num===num ? p.items : []).map((it,i)=>({code:it.code, name:it.name, ean:it.ean||PRODUCTS[it.code]?.ean||"", un:it.un, qty:it.qty, price:it.price, loc:"", qtyEnc: f.why==="encomenda" && !f.outra ? Math.min(it.qty, f.enc[i]||0) : 0, eta:""}));
       const fin = f.why==="retira" ? "pronto_envio" : "na_colmeia";
       saveOrder({ id, num, docType: p&&p.num===num ? p.docType||"" : "", date:p?.date||"", time:p?.time||"", clientCode:p?.clientCode||"", client:cli, city:p?.city||"", seller:p?.seller||"", obs, total:p?.total||0,
         ...(f.why==="retira" ? {mode:"total", retira:true, pickedAt:now} : {mode:"aguarda"}),
         ...(sel ? {status:fin, colmeia:sel, storedAt:now} : {status:"aguarda_colmeia", hvNext:fin, colmeia:null}),
         v2:true, items, remessa:1, createdAt:now, createdBy:ME.id||"", canal:"consultiva",
-        hiveManual:true, transportadora:carrierFromObs(obs)||"" });
+        hiveManual:true, transportadora:carrierFromObs(obs)||"", ...(f.why==="encomenda" && f.outra ? {aguardaOutraPv:true, outraPv:f.outraNum.trim().replace(/^(PV-|Nº\s*)/i,"")} : {}) });
       if(sel){ toast(`Pré-venda ${num} guardada na colmeia ${sel.slice(3)} · ${f.why==="retira"?"aguardando o cliente retirar":"aguardando encomenda"}`); close(); return; }
       ov.remove(); askHvLoc(id);
     };
@@ -2369,7 +2374,7 @@ function openHivePopup(c){
   const ov=document.createElement("div"); ov.className="modal"; document.body.appendChild(ov); scanbar.hidden=true;
   const close=()=>{ ov.remove(); render(); };
   ov.innerHTML=`<div class="mbox" role="dialog" aria-modal="true" aria-label="Colmeia ${esc(c.slice(3))}"><h2>Colmeia ${esc(c.slice(3))}${here.length>1?` · ${here.length} pré-vendas`:""}</h2>
-    ${here.length ? here.map(o=>{ const st=statusInfo(o), n=(o.items||[]).reduce((s,it)=>s+(it.qty||0),0); return `<div class="hvpop"><div><b class="mono">#${esc(o.num)}</b> · ${esc(o.client)}</div><small>${esc(st.t)} · ${n} pç${o.storedAt?` · guardado ${fmtClock(o.storedAt)}`:""}</small>
+    ${here.length ? here.map(o=>{ const st=statusInfo(o), n=(o.items||[]).reduce((s,it)=>s+(it.qty||0),0); return `<div class="hvpop"><div><b class="mono">#${esc(o.num)}</b> · ${esc(o.client)}</div>${o.aguardaOutraPv?`<div class="chip enc" style="margin:4px 0">Aguardando a pré-venda da encomenda${o.outraPv?" "+esc(o.outraPv):""}</div>`:""}<small>${esc(st.t)} · ${n} pç${o.storedAt?` · guardado ${fmtClock(o.storedAt)}`:""}</small>
       ${(o.items||[]).length ? `<div class="hvpopit"><div class="eyebrow">Itens da pré-venda · ${(o.items||[]).length}</div><div class="hvitems">${o.items.map(it=>hvItemHTML(o,it,false)).join("")}</div></div>` : `<div class="muted-s" style="margin-top:6px">Pedido cadastrado sem itens${o.obs?" · "+esc(o.obs):""}.</div>`}
       ${canHiveMove()?`<button class="btn primary" data-hvmv="${esc(o.id)}" style="margin-top:10px;width:100%">Alterar colmeia</button>`:""}</div>`; }).join("")
       : `<p>Colmeia livre.</p>`}
@@ -2735,7 +2740,7 @@ function hiveListHTML(hive){
         const eta=enc.map(i=>i.eta).filter(Boolean).sort()[0];
         const hitIt = toks.length ? items.map((it,i)=>toks.every(t=>hvNorm([it.code,it.name,it.ean].join(" ")).includes(t))?i:-1).filter(i=>i>=0) : [];
         const head = hvNorm([o.num,o.client].join(" ")), open = (state.hvExp||[]).includes(o.id) || (hitIt.length>0 && !toks.every(t=>head.includes(t)) && !(state.hvClosed||[]).includes(o.id));
-        return `<div class="li sep hvli" style="cursor:default"><span class="lc tnum">${esc((o.colmeia||"—").replace(/^CM-/,""))}</span><span class="ln">#${esc(o.num)} · ${esc(o.client)}<small>${o.status==="pronto_envio" ? `<b class="ok-t">${o.mode==="aguarda"||o.fase2?"Encomenda chegou · pronto":"Pronto"} para ${o.retira?"o cliente retirar":"enviar"}</b>${transpOf(o)&&!o.retira?" · "+esc(transpOf(o)):""}` : o.hiveManual && !enc.length?`Cadastrada na colmeia${o.obs?" · "+esc(o.obs):""}`:`${enc.reduce((s,i)=>s+i.qtyEnc,0)} pç sob encomenda${eta?" · chega "+fmtDate(eta):""}`}</small>${items.length?xpBtn(`data-hvexp="${esc(o.id)}"`, open, `Ver itens da pré-venda (${items.length})`, "Ocultar itens"):""}${hasRole("admin")?`<button type="button" class="lnk hvedbtn" data-hved="${esc(o.id)}">Editar itens</button>`:""}</span>
+        return `<div class="li sep hvli" style="cursor:default"><span class="lc tnum">${esc((o.colmeia||"—").replace(/^CM-/,""))}</span><span class="ln">#${esc(o.num)} · ${esc(o.client)}<small>${o.status==="pronto_envio" ? `<b class="ok-t">${o.mode==="aguarda"||o.fase2?"Encomenda chegou · pronto":"Pronto"} para ${o.retira?"o cliente retirar":"enviar"}</b>${transpOf(o)&&!o.retira?" · "+esc(transpOf(o)):""}` : o.aguardaOutraPv?`<b>Aguardando a pré-venda da encomenda${o.outraPv?" "+esc(o.outraPv):""}</b>`:o.hiveManual && !enc.length?`Cadastrada na colmeia${o.obs?" · "+esc(o.obs):""}`:`${enc.reduce((s,i)=>s+i.qtyEnc,0)} pç sob encomenda${eta?" · chega "+fmtDate(eta):""}`}</small>${items.length?xpBtn(`data-hvexp="${esc(o.id)}"`, open, `Ver itens da pré-venda (${items.length})`, "Ocultar itens"):""}${hasRole("admin")?`<button type="button" class="lnk hvedbtn" data-hved="${esc(o.id)}">Editar itens</button>`:""}</span>
           ${o.status==="na_mesa" && (can("mesa")||can("coleta")) ? `<button class="mini" data-hive="${esc(o.id)}">Guardar</button>`
           : (o.status==="pronto_envio" || o.status==="na_colmeia") && canHvOut() ? `<span class="hvact">${o.status==="na_colmeia"?`<span class="chip enc">Aguardando encomenda</span>`:""}<button class="mini" data-hsai="${esc(o.id)}:retirou" data-pend="${hasEnc(o)&&!encArrived(o)?1:""}">Cliente irá retirar</button><button class="mini" data-hsai="${esc(o.id)}:enviado" data-pend="${hasEnc(o)&&!encArrived(o)?1:""}">Enviar</button></span>`
           : `<span class="chip enc">${o.status==="pronto_envio"?"Pronto":"Aguardando encomenda"}</span>`}
