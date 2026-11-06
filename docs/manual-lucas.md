@@ -214,8 +214,11 @@ Botão **+ Novo pedido na colmeia**:
 1. Escolha **por que vai para a colmeia**: **Cliente vai retirar** ou **Aguardando encomenda** (obrigatório).
 2. Importe o PDF da pré-venda ou preencha número e cliente (observação opcional).
 3. **Aguardando encomenda**: marque **quais itens estão aguardando encomenda** e quantas peças de cada um (ou **Marcar todos** / "todas"). Os demais itens vão para a colmeia agora. Os itens marcados aparecem para Compras em **Em aberto** para encomendar. Sem o PDF não dá para marcar os itens.
-4. Escolha a colmeia livre (toque no mapa ou bipe a etiqueta) e **Guardar na colmeia**.
+4. **Salvar e bipar a colmeia** (padrão): no computador aparece um **QR code**; leia com o celular, o app abre na tela "Bipe a colmeia" (com o seu login), bipe a colmeia livre e confirme "Deseja salvar a colmeia X?". A janela do computador mostra "✓ Guardado na colmeia X". No celular, vai direto para a tela de bipar. Até ser bipado, o pedido fica em **Colmeias → "Aguardando colmeia"** (botão **Bipar colmeia**). No iPhone, o QR abre no Safari; se o login estiver só no atalho do app, abra o atalho e use "Aguardando colmeia". Também dá para escolher a colmeia direto no computador em "Ou escolher a colmeia aqui".
 Quem pode cadastrar: Separação, Conferente, Comercial, **Financeiro**, Supervisor e Administrador.
+
+### 6.2a Mudar um pedido de colmeia
+No celular, na aba **Colmeias**, bipe a etiqueta de uma colmeia: abre a janela com o pedido que está nela. Toque em **Alterar colmeia**, bipe a nova colmeia (livre) e confirme "Deseja salvar a nova localização...?". Fica no histórico "Colmeia alterada: A1 → C1". O botão aparece só para o Administrador e para quem tiver a permissão **Usuários → abrir a pessoa → "Pode mudar pedidos de colmeia"**. Bipar uma colmeia livre mostra "Colmeia livre" e permite guardar ali um pedido que está aguardando colmeia.
 
 ### 6.3 Tirar o pedido da colmeia (entrega ou envio)
 Botões no pedido: **Cliente irá retirar** ou **Enviar**.
