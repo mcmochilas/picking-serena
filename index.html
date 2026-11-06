@@ -472,7 +472,7 @@ html:not(.ps-test):not(.can-sim) .demo{display:none!important}
 .directbar{margin-top:8px;padding:10px 12px;border-radius:12px;background:var(--ok-soft);border:1px solid var(--ok);color:var(--ink);font-size:13px;line-height:1.4}
 .unitask .unitcount{display:flex;align-items:baseline;gap:10px;justify-content:center;margin:6px 0 2px}.unitask .unitcount b{font-size:48px;line-height:1;font-family:var(--mono)}.unitask .unitcount span{color:var(--muted);font-size:15px}
 .unitbar{height:10px;border-radius:6px;background:var(--line);overflow:hidden;margin-bottom:6px}.unitbar i{display:block;height:100%;background:var(--ok);transition:width .2s}
-.camhint.good{color:#7CF29A}.camhint.bad{color:#FF8A80}
+.camframe.wait{border-color:rgba(245,183,26,.4)}.camframe.wait i{opacity:0}.camhint.good{color:#7CF29A}.camhint.bad{color:#FF8A80}
 .scanfield input{width:100%;height:48px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:0 44px 0 12px;font-family:var(--mono);font-size:15px}
 .scanfield input:focus{outline:2px solid var(--route);outline-offset:0}
 .scanfield .kbd{position:absolute;right:4px;top:4px;width:40px;height:40px;border:0;background:none;border-radius:8px;display:grid;place-items:center;color:var(--muted)}
@@ -3755,10 +3755,16 @@ async function openLiveScanner(){
   ov.innerHTML=`<video playsinline muted autoplay></video><div class="camframe"><i></i></div><div class="camhint">Aponte para o código de barras</div><button class="btn" id="camClose">Fechar</button>`;
   document.body.appendChild(ov);
   const v=ov.querySelector("video"); v.srcObject=stream;
-  try{ await v.play(); }catch(e){}
+  try{ await Promise.race([v.play(), new Promise(r=>setTimeout(r,1500))]); }catch(e){}
   try{ const t=stream.getVideoTracks()[0], c=t.getCapabilities?.(); if(c?.focusMode?.includes("continuous")) await t.applyConstraints({advanced:[{focusMode:"continuous"}]}); }catch(e){}
-  let stop=false, lastTxt="", lastAt=0; const hint=ov.querySelector(".camhint");
-  if(scanMode()==="camera" && scanMsg.textContent) hint.textContent=scanMsg.textContent;
+  let stop=false, lastTxt="", lastAt=0; const hint=ov.querySelector(".camhint"), frame=ov.querySelector(".camframe");
+  // tempo para posicionar o celular antes de começar a ler (ao abrir e depois de cada leitura)
+  const OPEN_WAIT=1800, NEXT_WAIT=1200; let armAt=Date.now()+OPEN_WAIT, armMsg=(scanMode()==="camera" && scanMsg.textContent) || "Aponte para o código de barras";
+  let opening=true;
+  const waitHint=()=>{ const left=armAt-Date.now(); if(left>0){ frame.classList.add("wait"); if(opening){ hint.className="camhint"; hint.textContent=`Posicione o código no quadro… ${Math.ceil(left/1000)}`; } return true; }
+    opening=false;
+    if(frame.classList.contains("wait")){ frame.classList.remove("wait"); hint.textContent=armMsg; } return false; };
+  waitHint();
   const close=()=>{ stop=true; stream.getTracks().forEach(t=>t.stop()); ov.remove(); focusScan(); };
   ov.querySelector("#camClose").onclick=close;
   let det=null; try{ if("BarcodeDetector" in window){ const f=await BarcodeDetector.getSupportedFormats(); if(f.includes("ean_13")) det=new BarcodeDetector({formats:["ean_13","ean_8","code_128"].filter(x=>f.includes(x))}); } }catch(e){}
@@ -3767,6 +3773,7 @@ async function openLiveScanner(){
   const cv=document.createElement("canvas"), g=cv.getContext("2d",{willReadFrequently:true});
   const tick = async ()=>{
     if(stop) return;
+    if(waitHint()){ if(scanMode()==="camera" && (!SCAN_VIEWS.includes(state.view) || document.querySelector(".modal"))){ close(); return; } setTimeout(tick, 150); return; }
     let txt=null;
     try{
       if(det){ const r=await det.detect(v); if(r[0]) txt=r[0].rawValue; }
@@ -3779,8 +3786,10 @@ async function openLiveScanner(){
     }catch(e){}
     if(txt && scanMode()==="camera" && SCAN_VIEWS.includes(state.view)){ // câmera contínua: lê um código atrás do outro
       const now=Date.now();
-      if(!(txt===lastTxt && now-lastAt<1300) && now-lastAt>700){ lastTxt=txt; lastAt=now; handleScan(txt); try{ navigator.vibrate && navigator.vibrate(60); }catch(e){}
-        hint.textContent = scanMsg.textContent || txt; hint.className = "camhint "+(scanMsg.className.match(/good|bad|info/)?.[0]||""); }
+      if(!(txt===lastTxt && now-lastAt<1300)){ lastTxt=txt; lastAt=now; handleScan(txt); try{ navigator.vibrate && navigator.vibrate(60); }catch(e){}
+        armMsg = scanMsg.textContent || txt; armAt = Date.now()+NEXT_WAIT; frame.classList.add("wait");
+        hint.textContent = armMsg; hint.className = "camhint "+(scanMsg.className.match(/good|bad|info/)?.[0]||"");
+        setTimeout(()=>{ if(!stop && Date.now()<armAt) hint.textContent = armMsg+" · próximo código em instantes"; }, 400); }
       if(!SCAN_VIEWS.includes(state.view) || document.querySelector(".modal")){ close(); return; }
       setTimeout(tick, det ? 80 : 120); return;
     }
