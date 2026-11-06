@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <title>Picking Serena</title>
 <meta name="theme-color" content="#0F151C">
 <script>try{var t=localStorage.getItem("ps-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}</script>
@@ -446,6 +446,10 @@ details.cpcard summary{display:flex;justify-content:space-between;align-items:ce
 .scanbar.good{background:var(--ok-soft)} .scanbar.bad{background:var(--bad-soft)}
 .cam{display:flex;align-items:center;gap:6px;border:0;border-radius:12px;background:var(--ink);color:var(--bg);padding:0 14px;height:48px;font-weight:600;flex:none}
 .scanfield{flex:1;min-width:0;position:relative}
+@media (pointer:coarse){ input, select, textarea, .tin, .tinput{font-size:16px !important} } /* iPhone não dá zoom ao tocar no campo */
+body.scan-cam .in:has(.kbd.on) .cam{display:none}
+.scanbar .in{min-width:0}.scanfield input{min-width:0;max-width:100%;box-sizing:border-box}
+button.slot{padding:0;cursor:pointer;font-family:var(--mono)}button.slot:hover{outline:2px solid var(--route);outline-offset:1px}
 .scancfg{flex:none;width:44px;height:48px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);display:grid;place-items:center}
 body.scan-reader .cam{display:none}
 body.scan-reader .scanfield input{font-size:16px;border-width:2px;border-color:var(--route)}
@@ -1580,7 +1584,8 @@ function hiveHTML(target, pick){
   const cell = s => { const o=by[s];
     const cls = s===target ? "target" : !o ? (pick?"pickable":"") : o.status==="pronto_envio" ? "envio" : o.status==="na_colmeia" ? "enc" : "res";
     return pick && !o ? `<button type="button" class="slot ${cls}" data-hpick="${s}" title="Livre">${s.slice(3)}</button>`
-      : `<div class="slot ${cls}" title="${o?esc("#"+o.num+" · "+o.client):"Livre"}">${s.slice(3)}${o?`<b>${esc(o.num)}</b>`:""}</div>`; };
+      : o && !pick ? `<button type="button" class="slot ${cls}" data-hcell="${s}" title="Ver o pedido da colmeia ${s.slice(3)}" aria-label="Colmeia ${s.slice(3)} ocupada · ver pedido">${s.slice(3)}</button>`
+      : `<div class="slot ${cls}" title="${o?esc("#"+o.num+" · "+o.client):"Livre"}">${s.slice(3)}</div>`; };
   let g=`<span class="hh"></span>`; for(let c=0;c<HIVE_DIM.cols;c++) g+=`<span class="hh">${HIVE_COL(c)}</span>`;
   for(let r=1;r<=HIVE_DIM.rows;r++){ g+=`<span class="hh">${r}</span>`; for(let c=0;c<HIVE_DIM.cols;c++) g+=cell("CM-"+HIVE_COL(c)+r); }
   return `<div class="hive" style="grid-template-columns:18px repeat(${HIVE_DIM.cols},minmax(0,1fr))">${g}</div>
@@ -2355,7 +2360,11 @@ async function scanHvPlace(v){
 function scanHiveLookup(v){
   const c=hiveCode(v);
   if(!isHiveCode(c) || !HIVE.includes(c)){ feedback(false); return setMsg(`Código ${v} não é uma colmeia.`,"bad"); }
-  feedback(true);
+  feedback(true); openHivePopup(c);
+}
+/* tocar numa colmeia ocupada no mapa mostra o pedido (o número não aparece mais dentro do quadradinho) */
+document.addEventListener("click", e=>{ const b=e.target.closest("[data-hcell]"); if(!b || document.querySelector(".modal") || ["hvloc","hvmove"].includes(state.view)) return; openHivePopup(b.dataset.hcell); });
+function openHivePopup(c){
   const here=ORDERS.filter(o=>usesHive(o)&&o.colmeia===c), pend=hvPendList();
   const ov=document.createElement("div"); ov.className="modal"; document.body.appendChild(ov); scanbar.hidden=true;
   const close=()=>{ ov.remove(); render(); };
