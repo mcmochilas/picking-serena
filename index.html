@@ -475,6 +475,7 @@ html:not(.ps-test):not(.can-sim) .demo{display:none!important}
 .hvpendi{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}.hvpendi:first-of-type{border-top:0}.hvpendi small{display:block;color:var(--muted);font-size:12px}
 .hvpop{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0}.hvpopit{margin-top:10px;padding-top:8px;border-top:1px dashed var(--line)}.hvpopit .hvitems{margin-top:4px}.hvpop small{color:var(--muted)}
 .qrdone{font-size:20px;padding:30px 10px;text-align:center;color:var(--ok);font-weight:600}
+.store-code.sm{font-size:30px;line-height:1.15}
 .directbar{margin-top:8px;padding:10px 12px;border-radius:12px;background:var(--ok-soft);border:1px solid var(--ok);color:var(--ink);font-size:13px;line-height:1.4}
 .unitask .unitcount{display:flex;align-items:baseline;gap:10px;justify-content:center;margin:6px 0 2px}.unitask .unitcount b{font-size:48px;line-height:1;font-family:var(--mono)}.unitask .unitcount span{color:var(--muted);font-size:15px}
 .unitbar{height:10px;border-radius:6px;background:var(--line);overflow:hidden;margin-bottom:6px}.unitbar i{display:block;height:100%;background:var(--ok);transition:width .2s}
@@ -949,7 +950,7 @@ function statusInfo(o){
     case "analise_compras": return {t:"Aguardando decisão de Compras", c:"urg"};
     case "enc_pendente": return {t:"1º envio feito · aguardando encomenda", c:"enc"};
     case "na_colmeia": return {t:"Na colmeia · aguardando encomenda", c:"enc"};
-    case "na_mesa": return {t:`Na mesa · guardar na colmeia ${o.colmeia||""}`, c:"prog"};
+    case "na_mesa": return {t:`Na mesa · guardar na colmeia${o.colmeia?" "+o.colmeia.slice(3):""}`, c:"prog"};
     case "lavagem": return o.trayStatus==="lavagem" ? {t:`A caminho da mesa · bandeja ${o.tray||""}`, c:"prog"} : {t:"A caminho da mesa", c:"prog"};
     case "excluido": return {t:"Excluído", c:"bad"};
     default: return {t:"Finalizado", c:"sent"};
@@ -1858,7 +1859,7 @@ function decidePlan(o, qs){
 function decidePlanText(pl, o){
   if(pl.kind==="encomenda") return `<b>Encomenda total</b>: encomendar ${pl.enc} pç · não passa pela separação nem usa colmeia.`;
   if(pl.kind==="total") return `<b>Nada a encomendar</b>: vai para a separação como envio total (${pl.pick} pç).`;
-  const slot=freeSlot(); return `<b>Separar o que tem na loja</b>: ${pl.refsPick} ref. · ${pl.pick} pç vão para a separação e ficam na ${slot?`colmeia <b>${slot.slice(3)}</b>`:"colmeia (<b>todas ocupadas</b>)"} · encomendar ${pl.enc} pç.`;
+  return `<b>Separar o que tem na loja</b>: ${pl.refsPick} ref. · ${pl.pick} pç vão para a separação e o separador guarda na colmeia que bipar · encomendar ${pl.enc} pç.`;
 }
 /* Ajuste de pedido já separado enviado como "Tem encomenda": Compras decide só os itens novos / o aumento */
 function decideAdjCard(o){
@@ -1980,8 +1981,7 @@ function decideOrder(oid){
   let patch;
   if(pl.kind==="encomenda") patch={mode:"encomenda", status:"encomenda"};
   else if(pl.kind==="total") patch={mode:"total", status:"aguardando", queuedAt:now};
-  else { const slot=freeSlot(); if(!slot){ toast("Todas as colmeias estão ocupadas. Libere uma colmeia para encaminhar este pedido."); return; }
-    patch={mode:"aguarda", status:"aguardando", colmeia:slot, queuedAt:now}; }
+  else patch={mode:"aguarda", status:"aguardando", queuedAt:now}; // a colmeia é a que o separador bipar ao guardar
   patchOrder(oid, {...patch, items, res:null, decidedAt:now, decidedBy:ME.id||""});
   delete state.dq[oid];
   toast(pl.kind==="encomenda" ? `#${o.num}: encomenda total · aparece em Em aberto para encomendar` : pl.kind==="total" ? `#${o.num} enviado para a separação` : `#${o.num} enviado para a separação · peças da loja vão para a colmeia ${patch.colmeia.slice(3)}`);
@@ -2152,12 +2152,11 @@ function openPurchaseImport(){
       const items=p.items.map((it,i)=>{ const e=Math.min(it.qty, +(S.pv.enc[i]??it.qty)||0); return {code:it.code, name:it.name, ean:it.ean||PRODUCTS[it.code]?.ean||"", un:it.un, qty:it.qty, price:it.price, loc:"", qtyEnc:e, eta: e ? (S.prev||"") : ""}; });
       const enc=items.some(it=>it.qtyEnc>0), pick=items.some(it=>it.qty-it.qtyEnc>0);
       if(!enc){ S.pv.err="Marque pelo menos um item para encomendar."; return draw(); }
-      const mode = pick ? "aguarda" : "encomenda", slot = pick ? freeSlot() : null;
-      if(pick && !slot){ S.pv.err="Todas as colmeias estão ocupadas. Libere uma colmeia ou marque tudo para encomendar."; return draw(); }
+      const mode = pick ? "aguarda" : "encomenda";
       items.forEach(it=>{ if(!PRODUCTS[it.code]) saveProduct({code:it.code, name:it.name, ean:it.ean, loc:""}); });
       const o={ id:pvId(p), num:p.num, docType:p.docType||"", date:p.date, time:p.time, clientCode:p.clientCode, client:p.client, city:p.city, seller:p.seller, obs:p.obs, total:p.total,
         mode, modeCom:mode, v2:true, items, remessa:1, status: pick ? "aguardando" : "encomenda", createdAt:now, createdBy:ME.id||"", decidedAt:now, decidedBy:ME.id||"",
-        canal:"consultiva", fromCompras:true, transportadora: carrierFromObs(p.obs)||"", ...(pick?{colmeia:slot, queuedAt:now}:{}) };
+        canal:"consultiva", fromCompras:true, transportadora: carrierFromObs(p.obs)||"", ...(pick?{queuedAt:now}:{}) };
       saveOrder(o);
       toast(pick ? `Pré-venda ${p.num} adicionada · peças da loja vão para a separação (colmeia ${slot.slice(3)})` : `Pré-venda ${p.num} adicionada como encomenda total`);
       S.pv=null; draw(); };
@@ -2600,9 +2599,9 @@ function applyReceipt(nfIdv){
 }
 // a encomenda chegou toda: volta para a separação (área de recebimento → mesa ou colmeia)
 function startFase2(o, n){
-  const now=Date.now(), slotFor = o.mode==="encomenda" && (o.retira||o.naLoja) ? freeSlot() : null;
+  const now=Date.now(), slotFor = o.mode==="encomenda" && (o.retira||o.naLoja);
   patchOrder(o.id, { fase2:true, res1:o.res||null, res:null, status:"aguardando", queuedAt:now, arrivedAt:now, arrivedBy:ME.id||"", nfRecebida: n ? n.num : (o.nfRecebida||""),
-    tray:"", trayStatus:"", startedAt:null, pickedAt:null, atMesaAt:null, ...(slotFor ? {mode:"aguarda", colmeia:slotFor} : {}) });
+    tray:"", trayStatus:"", startedAt:null, pickedAt:null, atMesaAt:null, ...(slotFor ? {mode:"aguarda"} : {}) });
 }
 
 /* ---- tela de Recebimento (Estoque) ---- */
@@ -3460,15 +3459,15 @@ function renderStore(){
     <div class="phases"><div class="phase ok"><span class="n">✓</span>${o.trayStatus==="lavagem"?"Bandeja "+esc(o.tray||"")+" na mesa":"Picking finalizado na mesa"}</div><div class="phase on"><span class="n">→</span>Guardar na colmeia</div></div>
     <div class="product">
       <div class="eyebrow">Leve as peças para a colmeia</div>
-      <div class="store-code">${esc(o.colmeia)}</div>
+      <div class="store-code${o.colmeia?"":" sm"}">${o.colmeia ? esc(o.colmeia) : "Bipe a colmeia"}</div>
       <div class="meta tnum"><span>${got} de ${need} peças separadas</span><span>${o.mode==="aguarda" && !o.fase2 ? "Fica aguardando a encomenda" : "Fica aguardando o cliente retirar"}</span></div>
       <div class="hivebig">${hiveHTML(o.colmeia)}</div>
-      <div class="instr">${ICON_SCAN}<div>Coloque as peças na colmeia e bipe a etiqueta <b>${esc(o.colmeia)}</b> para finalizar.</div></div>
+      <div class="instr">${ICON_SCAN}<div>${o.colmeia ? `O pedido já está na colmeia <b>${esc(o.colmeia.slice(3))}</b>: coloque as peças lá e bipe a etiqueta. Se for guardar em outra, bipe a outra colmeia.` : `Escolha uma colmeia, coloque as peças e <b>bipe a etiqueta da colmeia</b> para finalizar. Pode ser uma que já tem outra pré-venda: elas ficam juntas.`}</div></div>
       <button class="demo" id="sim">Simular leitura da colmeia (demo)</button>
     </div>`;
   document.getElementById("back").onclick = ()=>{ state.view = state.fromMesa ? "mesa" : "orders"; render(); };
-  document.getElementById("sim").onclick = ()=> handleScan(o.colmeia);
-  setMsg(`Aguardando colmeia ${o.colmeia}`,"info");
+  document.getElementById("sim").onclick = ()=> handleScan(o.colmeia || freeSlot() || HIVE[0]);
+  setMsg(o.colmeia ? `Bipe a colmeia ${o.colmeia.slice(3)} (ou outra)` : "Bipe a colmeia onde vai guardar","info");
   focusScan();
 }
 function finishStore(o){
@@ -3508,12 +3507,10 @@ function finishAtMesa(o){
   if(state.lote && loteMatch(o) && !o.loteCounted){ state.lote.done=(state.lote.done||0)+1; o.loteCounted=true; saveLote(); }
   const r=res(o), got=pickList(o).reduce((a,x)=>a+(r[x.i].got||0),0), now=Date.now();
   if(!got){ patchOrder(o.id, {status:"pronto_envio", remessa:1, pickedAt:now, semPecas:true, res:r, ...(o.tray?{trayStatus:"livre"}:{})}); toast(`Pedido ${o.num} sem peças coletadas · avise o comercial`); state.view="done"; render(); scrollTo(0,0); return; }
-  const slot = toHive(o) ? (o.colmeia || freeSlot()) : null;
-  if(toHive(o) && !slot) toast("Todas as colmeias estão ocupadas · o pedido fica na mesa");
-  if(slot){
-    patchOrder(o.id, {status:"na_mesa", colmeia:slot, pickedAt:now, atMesaAt:now, pickedBy:ME.id||"", res:r, ...(hasTray(o)?{trayStatus:"mesa"}:{})});
+  if(toHive(o)){ // o separador escolhe a colmeia: bipa a etiqueta de onde vai guardar
+    patchOrder(o.id, {status:"na_mesa", pickedAt:now, atMesaAt:now, pickedBy:ME.id||"", res:r, ...(hasTray(o)?{trayStatus:"mesa"}:{})});
     toast(`Picking finalizado em ${fmtDur(now-(o.startedAt||now))}`);
-    state.view="store"; render(); scrollTo(0,0); setMsg(`Guarde na colmeia ${slot.slice(3)} e bipe a etiqueta dela`,"info"); return;
+    state.view="store"; render(); scrollTo(0,0); setMsg(o.colmeia ? `Guarde na colmeia ${o.colmeia.slice(3)} (onde o pedido já está) ou bipe outra` : "Bipe a colmeia onde vai guardar o pedido","info"); return;
   }
   if(pickDirect(o)){ patchOrder(o.id, {status:"pronto_envio", remessa:1, pickedAt:now, pickedBy:ME.id||"", conferidoLocal:true, res:r}); state.view="done"; render(); scrollTo(0,0); return; }
   patchOrder(o.id, {status:"pronto_envio", remessa: o.fase2 && o.mode==="parcial" ? 2 : 1, pickedAt:now, atMesaAt:now, pickedBy:ME.id||"", receivedBy:ME.id||"", res:r, ...(hasTray(o)?{trayStatus:"mesa"}:{})});
@@ -3555,7 +3552,7 @@ function renderDone(){
       <div class="big"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
       <h2>${o.semPecas ? "Nenhuma peça coletada" : o.conferidoLocal ? (o.handedAt ? "Entregue ao vendedor" : "Conferido no local") : o.trayStatus==="lavagem" ? "Separação concluída" : o.status==="na_colmeia" ? "Guardado na colmeia "+esc(o.colmeia) : "Picking finalizado na mesa"}</h2>
       <div class="want">${o.conferidoLocal && !o.semPecas ? (o.handedAt ? `Sacola entregue${o.seller?` ao vendedor <b>${esc(o.seller)}</b>`:" ao vendedor"} às ${fmtClock(o.handedAt)}.` : `Coloque as <b>${units} pç</b> na sacola e entregue direto${o.seller?` ao vendedor <b>${esc(o.seller)}</b>`:" ao vendedor"}. O cliente está na loja.`) : o.trayStatus==="lavagem" ? `Leve a bandeja <b>${esc(o.tray||"")}</b> para a <b>mesa de expedição</b>.` : o.status==="na_colmeia" ? `O pedido aguarda a encomenda na colmeia.` : `O pedido está na <b>mesa de expedição</b>.`}</div>
-      <div class="meta" style="justify-content:center">${o.conferidoLocal ? "Não vai para a mesa de expedição" : o.status==="na_colmeia" ? "" : o.mode==="aguarda" ? `Na mesa: guardar na colmeia ${esc(o.colmeia)} até chegar a encomenda (${enc.reduce((s,i)=>s+i.qtyEnc,0)} pç)`
+      <div class="meta" style="justify-content:center">${o.conferidoLocal ? "Não vai para a mesa de expedição" : o.status==="na_colmeia" ? "" : o.mode==="aguarda" ? `Na mesa: guardar na colmeia${o.colmeia?" "+esc(o.colmeia.slice(3)):" que você bipar"} até chegar a encomenda (${enc.reduce((s,i)=>s+i.qtyEnc,0)} pç)`
         : o.mode==="parcial" ? `Na mesa: 1º envio. ${enc.reduce((s,i)=>s+i.qtyEnc,0)} pç seguem no 2º envio.` : `Na mesa: conferir e embalar para envio`}</div>
       <div class="summary">
         <div><b class="tnum">${units}/${total}</b><small>peças</small></div>
@@ -3642,8 +3639,15 @@ function handleScan(raw){
   if(state.view==="store"){
     const o=ORDERS.find(x=>x.id===state.oid); if(!o) return;
     const hv=hiveCode(v);
-    if(hv===o.colmeia){ feedback(true); setMsg(`Colmeia ${hv.slice(3)} confirmada`,"good"); return finishStore(o); }
-    feedback(false); return setMsg(isHiveCode(hv) ? `Colmeia errada: ${hv.slice(3)}. Este pedido vai na ${o.colmeia.slice(3)}.` : `Código ${v} não é uma colmeia.`, "bad");
+    if(!isHiveCode(hv) || !HIVE.includes(hv)){ feedback(false); return setMsg(`Código ${v} não é uma colmeia.`, "bad"); }
+    feedback(true);
+    const occ=ORDERS.filter(x=>x.id!==o.id && usesHive(x) && x.colmeia===hv);
+    if(occ.length && hv!==o.colmeia){ askModal({title:`Colmeia ${hv.slice(3)} já tem pedido`, okText:"Guardar junto",
+        text:`A colmeia <b>${esc(hv.slice(3))}</b> já tem a pré-venda <b>${occ.map(x=>esc(x.num)).join(", ")}</b>. Guardar o pedido <b>#${esc(o.num)}</b> junto, na mesma colmeia?`})
+      .then(ok=>{ if(!ok){ setMsg("Bipe outra colmeia","info"); return; } const x=ORDERS.find(y=>y.id===o.id); if(!x) return; if(x.colmeia!==hv) patchOrder(x.id,{colmeia:hv}); x.colmeia=hv; setMsg(`Colmeia ${hv.slice(3)} confirmada`,"good"); finishStore(x); });
+      return; }
+    if(o.colmeia!==hv){ patchOrder(o.id,{colmeia:hv}); o.colmeia=hv; }
+    setMsg(`Colmeia ${hv.slice(3)} confirmada`,"good"); return finishStore(o);
   }
   if(state.view!=="pick") return;
   const c = cur(); if(!c) return; const {o, it} = c;
@@ -3920,7 +3924,7 @@ function renderMesa(){
     <div class="product">
       <div class="instr">${ICON_SCAN}<div>Quando o pedido chegar na mesa, toque em <b>Receber</b>${washing.some(o=>o.trayStatus==="lavagem")?" ou bipe a bandeja":""}.</div></div>
       <div class="eyebrow">A caminho da mesa · ${washing.length}</div>
-      ${toHive.length?`<div class="eyebrow">Na mesa · guardar na colmeia · ${toHive.length}</div><div class="list" style="margin-top:0">${toHive.map(o=>`<div class="li" style="cursor:default"><span class="lc tnum">${esc(o.colmeia)}</span><span class="ln">#${esc(o.num)} · ${esc(o.client)}</span><button class="mini" data-hive="${esc(o.id)}">Guardar</button></div>`).join("")}</div>`:""}
+      ${toHive.length?`<div class="eyebrow">Na mesa · guardar na colmeia · ${toHive.length}</div><div class="list" style="margin-top:0">${toHive.map(o=>`<div class="li" style="cursor:default"><span class="lc tnum">${o.colmeia?esc(o.colmeia.slice(3)):"—"}</span><span class="ln">#${esc(o.num)} · ${esc(o.client)}</span><button class="mini" data-hive="${esc(o.id)}">Guardar</button></div>`).join("")}</div>`:""}
       ${washing.length?`<div class="list" style="margin-top:0">${washing.map(o=>`<div class="li" style="cursor:default"><span class="lc tnum">${o.trayStatus==="lavagem"?esc(o.tray):"#"+esc(o.num)}</span><span class="ln">${o.trayStatus==="lavagem"?"#"+esc(o.num)+" · ":""}${esc(o.client)}</span><button class="mini" data-recv="${esc(o.id)}">Receber</button></div>`).join("")}</div>`:`<div class="empty">Nenhum pedido a caminho da mesa.</div>`}
     </div>`;
   document.getElementById("back").onclick = ()=>{ state.view="orders"; state.mesaLast=null; state.mesaListOk=true; render(); };
@@ -3950,9 +3954,7 @@ function scanMesa(v){
   feedback(true); receiveMesa(o);
 }
 function receiveMesa(o){
-  if(toHive(o)){ const slot=o.colmeia||freeSlot();
-    if(slot){ if(!o.colmeia) patchOrder(o.id,{colmeia:slot}); state.oid=o.id; state.fromMesa=true; state.view="store"; render(); scrollTo(0,0); setMsg(`Pedido ${o.num} recebido. Guarde na colmeia ${slot.slice(3)}.`,"good"); return; }
-    toast("Todas as colmeias estão ocupadas · o pedido fica na mesa"); }
+  if(toHive(o)){ state.oid=o.id; state.fromMesa=true; state.view="store"; render(); scrollTo(0,0); setMsg(`Pedido ${o.num} recebido. Bipe a colmeia onde vai guardar.`,"good"); return; }
   patchOrder(o.id, {status:"pronto_envio", remessa:1, trayStatus: o.trayStatus==="lavagem" ? "livre" : (o.trayStatus||""), atMesaAt:Date.now(), receivedBy:ME.id||""});
   state.mesaLast=o.id; render(); setMsg(`Pedido ${o.num} recebido na mesa`,"good");
 }
