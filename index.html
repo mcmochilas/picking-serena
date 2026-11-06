@@ -449,6 +449,7 @@ details.cpcard summary{display:flex;justify-content:space-between;align-items:ce
 @media (pointer:coarse){ input, select, textarea, .tin, .tinput{font-size:16px !important} } /* iPhone não dá zoom ao tocar no campo */
 body.scan-cam .in:has(.kbd.on) .cam{display:none}
 .scanbar .in{min-width:0}.scanfield input{min-width:0;max-width:100%;box-sizing:border-box}
+.slot{position:relative}.slotn{position:absolute;top:2px;right:3px;font-style:normal;font-size:9px;font-weight:700;background:var(--ink);color:var(--bg);border-radius:8px;min-width:14px;height:14px;line-height:14px;text-align:center;padding:0 3px}
 button.slot{padding:0;cursor:pointer;font-family:var(--mono)}button.slot:hover{outline:2px solid var(--route);outline-offset:1px}
 .scancfg{flex:none;width:44px;height:48px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);display:grid;place-items:center}
 body.scan-reader .cam{display:none}
@@ -1395,7 +1396,7 @@ function openHiveNew(){
           <span class="encin"><input type="number" min="0" max="${it.qty}" step="1" value="${e}" data-hne="${i}" aria-label="Aguardando encomenda de ${esc(it.code)}"><label><input type="checkbox" data-hneall="${i}" ${e===it.qty?"checked":""}>todas</label></span></div>`; }).join("")}</div>
           <small class="muted-s">${(()=>{ const n=p.items.filter((it,i)=>(f.enc[i]||0)>0).length; return n ? `${n} de ${p.items.length} itens aguardando encomenda · Compras vê em "Em aberto" para encomendar.` : "Marque pelo menos um item que está aguardando encomenda."; })()}</small>`
         : `<small class="muted-s">Importe o PDF da pré-venda para marcar quais itens estão aguardando encomenda.</small>`}</div>` : ""}
-      <div class="hnbip"><b>Colmeia</b><span>${sel ? `Escolhida aqui: <b>${sel.slice(3)}</b> · <button type="button" class="linkbtn" id="hnClr">bipar no celular em vez disso</button>` : `Depois de salvar, ${isDesk()?"abra o app no celular (QR code) e ":""}<b>bipe a colmeia</b> onde vai guardar o pedido.`}</span></div>
+      <div class="hnbip"><b>Colmeia</b><span>${sel ? `Escolhida aqui: <b>${sel.slice(3)}</b>${(()=>{ const os=ORDERS.filter(o=>usesHive(o)&&o.colmeia===sel); return os.length?` · junto com a pré-venda ${os.map(o=>esc(o.num)).join(", ")}`:""; })()} · <button type="button" class="linkbtn" id="hnClr">bipar no celular em vez disso</button>` : `Depois de salvar, ${isDesk()?"abra o app no celular (QR code) e ":""}<b>bipe a colmeia</b> onde vai guardar o pedido.`}</span></div>
       <details class="hnpick" ${sel?"open":""}><summary>Ou escolher a colmeia aqui</summary>
         <div class="hnslot"><span>Colmeia</span><input class="tinput" id="hnSlot" value="${sel?sel.slice(3):""}" placeholder="Ex.: A1" autocomplete="off"><small>Toque numa colmeia livre ou digite</small></div>
         <div class="hnmap">${hiveHTML(sel, true)}</div></details>
@@ -1407,7 +1408,6 @@ function openHiveNew(){
       try{ p=await readPresalePdf(file); f.enc={}; f.num=p.num||f.num; f.cli=p.client||f.cli; f.obs=p.obs||f.obs; }catch(x){ p=null; err="Não reconheci este PDF como uma pré-venda, orçamento ou condicional."; }
       busyPdf=false; draw(); };
     const setSlot=v=>{ const c=hiveCode(v); if(!HIVE.includes(c)){ err=v?`"${v}" não é uma colmeia desta grade.`:""; return draw(); }
-      const occ=ORDERS.find(o=>usesHive(o)&&o.colmeia===c); if(occ){ err=`Colmeia ${c.slice(3)} ocupada pela pré-venda ${occ.num}.`; return draw(); }
       sel=c; err=""; draw(); };
     const hc=ov.querySelector("#hnClr"); if(hc) hc.onclick=()=>{ sel=null; draw(); };
     g("hnSlot").onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); setSlot(e.target.value); } };
@@ -1426,7 +1426,6 @@ function openHiveNew(){
       if(f.why==="encomenda" && p && p.num===num && p.items.length && !p.items.some((it,i)=>(f.enc[i]||0)>0)){ err="Marque quais itens estão aguardando encomenda."; return draw(); }
       const id=pvId({num, docType: p&&p.num===num ? p.docType : ""}), ex=ORDERS.find(o=>o.id===id && !["enviado","excluido"].includes(o.status));
       if(ex){ err=`A pré-venda ${num} já está no sistema (${statusInfo(ex).t}).`; return draw(); }
-      if(sel && ORDERS.some(o=>usesHive(o)&&o.colmeia===sel)){ err=`Colmeia ${sel.slice(3)} acabou de ser ocupada. Escolha outra.`; sel=null; return draw(); }
       const now=Date.now(), obs=f.obs.trim();
       const items=(p&&p.num===num ? p.items : []).map((it,i)=>({code:it.code, name:it.name, ean:it.ean||PRODUCTS[it.code]?.ean||"", un:it.un, qty:it.qty, price:it.price, loc:"", qtyEnc: f.why==="encomenda" ? Math.min(it.qty, f.enc[i]||0) : 0, eta:""}));
       const fin = f.why==="retira" ? "pronto_envio" : "na_colmeia";
@@ -1580,12 +1579,13 @@ function openHiveDim(){
   document.body.appendChild(ov); scanbar.hidden=true; draw();
 }
 function hiveHTML(target, pick){
-  const by = {}; ORDERS.filter(usesHive).forEach(o=>by[o.colmeia]=o);
-  const cell = s => { const o=by[s];
+  const by = {}; ORDERS.filter(usesHive).forEach(o=>(by[o.colmeia] ||= []).push(o)); // uma colmeia pode ter mais de uma pré-venda
+  const cell = s => { const os=by[s]||[], o=os.find(x=>x.status==="na_colmeia") || os.find(x=>x.status!=="pronto_envio") || os[0], n=os.length;
     const cls = s===target ? "target" : !o ? (pick?"pickable":"") : o.status==="pronto_envio" ? "envio" : o.status==="na_colmeia" ? "enc" : "res";
-    return pick && !o ? `<button type="button" class="slot ${cls}" data-hpick="${s}" title="Livre">${s.slice(3)}</button>`
-      : o && !pick ? `<button type="button" class="slot ${cls}" data-hcell="${s}" title="Ver o pedido da colmeia ${s.slice(3)}" aria-label="Colmeia ${s.slice(3)} ocupada · ver pedido">${s.slice(3)}</button>`
-      : `<div class="slot ${cls}" title="${o?esc("#"+o.num+" · "+o.client):"Livre"}">${s.slice(3)}</div>`; };
+    const cnt = n>1 ? `<i class="slotn" aria-hidden="true">${n}</i>` : "";
+    return pick ? `<button type="button" class="slot ${cls}" data-hpick="${s}" title="${o?esc(os.map(x=>"#"+x.num).join(", ")+" · adicionar mais uma pré-venda"):"Livre"}">${s.slice(3)}${cnt}</button>`
+      : o ? `<button type="button" class="slot ${cls}" data-hcell="${s}" title="Ver ${n>1?"as pré-vendas":"o pedido"} da colmeia ${s.slice(3)}" aria-label="Colmeia ${s.slice(3)} · ${n} pré-venda(s) · ver">${s.slice(3)}${cnt}</button>`
+      : `<div class="slot ${cls}" title="Livre">${s.slice(3)}</div>`; };
   let g=`<span class="hh"></span>`; for(let c=0;c<HIVE_DIM.cols;c++) g+=`<span class="hh">${HIVE_COL(c)}</span>`;
   for(let r=1;r<=HIVE_DIM.rows;r++){ g+=`<span class="hh">${r}</span>`; for(let c=0;c<HIVE_DIM.cols;c++) g+=cell("CM-"+HIVE_COL(c)+r); }
   return `<div class="hive" style="grid-template-columns:18px repeat(${HIVE_DIM.cols},minmax(0,1fr))">${g}</div>
@@ -2329,7 +2329,7 @@ function renderHvPlace(){
     <div class="traystep hvplace">
       <div class="eyebrow">${mv?"Mudar de colmeia":"Guardar na colmeia"}</div>
       <h2>${mv?`Bipe a nova colmeia`:`Bipe a colmeia`}</h2>
-      <p>${mv?`Hoje o pedido está na colmeia <b>${esc(o.colmeia.slice(3))}</b>. Bipe a etiqueta da colmeia livre para onde ele vai.`:`Bipe a etiqueta da colmeia livre onde vai guardar o pedido.`}</p>
+      <p>${mv?`Hoje o pedido está na colmeia <b>${esc(o.colmeia.slice(3))}</b>. Bipe a etiqueta da colmeia para onde ele vai.`:`Bipe a etiqueta da colmeia onde vai guardar o pedido.`} Pode ser uma colmeia que já tem outra pré-venda: elas ficam juntas.</p>
       <div class="tssum"><span>${esc(why)}</span><span><b class="tnum">${n}</b> pç</span></div>
       <button class="demo" id="sim">Simular leitura da colmeia ${esc((freeSlot()||"").slice(3))} (demo)</button>
     </div>
@@ -2344,13 +2344,13 @@ async function scanHvPlace(v){
   if(!isHiveCode(c)){ feedback(false); return setMsg(`Código ${v} não é uma colmeia.`,"bad"); }
   if(!HIVE.includes(c)){ feedback(false); return setMsg(`Colmeia ${c.slice(3)} não existe nesta grade.`,"bad"); }
   if(mv && c===o.colmeia){ feedback(false); return setMsg(`O pedido já está na colmeia ${c.slice(3)}. Bipe a nova colmeia.`,"bad"); }
-  if(!hiveFree(c)){ const occ=ORDERS.find(x=>usesHive(x)&&x.colmeia===c); feedback(false); return setMsg(`Colmeia ${c.slice(3)} ocupada${occ?` pela pré-venda ${occ.num}`:""}. Bipe uma colmeia livre.`,"bad"); }
+  const occ=ORDERS.filter(x=>x.id!==o.id && usesHive(x) && x.colmeia===c), junto = occ.length ? `<br><br>A colmeia ${esc(c.slice(3))} já tem a pré-venda <b>${occ.map(x=>esc(x.num)).join(", ")}</b>. As duas vão ficar <b>juntas na mesma colmeia</b>.` : "";
   feedback(true);
-  const ok=await askModal({title: mv?"Salvar a nova colmeia?":"Salvar a colmeia?", okText:"Salvar",
-    text: mv ? `Deseja salvar a nova localização do pedido <b>#${esc(o.num)}</b>: da colmeia <b>${esc(o.colmeia.slice(3))}</b> para a <b>${esc(c.slice(3))}</b>?` : `Deseja salvar a colmeia <b>${esc(c.slice(3))}</b> como localização do pedido <b>#${esc(o.num)}</b>?`});
+  const ok=await askModal({title: mv?"Salvar a nova colmeia?":"Salvar a colmeia?", okText: occ.length?"Salvar junto":"Salvar",
+    text: (mv ? `Deseja salvar a nova localização do pedido <b>#${esc(o.num)}</b>: da colmeia <b>${esc(o.colmeia.slice(3))}</b> para a <b>${esc(c.slice(3))}</b>?` : `Deseja salvar a colmeia <b>${esc(c.slice(3))}</b> como localização do pedido <b>#${esc(o.num)}</b>?`) + junto});
   if(!ok){ setMsg(mv?"Bipe a nova colmeia":"Bipe a colmeia onde vai guardar","info"); return; }
   const x=ORDERS.find(y=>y.id===o.id), now=Date.now();
-  if(!x || !hiveFree(c)){ toast(`Colmeia ${c.slice(3)} acabou de ser ocupada`); return; }
+  if(!x) return endHvView();
   if(mv) patchOrder(x.id, {colmeia:c, hist:[...(x.hist||[]), {t:now, by:ME.id||"", ev:`Colmeia alterada: ${x.colmeia.slice(3)} → ${c.slice(3)}`}]});
   else patchOrder(x.id, {colmeia:c, status:x.hvNext||"na_colmeia", hvNext:null, storedAt:now, storedBy:ME.id||"", hist:[...(x.hist||[]), {t:now, by:ME.id||"", ev:`Guardado na colmeia ${c.slice(3)} (bipado no celular)`}]});
   toast(mv ? `Pedido #${x.num} mudou para a colmeia ${c.slice(3)}` : `Pedido #${x.num} guardado na colmeia ${c.slice(3)}`);
@@ -2368,11 +2368,12 @@ function openHivePopup(c){
   const here=ORDERS.filter(o=>usesHive(o)&&o.colmeia===c), pend=hvPendList();
   const ov=document.createElement("div"); ov.className="modal"; document.body.appendChild(ov); scanbar.hidden=true;
   const close=()=>{ ov.remove(); render(); };
-  ov.innerHTML=`<div class="mbox" role="dialog" aria-modal="true" aria-label="Colmeia ${esc(c.slice(3))}"><h2>Colmeia ${esc(c.slice(3))}</h2>
+  ov.innerHTML=`<div class="mbox" role="dialog" aria-modal="true" aria-label="Colmeia ${esc(c.slice(3))}"><h2>Colmeia ${esc(c.slice(3))}${here.length>1?` · ${here.length} pré-vendas`:""}</h2>
     ${here.length ? here.map(o=>{ const st=statusInfo(o), n=(o.items||[]).reduce((s,it)=>s+(it.qty||0),0); return `<div class="hvpop"><div><b class="mono">#${esc(o.num)}</b> · ${esc(o.client)}</div><small>${esc(st.t)} · ${n} pç${o.storedAt?` · guardado ${fmtClock(o.storedAt)}`:""}</small>
       ${(o.items||[]).length ? `<div class="hvpopit"><div class="eyebrow">Itens da pré-venda · ${(o.items||[]).length}</div><div class="hvitems">${o.items.map(it=>hvItemHTML(o,it,false)).join("")}</div></div>` : `<div class="muted-s" style="margin-top:6px">Pedido cadastrado sem itens${o.obs?" · "+esc(o.obs):""}.</div>`}
       ${canHiveMove()?`<button class="btn primary" data-hvmv="${esc(o.id)}" style="margin-top:10px;width:100%">Alterar colmeia</button>`:""}</div>`; }).join("")
-      : `<p>Colmeia livre.</p>${pend.length && canHiveStore() ? `<div class="eyebrow">Guardar aqui um pedido aguardando colmeia</div>${pend.map(o=>`<button class="li" data-hvst="${esc(o.id)}"><span class="ln"><b class="mono">#${esc(o.num)}</b> ${esc(o.client)}</span></button>`).join("")}`:""}`}
+      : `<p>Colmeia livre.</p>`}
+    ${pend.length && canHiveStore() ? `<div class="eyebrow" style="margin-top:10px">${here.length?"Adicionar nesta colmeia":"Guardar aqui"} um pedido aguardando colmeia</div>${pend.map(o=>`<button class="li" data-hvst="${esc(o.id)}"><span class="ln"><b class="mono">#${esc(o.num)}</b> ${esc(o.client)}</span></button>`).join("")}`:""}
     ${here.length && !canHiveMove() ? `<small class="muted-s">Para mudar o pedido de colmeia, peça ao Administrador a permissão "Pode mudar pedidos de colmeia".</small>`:""}
     <div class="mact"><button class="btn ghost" id="mNo">Fechar</button></div></div>`;
   ov.onclick=e=>{ if(e.target===ov) close(); };
