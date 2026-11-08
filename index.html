@@ -359,6 +359,14 @@ details.cpcard summary{display:flex;justify-content:space-between;align-items:ce
 .replay{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:5px 10px;font-size:13px;font-weight:600;white-space:nowrap}
 
 .m-floor{fill:var(--floor)}
+.nav3d{position:relative;height:clamp(280px,46vh,420px);border-radius:12px;overflow:hidden;background:#2B2F57;margin:0 -2px}
+.nav3d canvas{display:block;width:100%;height:100%}
+.navtop{position:absolute;left:8px;top:8px;right:96px;display:flex;align-items:center;gap:10px;background:#0E6E4F;color:#fff;border-radius:12px;padding:8px 12px;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+.navtop .navico{flex:none;display:grid;place-items:center}.navtx{display:flex;flex-direction:column;min-width:0}.navtx b{font-size:20px;line-height:1.1;font-family:var(--display)}.navtx span{font-size:13px;opacity:.95;line-height:1.25}
+.navbot{position:absolute;left:8px;right:8px;bottom:8px;display:flex;gap:6px;justify-content:space-between;background:rgba(18,20,48,.86);color:#fff;border-radius:12px;padding:7px 10px;backdrop-filter:blur(4px)}
+.navbot div{display:flex;flex-direction:column;min-width:0}.navbot small{font-size:10px;opacity:.7;text-transform:uppercase;letter-spacing:.05em}.navbot b{font-size:14px;font-family:var(--display);white-space:nowrap}
+.navload{position:absolute;inset:0;display:grid;place-items:center;color:#C9CDFF;font-size:13px}
+.map-card:has(.nav3d) .replay-ic{background:rgba(255,255,255,.92);color:#1F2350;border-color:transparent;z-index:2}
 .map3dbtn{right:54px !important;font-size:12px;font-weight:700;color:var(--ink) !important;font-family:var(--display)}
 .map3d .m3-floor{fill:url(#m3fl)}.map3d .m3-fl0{stop-color:color-mix(in srgb,var(--floor) 80%,#000 6%)}.map3d .m3-fl1{stop-color:var(--floor)}
 .map3d .m3-top.m3-rack{fill:color-mix(in srgb,var(--rack) 82%,#fff)}.map3d .m3-front.m3-rack{fill:var(--rack)}.map3d .m3-side.m3-rack{fill:color-mix(in srgb,var(--rack) 78%,#000)}
@@ -3041,7 +3049,7 @@ function mapRoute(a, b){ // caminho pelos corredores (a = item anterior ou null 
 /* Mapa em 3D (vista de cima em perspectiva): mesma planta e mesma rota, com as estantes em volume.
    Projeção afim: o piso inclina para trás e as estantes sobem; linhas retas continuam retas (a animação da rota funciona igual). */
 const MAP3D_KEY="ps-map3d";
-const map3d = () => { try{ return localStorage.getItem(MAP3D_KEY)!=="0"; }catch(e){ return true; } };
+const map3d = () => { try{ const m=localStorage.getItem("ps-mapmode"); if(m) return m!=="2d"; return localStorage.getItem(MAP3D_KEY)!=="0"; }catch(e){ return true; } };
 function mapSVG(item, prevItem){ return map3d() ? mapSVG3D(item, prevItem) : mapSVG2D(item, prevItem); }
 function mapSVG3D(item, prevItem){
   const M=MAP, l=item.loc, t=mapTarget(l), pv=prevItem?.loc ? mapTarget(prevItem.loc) : null;
@@ -3089,6 +3097,117 @@ function mapSVG3D(item, prevItem){
   s+=`<ellipse class="m3-shadow" id="opsh" cx="${from[0]}" cy="${from[1]}" rx="7" ry="${(7*FS).toFixed(1)}"/><circle id="op" class="m-op" cx="${from[0]}" cy="${from[1]-0}" r="6"/>`;
   return s+`</svg>`;
 }
+/* ================== Mapa de navegação 3D (inspirado na navegação do Google Maps) ==================
+   Cena 3D com as estantes do estoque; a câmera segue o separador pela rota até o local do item. */
+const MAPMODE_KEY="ps-mapmode";
+const mapMode = () => { try{ const v=localStorage.getItem(MAPMODE_KEY); if(v) return v; return localStorage.getItem(MAP3D_KEY)==="0" ? "2d" : "nav"; }catch(e){ return "nav"; } };
+const NAV={ three:null, loading:null, r:null, run:0 };
+const ensureThree = () => window.THREE ? Promise.resolve() : (NAV.loading ||= loadLib("three","https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"));
+const navOK = () => { try{ const c=document.createElement("canvas"); return !!(window.WebGLRenderingContext && (c.getContext("webgl")||c.getContext("experimental-webgl"))); }catch(e){ return false; } };
+const NAV_M = 0.05; // 1 unidade do mapa ≈ 5 cm
+function navStreet(p, q){ const M=MAP;
+  if(Math.abs(p.x-q.x)<1){ for(let k=1;k<=4;k++) if(Math.abs(p.x-M.aisleX(k))<2) return "Rua "+k; return "corredor"; }
+  if(Math.abs(p.y-M.ruaA)<2) return "Rua A"; if(Math.abs(p.y-M.ruaB)<2) return "Rua B"; if(Math.abs(p.y-M.front)<2) return "corredor da frente"; return "corredor"; }
+function navSteps(pts, t){ // instruções: a cada curva, para onde virar e em qual rua
+  const L=(a,b)=>Math.hypot(b.x-a.x,b.y-a.y), steps=[];
+  for(let i=0;i<pts.length-1;i++){ const a=pts[i], b=pts[i+1], c=pts[i+2];
+    let txt, ico;
+    if(c){ const cr=(b.x-a.x)*(c.y-b.y)-(b.y-a.y)*(c.x-b.x); const dir=cr>0?"direita":"esquerda"; txt=`Vire à ${dir} na ${navStreet(b,c)}`; ico=cr>0?"R":"L"; }
+    else { const cr=(b.x-a.x)*((t.cell?t.cell.y+t.cell.h/2:t.y)-b.y)-(b.y-a.y)*((t.cell?t.cell.x+t.cell.w/2:t.x)-b.x); txt=`O item está à ${cr>0?"direita":"esquerda"}`; ico="P"; }
+    steps.push({from:i, len:L(a,b), txt, ico, street:navStreet(a,b)}); }
+  return steps;
+}
+const NAV_ICO={ L:`<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M16 20V12a3 3 0 0 0-3-3H6"/><path d="M9 5L5 9l4 4"/></svg>`,
+  R:`<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 20V12a3 3 0 0 1 3-3h7"/><path d="M15 5l4 4-4 4"/></svg>`,
+  S:`<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V5"/><path d="M7 10l5-5 5 5"/></svg>`,
+  P:`<svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>` };
+function navHTML(item){ const l=item.loc;
+  return `<div class="nav3d" id="nav3d"><canvas id="navcv" aria-hidden="true"></canvas>
+    <div class="navtop"><div class="navico" id="navIco">${NAV_ICO.S}</div><div class="navtx"><b id="navDist">—</b><span id="navTxt">Calculando a rota…</span></div></div>
+    <div class="navbot"><div><small>Destino</small><b>Rua ${esc(String(l.r))} · Lado ${esc(String(l.l))}</b></div><div><small>Coluna</small><b>${esc(String(l.c))}</b></div><div><small>Nível</small><b>${esc(String(l.n))}</b></div><div id="navLeft"><small>Faltam</small><b>—</b></div></div>
+    <div class="navload" id="navLoad">Carregando mapa 3D…</div></div>`;
+}
+function navStart(item, prevItem, force){
+  const box=document.getElementById("nav3d"); if(!box) return;
+  const run=++NAV.run;
+  ensureThree().then(()=>{ if(run!==NAV.run || !box.isConnected) return; try{ navScene(box, item, prevItem, force, run); }catch(e){ console.warn(e); navFallback(box, item, prevItem); } },
+    ()=>navFallback(box, item, prevItem));
+}
+function navFallback(box, item, prevItem){ if(!box.isConnected) return; box.outerHTML=mapSVG3D(item, prevItem); requestAnimationFrame(()=>animateRoute(true)); }
+function navScene(box, item, prevItem, force, run){
+  const T=window.THREE, M=MAP, S=NAV_M, l=item.loc, t=mapTarget(l), pv=prevItem?.loc ? mapTarget(prevItem.loc) : null;
+  const pts=mapRoute(pv, t), steps=navSteps(pts, t);
+  const cv=box.querySelector("#navcv"), W=box.clientWidth||340, H=box.clientHeight||300;
+  const R = NAV.r && NAV.r.domElement===cv ? NAV.r : new T.WebGLRenderer({canvas:cv, antialias:true, alpha:false, powerPreference:"low-power"});
+  NAV.r=R; R.setPixelRatio(Math.min(2, devicePixelRatio||1)); R.setSize(W,H,false);
+  const scene=new T.Scene(), sky=new T.Color(0x2B2F57); scene.background=sky; scene.fog=new T.Fog(0x2B2F57, 14, 34);
+  const cam=new T.PerspectiveCamera(52, W/H, 0.1, 80);
+  scene.add(new T.HemisphereLight(0xB9C4FF, 0x2A2550, 0.95)); const sun=new T.DirectionalLight(0xffffff, 0.75); sun.position.set(-6,12,8); scene.add(sun);
+  const X=x=>x*S, Z=y=>y*S, mat=(c,o={})=>new T.MeshLambertMaterial({color:c, ...o});
+  // piso + corredores
+  const fl=new T.Mesh(new T.PlaneGeometry(X(M.W)+6, Z(M.H)+6), mat(0x3B3F72)); fl.rotation.x=-Math.PI/2; fl.position.set(X(M.W/2),0,Z(M.H/2)); scene.add(fl);
+  const lane=(x,y,w,h,c=0x4A4F8C)=>{ const m=new T.Mesh(new T.PlaneGeometry(X(w),Z(h)), mat(c)); m.rotation.x=-Math.PI/2; m.position.set(X(x+w/2),0.01,Z(y+h/2)); scene.add(m); return m; };
+  for(let k=1;k<=4;k++) lane(M.aisleX(k)-M.aisle/2+3, k===4?M.H2.y:M.vTop, M.aisle-6, (k===4?M.vBot-M.H2.y:M.vBot-M.vTop));
+  lane(M.x0, M.H1.y+M.H1.h+3, M.H1.w, M.vTop-M.H1.y-M.H1.h-6); lane(M.x0, M.H2.y+M.H2.h+3, M.H1.w, M.H1.y-M.H2.y-M.H2.h-6); lane(M.x0, M.vBot+6, M.H1.w+30, 26);
+  // faixas tracejadas no meio dos corredores
+  const dash=(x1,y1,x2,y2)=>{ const n=Math.floor(Math.hypot(x2-x1,y2-y1)/14); for(let i=0;i<n;i++){ const f=(i+.5)/n; const m=new T.Mesh(new T.PlaneGeometry(i%1?0:0.06, 0.3), mat(0x8B91D9)); m.rotation.x=-Math.PI/2; const vx=x2-x1, vy=y2-y1; m.rotation.z=-Math.atan2(vx,vy); m.position.set(X(x1+vx*f),0.02,Z(y1+vy*f)); scene.add(m); } };
+  for(let k=1;k<=4;k++) dash(M.aisleX(k), M.vTop+8, M.aisleX(k), M.vBot-8);
+  // estantes (prédios)
+  const racks=[M.H2, M.small, M.H1, ...[1,2,3,4].map(k=>({x:M.vx(k),y:M.vTop,w:M.rackW,h:M.vBot-M.vTop}))];
+  const rackM=mat(0x6E74B8), topM=mat(0x9DA3E3);
+  racks.forEach(r=>{ const h=2.3, g=new T.BoxGeometry(X(r.w), h, Z(r.h)); const m=new T.Mesh(g, [rackM,rackM,topM,rackM,rackM,rackM]); m.position.set(X(r.x+r.w/2), h/2, Z(r.y+r.h/2)); scene.add(m);
+    const e=new T.LineSegments(new T.EdgesGeometry(g), new T.LineBasicMaterial({color:0x2E3266})); e.position.copy(m.position); scene.add(e); });
+  // mesa de separação
+  { const r=M.mesa, g=new T.BoxGeometry(X(r.w), .45, Z(r.h)), m=new T.Mesh(g, mat(0xE8EAF6)); m.position.set(X(r.x+r.w/2), .225, Z(r.y+r.h/2)); scene.add(m); }
+  // célula do item (laranja) + pino vermelho
+  const tc=t.cell ? {x:t.cell.x+t.cell.w/2, y:t.cell.y+t.cell.h/2} : {x:t.x, y:t.y};
+  if(t.cell){ const nMax=Math.max(l.n||1, ...Object.values(BLOCKS).filter(b=>b.r===l.r && b.l===l.l).map(b=>b.n2||1)), hb=2.3/nMax, lv=Math.min(nMax,Math.max(1,l.n||1));
+    const g=new T.BoxGeometry(X(t.cell.w)+.06, Math.max(.18,hb-.04), Z(Math.max(t.cell.h,6))+.06), m=new T.Mesh(g, mat(0xF5A524, {emissive:0x6A3D00})); m.position.set(X(tc.x), hb*(lv-.5), Z(tc.y)); scene.add(m);
+    const col=new T.Mesh(new T.BoxGeometry(X(t.cell.w)+.02, 2.32, Z(Math.max(t.cell.h,6))+.02), new T.MeshLambertMaterial({color:0xF5A524, transparent:true, opacity:.28})); col.position.set(X(tc.x),1.16,Z(tc.y)); scene.add(col); }
+  const pin=new T.Group(); { const head=new T.Mesh(new T.SphereGeometry(.42, 24, 16), mat(0xEA4335, {emissive:0x3A0A06})), tip=new T.Mesh(new T.ConeGeometry(.3, .7, 20), mat(0xEA4335)); tip.rotation.x=Math.PI; tip.position.y=-.45; head.add(tip);
+    const dot=new T.Mesh(new T.SphereGeometry(.14, 16, 12), mat(0x7A1A12)); dot.position.set(0,0,.36); head.add(dot); pin.add(head); }
+  pin.position.set(X(tc.x), 3.2, Z(tc.y)); pin.scale.setScalar(.85); scene.add(pin);
+  // rota azul brilhante
+  const P3=p=>new T.Vector3(X(p.x), .08, Z(p.y)), curve=new T.CurvePath(); for(let i=0;i<pts.length-1;i++) curve.add(new T.LineCurve3(P3(pts[i]), P3(pts[i+1])));
+  const segs=Math.max(8, pts.length*24);
+  const tube=new T.Mesh(new T.TubeGeometry(curve, segs, .13, 10, false), new T.MeshBasicMaterial({color:0x35E0FF}));
+  const glow=new T.Mesh(new T.TubeGeometry(curve, segs, .32, 10, false), new T.MeshBasicMaterial({color:0x35E0FF, transparent:true, opacity:.22, depthWrite:false}));
+  scene.add(glow, tube);
+  // separador (seta branca com base azul)
+  const me=new T.Group(); { const base=new T.Mesh(new T.CylinderGeometry(.42,.42,.08,28), mat(0x1A73E8, {emissive:0x0B2F66})), ring=new T.Mesh(new T.CylinderGeometry(.5,.5,.06,28), mat(0xffffff)); ring.position.y=-.01;
+    const sh=new T.Shape(); sh.moveTo(0,.36); sh.lineTo(.26,-.24); sh.lineTo(0,-.1); sh.lineTo(-.26,-.24); sh.closePath();
+    const arrow=new T.Mesh(new T.ExtrudeGeometry(sh,{depth:.08, bevelEnabled:false}), mat(0xffffff)); arrow.rotation.x=-Math.PI/2; arrow.position.y=.1;
+    me.add(ring, base, arrow); }
+  me.position.y=.06; scene.add(me);
+  // animação
+  const total=curve.getLength(), ui={ico:box.querySelector("#navIco"), dist:box.querySelector("#navDist"), txt:box.querySelector("#navTxt"), left:box.querySelector("#navLeft b")};
+  box.querySelector("#navLoad")?.remove();
+  const segLen=steps.map(s=>s.len*S), cum=[0]; segLen.forEach(v=>cum.push(cum.at(-1)+v));
+  const setUI=d=>{ let i=0; while(i<steps.length-1 && d>=cum[i+1]-1e-6) i++; const toTurn=Math.max(0,cum[i+1]-d), st=steps[i];
+    ui.ico.innerHTML=NAV_ICO[toTurn<0.6 ? st.ico : (st.ico==="P"?"S":"S")]; if(toTurn<0.6||steps.length===1) ui.ico.innerHTML=NAV_ICO[st.ico];
+    ui.dist.textContent = toTurn<0.5 ? "Agora" : `${toTurn<10?toTurn.toFixed(1).replace(".",","):Math.round(toTurn)} m`;
+    ui.txt.textContent = toTurn<0.5||steps.length===1 ? st.txt : `Siga pela ${st.street} · depois: ${st.txt.charAt(0).toLowerCase()+st.txt.slice(1)}`;
+    const left=Math.max(0,total-d); ui.left.textContent = left<0.3 ? "Chegou" : `${left<10?left.toFixed(1).replace(".",","):Math.round(left)} m`; };
+  const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches, key=state.oid+":"+state.idx;
+  const animate = force || (!reduce && lastAnimKey!==key); lastAnimKey=key;
+  const dur=animate ? Math.min(5200, Math.max(1800, total*420)) : 0, t0=performance.now();
+  const camPos=new T.Vector3(), camLook=new T.Vector3(); let first=true, arrived=false;
+  const place=(u)=>{ const d=u*total, p=curve.getPointAt(Math.min(1,u)), q=curve.getPointAt(Math.min(1,u+0.02)), dir=q.clone().sub(p); if(dir.lengthSq()<1e-6 && u>0.5){ const a=curve.getPointAt(Math.max(0,u-0.02)); dir.copy(p).sub(a); } dir.y=0; if(dir.lengthSq()<1e-6) dir.set(0,0,-1); dir.normalize();
+    me.position.x=p.x; me.position.z=p.z; me.rotation.y=Math.atan2(dir.x, dir.z)+Math.PI;
+    const back = u>=1 ? 7.6 : 6.2, up = u>=1 ? 7.8 : 6.4;
+    const wantPos=p.clone().addScaledVector(dir,-back).add(new T.Vector3(0,up,0)), tgt=new T.Vector3(X(tc.x),2.2,Z(tc.y));
+    const wantLook = u>=1 ? p.clone().lerp(tgt,.5) : p.clone().addScaledVector(dir,3.6);
+    if(first){ camPos.copy(wantPos); camLook.copy(wantLook); first=false; } else { camPos.lerp(wantPos,.09); camLook.lerp(wantLook,.09); }
+    cam.position.copy(camPos); cam.lookAt(camLook); setUI(d); };
+  const loop=(now)=>{ if(run!==NAV.run || !box.isConnected) return;
+    const u = dur ? Math.min(1,(now-t0)/dur) : 1, e = u<.5 ? 2*u*u : 1-Math.pow(-2*u+2,2)/2;
+    place(e); pin.position.y = 3.2 + Math.sin(now/380)*.12; pin.rotation.y += .02;
+    if(u>=1 && !arrived){ arrived=true; document.getElementById("map")?.classList.add("arrived"); }
+    R.render(scene, cam); requestAnimationFrame(loop); };
+  requestAnimationFrame(loop);
+  NAV.replay = ()=>navStart(item, prevItem, true);
+}
+
 function mapSVG2D(item, prevItem){
   const M=MAP, l=item.loc, t=mapTarget(l), pv=prevItem?.loc ? mapTarget(prevItem.loc) : null;
   const pts=mapRoute(pv, t), d="M"+pts.map(p=>`${p.x} ${p.y}`).join(" L"), from=pts[0];
@@ -3518,9 +3637,9 @@ function renderPick(){
     </div>`}
     ${taskCard(it)}
     ${l ? `<div class="map-card" id="map">
-      <button class="replay-ic map3dbtn" id="map3d" aria-label="${map3d()?"Ver mapa em 2D":"Ver mapa em 3D"}" title="${map3d()?"Ver em 2D":"Ver em 3D"}">${map3d()?"2D":"3D"}</button>
+      <button class="replay-ic map3dbtn" id="map3d" aria-label="Trocar o tipo de mapa (agora: ${({nav:"navegação",["3d"]:"3D",["2d"]:"2D"})[mapMode()]})" title="Trocar mapa: navegação, 3D ou 2D">${({nav:"3D",["3d"]:"2D",["2d"]:"Nav"})[mapMode()]}</button>
       <button class="replay-ic" id="replay" aria-label="Ver rota de novo" title="Ver rota de novo"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
-      ${mapSVG(it, prev)}
+      ${mapMode()==="nav" && navOK() ? navHTML(it) : mapMode()==="2d" ? mapSVG2D(it, prev) : mapSVG3D(it, prev)}
     </div>` : ""}
     <div class="eyebrow" style="margin-top:14px">Itens · ${done} de ${pl.length}</div>
     <div class="list" style="margin-top:6px">
@@ -3531,8 +3650,8 @@ function renderPick(){
   document.getElementById("restartPick").onclick = ()=>restartOrder(o.id, true);
   const sk=document.getElementById("skipPick"); if(sk) sk.onclick=()=>skipLote(o.id);
   document.getElementById("deletePick").onclick = ()=>deleteOrder(o.id);
-  const rp=document.getElementById("replay"); if(rp) rp.onclick = ()=>animateRoute(true);
-  const m3=document.getElementById("map3d"); if(m3) m3.onclick=()=>{ try{ localStorage.setItem(MAP3D_KEY, map3d()?"0":"1"); }catch(e){} lastAnimKey=null; render(); };
+  const rp=document.getElementById("replay"); if(rp) rp.onclick = ()=> document.getElementById("nav3d") ? navStart(it, prev, true) : animateRoute(true);
+  const m3=document.getElementById("map3d"); if(m3) m3.onclick=()=>{ const nx=({nav:"3d",["3d"]:"2d",["2d"]:"nav"})[mapMode()]; try{ localStorage.setItem(MAPMODE_KEY, nx); localStorage.setItem(MAP3D_KEY, nx==="2d"?"0":"1"); }catch(e){} lastAnimKey=null; render(); };
   const si=document.getElementById("stkInfo"); if(si) si.onclick = ()=>openStock(it);
   const sim=document.getElementById("sim"); if(sim) sim.onclick = ()=> handleScan(state.phase==="tray" ? freeTray(o) : state.phase==="loc" && it.loc ? code(it.loc) : scanCode(it));
   const um=document.getElementById("useMesa"); if(um) um.onclick = ()=> handleScan(defMesa());
@@ -3546,7 +3665,7 @@ function renderPick(){
     okQ.onclick=()=> commit(state.count>=it.need ? "ok" : state.count===0 ? "miss" : "part"); }
   app.querySelectorAll(".li[data-k]").forEach(b=>b.onclick=()=>{ const k=+b.dataset.k; if(r[pl[k].i].status==="ok"){ toast("Item já finalizado"); return; } goItem(k); if(r[pl[k].i].status!=="pend") setMsg("Item com falta: se encontrou a peça, bipe novamente","info"); });
   setMsg(state.phase==="tray" ? "Bipe a bandeja ou a mesa" : state.phase==="qty" ? `Conte ${it.need} pç e confirme` : state.phase==="unit" ? `${state.count} de ${it.need} pç bipadas. Bipe a próxima peça.` : state.phase==="loc" && it.loc ? `Bipe a etiqueta do endereço ${code(it.loc)}` : pickDirect(o) ? `Bipe a 1ª peça (${it.need} pç no total)` : "Bipe o produto", "info");
-  if(l && state.phase!=="tray") requestAnimationFrame(()=>animateRoute(false));
+  if(l && state.phase!=="tray") requestAnimationFrame(()=> document.getElementById("nav3d") ? navStart(it, prev, false) : animateRoute(false));
   focusScan();
 }
 /* 1º passo ao abrir o pedido: só a bandeja (os produtos aparecem depois de bipar a bandeja) */
