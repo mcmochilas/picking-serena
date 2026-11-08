@@ -359,7 +359,7 @@ details.cpcard summary{display:flex;justify-content:space-between;align-items:ce
 .replay{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:5px 10px;font-size:13px;font-weight:600;white-space:nowrap}
 
 .m-floor{fill:var(--floor)}
-.nav3d{position:relative;height:clamp(300px,50vh,440px);border-radius:12px;overflow:hidden;background:#E4E7EC;margin:0 -2px}
+.nav3d{position:relative;height:clamp(300px,50vh,440px);border-radius:12px;overflow:hidden;background:#23264A;margin:0 -2px}
 .nav3d canvas{display:block;width:100%;height:100%}
 .cfgrow{display:flex;gap:12px;flex-wrap:wrap}.cfgrow label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}.cfgrow input{width:90px}
 .navtop{position:absolute;left:8px;top:8px;right:96px;display:flex;align-items:center;gap:10px;background:rgba(20,22,28,.88);color:#fff;border-radius:12px;padding:8px 12px;box-shadow:0 4px 14px rgba(0,0,0,.25);backdrop-filter:blur(4px)}
@@ -367,7 +367,7 @@ details.cpcard summary{display:flex;justify-content:space-between;align-items:ce
 .navtx em{font-style:normal;transition:color .3s}.navtx em.on{color:#FFB020;font-weight:700}
 .navlvl{position:absolute;right:10px;bottom:10px;background:#FFB020;color:#1A1300;border-radius:12px;padding:6px 14px;display:flex;flex-direction:column;align-items:center;box-shadow:0 6px 18px rgba(0,0,0,.25);transform:translateY(12px) scale(.9);opacity:0;transition:opacity .35s,transform .35s}
 .navlvl.on{opacity:1;transform:none}.navlvl span{font-size:11px;font-weight:600;opacity:.85;white-space:nowrap}.navlvl small{font-size:10px;text-transform:uppercase;letter-spacing:.06em;font-weight:700;opacity:.8}.navlvl b{font-size:22px;font-family:var(--display);line-height:1.05}
-.navload{position:absolute;inset:0;display:grid;place-items:center;color:#5B6270;font-size:13px}
+.navload{position:absolute;inset:0;display:grid;place-items:center;color:#C9CDFF;font-size:13px}
 @media (prefers-reduced-motion: reduce){.navlvl{transition:none}}
 .map-card:has(.nav3d) .replay-ic{background:rgba(255,255,255,.92);color:#1F2350;border-color:transparent;z-index:2}
 .map3dbtn{right:54px !important;font-size:12px;font-weight:700;color:var(--ink) !important;font-family:var(--display)}
@@ -3142,9 +3142,9 @@ function navStart(item, prevItem, force){
 function navFallback(box, item, prevItem){ if(!box.isConnected) return; box.outerHTML=mapSVG3D(item, prevItem); requestAnimationFrame(()=>animateRoute(true)); }
 /* textura do piso: porcelanato branco com rejunte */
 function navFloorTex(T){ const c=document.createElement("canvas"); c.width=c.height=256; const g=c.getContext("2d");
-  g.fillStyle="#F2F3F5"; g.fillRect(0,0,256,256);
-  for(let i=0;i<14;i++){ g.strokeStyle=`rgba(150,155,165,${.05+Math.random()*.07})`; g.lineWidth=.6+Math.random()*1.2; g.beginPath(); let x=Math.random()*256,y=Math.random()*256; g.moveTo(x,y); for(let k=0;k<5;k++){ x+=(Math.random()-.5)*90; y+=(Math.random()-.3)*60; g.lineTo(x,y);} g.stroke(); }
-  g.strokeStyle="rgba(170,175,185,.55)"; g.lineWidth=2; g.strokeRect(0,0,256,256);
+  g.fillStyle="#3A3F78"; g.fillRect(0,0,256,256);
+  for(let i=0;i<10;i++){ g.strokeStyle=`rgba(120,128,200,${.05+Math.random()*.06})`; g.lineWidth=.6+Math.random()*1.2; g.beginPath(); let x=Math.random()*256,y=Math.random()*256; g.moveTo(x,y); for(let k=0;k<5;k++){ x+=(Math.random()-.5)*90; y+=(Math.random()-.3)*60; g.lineTo(x,y);} g.stroke(); }
+  g.strokeStyle="rgba(28,31,70,.75)"; g.lineWidth=3; g.strokeRect(0,0,256,256);
   const t=new T.CanvasTexture(c); t.wrapS=t.wrapT=T.RepeatWrapping; return t; }
 function navScene(box, item, prevItem, force, run){
   const T=window.THREE, M=MAP, S=NAV_M, l=item.loc, t=mapTarget(l), pv=prevItem?.loc ? mapTarget(prevItem.loc) : null;
@@ -3152,11 +3152,14 @@ function navScene(box, item, prevItem, force, run){
   const cv=box.querySelector("#navcv"), W=box.clientWidth||340, H=box.clientHeight||300;
   const R = NAV.r && NAV.r.domElement===cv ? NAV.r : new T.WebGLRenderer({canvas:cv, antialias:true, alpha:false, powerPreference:"low-power"});
   NAV.r=R; R.setPixelRatio(Math.min(2, devicePixelRatio||1)); R.setSize(W,H,false);
-  const scene=new T.Scene(); scene.background=new T.Color(0xE4E7EC); scene.fog=new T.Fog(0xE4E7EC, 16, 36);
+  const scene=new T.Scene(); scene.background=new T.Color(0x23264A); scene.fog=new T.Fog(0x23264A, 15, 34);
   const cam=new T.PerspectiveCamera(50, W/H, 0.05, 80);
-  scene.add(new T.HemisphereLight(0xFFFFFF, 0xC9CED6, 0.95)); const sun=new T.DirectionalLight(0xffffff, 0.55); sun.position.set(-5,12,6); scene.add(sun);
+  scene.add(new T.HemisphereLight(0xC8D0FF, 0x262A55, 1.0)); const sun=new T.DirectionalLight(0xffffff, 0.7); sun.position.set(-5,12,6); scene.add(sun);
   const X=x=>x*S, Z=y=>y*S, mat=(c,o={})=>new T.MeshLambertMaterial({color:c, ...o});
   // piso de porcelanato
+  { const lane=(x,y,w,h)=>{ const m=new T.Mesh(new T.PlaneGeometry(X(w),Z(h)), new T.MeshLambertMaterial({color:0x5A60A8})); m.rotation.x=-Math.PI/2; m.position.set(X(x+w/2),0.006,Z(y+h/2)); scene.add(m); };
+    for(let k=1;k<=4;k++) lane(M.aisleX(k)-M.aisle/2+4, k===4?M.H2.y:M.vTop, M.aisle-8, (k===4?M.vBot-M.H2.y:M.vBot-M.vTop));
+    lane(M.x0, M.H1.y+M.H1.h+4, M.H1.w, M.vTop-M.H1.y-M.H1.h-8); lane(M.x0, M.H2.y+M.H2.h+4, M.H1.w, M.H1.y-M.H2.y-M.H2.h-8); lane(M.x0, M.vBot+6, M.H1.w+30, 24); }
   const ft=navFloorTex(T); ft.repeat.set((X(M.W)+8)/1.2, (Z(M.H)+8)/1.2);
   const fl=new T.Mesh(new T.PlaneGeometry(X(M.W)+8, Z(M.H)+8), mat(0xffffff,{map:ft})); fl.rotation.x=-Math.PI/2; fl.position.set(X(M.W/2),0,Z(M.H/2)); scene.add(fl);
   // estrutura porta-pallet com caixas bin (instâncias para ficar leve no celular)
@@ -3181,16 +3184,16 @@ function navScene(box, item, prevItem, force, run){
     [-1,1].forEach(sd=>push(tape,...P(0,sd*(D/2+.04),.004),...S3(L+.1,.004,.05)));
   });
   const inst=(arr, color, o)=>{ if(!arr.length) return; const g=new T.BoxGeometry(1,1,1), m=new T.InstancedMesh(g, mat(color,o), arr.length); arr.forEach((mx,i)=>m.setMatrixAt(i,mx)); m.instanceMatrix.needsUpdate=true; scene.add(m); };
-  inst(up,0xB9BDC4); inst(beam,0xF07D1A); inst(deck,0xF4F1EA); inst(bin,0x2C3036); inst(box2,0xC49A6C); inst(tape,0x2563EB);
+  inst(up,0xA9B0D6); inst(beam,0xF7841F,{emissive:0x3A1A00}); inst(deck,0x8B91CF); inst(bin,0x272C52); inst(box2,0xA9825C); inst(tape,0x35E0FF,{emissive:0x0E5866});
   // mesa de expedição (mesmo porta-pallet, tampo branco, monitor e plástico bolha)
   { const r=M.mesa, cx=X(r.x+r.w/2), cz=Z(r.y+r.h/2), Lm=X(r.w), Dm=Z(r.h)+.3, top=.95;
     const g=new T.Group(); const B=(w,h,d,c,x,y,z)=>{ const m=new T.Mesh(new T.BoxGeometry(w,h,d), mat(c)); m.position.set(x,y,z); g.add(m); return m; };
-    [-Lm/2,0,Lm/2].forEach(x=>[-Dm/2,Dm/2].forEach(z=>B(.07,top,.07,0xB9BDC4,x,top/2,z)));
-    [top-.05,.55,.18].forEach((y,i)=>{ [-Dm/2,Dm/2].forEach(z=>B(Lm,.09,.05,0xF07D1A,0,y,z)); B(Lm,.03,Dm-.02,0xF4F1EA,0,y+.06,0); });
-    B(.55,.36,.04,0x15171B,-Lm/4,top+.32,-Dm/4); B(.5,.3,.01,0x3B82F6,-Lm/4,top+.33,-Dm/4+.025); B(.08,.14,.08,0x15171B,-Lm/4,top+.12,-Dm/4);
-    B(.32,.16,.26,0xFFFFFF,Lm/4,top+.13,-Dm/4);
-    const roll=new T.Mesh(new T.CylinderGeometry(.22,.22,1.3,20), mat(0xDDE6EE,{transparent:true,opacity:.85})); roll.rotation.z=Math.PI/2; roll.position.set(0,top+.95,-Dm/2+.1); g.add(roll);
-    [-Lm/2,Lm/2].forEach(x=>B(.07,1.3,.07,0xB9BDC4,x,top+.6,-Dm/2)); B(Lm,.09,.05,0xF07D1A,0,top+.72,-Dm/2);
+    [-Lm/2,0,Lm/2].forEach(x=>[-Dm/2,Dm/2].forEach(z=>B(.07,top,.07,0xA9B0D6,x,top/2,z)));
+    [top-.05,.55,.18].forEach((y,i)=>{ [-Dm/2,Dm/2].forEach(z=>B(Lm,.09,.05,0xF7841F,0,y,z)); B(Lm,.03,Dm-.02,i?0x8B91CF:0xB8BDE6,0,y+.06,0); });
+    B(.55,.36,.04,0x15171B,-Lm/4,top+.32,Dm/4); B(.5,.3,.01,0x3B82F6,-Lm/4,top+.33,Dm/4-.025); B(.08,.14,.08,0x15171B,-Lm/4,top+.12,Dm/4);
+    B(.32,.16,.26,0xF4F5FA,Lm/4,top+.13,Dm/4);
+    const roll=new T.Mesh(new T.CylinderGeometry(.22,.22,1.3,20), mat(0xDDE6EE,{transparent:true,opacity:.85})); roll.rotation.z=Math.PI/2; roll.position.set(0,top+.95,Dm/2-.1); g.add(roll);
+    [-Lm/2,Lm/2].forEach(x=>B(.07,1.3,.07,0xA9B0D6,x,top+.6,Dm/2)); B(Lm,.09,.05,0xF7841F,0,top+.72,Dm/2);
     g.position.set(cx,0,cz); scene.add(g); }
   // destino: lado da estante voltado para o corredor, coluna e nível
   const tc=t.cell ? {x:t.cell.x+t.cell.w/2, y:t.cell.y+t.cell.h/2} : {x:t.x, y:t.y};
@@ -3208,8 +3211,8 @@ function navScene(box, item, prevItem, force, run){
   const P3=p=>new T.Vector3(X(p.x), .03, Z(p.y)), curve=new T.CurvePath(); for(let i=0;i<pts.length-1;i++) curve.add(new T.LineCurve3(P3(pts[i]), P3(pts[i+1])));
   if(pts.length<2) curve.add(new T.LineCurve3(P3(pts[0]), P3(pts[0]).add(new T.Vector3(0,0,-.01))));
   const segs=Math.max(8, pts.length*24);
-  scene.add(new T.Mesh(new T.TubeGeometry(curve, segs, .26, 10, false), new T.MeshBasicMaterial({color:0x1A73E8, transparent:true, opacity:.22, depthWrite:false})));
-  scene.add(new T.Mesh(new T.TubeGeometry(curve, segs, .09, 10, false), new T.MeshBasicMaterial({color:0x1A73E8})));
+  scene.add(new T.Mesh(new T.TubeGeometry(curve, segs, .3, 10, false), new T.MeshBasicMaterial({color:0x35E0FF, transparent:true, opacity:.22, depthWrite:false})));
+  scene.add(new T.Mesh(new T.TubeGeometry(curve, segs, .11, 10, false), new T.MeshBasicMaterial({color:0x35E0FF})));
   // separador
   const me=new T.Group(); { const base=new T.Mesh(new T.CylinderGeometry(.34,.34,.06,28), mat(0x1A73E8, {emissive:0x0B2F66})), ring=new T.Mesh(new T.CylinderGeometry(.41,.41,.05,28), mat(0xffffff)); ring.position.y=-.01;
     const sh=new T.Shape(); sh.moveTo(0,.29); sh.lineTo(.21,-.19); sh.lineTo(0,-.08); sh.lineTo(-.21,-.19); sh.closePath();
