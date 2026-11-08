@@ -3221,8 +3221,9 @@ function navScene(box, item, prevItem, force, run){
   const animate = force || (!reduce && lastAnimKey!==key); lastAnimKey=key;
   const dur=animate ? Math.min(5000, Math.max(1600, total*420)) : 0, FIN=animate?1500:0, t0=performance.now();
   // vista final: de frente para a prateleira, na altura do nível
-  const endP=P3(pts[pts.length-1]), faceCam=binPos.clone().addScaledVector(nrm, 3.1).add(new T.Vector3(0, .55, 0)), faceLook=binPos.clone();
+  const endP=P3(pts[pts.length-1]), faceCam=binPos.clone().addScaledVector(nrm, 1.75).add(new T.Vector3(0, .35, 0)), faceLook=binPos.clone();
   const camPos=new T.Vector3(), camLook=new T.Vector3(); let first=true, arrived=false;
+  cam.fov=50; cam.updateProjectionMatrix();
   const follow=(u)=>{ const p=curve.getPointAt(Math.min(1,u)), q=curve.getPointAt(Math.min(1,u+0.02)), dir=q.clone().sub(p); if(dir.lengthSq()<1e-6){ const a=curve.getPointAt(Math.max(0,u-0.02)); dir.copy(p).sub(a); } dir.y=0; if(dir.lengthSq()<1e-6) dir.set(0,0,-1); dir.normalize();
     me.position.x=p.x; me.position.z=p.z; me.rotation.y=Math.atan2(dir.x, dir.z)+Math.PI;
     return {pos:p.clone().addScaledVector(dir,-5.6).add(new T.Vector3(0,5.4,0)), look:p.clone().addScaledVector(dir,3.4)}; };
@@ -3231,7 +3232,7 @@ function navScene(box, item, prevItem, force, run){
     const el=now-t0, u=dur?Math.min(1,el/dur):1, f=follow(ease(u));
     let wantPos=f.pos, wantLook=f.look;
     if(u>=1){ const k=FIN?Math.min(1,(el-dur)/FIN):1, e=ease(k); // aproxima da prateleira e mostra o nível
-      wantPos=f.pos.clone().lerp(faceCam,e); wantLook=f.look.clone().lerp(faceLook,e);
+      wantPos=f.pos.clone().lerp(faceCam,e); wantLook=f.look.clone().lerp(faceLook,e); cam.fov=50+24*e; cam.updateProjectionMatrix();
       hiBin.position.copy(binPos).addScaledVector(nrm, .16*e);
       lvBand.material.opacity = e*(.32+.18*Math.sin(now/260));
       hiBin.material.emissive.setHex(Math.sin(now/220)>0?0x8A5200:0x5A3300);
