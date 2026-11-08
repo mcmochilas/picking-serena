@@ -359,6 +359,22 @@ details.cpcard summary{display:flex;justify-content:space-between;align-items:ce
 .replay{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:5px 10px;font-size:13px;font-weight:600;white-space:nowrap}
 
 .m-floor{fill:var(--floor)}
+.map3dbtn{right:54px !important;font-size:12px;font-weight:700;color:var(--ink) !important;font-family:var(--display)}
+.map3d .m3-floor{fill:url(#m3fl)}.map3d .m3-fl0{stop-color:color-mix(in srgb,var(--floor) 80%,#000 6%)}.map3d .m3-fl1{stop-color:var(--floor)}
+.map3d .m3-top.m3-rack{fill:color-mix(in srgb,var(--rack) 82%,#fff)}.map3d .m3-front.m3-rack{fill:var(--rack)}.map3d .m3-side.m3-rack{fill:color-mix(in srgb,var(--rack) 78%,#000)}
+.map3d .m3-rack{stroke:color-mix(in srgb,var(--rack) 60%,#000);stroke-width:.5;stroke-linejoin:round}
+.map3d .m3-top.m3-target{fill:color-mix(in srgb,var(--accent) 85%,#fff)}.map3d .m3-front.m3-target{fill:var(--accent)}.map3d .m3-side.m3-target{fill:color-mix(in srgb,var(--accent) 75%,#000)}
+.map3d .m3-target{stroke:var(--ink);stroke-width:.6}
+.map3d .m3-top.m3-dock{fill:var(--surface)}.map3d .m3-front.m3-dock,.map3d .m3-side.m3-dock{fill:color-mix(in srgb,var(--surface) 80%,#000)}.map3d .m3-dock{stroke:var(--line);stroke-width:.8}
+.map3d .m3-rua{font-size:9px}
+.map3d .m3-route{stroke-width:4;filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.35))}
+.map3d .m3-stem{stroke:var(--ink);stroke-width:2;stroke-linecap:round}
+.map3d .m3-lvl{fill:var(--ink);font-family:var(--display);font-weight:800;font-size:10px}
+.map3d .m3-shadow{fill:#000;opacity:.18}
+.map3d .m3-pin{transform-box:fill-box;transform-origin:bottom center}
+.arrived .map3d .m3-pin{animation:pinbob 1.6s ease-in-out infinite}
+@keyframes pinbob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@media (prefers-reduced-motion: reduce){.arrived .map3d .m3-pin{animation:none}}
 .m-cell{fill:var(--rack)}
 .m-rack{fill:var(--rack)}
 .m-rua{fill:var(--muted);font-family:var(--display);font-weight:700;font-size:12px;letter-spacing:.06em;opacity:.75}
@@ -3022,7 +3038,58 @@ function mapRoute(a, b){ // caminho pelos corredores (a = item anterior ou null 
   const path=[]; for(let u="dst"; u; u=prev[u]) path.unshift(N[u]);
   return path.filter((p,i)=>!i || p.x!==path[i-1].x || p.y!==path[i-1].y);
 }
-function mapSVG(item, prevItem){
+/* Mapa em 3D (vista de cima em perspectiva): mesma planta e mesma rota, com as estantes em volume.
+   Projeção afim: o piso inclina para trás e as estantes sobem; linhas retas continuam retas (a animação da rota funciona igual). */
+const MAP3D_KEY="ps-map3d";
+const map3d = () => { try{ return localStorage.getItem(MAP3D_KEY)!=="0"; }catch(e){ return true; } };
+function mapSVG(item, prevItem){ return map3d() ? mapSVG3D(item, prevItem) : mapSVG2D(item, prevItem); }
+function mapSVG3D(item, prevItem){
+  const M=MAP, l=item.loc, t=mapTarget(l), pv=prevItem?.loc ? mapTarget(prevItem.loc) : null;
+  const SK=0.16, FS=0.8, ZR=26; // inclinação, encurtamento do piso e altura das estantes
+  const P=(x,y,z=0)=>[+(x+(M.H-y)*SK).toFixed(1), +(y*FS - z).toFixed(1)];
+  const pt=(x,y,z)=>P(x,y,z).join(" ");
+  const poly=(cls, ps)=>`<polygon class="${cls}" points="${ps.map(q=>pt(...q)).join(" ")}"/>`;
+  const box=(r, z0, z1, cls="")=>{ const {x,y,w,h}=r;
+    return poly("m3-side "+cls, [[x,y,z0],[x,y+h,z0],[x,y+h,z1],[x,y,z1]])
+      + poly("m3-front "+cls, [[x,y+h,z0],[x+w,y+h,z0],[x+w,y+h,z1],[x,y+h,z1]])
+      + poly("m3-top "+cls, [[x,y,z1],[x+w,y,z1],[x+w,y+h,z1],[x,y+h,z1]]); };
+  // limites da imagem
+  const cs=[[0,0,0],[M.W,0,0],[0,M.H,0],[M.W,M.H,0],[M.x0,M.H2.y,ZR],[M.W,M.H2.y,ZR],[t.x,t.y,ZR+34]].map(q=>P(...q));
+  const minX=Math.min(...cs.map(c=>c[0]))-6, maxX=Math.max(...cs.map(c=>c[0]))+6, minY=Math.min(...cs.map(c=>c[1]))-6, maxY=Math.max(...cs.map(c=>c[1]))+6;
+  const pts=mapRoute(pv, t), d="M"+pts.map(q=>pt(q.x,q.y,0)).join(" L"), from=P(pts[0].x,pts[0].y,0), tg=P(t.x,t.y,0);
+  let s=`<svg class="map3d" viewBox="${minX} ${minY} ${maxX-minX} ${maxY-minY}" role="img" aria-label="Mapa do estoque em 3D: vá até a rua ${l.r}, lado ${l.l}, coluna ${l.c}, nível ${l.n}">`;
+  s+=`<defs><linearGradient id="m3fl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="m3-fl0"/><stop offset="1" class="m3-fl1"/></linearGradient></defs>`;
+  s+=poly("m3-floor", [[0,0,0],[M.W,0,0],[M.W,M.H,0],[0,M.H,0]]);
+  // corredor de destino
+  if(t.kind==="v"){ const y0=t.aisle===4?M.H2.y:M.vTop, x0=M.aisleX(t.aisle)-M.aisle/2; s+=poly("m-lane", [[x0,y0,0],[x0+M.aisle,y0,0],[x0+M.aisle,M.vBot,0],[x0,M.vBot,0]]); }
+  if(t.kind==="A"||t.kind==="B"){ const y0=t.kind==="A"?M.H1.y+M.H1.h:M.H2.y+M.H2.h, y1=t.kind==="A"?M.vTop:M.H1.y; s+=poly("m-lane", [[M.x0,y0,0],[M.x0+M.H1.w,y0,0],[M.x0+M.H1.w,y1,0],[M.x0,y1,0]]); }
+  // paredes (contorno no piso)
+  s+=`<path class="m-wall" d="M${[[8,38],[M.small.x+M.small.w+4,38],[M.small.x+M.small.w+4,M.vTop+8],[M.W-8,M.vTop+8],[M.W-8,M.H-12],[8,M.H-12]].map(q=>pt(q[0],q[1],0)).join(" L")} Z"/>`;
+  // rota no piso (antes das estantes da frente não importa: fica por cima para ser sempre visível)
+  const racks=[M.H2, M.small, M.H1, ...[1,2,3,4].map(k=>({x:M.vx(k),y:M.vTop,w:M.rackW,h:M.vBot-M.vTop}))];
+  // estantes de trás para a frente (pintor), com a célula de destino em destaque
+  const cell=t.cell;
+  let hit=false;
+  racks.sort((a,b)=>(a.y+a.h)-(b.y+b.h)).forEach(r=>{
+    s+=box(r,0,ZR,"m3-rack");
+    if(cell && !hit && cell.x>=r.x-1 && cell.x+cell.w<=r.x+r.w+1 && cell.y>=r.y-1 && cell.y<=r.y+r.h+1){ hit=true; s+=box({x:cell.x,y:cell.y,w:cell.w,h:Math.max(3,Math.min(cell.h, r.y+r.h-cell.y))},0,ZR+0.6,"m3-target"); }
+  });
+  if(cell && !hit) s+=box({x:cell.x,y:cell.y,w:cell.w,h:Math.max(3,cell.h)},0,ZR+0.6,"m3-target");
+  // nomes das ruas
+  for(let k=1;k<=4;k++){ const q=P(M.aisleX(k), M.vBot+10, 0); s+=`<text class="m-rua m3-rua" x="${q[0]}" y="${q[1]+3}" text-anchor="middle">RUA ${k}</text>`; }
+  { const qa=P(M.x0+M.H1.w/2, M.ruaA, 0), qb=P(M.x0+M.H1.w/2, M.ruaB, 0); s+=`<text class="m-rua m3-rua" x="${qa[0]}" y="${qa[1]+3}" text-anchor="middle">RUA A</text><text class="m-rua m3-rua" x="${qb[0]}" y="${qb[1]+3}" text-anchor="middle">RUA B</text>`; }
+  // mesa de separação
+  s+=box(M.mesa,0,8,"m3-dock"); { const q=P(M.mesa.x+M.mesa.w/2, M.mesa.y+M.mesa.h/2, 8); s+=`<text class="m-dock-t" x="${q[0]}" y="${q[1]+3}" text-anchor="middle">MESA DE SEPARAÇÃO</text>`; }
+  if(pv) s+=`<ellipse class="m-prev" cx="${from[0]}" cy="${from[1]}" rx="4.5" ry="${(4.5*FS).toFixed(1)}"/>`;
+  s+=`<path id="route" class="m-route m3-route" d="${d}"/>`;
+  // marcador 3D: anel no piso + haste + cabeça acima do local
+  const top=P(t.x,t.y,ZR+24);
+  s+=`<ellipse class="m-ring m3-ring" cx="${tg[0]}" cy="${tg[1]}" rx="12" ry="${(12*FS).toFixed(1)}"/>`;
+  s+=`<g class="m3-pin"><line class="m3-stem" x1="${tg[0]}" y1="${tg[1]}" x2="${top[0]}" y2="${top[1]}"/><circle class="m-pin" cx="${top[0]}" cy="${top[1]}" r="8.5"/><text class="m3-lvl" x="${top[0]}" y="${top[1]+3.5}" text-anchor="middle">${esc(String(l.n||""))}</text></g>`;
+  s+=`<ellipse class="m3-shadow" id="opsh" cx="${from[0]}" cy="${from[1]}" rx="7" ry="${(7*FS).toFixed(1)}"/><circle id="op" class="m-op" cx="${from[0]}" cy="${from[1]-0}" r="6"/>`;
+  return s+`</svg>`;
+}
+function mapSVG2D(item, prevItem){
   const M=MAP, l=item.loc, t=mapTarget(l), pv=prevItem?.loc ? mapTarget(prevItem.loc) : null;
   const pts=mapRoute(pv, t), d="M"+pts.map(p=>`${p.x} ${p.y}`).join(" L"), from=pts[0];
   const R=(r,cls)=>`<rect class="${cls}" x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" rx="2"/>`;
@@ -3050,7 +3117,7 @@ function animateRoute(force){
   const path = document.getElementById("route"), op = document.getElementById("op");
   card.classList.remove("arrived");
   const len = path.getTotalLength(), tok = ++animToken, key = state.oid+":"+state.idx;
-  const finish = () => { path.style.strokeDasharray=""; path.style.strokeDashoffset=0; const p=path.getPointAtLength(len); op.setAttribute("cx",p.x); op.setAttribute("cy",p.y); card.classList.add("arrived"); };
+  const finish = () => { path.style.strokeDasharray=""; path.style.strokeDashoffset=0; const p=path.getPointAtLength(len); op.setAttribute("cx",p.x); op.setAttribute("cy",p.y); const sh=document.getElementById("opsh"); if(sh){ sh.setAttribute("cx",p.x); sh.setAttribute("cy",p.y); } card.classList.add("arrived"); };
   if(matchMedia("(prefers-reduced-motion: reduce)").matches || (!force && lastAnimKey===key)) return finish();
   lastAnimKey = key;
   path.style.strokeDasharray = len; path.style.strokeDashoffset = len;
@@ -3060,7 +3127,7 @@ function animateRoute(force){
     if(tok!==animToken) return;
     const k = Math.min(1,(now-t0)/dur), e = ease(k);
     path.style.strokeDashoffset = len*(1-e);
-    const p = path.getPointAtLength(e*len); op.setAttribute("cx",p.x); op.setAttribute("cy",p.y);
+    const p = path.getPointAtLength(e*len); op.setAttribute("cx",p.x); op.setAttribute("cy",p.y); const sh=document.getElementById("opsh"); if(sh){ sh.setAttribute("cx",p.x); sh.setAttribute("cy",p.y); }
     k<1 ? requestAnimationFrame(step) : finish();
   })(t0);
 }
@@ -3451,6 +3518,7 @@ function renderPick(){
     </div>`}
     ${taskCard(it)}
     ${l ? `<div class="map-card" id="map">
+      <button class="replay-ic map3dbtn" id="map3d" aria-label="${map3d()?"Ver mapa em 2D":"Ver mapa em 3D"}" title="${map3d()?"Ver em 2D":"Ver em 3D"}">${map3d()?"2D":"3D"}</button>
       <button class="replay-ic" id="replay" aria-label="Ver rota de novo" title="Ver rota de novo"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
       ${mapSVG(it, prev)}
     </div>` : ""}
@@ -3464,6 +3532,7 @@ function renderPick(){
   const sk=document.getElementById("skipPick"); if(sk) sk.onclick=()=>skipLote(o.id);
   document.getElementById("deletePick").onclick = ()=>deleteOrder(o.id);
   const rp=document.getElementById("replay"); if(rp) rp.onclick = ()=>animateRoute(true);
+  const m3=document.getElementById("map3d"); if(m3) m3.onclick=()=>{ try{ localStorage.setItem(MAP3D_KEY, map3d()?"0":"1"); }catch(e){} lastAnimKey=null; render(); };
   const si=document.getElementById("stkInfo"); if(si) si.onclick = ()=>openStock(it);
   const sim=document.getElementById("sim"); if(sim) sim.onclick = ()=> handleScan(state.phase==="tray" ? freeTray(o) : state.phase==="loc" && it.loc ? code(it.loc) : scanCode(it));
   const um=document.getElementById("useMesa"); if(um) um.onclick = ()=> handleScan(defMesa());
