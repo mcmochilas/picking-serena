@@ -3200,8 +3200,14 @@ function navScene(box, item, prevItem, force, run){
   const yLv=shY[Math.min(shY.length-1,bl.shelf-1)]+.075+(bl.pos-1)*BH+BH/2;
   const nrm=new T.Vector3(X(t.x)-X(tc.x),0,Z(t.y)-Z(tc.y)); if(nrm.lengthSq()<1e-6) nrm.set(1,0,0); nrm.normalize();
   const along=t.kind==="v", rackD = along ? X(M.rackW) : Z(M.H1.h);
-  const binPos=new T.Vector3(X(tc.x),yLv,Z(tc.y)).addScaledVector(nrm, rackD/4+.02);
-  const hiBin=new T.Mesh(new T.BoxGeometry(along?rackD/2-.1:BW+.02, BH, along?BW+.02:rackD/2-.1), mat(0xFFB020,{emissive:0x7A4A00}));
+  // encaixa na coluna de caixas real da estante (mesmo tamanho e posição de uma caixa bin)
+  const rk=racks.find(r=>tc.x>=r.x-1 && tc.x<=r.x+r.w+1 && tc.y>=r.y-1 && tc.y<=r.y+r.h+1);
+  let bx=X(tc.x), bz=Z(tc.y);
+  if(rk){ const al=rk.h>=rk.w, Lr=al?Z(rk.h):X(rk.w), nB=Math.floor(Lr/(BW+.03)), c0=al?Z(rk.y+rk.h/2):X(rk.x+rk.w/2), pos=(al?bz:bx)-c0, j=Math.max(0,Math.min(nB-1,Math.floor((pos+Lr/2)/(Lr/nB)))), a=-Lr/2+(j+.5)*Lr/nB;
+    if(al) bz=c0+a; else bx=c0+a;
+    const ctr=al?X(rk.x+rk.w/2):Z(rk.y+rk.h/2), Dd=al?X(rk.w):Z(rk.h), side=(al?nrm.x:nrm.z)>=0?1:-1; if(al) bx=ctr+side*(Dd/4+.02); else bz=ctr+side*(Dd/4+.02); }
+  const binPos=rk ? new T.Vector3(bx,yLv,bz) : new T.Vector3(bx,yLv,bz).addScaledVector(nrm, rackD/4+.02);
+  const hiBin=new T.Mesh(new T.BoxGeometry(along?rackD/2-.14:BW, BH-.012, along?BW:rackD/2-.14), mat(0xFFB020,{emissive:0x7A4A00}));
   hiBin.position.copy(binPos); scene.add(hiBin);
   const lvBand=new T.Mesh(new T.BoxGeometry(along?.04:Math.max(.6,X(t.cell?.w||12)), BH*.95, along?Math.max(.6,Z(t.cell?.h||12)):.04), new T.MeshBasicMaterial({color:0xFFB020, transparent:true, opacity:0, depthWrite:false}));
   lvBand.position.copy(new T.Vector3(X(tc.x),yLv,Z(tc.y)).addScaledVector(nrm, rackD/2+.03)); scene.add(lvBand);
@@ -3236,7 +3242,7 @@ function navScene(box, item, prevItem, force, run){
     let wantPos=f.pos, wantLook=f.look;
     if(u>=1){ const k=FIN?Math.min(1,(el-dur)/FIN):1, e=ease(k); // aproxima da prateleira e mostra o nível
       wantPos=f.pos.clone().lerp(faceCam,e); wantLook=f.look.clone().lerp(faceLook,e); cam.fov=50+24*e; cam.updateProjectionMatrix();
-      hiBin.position.copy(binPos).addScaledVector(nrm, .16*e);
+      hiBin.position.copy(binPos).addScaledVector(nrm, .1*e);
       lvBand.material.opacity = e*(.32+.18*Math.sin(now/260));
       hiBin.material.emissive.setHex(Math.sin(now/220)>0?0x8A5200:0x5A3300);
       if(k>=1 && !arrived){ arrived=true; big.classList.add("on"); box.querySelector("#navLvl")?.classList.add("on"); document.getElementById("map")?.classList.add("arrived"); } }
