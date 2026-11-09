@@ -203,7 +203,10 @@ html.tvmode body{background:var(--bg);color:var(--ink);overflow:hidden}
 .tvprog small{position:relative;display:block;text-align:center;line-height:1.6em;font-size:.8em;font-weight:700}
 .tvnew{font-style:normal;font-family:var(--display);font-size:.75em;background:var(--accent);color:#111;border-radius:.3em;padding:.05em .35em;margin-left:.3em;animation:tvblink 1.2s ease-in-out infinite}
 @keyframes tvblink{50%{opacity:.35}}
-.tvsound{font-size:.9em;color:var(--ok);font-weight:600}
+.tvsound{font-size:.9em;color:var(--ok);font-weight:600}.app.tv .tvtools .refbtn.tvsound{color:var(--ok);border-color:currentColor}
+.tvunlock{position:fixed;left:50%;bottom:3vh;transform:translateX(-50%);z-index:50;background:#B42318;color:#fff;border-radius:18px;padding:1.1em 2em;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.45);cursor:pointer;animation:tvunl 1.6s ease-in-out infinite;max-width:80vw}
+.tvunlock b{display:block;font-size:1.5em}.tvunlock small{display:block;font-size:.95em;opacity:.9;margin-top:.35em}
+@keyframes tvunl{50%{box-shadow:0 0 0 14px rgba(180,35,24,.25),0 12px 40px rgba(0,0,0,.45)}}
 .tvcanais{color:var(--ink);letter-spacing:.04em;margin-left:.3em}
 .tvnone{color:var(--muted);padding:.6em .2em}.tvnone.ok{color:var(--ok);font-weight:600}
 .tvmore{color:var(--muted);font-size:.9em;padding:.2em .3em}
@@ -3086,14 +3089,19 @@ function renderTV(){
       <div class="brand">Picking <span>Serena</span><small>Painel da separação</small></div>
       <div class="tvclock"><b class="tnum" id="tvClock">${d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</b><small>${d.toLocaleDateString("pt-BR",{weekday:"long", day:"2-digit", month:"long"})}</small></div>
       <div class="tvtools"><div class="sync ${synced?"":"local"}"><i></i>${synced?"Ao vivo":"Sem conexão"}</div>
-        ${audioCtx && audioCtx.state==="running" ? `<span class="tvsound" title="Aviso sonoro de novo pedido e aviso de voz para cliente na loja ligados">🔊 Som e voz ligados</span>` : `<button class="refbtn" id="tvSound" title="A TV só toca som depois de um toque na tela">🔇 Ativar som</button>`}
+        ${audioCtx && audioCtx.state==="running" ? `<button class="refbtn tvsound" id="tvTest" title="Toca um aviso de teste com a voz do Cliente na loja">🔊 Som e voz ligados · testar</button>` : `<button class="refbtn" id="tvSound" title="A TV só toca som depois de um toque na tela">🔇 Ativar som</button>`}
         ${document.fullscreenElement?"":`<button class="refbtn" id="tvFull">Tela cheia</button>`}
         ${painel?`<button class="refbtn" onclick="psLogout&&psLogout()">Sair</button>`:`<a class="refbtn" href="/#expedicao" id="tvExit">Voltar ao sistema</a>`}</div>
     </header>
     ${!synced?`<div class="banner">Sem conexão com o banco de dados. Os dados podem estar desatualizados.</div>`:""}
-    <div class="tvgrid">${TV_CANAIS.map(([c,t])=>tvColumn(c,t)).join("")}</div>`;
+    <div class="tvgrid">${TV_CANAIS.map(([c,t])=>tvColumn(c,t)).join("")}</div>
+    ${audioCtx && audioCtx.state==="running" ? "" : `<div class="tvunlock" id="tvUnlock"><b>🔇 Toque na tela (ou aperte OK no controle) para ligar o som</b><small>Sem isso a TV não toca o aviso de novo pedido nem a voz de “Cliente aguarda na loja”. O navegador exige um toque cada vez que a página abre.</small></div>`}`;
+  tvVoiceLoad();
   fillNames(app); tvFit();
-  const snd=document.getElementById("tvSound"); if(snd) snd.onclick=()=>{ unlockAudio(); chime(true); try{ speechSynthesis.speak(new SpeechSynthesisUtterance(" ")); }catch(e){} setTimeout(()=>tvSay("Aviso de voz ligado."), 900); setTimeout(render, 300); };
+  const snd=document.getElementById("tvSound"), unl=document.getElementById("tvUnlock");
+  [snd,unl].forEach(b=>{ if(b) b.onclick=()=>{ unlockAudio(); setTimeout(render, 300); }; }); // a confirmação "Aviso de voz ligado" toca no unlockAudio
+  document.addEventListener("pointerdown", ()=>{ try{ if(window.speechSynthesis && !TVV.buf) speechSynthesis.speak(new SpeechSynthesisUtterance(" ")); }catch(e){} }, {once:true}); // libera também a voz do navegador (reserva)
+  const tst=document.getElementById("tvTest"); if(tst) tst.onclick=()=>{ unlockAudio(); chime(true); setTimeout(()=>tvAnnounce("123"), 1700); };
   const f=document.getElementById("tvFull"); if(f) f.onclick=()=>{ unlockAudio(); document.documentElement.requestFullscreen?.().then(()=>render()).catch(()=>{}); };
   const ex=document.getElementById("tvExit"); if(ex) ex.onclick=e=>{ e.preventDefault(); history.replaceState(null,"","/#expedicao"); state.view="orders"; state.sector="expedicao"; document.documentElement.classList.remove("tvmode"); render(); };
   // a cada minuto: busca tudo de novo (garante a fila mesmo se o tempo real cair) e redesenha
@@ -4788,8 +4796,10 @@ function deleteUser(id){ delete USERS[id]; if(usersCol) queueWrite("u:"+id, ()=>
 /* ================== Alerta de novo pedido ================== */
 let seenOrders = null, newIds = new Set(), alertQueue = [];
 let SOUND = true; try{ SOUND = localStorage.getItem("ps-sound")!=="0"; }catch(e){}
-const unlockAudio = () => { try{ audioCtx ||= new (window.AudioContext||window.webkitAudioContext)(); audioCtx.resume?.(); }catch(e){} };
-document.addEventListener("pointerdown", unlockAudio, {once:true}); document.addEventListener("keydown", unlockAudio, {once:true});
+const unlockAudio = () => { try{ audioCtx ||= new (window.AudioContext||window.webkitAudioContext)(); if(audioCtx.state==="running") return;
+  const p=audioCtx.resume?.(); if(p && p.then) p.then(()=>{ if(audioCtx.state==="running" && (state.view==="tv" || myRole()==="painel")){ tvVoiceLoad().then(ok=>{ if(ok) tvPlay([["ligado",0]]); else tvSay("Aviso de voz ligado."); }); render(); } }, ()=>{}); }catch(e){} };
+/* qualquer toque/tecla (inclusive o OK do controle da TV) libera o som; não é "once" porque o primeiro toque pode não bastar em alguns navegadores */
+document.addEventListener("pointerdown", unlockAudio); document.addEventListener("keydown", unlockAudio);
 function chime(force){
   if(!SOUND && !force) return;
   try{ unlockAudio(); const c=audioCtx, t0=c.currentTime;
@@ -4806,20 +4816,57 @@ function pickMaleVoice(){
 }
 try{ speechSynthesis.onvoiceschanged = ()=>{ tvVoice=pickMaleVoice(); }; }catch(e){}
 function tvSay(text){
-  try{ if(!window.speechSynthesis) return; tvVoice ||= pickMaleVoice();
+  try{ if(!window.speechSynthesis) return; tvVoice ||= pickMaleVoice(); speechSynthesis.cancel(); /* Chrome às vezes trava a fila de fala */
     const u=new SpeechSynthesisUtterance(text); u.lang="pt-BR"; if(tvVoice) u.voice=tvVoice;
     const male = tvVoice && /daniel|felipe|ricardo|ant[oô]nio|thiago|f[aá]bio|donato|julio|humberto|male|masculin|homem/i.test(tvVoice.name);
     u.pitch = male ? 0.95 : 0.6; u.rate=0.95; u.volume=1; speechSynthesis.speak(u); }catch(e){}
 }
 const tvDigits = n => String(n||"").replace(/\D/g,"").split("").join(" ");
+/* Voz gravada do aviso (Fish Audio, voz "Narrador Propagandas", a mesma do vídeo do picking), guardada no Storage do
+   Supabase (bucket público "tts", pasta tv/): "Atenção! Pedido" + um arquivo por dígito + "Cliente aguarda na loja para retirada."
+   Toca pelo Web Audio, então funciona mesmo em TV sem voz do navegador. Se não carregar, usa a voz do navegador (tvSay). */
+const TV_TTS = ((window.PS_CONFIG||{}).SUPABASE_URL || "https://dtrfujxhfcyefbipkcwz.supabase.co").replace(/\/$/,"") + "/storage/v1/object/public/tts/tv/";
+const TVV = { buf:null, p:null, until:0 };
+function tvTrim(b){ // tira o silêncio do começo e do fim de cada trecho
+  const d=b.getChannelData(0), n=d.length; let pk=0; for(let i=0;i<n;i++){ const v=Math.abs(d[i]); if(v>pk) pk=v; }
+  const th=Math.max(.008, pk*.035); let s=0, e=n-1; while(s<n && Math.abs(d[s])<th) s++; while(e>s && Math.abs(d[e])<th) e--;
+  const pad=Math.round(b.sampleRate*.03); s=Math.max(0,s-pad); e=Math.min(n-1,e+pad*2);
+  if(e-s<b.sampleRate*.05) return b;
+  const out=audioCtx.createBuffer(b.numberOfChannels, e-s+1, b.sampleRate);
+  for(let c=0;c<b.numberOfChannels;c++) out.getChannelData(c).set(b.getChannelData(c).subarray(s,e+1));
+  return out;
+}
+function tvVoiceLoad(){
+  if(TVV.buf) return Promise.resolve(true);
+  if(TVV.p) return TVV.p;
+  try{ audioCtx ||= new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return Promise.resolve(false); }
+  const names=["atencao","aguarda","ligado","d0","d1","d2","d3","d4","d5","d6","d7","d8","d9"];
+  TVV.p = Promise.all(names.map(n=>fetch(TV_TTS+n+".mp3").then(r=>{ if(!r.ok) throw new Error(n); return r.arrayBuffer(); })
+      .then(a=>new Promise((ok,ko)=>audioCtx.decodeAudioData(a,ok,ko))).then(b=>[n,tvTrim(b)])))
+    .then(l=>{ TVV.buf=Object.fromEntries(l); return true; })
+    .catch(e=>{ console.warn("Voz gravada da TV não carregou; usando a voz do navegador", e); TVV.p=null; return false; });
+  return TVV.p;
+}
+function tvPlay(parts){ // [[trecho, pausa depois (s)], ...] em sequência, sem sobrepor um aviso no outro
+  const c=audioCtx; let t=Math.max(c.currentTime+.05, TVV.until);
+  parts.forEach(([n,gap])=>{ const b=TVV.buf&&TVV.buf[n]; if(!b) return; const s=c.createBufferSource(); s.buffer=b; s.connect(c.destination); s.start(t); t+=b.duration+(gap||0); });
+  TVV.until=t+.6;
+}
+async function tvAnnounce(num){
+  const dg=String(num||"").replace(/\D/g,"").split("");
+  if(await tvVoiceLoad() && audioCtx.state==="running"){
+    tvPlay([["atencao",.22], ...dg.map((d,i)=>["d"+d, i<dg.length-1?.05:.35]), ["aguarda",0]]); return; }
+  tvSay(`Atenção. Pedido ${tvDigits(num)}. Cliente aguarda na loja para retirada.`);
+}
 function tvAnnounceTick(){
   if(!(state.view==="tv" || myRole()==="painel")) return;
   const now=Date.now(), wait=ORDERS.filter(o=>o.status==="aguardando" && o.naLoja && !o.startedBy && pickList(o).length);
   const ids=new Set(wait.map(o=>o.id)); Object.keys(TV_SAID).forEach(k=>{ if(!ids.has(k)) delete TV_SAID[k]; });
   const due=wait.filter(o=>!TV_SAID[o.id] || now-TV_SAID[o.id]>=60000);
   if(!due.length) return;
-  due.forEach(o=>TV_SAID[o.id]=now);
-  setTimeout(()=>due.forEach(o=>tvSay(`Atenção. Pedido ${tvDigits(o.num)}. Cliente aguarda na loja para retirada.`)), 1200); // depois do aviso sonoro
+  const rep=due.some(o=>TV_SAID[o.id]); due.forEach(o=>TV_SAID[o.id]=now);
+  if(rep) chime(true); // na 1ª vez o toque de novo pedido já tocou
+  setTimeout(()=>due.forEach(o=>tvAnnounce(o.num)), 1700); // toque de atenção e depois a voz
 }
 setInterval(tvAnnounceTick, 5000);
 function checkNewOrders(){
