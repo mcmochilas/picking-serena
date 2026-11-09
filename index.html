@@ -880,6 +880,14 @@ button.slot{cursor:pointer;padding:0}
 function brNum(s){ return parseFloat(String(s).replace(/[^\d,.-]/g,"").replace(/\./g,"").replace(",", ".")) || 0; }
 // id do pedido: condicionais têm numeração própria, então não se misturam com pré-vendas de mesmo número
 const pvId = p => (p && p.docType==="Condicional" ? "CD-" : "PV-") + p.num;
+/* Pré-venda que já foi entregue ao cliente (enviada, retirada ou entregue na loja) pode ser importada de novo:
+   o novo upload vira um pedido novo com o mesmo número (id PV-123-2, PV-123-3...) e o histórico do anterior fica intacto. */
+const pvDone = o => !!o && (o.status==="enviado" || (o.status==="pronto_envio" && o.naLoja && !o.colmeia));
+function pvSlot(p){ const base=pvId(p);
+  for(let n=1;n<50;n++){ const id=n===1?base:`${base}-${n}`, o=ORDERS.find(x=>x.id===id);
+    if(!o || !pvDone(o)) return {id, prev:o||null, again: n>1 ? n : 0, last: n>1 ? ORDERS.find(x=>x.id===(n===2?base:`${base}-${n-1}`)) : null}; }
+  return {id:`${base}-${Date.now()}`, prev:null, again:2, last:null}; }
+const reenvioTag = o => o.reenvio ? ` <span class="chip enc" title="Esta pré-venda já tinha sido entregue; este é um novo pedido com o mesmo número">${o.reenvio}ª entrega</span>` : "";
 function parsePresale(raw){
   const cells = raw.filter(c=>c.s && c.s.trim()).map(c=>({s:c.s.trim(), x:c.x, y:c.y, w:c.w, cx:c.x+c.w/2}));
   const lines=[];
@@ -1168,9 +1176,8 @@ const EXAMPLE_PRESALE = { num:"36671", date:"21/10/2026", time:"14:05", clientCo
   ]};
 
 function startDraft(p){
-  const id = pvId(p);
-  const prev = ORDERS.find(o=>o.id===id);
-  state.draft = { ...p, id, mode:"total", dup: !!prev,
+  const sl = pvSlot(p), id = sl.id, prev = sl.prev;
+  state.draft = { ...p, id, mode:"total", dup: !!prev, ...(sl.again ? {reenvio:sl.again, reenvioDe:sl.last?.id||""} : {}),
     items: p.items.map(it=>({...it, ean: it.ean || PRODUCTS[it.code]?.ean || "", loc:locFor(it.code), qtyEnc:0, eta:""})) };
   if(prev){ // ajuste de uma pré-venda que já está no sistema: começa com as escolhas da versão anterior
     const d=state.draft, pm=prev.modeCom||prev.mode, preset=["total","parcial","temenc"].includes(pm) ? pm : "temenc";
@@ -1253,6 +1260,7 @@ function draftHTML(d){
       <button class="mini" id="cancelDraft">Descartar e importar outra</button>
     </div>
     ${d.adjust ? adjPreviewHTML(d) : ""}
+    ${d.reenvio ? `<div class="hintbox">A pré-venda <b>#${esc(d.num)}</b> já foi entregue ao cliente${(()=>{ const l=ORDERS.find(o=>o.id===d.reenvioDe); return !l ? "" : l.status==="enviado" ? ` (${l.saida==="retirou"?"retirada pelo cliente":"enviada"}${l.sentAt?" em "+new Date(l.sentAt).toLocaleDateString("pt-BR"):""})` : " (entregue na loja)"; })()}. Ela entra de novo como um <b>pedido novo (${d.reenvio}ª entrega)</b>; o pedido anterior continua no histórico.</div>` : ""}
     <dl class="fields">
       <div><dt>Cliente</dt><dd>${esc(d.clientCode)} · ${esc(d.client)}</dd></div>
       <div><dt>Cidade</dt><dd>${esc(d.city)||"—"}</dd></div>
@@ -1374,6 +1382,7 @@ function sendDraft(){
   const o = { id:d.id, num:d.num, docType:d.docType||"", date:d.date, time:d.time, clientCode:d.clientCode, client:d.client, city:d.city, seller:d.seller, obs:d.obs, total:d.total,
     mode:m, v2:true, items, remessa:1, status: toCompras ? "analise_compras" : "aguardando", modeCom: m, createdAt: Date.now(), createdBy: ME.id||"", canal:"consultiva", retira: !!(d.retira||d.naLoja), naLoja: !!d.naLoja, transportadora: (d.transportadora ?? carrierFromObs(d.obs)) || "" };
   if(slot) o.colmeia = slot;
+  if(d.reenvio){ o.reenvio=d.reenvio; o.reenvioDe=d.reenvioDe||""; }
   if(d.adminEdited) o.hist=[{t:Date.now(), by:ME.id||"", ev:"Itens da pré-venda ajustados pelo administrador antes de enviar"}];
   res(o);
   state.draft=null; state.draftErr="";
@@ -1433,7 +1442,7 @@ function openHiveNew(){
       if(!cli){ err="Informe o cliente."; return draw(); }
       if(!f.why){ err="Escolha por que o pedido vai para a colmeia."; return draw(); }
       if(f.why==="encomenda" && !f.outra && p && p.num===num && p.items.length && !p.items.some((it,i)=>(f.enc[i]||0)>0)){ err="Marque quais itens estão aguardando encomenda."; return draw(); }
-      const id=pvId({num, docType: p&&p.num===num ? p.docType : ""}), ex=ORDERS.find(o=>o.id===id && !["enviado","excluido"].includes(o.status));
+      const sl=pvSlot({num, docType: p&&p.num===num ? p.docType : ""}), id=sl.id, ex=sl.prev && sl.prev.status!=="excluido" ? sl.prev : null;
       if(ex){ err=`A pré-venda ${num} já está no sistema (${statusInfo(ex).t}).`; return draw(); }
       const now=Date.now(), obs=f.obs.trim();
       const items=(p&&p.num===num ? p.items : []).map((it,i)=>({code:it.code, name:it.name, ean:it.ean||PRODUCTS[it.code]?.ean||"", un:it.un, qty:it.qty, price:it.price, loc:"", qtyEnc: f.why==="encomenda" && !f.outra ? Math.min(it.qty, f.enc[i]||0) : 0, eta:""}));
@@ -1442,7 +1451,7 @@ function openHiveNew(){
         ...(f.why==="retira" ? {mode:"total", retira:true, pickedAt:now} : {mode:"aguarda"}),
         ...(sel ? {status:fin, colmeia:sel, storedAt:now} : {status:"aguarda_colmeia", hvNext:fin, colmeia:null}),
         v2:true, items, remessa:1, createdAt:now, createdBy:ME.id||"", canal:"consultiva",
-        hiveManual:true, transportadora:carrierFromObs(obs)||"", ...(f.why==="encomenda" && f.outra ? {aguardaOutraPv:true, outraPv:f.outraNum.trim().replace(/^(PV-|Nº\s*)/i,"")} : {}) });
+        hiveManual:true, transportadora:carrierFromObs(obs)||"", ...(sl.again?{reenvio:sl.again, reenvioDe:sl.last?.id||""}:{}), ...(f.why==="encomenda" && f.outra ? {aguardaOutraPv:true, outraPv:f.outraNum.trim().replace(/^(PV-|Nº\s*)/i,"")} : {}) });
       if(sel){ toast(`Pré-venda ${num} guardada na colmeia ${sel.slice(3)} · ${f.why==="retira"?"aguardando o cliente retirar":"aguardando encomenda"}`); close(); return; }
       ov.remove(); askHvLoc(id);
     };
@@ -2145,7 +2154,7 @@ function openPurchaseImport(){
     const op=g("pvOpen"); if(op) op.onclick=()=>{ S.pv={p:null, enc:{}, busy:false, err:""}; draw(); };
     const cl=g("pvClose"); if(cl) cl.onclick=()=>{ S.pv=null; draw(); };
     const f=g("pvPdf"); if(f) f.onchange=async e=>{ const file=e.target.files[0]; if(!file) return; S.pv.busy=true; S.pv.err=""; draw();
-      try{ const p=await readPresalePdf(file); const ex=ORDERS.find(o=>o.id===pvId(p) && !["enviado","excluido"].includes(o.status));
+      try{ const p=await readPresalePdf(file); const sl=pvSlot(p), ex=sl.prev && sl.prev.status!=="excluido" ? sl.prev : null;
         if(ex){ S.pv.p=null; S.pv.err=`A pré-venda ${p.num} já está no sistema (${statusInfo(ex).t}). ${hasEnc(ex)?"Ela já aparece na lista para vincular.":"Ela não tem itens sob encomenda."}`; }
         else { S.pv.p=p; S.pv.enc={}; } }
       catch(x){ S.pv.p=null; S.pv.err="Não reconheci este PDF como uma pré-venda, orçamento ou condicional."; }
@@ -2157,7 +2166,7 @@ function openPurchaseImport(){
       if(!enc){ S.pv.err="Marque pelo menos um item para encomendar."; return draw(); }
       const mode = pick ? "aguarda" : "encomenda";
       items.forEach(it=>{ if(!PRODUCTS[it.code]) saveProduct({code:it.code, name:it.name, ean:it.ean, loc:""}); });
-      const o={ id:pvId(p), num:p.num, docType:p.docType||"", date:p.date, time:p.time, clientCode:p.clientCode, client:p.client, city:p.city, seller:p.seller, obs:p.obs, total:p.total,
+      const sl=pvSlot(p), o={ id:sl.id, ...(sl.again?{reenvio:sl.again, reenvioDe:sl.last?.id||""}:{}), num:p.num, docType:p.docType||"", date:p.date, time:p.time, clientCode:p.clientCode, client:p.client, city:p.city, seller:p.seller, obs:p.obs, total:p.total,
         mode, modeCom:mode, v2:true, items, remessa:1, status: pick ? "aguardando" : "encomenda", createdAt:now, createdBy:ME.id||"", decidedAt:now, decidedBy:ME.id||"",
         canal:"consultiva", fromCompras:true, transportadora: carrierFromObs(p.obs)||"", ...(pick?{queuedAt:now}:{}) };
       saveOrder(o);
@@ -2819,7 +2828,7 @@ function renderOrders(){
         const acts = (can("coleta") ? (o.status==="separando"?2:1) : 0) + (hasRole("admin")?1:0);
         return `<div class="ordwrap acts${acts}"><button class="order ${o.mode==="aguarda"||urgKind(o)?"urgent":""} ${o.naLoja?"urg-loja":o.retira?"urg-retira":""} ${isManual(o)?"manual":""}" data-oid="${esc(o.id)}">
           ${urgBar(o)}
-          <div class="row"><span class="num">#${esc(o.num)}${newIds.has(o.id)&&o.status==="aguardando"?` <span class="chip newc">Novo</span>`:""}${isManual(o)?" "+manualTag(o):""}</span>${o.status==="separando"?`<span class="chip prog">Em separação</span>`:o.fase2?`<span class="chip done">Encomenda recebida</span>`:isEco(o)?`<span class="chip eco">${esc(o.origem||"Site")}</span>`:`<span class="chip ${MODES[o.mode].c}">${MODES[o.mode].t}</span>`}</div>
+          <div class="row"><span class="num">#${esc(o.num)}${newIds.has(o.id)&&o.status==="aguardando"?` <span class="chip newc">Novo</span>`:""}${isManual(o)?" "+manualTag(o):""}${reenvioTag(o)}</span>${o.status==="separando"?`<span class="chip prog">Em separação</span>`:o.fase2?`<span class="chip done">Encomenda recebida</span>`:isEco(o)?`<span class="chip eco">${esc(o.origem||"Site")}</span>`:`<span class="chip ${MODES[o.mode].c}">${MODES[o.mode].t}</span>`}</div>
           ${o.mzCancelado?`<div class="mzcancel">CANCELADO na Magazord · não enviar</div>`:o.mzMudou?`<div class="mzcancel warn">Situação mudou na Magazord: ${esc(o.mzSituacaoDesc||o.mzSituacao)} · confirme antes de enviar</div>`:""}
           <div class="client">${esc(o.client)}</div>
           <div class="meta tnum"><span>${pl.length} ref. · ${pl.reduce((a,x)=>a+x.need,0)} pç</span>${aisles?`<span>Ruas ${aisles}</span>`:""}${semLoc?`<span style="color:var(--bad)">${semLoc} sem local</span>`:""}${o.status==="separando"&&o.startedAt?`<span>Separando há ${since(o.startedAt)}</span>`:`<span>Na fila há ${since(o.createdAt)}</span>`}${o.tray&&o.status==="separando"?`<span>Bandeja ${esc(o.tray)}</span>`:""}${isEco(o)?transpBadge(o.transportadora):`${transpOf(o)?transpBadge(transpOf(o)):""}`+(o.mode==="aguarda"?`<span>Colmeia ${esc(o.colmeia)}</span>`:`<span>Destino: mesa de expedição</span>`)}${enc?`<span>${enc} ref. sob encomenda</span>`:""}${sepOf(o)?`<span class="sepby">Separador: <b>${esc(USERS[sepOf(o)]?.name||USERS[sepOf(o)]?.login||"—")}</b></span>`:""}</div>
