@@ -93,7 +93,8 @@ Quando o cliente muda o pedido (quantidade, modelo, item novo ou removido), o Co
 - **Já separado** (na bandeja, na mesa, na área de envio ou na colmeia): o botão é **Enviar ajuste para a separação**; vira uma tarefa de ajuste no **topo da fila** dos separadores.
 - **Já separado + Tem encomenda** (ex.: entrou item novo, parte de pronta entrega e parte encomenda): escolha **Tem encomenda** no ajuste. Os itens novos e o aumento de quantidade vão para **Compras** decidir (aparece em "Para decidir" com a etiqueta **Ajuste**); o que já foi separado continua onde está. O que Compras decidir separar da loja vira tarefa de ajuste para o separador, que coleta e junta na **mesma colmeia** do pedido. Se o pedido ainda não estava em colmeia e passou a ter encomenda, o sistema reserva uma colmeia livre e o separador guarda o pedido inteiro nela no fim do ajuste. Se o pedido estiver sendo separado naquele momento, espere terminar para enviar o ajuste como Tem encomenda.
 - **Sendo separado agora**: o separador vê o aviso "Pré-venda ajustada pelo Comercial"; o que falta coletar já vem com a quantidade nova e o que já foi coletado vira tarefa de ajuste depois.
-- **Pedido que já saiu** (enviado, retirado pelo cliente, entregue na loja ou 1º envio feito): **Ajuste bloqueado**; combine direto com a expedição.
+- **Pedido que já foi entregue ao cliente** (enviado, retirado pelo cliente ou entregue na loja): pode importar a pré-venda de novo. Ela entra como um **pedido novo com o mesmo número** (selo **2ª entrega** na fila; no sistema o código fica PV-123-2, -3...), e o pedido anterior continua no histórico. Enquanto a 2ª entrega não sair, importar de novo é ajuste dela. Vale também no cadastro direto na colmeia e na pré-venda adicionada por Compras.
+- **1º envio já feito, aguardando encomenda**: **Ajuste bloqueado**; combine direto com a expedição.
 - Se o ajuste mexer em item de **encomenda**, Compras recebe o aviso "Pré-vendas ajustadas pelo Comercial · corrija o pedido ao fornecedor" no topo da tela de Compras, um balão por pré-venda, e fecha o balão no **×** quando corrigir.
 - Na lateral, o pedido mostra "Ajuste pendente na separação" e depois "Ajuste da pré-venda concluído".
 
@@ -136,7 +137,7 @@ Toque no pedido para começar. O cronômetro de picking começa a contar. No top
 8. No último item o picking termina sozinho: o pedido vai para a **mesa de expedição** (ou para a colmeia, se for de retirada/aguarda encomenda).
 
 Produto **sem local cadastrado**: procure pelo código e bipe normalmente; depois avise o Estoque para cadastrar o local.
-Item de **encomenda que chegou** (2ª etapa): o local aparece como **Área de recebimento**, com o número da NF; pegue a peça nas caixas recebidas e bipe normalmente.
+Item de **encomenda que chegou** (2ª etapa): o local aparece como **Área de recebimento**, com o número da NF; pegue a peça nas caixas recebidas e bipe normalmente. Se o cliente vai retirar (Retira na loja, ou estava na loja no dia da venda), aparece a faixa **"Encomenda chegou · no fim, guarde na colmeia de encomenda"**: no fim o separador bipa a colmeia (a mesma onde já está a parte da loja, se houver) e o pedido fica **completo na colmeia, aguardando o cliente retirar**. Na 2ª etapa o pedido aparece como "Retira na loja" (verde) e a TV não anuncia "cliente aguarda na loja".
 
 ### 4.2b Conferência no local (Envio total + Cliente na loja)
 Pedido da Venda Consultiva com **Envio total** e **Cliente está na loja** não usa bandeja nem vai para a mesa. A tela mostra o aviso verde "Conferência no local". Em cada endereço, **bipe cada peça** (contador "2 de 4 pç bipadas"); ao completar a quantidade o sistema passa sozinho para o próximo item. Há **Desfazer 1** e **Encerrar com N (falta)**. No fim aparece "Coloque as N pç na sacola e entregue direto ao vendedor": entregue e toque em **Entreguei ao vendedor**. Fica no histórico como "Conferido no local" e "Entregue ao vendedor". Os demais tipos de envio seguem o fluxo normal (bandeja → produto → quantidade → mesa).
@@ -276,7 +277,7 @@ Botão **Importar nota fiscal do fornecedor**: arquivo **XML** da NF-e ou **PDF 
 - A nota fica em **Notas a receber** para o Recebimento.
 
 ### 7.4 Chegada e liberação
-- Quando o Recebimento confirma a nota e **todos os itens de encomenda** de um pedido chegaram, o pedido volta sozinho para a separação como **Encomenda recebida** (local "Área de recebimento"). Termina na mesa ou na colmeia.
+- Quando o Recebimento confirma a nota e **todos os itens de encomenda** de um pedido chegaram, o pedido volta sozinho para a separação como **Encomenda recebida** (local "Área de recebimento"). Termina na mesa (envio) ou na colmeia (cliente retira).
 - Também dá para marcar manualmente **Chegou** / **Desfazer chegada** em cada item e usar **Encomenda completa · enviar para a separação**.
 
 ### 7.5 Editar pedido que está na colmeia (devolver ao estoque)
