@@ -3386,7 +3386,7 @@ function renderPick(){
     <div class="pickcli ${isManual(o)?"manual":""}"><span>Cliente</span><b>${esc(o.client||"Não informado")}</b>${manualTag(o)}</div>
     ${o.mzCancelado?`<div class="mzcancel big">Pedido CANCELADO na Magazord · pare a separação e devolva as peças</div>`:o.mzMudou?`<div class="mzcancel big warn">A situação deste pedido mudou na Magazord para "${esc(o.mzSituacaoDesc||o.mzSituacao)}" · confirme com o responsável antes de continuar</div>`:""}
     ${urgBar(o,"margin-top:8px")}
-    ${o.fase2 && toHive(o) ? `<div class="directbar hivebar">Encomenda chegou · no fim, guarde na <b>colmeia de encomenda</b>${o.colmeia?` <b>${esc(o.colmeia.slice(3))}</b>, junto com o que já está lá`:" que você bipar"}. O cliente retira lá.</div>` : ""}
+    ${o.fase2 && toHive(o) ? `<div class="directbar hivebar">Encomenda chegou · no fim, guarde ${o.colmeia?`na colmeia <b>${esc(o.colmeia.slice(3))}</b>, junto com o que já está lá (ou bipe outra)`:"numa <b>colmeia</b>: você escolhe uma livre ou junta com outra pré-venda"}. O cliente retira lá.</div>` : ""}
     ${pickDirect(o) ? `<div class="directbar">Conferência no local: bipe <b>cada peça</b> no endereço, coloque na sacola e entregue direto ao vendedor. Não vai para a mesa.</div>` : ""}
     ${adjPending(o) ? `<div class="adjbar" style="margin-top:8px">PRÉ-VENDA AJUSTADA PELO COMERCIAL · as peças que faltam já estão com a quantidade nova. Depois de terminar, o ajuste (${esc(adjSummary(o.adj))}) aparece no topo da fila.</div>` : ""}
     ${state.lote && loteMatch(o) ? `<div class="lotebadge">Lote · ${esc(state.lote.vals.join(" · "))} · ${lotePending().length} restante(s)</div>` : ""}
@@ -3477,7 +3477,7 @@ function renderStore(){
     <header class="bar">${BACK_BTN}<div class="grow"><h1>#${esc(o.num)}</h1><div class="sub">${esc(o.client)}</div></div></header>
     <div class="phases"><div class="phase ok"><span class="n">✓</span>${o.trayStatus==="lavagem"?"Bandeja "+esc(o.tray||"")+" na mesa":"Picking finalizado na mesa"}</div><div class="phase on"><span class="n">→</span>Guardar na colmeia</div></div>
     <div class="product">
-      <div class="eyebrow">${o.fase2 ? "Encomenda chegou · leve para a colmeia de encomenda" : "Leve as peças para a colmeia"}</div>
+      <div class="eyebrow">${o.fase2 ? "Encomenda chegou · leve para a colmeia" : "Leve as peças para a colmeia"}</div>
       <div class="store-code${o.colmeia?"":" sm"}">${o.colmeia ? esc(o.colmeia) : "Bipe a colmeia"}</div>
       <div class="meta tnum"><span>${got} de ${need} peças separadas</span><span>${o.mode==="aguarda" && !o.fase2 ? "Fica aguardando a encomenda" : "Fica aguardando o cliente retirar"}</span></div>
       <div class="hivebig">${hiveHTML(o.colmeia)}</div>
