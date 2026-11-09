@@ -1598,9 +1598,12 @@ function openHiveDim(){
   document.body.appendChild(ov); scanbar.hidden=true; draw();
 }
 function hiveHTML(target, pick){
-  const by = {}; ORDERS.filter(usesHive).forEach(o=>(by[o.colmeia] ||= []).push(o)); // uma colmeia pode ter mais de uma pré-venda
-  const cell = s => { const os=by[s]||[], o=os.find(x=>x.status==="na_colmeia") || os.find(x=>x.status!=="pronto_envio") || os[0], n=os.length;
-    const cls = s===target ? "target" : !o ? (pick?"pickable":"") : o.status==="pronto_envio" ? "envio" : o.status==="na_colmeia" ? "enc" : "res";
+  // só conta o que está guardado de verdade na colmeia (o separador escolhe a colmeia na hora de guardar; não existe colmeia reservada).
+  // 2ª etapa: a parte da loja já está na colmeia enquanto a encomenda é separada.
+  const held = o => ["na_colmeia","pronto_envio"].includes(o.status) || !!o.fase2;
+  const by = {}; ORDERS.filter(o=>usesHive(o) && held(o)).forEach(o=>(by[o.colmeia] ||= []).push(o)); // uma colmeia pode ter mais de uma pré-venda
+  const cell = s => { const os=by[s]||[], o=os.find(x=>x.status!=="pronto_envio") || os[0], n=os.length;
+    const cls = s===target ? "target" : !o ? (pick?"pickable":"") : o.status==="pronto_envio" ? "envio" : "enc";
     const cnt = n>1 ? `<i class="slotn" aria-hidden="true">${n}</i>` : "";
     return pick ? `<button type="button" class="slot ${cls}" data-hpick="${s}" title="${o?esc(os.map(x=>"#"+x.num).join(", ")+" · adicionar mais uma pré-venda"):"Livre"}">${s.slice(3)}${cnt}</button>`
       : o ? `<button type="button" class="slot ${cls}" data-hcell="${s}" title="Ver ${n>1?"as pré-vendas":"o pedido"} da colmeia ${s.slice(3)}" aria-label="Colmeia ${s.slice(3)} · ${n} pré-venda(s) · ver">${s.slice(3)}${cnt}</button>`
@@ -1608,7 +1611,7 @@ function hiveHTML(target, pick){
   let g=`<span class="hh"></span>`; for(let c=0;c<HIVE_DIM.cols;c++) g+=`<span class="hh">${HIVE_COL(c)}</span>`;
   for(let r=1;r<=HIVE_DIM.rows;r++){ g+=`<span class="hh">${r}</span>`; for(let c=0;c<HIVE_DIM.cols;c++) g+=cell("CM-"+HIVE_COL(c)+r); }
   return `<div class="hive" style="grid-template-columns:18px repeat(${HIVE_DIM.cols},minmax(0,1fr))">${g}</div>
-    <div class="legend2"><span><i></i>Livre</span><span><i style="background:var(--floor)"></i>Reservada</span><span><i style="background:var(--accent-soft)"></i>Aguarda encomenda</span><span><i style="background:var(--ok-soft)"></i>Pronto · retirar ou enviar</span></div>`;
+    <div class="legend2"><span><i></i>Livre</span><span><i style="background:var(--accent-soft)"></i>Aguarda encomenda</span><span><i style="background:var(--ok-soft)"></i>Pronto · retirar ou enviar</span></div>`;
 }
 // saída da colmeia: o cliente retirou ou as peças foram enviadas (transportadora)
 function colmeiaSaida(o, how){
