@@ -981,7 +981,7 @@ function normalize(o){ // compatibilidade com pedidos gravados na versão anteri
   if(o.status==="aguardando_envio") o.status="pronto_envio";
   if(o.status==="aguardando_encomenda") o.status="na_colmeia";
   if(o.mode==="parcial" && o.colmeia && !o.v2) o.mode="aguarda";
-  if(o.mode==="aguarda" && !o.hiveManual && (o.items||[]).length && o.items.every(i=>(i.qtyEnc||0)>=i.qty) && ["na_colmeia","aguardando"].includes(o.status)){ o.mode="encomenda"; o.status="encomenda"; delete o.colmeia; } // tudo encomenda: sem colmeia
+  if(o.mode==="aguarda" && !o.hiveManual && (o.items||[]).length && o.items.every(i=>(i.qtyEnc||0)>=i.qty) && ["na_colmeia","aguardando"].includes(o.status) && !o.fase2){ o.mode="encomenda"; o.status="encomenda"; delete o.colmeia; } // tudo encomenda: sem colmeia
   if(o.colmeia) o.colmeia = hiveCode(o.colmeia);
   if(o.mode!=="aguarda" && !(o.retira && !o.naLoja)) delete o.colmeia;
   o.canal ||= "consultiva"; // canal de venda: consultiva (pré-venda) ou ecommerce (fluxo futuro)
@@ -1771,7 +1771,7 @@ const compraSt = it => it.compra?.st==="chegou" ? "chegou" : nfRecv(it)>=it.qtyE
 const compraQty = it => (it.compra?.links||[]).reduce((s,l)=>s+(+l.qty||0),0);
 function encKind(o){
   const pick = (o.items||[]).some(it=>it.qty-(it.qtyEnc||0)>0), cm = o.colmeia ? o.colmeia.slice(3) : "";
-  if(!pick || o.mode==="encomenda") return {t:"Encomenda total", c:"enc", d:"Todos os itens são encomenda · não passa pela separação nem usa colmeia · enviar quando chegar"};
+  if(!pick || o.mode==="encomenda") return {t:"Encomenda total", c:"enc", d: o.retira||o.naLoja ? "Todos os itens são encomenda · quando chegar, o separador pega na área de recebimento e guarda na colmeia para o cliente retirar" : "Todos os itens são encomenda · não passa pela separação nem usa colmeia · enviar quando chegar"};
   if(o.mode==="parcial"){
     const sent = o.status==="pronto_envio" || o.status==="enviado" || !!o.pickedAt;
     return {t:"Envio parcial", c:"prog", d: sent ? "1º envio já feito com as peças do estoque (sem colmeia) · a encomenda segue no 2º envio" : "1º envio (peças do estoque) ainda na separação · a encomenda segue no 2º envio"};
