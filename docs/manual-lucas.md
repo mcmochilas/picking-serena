@@ -252,7 +252,7 @@ Compras recebe **aviso no sistema (som + mensagem)** e **notificação no celula
 
 ### 7.1 Decidir um "Tem encomenda"
 O card mostra cada item com as colunas **Vendido**, **Encomendar** e **Da loja**. Em "Encomendar" digite quantas peças de cada item serão encomendadas (ou marque "todas"; o botão **Encomendar tudo** marca todos). O sistema mostra o resultado da decisão:
-- **Encomenda total** (encomendar tudo): não passa pela separação nem usa colmeia; espera chegar tudo.
+- **Encomenda total** (encomendar tudo): não passa pela separação enquanto espera chegar tudo. Quando chega, volta para a separação (área de recebimento): se o cliente retira, o separador guarda na colmeia; se é envio, vai para a mesa.
 - **Separar o que tem na loja** (parte encomenda, parte da loja): as peças da loja vão para a separação e o separador guarda na colmeia que bipar até a encomenda chegar.
 - **Nada a encomendar**: vai para a separação como envio total (os separadores são avisados).
 Depois toque em **Confirmar e encaminhar**. O card também mostra o que o Comercial pediu e se o cliente retira ou está na loja.
