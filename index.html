@@ -479,6 +479,7 @@ html:not(.ps-test):not(.can-sim) .demo{display:none!important}
 .hvpop{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0}.hvpopit{margin-top:10px;padding-top:8px;border-top:1px dashed var(--line)}.hvpopit .hvitems{margin-top:4px}.hvpop small{color:var(--muted)}
 .qrdone{font-size:20px;padding:30px 10px;text-align:center;color:var(--ok);font-weight:600}
 .store-code.sm{font-size:30px;line-height:1.15}
+.hivebar{background:var(--accent-soft)!important;border-color:var(--accent)!important}
 .directbar{margin-top:8px;padding:10px 12px;border-radius:12px;background:var(--ok-soft);border:1px solid var(--ok);color:var(--ink);font-size:13px;line-height:1.4}
 .unitask .unitcount{display:flex;align-items:baseline;gap:10px;justify-content:center;margin:6px 0 2px}.unitask .unitcount b{font-size:48px;line-height:1;font-family:var(--mono)}.unitask .unitcount span{color:var(--muted);font-size:15px}
 .unitbar{height:10px;border-radius:6px;background:var(--line);overflow:hidden;margin-bottom:6px}.unitbar i{display:block;height:100%;background:var(--ok);transition:width .2s}
@@ -975,7 +976,7 @@ const onHiveTab = () => state.view==="orders" && (state.sector==="colmeias" || (
 const hiveFree = c => HIVE.includes(c) && !ORDERS.some(o=>usesHive(o)&&o.colmeia===c) && !ORDERS.some(o=>o.adj?.status==="pendente" && o.adj.moveTo===c);
 const usesHive = o => o.status!=="enviado" && o.status!=="excluido" && !!o.colmeia && (o.mode==="aguarda" || o.retira);
 // vai para a colmeia: aguarda encomenda, ou o cliente vai retirar depois. "Cliente está na loja" não: é entregue na hora, na mesa
-const toHive = o => o.mode==="aguarda" || (!isEco(o) && o.retira && !o.naLoja);
+const toHive = o => o.mode==="aguarda" || (!isEco(o) && (o.fase2 ? (o.retira || o.naLoja) : (o.retira && !o.naLoja))); // encomenda que chegou para cliente retirar: vai para a colmeia
 function normalize(o){ // compatibilidade com pedidos gravados na versão anterior
   if(o.status==="aguardando_envio") o.status="pronto_envio";
   if(o.status==="aguardando_encomenda") o.status="na_colmeia";
@@ -2751,7 +2752,7 @@ function hiveListHTML(hive){
         const eta=enc.map(i=>i.eta).filter(Boolean).sort()[0];
         const hitIt = toks.length ? items.map((it,i)=>toks.every(t=>hvNorm([it.code,it.name,it.ean].join(" ")).includes(t))?i:-1).filter(i=>i>=0) : [];
         const head = hvNorm([o.num,o.client].join(" ")), open = (state.hvExp||[]).includes(o.id) || (hitIt.length>0 && !toks.every(t=>head.includes(t)) && !(state.hvClosed||[]).includes(o.id));
-        return `<div class="li sep hvli" style="cursor:default"><span class="lc tnum">${esc((o.colmeia||"—").replace(/^CM-/,""))}</span><span class="ln">#${esc(o.num)} · ${esc(o.client)}<small>${o.status==="pronto_envio" ? `<b class="ok-t">${o.mode==="aguarda"||o.fase2?"Encomenda chegou · pronto":"Pronto"} para ${o.retira?"o cliente retirar":"enviar"}</b>${transpOf(o)&&!o.retira?" · "+esc(transpOf(o)):""}` : o.aguardaOutraPv?`<b>Aguardando a pré-venda da encomenda${o.outraPv?" "+esc(o.outraPv):""}</b>`:o.hiveManual && !enc.length?`Cadastrada na colmeia${o.obs?" · "+esc(o.obs):""}`:`${enc.reduce((s,i)=>s+i.qtyEnc,0)} pç sob encomenda${eta?" · chega "+fmtDate(eta):""}`}</small>${items.length?xpBtn(`data-hvexp="${esc(o.id)}"`, open, `Ver itens da pré-venda (${items.length})`, "Ocultar itens"):""}${hasRole("admin")?`<button type="button" class="lnk hvedbtn" data-hved="${esc(o.id)}">Editar itens</button>`:""}</span>
+        return `<div class="li sep hvli" style="cursor:default"><span class="lc tnum">${esc((o.colmeia||"—").replace(/^CM-/,""))}</span><span class="ln">#${esc(o.num)} · ${esc(o.client)}<small>${o.status==="pronto_envio" ? `<b class="ok-t">${o.mode==="aguarda"||o.fase2?"Encomenda chegou · pronto":"Pronto"} para ${o.retira||o.naLoja?"o cliente retirar":"enviar"}</b>${transpOf(o)&&!(o.retira||o.naLoja)?" · "+esc(transpOf(o)):""}` : o.aguardaOutraPv?`<b>Aguardando a pré-venda da encomenda${o.outraPv?" "+esc(o.outraPv):""}</b>`:o.hiveManual && !enc.length?`Cadastrada na colmeia${o.obs?" · "+esc(o.obs):""}`:`${enc.reduce((s,i)=>s+i.qtyEnc,0)} pç sob encomenda${eta?" · chega "+fmtDate(eta):""}`}</small>${items.length?xpBtn(`data-hvexp="${esc(o.id)}"`, open, `Ver itens da pré-venda (${items.length})`, "Ocultar itens"):""}${hasRole("admin")?`<button type="button" class="lnk hvedbtn" data-hved="${esc(o.id)}">Editar itens</button>`:""}</span>
           ${o.status==="na_mesa" && (can("mesa")||can("coleta")) ? `<button class="mini" data-hive="${esc(o.id)}">Guardar</button>`
           : (o.status==="pronto_envio" || o.status==="na_colmeia") && canHvOut() ? `<span class="hvact">${o.status==="na_colmeia"?`<span class="chip enc">Aguardando encomenda</span>`:""}<button class="mini" data-hsai="${esc(o.id)}:retirou" data-pend="${hasEnc(o)&&!encArrived(o)?1:""}">Cliente irá retirar</button><button class="mini" data-hsai="${esc(o.id)}:enviado" data-pend="${hasEnc(o)&&!encArrived(o)?1:""}">Enviar</button></span>`
           : `<span class="chip enc">${o.status==="pronto_envio"?"Pronto":"Aguardando encomenda"}</span>`}
@@ -3078,13 +3079,13 @@ function tvColumn(canal, title){
     ${empty && canal==="ecommerce" ? `<div class="tvsoon"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 8H6"/><circle cx="10" cy="20" r="1.3"/><circle cx="17" cy="20" r="1.3"/></svg><b>Pedidos do e-commerce</b><span>Este lado mostra a fila do e-commerce quando o fluxo for integrado.</span></div>` : `
     <h3>Em separação · ${doing.length}</h3>
     <div class="tvlist">${doing.slice(0,MAXD).map(o=>{ const pl=pickList(o), r=res(o), d=pl.filter(x=>r[x.i].status!=="pend").length;
-      return `<div class="tvrow doing ${urgKind(o)?"tvurg":""} ${!o.naLoja&&o.retira?"green":""}"><span class="tvnum">#${esc(o.num)}${urgKind(o)?` <em class="tvurgtag ${o.naLoja?"":"green"}">${o.naLoja?"CLIENTE NA LOJA":"RETIRA"}</em>`:""}</span><span class="tvcli">${esc(o.client)}<small><span data-uid="${esc(o.startedBy||"")}" data-fallback="Separador"></span>${o.tray?` · ${esc(spotsTxt(o))}`:""}</small></span>
+      return `<div class="tvrow doing ${urgKind(o)?"tvurg":""} ${urgKind(o)==="retira"?"green":""}"><span class="tvnum">#${esc(o.num)}${urgKind(o)?` <em class="tvurgtag ${naLojaNow(o)?"":"green"}">${naLojaNow(o)?"CLIENTE NA LOJA":"RETIRA"}</em>`:""}</span><span class="tvcli">${esc(o.client)}<small><span data-uid="${esc(o.startedBy||"")}" data-fallback="Separador"></span>${o.tray?` · ${esc(spotsTxt(o))}`:""}</small></span>
         <span class="tvprog"><i style="width:${pl.length?d/pl.length*100:0}%"></i><small class="tnum">${d}/${pl.length} ref.</small></span>
         <span class="tvtime tnum">${o.startedAt?`<span data-since="${o.startedAt}">${fmtDur(now-o.startedAt)}</span>`:"—"}</span></div>`; }).join("") || `<div class="tvnone">Ninguém separando agora</div>`}
       ${doing.length>MAXD?`<div class="tvmore">+ ${doing.length-MAXD} em separação</div>`:""}</div>
     <h3>Aguardando separação · ${queue.length}${canal==="ecommerce" && queue.length ? (()=>{ const m={}; queue.forEach(o=>{ const v=o.origem||"Site"; m[v]=(m[v]||0)+1; });
       return ` <span class="tvcanais">(${Object.entries(m).sort((a,b)=>b[1]-a[1]).map(([v,n])=>`${esc(v)} ${n}`).join(" - ")})</span>`; })() : ""}</h3>
-    <div class="tvlist fit" data-total="${queue.length}">${queue.slice(0,MAXQ).map((o,k)=>`<div class="tvrow ${urgKind(o)?"tvurg"+(o.naLoja?"":" green"):lvl(wait(o))}"><span class="tvpos tnum">${k+1}</span><span class="tvnum">#${esc(o.num)}${urgKind(o)?` <em class="tvurgtag ${o.naLoja?"":"green"}">${urgText(o)}</em>`:""}${now-(o.createdAt||0)<5*60e3?` <em class="tvnew">NOVO</em>`:""}</span>
+    <div class="tvlist fit" data-total="${queue.length}">${queue.slice(0,MAXQ).map((o,k)=>`<div class="tvrow ${urgKind(o)?"tvurg"+(naLojaNow(o)?"":" green"):lvl(wait(o))}"><span class="tvpos tnum">${k+1}</span><span class="tvnum">#${esc(o.num)}${urgKind(o)?` <em class="tvurgtag ${naLojaNow(o)?"":"green"}">${urgText(o)}</em>`:""}${now-(o.createdAt||0)<5*60e3?` <em class="tvnew">NOVO</em>`:""}</span>
         <span class="tvcli">${esc(o.client)}<small>${pickList(o).length} ref. · ${units(o)} pç · ${isEco(o) ? esc((o.origem||"Site")+(o.transportadora?" · "+o.transportadora:"")) : esc(MODES[o.mode]?.t||"")+(transpOf(o)?" · "+esc(transpOf(o)):"")}</small></span>
         <span class="tvtime tnum"><span data-since="${o.createdAt}">${fmtDur(wait(o))}</span></span></div>`).join("") || `<div class="tvnone ok">Fila vazia</div>`}
 </div><div class="tvmore" data-more>${queue.length>MAXQ?`+ ${queue.length-MAXQ} pedidos na fila`:""}</div>
@@ -3385,6 +3386,7 @@ function renderPick(){
     <div class="pickcli ${isManual(o)?"manual":""}"><span>Cliente</span><b>${esc(o.client||"Não informado")}</b>${manualTag(o)}</div>
     ${o.mzCancelado?`<div class="mzcancel big">Pedido CANCELADO na Magazord · pare a separação e devolva as peças</div>`:o.mzMudou?`<div class="mzcancel big warn">A situação deste pedido mudou na Magazord para "${esc(o.mzSituacaoDesc||o.mzSituacao)}" · confirme com o responsável antes de continuar</div>`:""}
     ${urgBar(o,"margin-top:8px")}
+    ${o.fase2 && toHive(o) ? `<div class="directbar hivebar">Encomenda chegou · no fim, guarde na <b>colmeia de encomenda</b>${o.colmeia?` <b>${esc(o.colmeia.slice(3))}</b>, junto com o que já está lá`:" que você bipar"}. O cliente retira lá.</div>` : ""}
     ${pickDirect(o) ? `<div class="directbar">Conferência no local: bipe <b>cada peça</b> no endereço, coloque na sacola e entregue direto ao vendedor. Não vai para a mesa.</div>` : ""}
     ${adjPending(o) ? `<div class="adjbar" style="margin-top:8px">PRÉ-VENDA AJUSTADA PELO COMERCIAL · as peças que faltam já estão com a quantidade nova. Depois de terminar, o ajuste (${esc(adjSummary(o.adj))}) aparece no topo da fila.</div>` : ""}
     ${state.lote && loteMatch(o) ? `<div class="lotebadge">Lote · ${esc(state.lote.vals.join(" · "))} · ${lotePending().length} restante(s)</div>` : ""}
@@ -3475,7 +3477,7 @@ function renderStore(){
     <header class="bar">${BACK_BTN}<div class="grow"><h1>#${esc(o.num)}</h1><div class="sub">${esc(o.client)}</div></div></header>
     <div class="phases"><div class="phase ok"><span class="n">✓</span>${o.trayStatus==="lavagem"?"Bandeja "+esc(o.tray||"")+" na mesa":"Picking finalizado na mesa"}</div><div class="phase on"><span class="n">→</span>Guardar na colmeia</div></div>
     <div class="product">
-      <div class="eyebrow">Leve as peças para a colmeia</div>
+      <div class="eyebrow">${o.fase2 ? "Encomenda chegou · leve para a colmeia de encomenda" : "Leve as peças para a colmeia"}</div>
       <div class="store-code${o.colmeia?"":" sm"}">${o.colmeia ? esc(o.colmeia) : "Bipe a colmeia"}</div>
       <div class="meta tnum"><span>${got} de ${need} peças separadas</span><span>${o.mode==="aguarda" && !o.fase2 ? "Fica aguardando a encomenda" : "Fica aguardando o cliente retirar"}</span></div>
       <div class="hivebig">${hiveHTML(o.colmeia)}</div>
@@ -3563,13 +3565,14 @@ function renderDone(){
   const units=pl.reduce((s,x)=>s+r[x.i].got,0), total=pl.reduce((s,x)=>s+x.need,0), miss=pl.filter(x=>r[x.i].status==="miss"||r[x.i].status==="part").length;
   const enc=o.items.filter(i=>i.qtyEnc>0);
   const pickMs = (o.pickedAt||Date.now())-(o.startedAt||o.pickedAt||Date.now()), leadMs=(o.pickedAt||Date.now())-(o.createdAt||Date.now());
+  const stored = !!o.colmeia && !!o.storedAt && ["pronto_envio","na_colmeia"].includes(o.status); // acabou de guardar na colmeia
   app.innerHTML = `
     <header class="bar">${BACK_BTN}<div class="grow"><h1>#${esc(o.num)}</h1><div class="sub">${esc(o.client)}</div></div></header>
     <div class="done">
       <div class="big"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
-      <h2>${o.semPecas ? "Nenhuma peça coletada" : o.conferidoLocal ? (o.handedAt ? "Entregue ao vendedor" : "Conferido no local") : o.trayStatus==="lavagem" ? "Separação concluída" : o.status==="na_colmeia" ? "Guardado na colmeia "+esc(o.colmeia) : "Picking finalizado na mesa"}</h2>
-      <div class="want">${o.conferidoLocal && !o.semPecas ? (o.handedAt ? `Sacola entregue${o.seller?` ao vendedor <b>${esc(o.seller)}</b>`:" ao vendedor"} às ${fmtClock(o.handedAt)}.` : `Coloque as <b>${units} pç</b> na sacola e entregue direto${o.seller?` ao vendedor <b>${esc(o.seller)}</b>`:" ao vendedor"}. O cliente está na loja.`) : o.trayStatus==="lavagem" ? `Leve a bandeja <b>${esc(o.tray||"")}</b> para a <b>mesa de expedição</b>.` : o.status==="na_colmeia" ? `O pedido aguarda a encomenda na colmeia.` : `O pedido está na <b>mesa de expedição</b>.`}</div>
-      <div class="meta" style="justify-content:center">${o.conferidoLocal ? "Não vai para a mesa de expedição" : o.status==="na_colmeia" ? "" : o.mode==="aguarda" ? `Na mesa: guardar na colmeia${o.colmeia?" "+esc(o.colmeia.slice(3)):" que você bipar"} até chegar a encomenda (${enc.reduce((s,i)=>s+i.qtyEnc,0)} pç)`
+      <h2>${o.semPecas ? "Nenhuma peça coletada" : o.conferidoLocal ? (o.handedAt ? "Entregue ao vendedor" : "Conferido no local") : o.trayStatus==="lavagem" ? "Separação concluída" : stored ? "Guardado na colmeia "+esc(o.colmeia.slice(3)) : "Picking finalizado na mesa"}</h2>
+      <div class="want">${o.conferidoLocal && !o.semPecas ? (o.handedAt ? `Sacola entregue${o.seller?` ao vendedor <b>${esc(o.seller)}</b>`:" ao vendedor"} às ${fmtClock(o.handedAt)}.` : `Coloque as <b>${units} pç</b> na sacola e entregue direto${o.seller?` ao vendedor <b>${esc(o.seller)}</b>`:" ao vendedor"}. O cliente está na loja.`) : o.trayStatus==="lavagem" ? `Leve a bandeja <b>${esc(o.tray||"")}</b> para a <b>mesa de expedição</b>.` : o.status==="na_colmeia" ? `O pedido aguarda a encomenda na colmeia.` : stored ? (o.fase2 ? `A encomenda chegou e o pedido está <b>completo</b> na colmeia, aguardando o cliente retirar.` : `O pedido fica na colmeia aguardando o cliente retirar.`) : `O pedido está na <b>mesa de expedição</b>.`}</div>
+      <div class="meta" style="justify-content:center">${o.conferidoLocal ? "Não vai para a mesa de expedição" : o.status==="na_colmeia" || stored ? "" : o.mode==="aguarda" ? `Na mesa: guardar na colmeia${o.colmeia?" "+esc(o.colmeia.slice(3)):" que você bipar"} até chegar a encomenda (${enc.reduce((s,i)=>s+i.qtyEnc,0)} pç)`
         : o.mode==="parcial" ? `Na mesa: 1º envio. ${enc.reduce((s,i)=>s+i.qtyEnc,0)} pç seguem no 2º envio.` : `Na mesa: conferir e embalar para envio`}</div>
       <div class="summary">
         <div><b class="tnum">${units}/${total}</b><small>peças</small></div>
@@ -4526,10 +4529,11 @@ const isEco = o => o.canal==="ecommerce";
 const isManual = o => isEco(o) && Number(o.mzOrigem)===3; // Magazord: origem 1 = site, 2 = marketplace, 3 = pedido manual (painel)
 const manualTag = o => isManual(o) ? `<span class="chip manualc">Manual</span>` : "";
 // Urgência: "Cliente está na loja" (vermelho) primeiro, depois "Retira na Loja" (verde)
-const urgKind = o => o.naLoja ? "loja" : o.retira ? "retira" : "";
-const urgRank = o => o.naLoja ? 2 : o.retira ? 1 : 0;
-const urgText = o => o.naLoja ? "URGENTE · CLIENTE NA LOJA" : "URGENTE · RETIRA NA LOJA";
-const urgBar = (o, st="") => urgKind(o) ? `<div class="retirabar ${o.naLoja?"":"rb-green"}"${st?` style="${st}"`:""}>${urgText(o)}</div>` : "";
+const naLojaNow = o => !!o.naLoja && !o.fase2; // na 2ª etapa (encomenda chegou) o cliente já não está esperando na loja: vira "retira"
+const urgKind = o => naLojaNow(o) ? "loja" : (o.retira || o.naLoja) ? "retira" : "";
+const urgRank = o => naLojaNow(o) ? 2 : (o.retira || o.naLoja) ? 1 : 0;
+const urgText = o => naLojaNow(o) ? "URGENTE · CLIENTE NA LOJA" : "URGENTE · RETIRA NA LOJA";
+const urgBar = (o, st="") => urgKind(o) ? `<div class="retirabar ${naLojaNow(o)?"":"rb-green"}"${st?` style="${st}"`:""}>${urgText(o)}</div>` : "";
 const byUrg = (a,b) => (urgRank(b) - urgRank(a)) || (a.createdAt||0)-(b.createdAt||0);
 const ecoOk = o => isEco(o) ? canEco() : canCons();
 /* Pedido passado pelo Administrador para um separador: só essa pessoa (e admin/supervisor) pega */
@@ -4869,7 +4873,7 @@ async function tvAnnounce(num){
 }
 function tvAnnounceTick(){
   if(!(state.view==="tv" || myRole()==="painel")) return;
-  const now=Date.now(), wait=ORDERS.filter(o=>o.status==="aguardando" && o.naLoja && !o.startedBy && pickList(o).length);
+  const now=Date.now(), wait=ORDERS.filter(o=>o.status==="aguardando" && naLojaNow(o) && !o.startedBy && pickList(o).length);
   const ids=new Set(wait.map(o=>o.id)); Object.keys(TV_SAID).forEach(k=>{ if(!ids.has(k)) delete TV_SAID[k]; });
   const due=wait.filter(o=>!TV_SAID[o.id] || now-TV_SAID[o.id]>=60000);
   if(!due.length) return;
