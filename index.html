@@ -3017,11 +3017,37 @@ const MAP = (()=>{
   const mesa = {x:52, y:436, w:216, h:28};
   return {W,H,rackW,aisle,x0,vx,aisleX,vTop,vBot,front,H1,H2,ruaA,ruaB,small,mesa,start:{x:160,y:front}};
 })();
+/* Lado montado (ex.: Rua 1, lado A, encostado na parede): gaveteiros no chão e, em cima deles, colmeia e pilhas de caixas bin.
+   Vale para o lado que tem gaveteiro e alguma estrutura marcada "em cima de" (Locais → Criar estrutura).
+   Medidas aproximadas em metros; a coluna A começa na ponta da frente (perto da mesa de expedição). */
+const PHY={gW:.5, gH:.19, gPl:.08, gD:.5, cH:.2, cD:.32, bH:.15, bD:.3};
+function sideLayout(r,l){
+  const bs=Object.values(BLOCKS).filter(b=>b.r===r && b.l===l), gav=bs.find(b=>b.t==="GAV");
+  if(!gav || !bs.some(b=>b.base)) return null;
+  const nG=colIdx(gav.c2)-colIdx(gav.c1)+1, gTop=PHY.gPl+(gav.n2-gav.n1+1)*PHY.gH;
+  const span=b=>{ const s=b.g1?Math.max(0,colIdx(b.g1)-colIdx(gav.c1)):0, e=b.g2?Math.min(nG,colIdx(b.g2)-colIdx(gav.c1)+1):nG; return [s*PHY.gW, Math.max(s+1,e)*PHY.gW]; };
+  const els=[{b:gav, t:"GAV", a0:0, a1:nG*PHY.gW, y0:PHY.gPl, lh:PHY.gH, d:PHY.gD}];
+  bs.filter(b=>b.base==="gav").forEach(b=>{ const [a0,a1]=span(b); els.push({b, t:b.t, a0, a1, y0:gTop, lh:b.t==="COL"?PHY.cH:PHY.bH, d:b.t==="COL"?PHY.cD:PHY.bD}); });
+  const col=els.find(e=>e.t==="COL");
+  bs.filter(b=>b.base==="col").forEach(b=>{ if(col) els.push({b, t:b.t, a0:col.a0, a1:col.a1, y0:col.y0+(col.b.n2-col.b.n1+1)*col.lh, lh:PHY.bH, d:PHY.bD}); });
+  els.forEach(e=>{ e.nc=colIdx(e.b.c2)-colIdx(e.b.c1)+1; e.nl=e.b.n2-e.b.n1+1; e.cw=(e.a1-e.a0)/e.nc; e.top=e.y0+e.nl*e.lh; });
+  return {r, l, els, len:nG*PHY.gW, top:Math.max(...els.map(e=>e.top)), gTop};
+}
+function locPhys(l){ if(!l) return null; const L=sideLayout(l.r,l.l); if(!L) return null; const e=L.els.find(e=>inBlock(e.b,l)); if(!e) return null;
+  const j=l.ci-colIdx(e.b.c1), k=l.n-e.b.n1; return {L, e, along:e.a0+(j+.5)*e.cw, y:e.y0+(k+.5)*e.lh, w:e.cw, h:e.lh}; }
+function locSelo(l){ const ph=locPhys(l);
+  if(ph){ const e=ph.e, nth=l.n-e.b.n1+1;
+    if(e.t==="GAV") return {big:`Gaveta ${l.n}`, sm:`Gaveteiro ${l.c} · ${ordinal(nth)} gaveta de baixo`};
+    if(e.t==="COL") return {big:`Nicho ${l.n}.${l.c}`, sm:`Colmeia · ${ordinal(nth)} linha de baixo · coluna ${l.c}`};
+    return {big:`Caixa ${l.n}`, sm:`Pilha ${l.c} ${e.b.base==="col"?"em cima da colmeia":"em cima dos gaveteiros"} · ${ordinal(nth)} caixa de baixo`}; }
+  const bl=binLevel(l.n); return {big:`Nível ${l.n}`, sm:`${ordinal(bl.shelf)} prateleira · ${ordinal(bl.pos)} caixa de baixo`}; }
 function mapTarget(l){
   const M=MAP, cols=Math.max(1, l.ci+1, ...Object.values(BLOCKS).filter(b=>b.r===l.r && b.l===l.l).map(b=>colIdx(b.c2)+1));
   const f=(l.ci+0.5)/cols;
   if(typeof l.r==="number" && l.r>=1 && l.r<=4){
-    const ax=M.aisleX(l.r);
+    const ax=M.aisleX(l.r), ph=!(l.l==="B" && l.r===4) ? locPhys(l) : null;
+    if(ph){ const y=M.vBot - Math.min(M.vBot-M.vTop-2, ph.along/NAV_M), seg=ph.w/NAV_M, rx = l.l==="A" ? M.vx(l.r) : M.vx(l.r+1);
+      return {kind:"v", aisle:l.r, x:ax, y, ph, cell:{x:rx, y:y-seg/2+.3, w:M.rackW, h:Math.max(2,seg-.6)}}; }
     if(l.l==="B" && l.r===4){ const seg=M.small.h/cols, y=M.small.y+M.small.h-(l.ci+1)*seg; return {kind:"v", aisle:4, x:ax, y:y+seg/2, cell:{x:M.small.x, y:y+1, w:M.small.w, h:Math.max(3,seg-2)}}; }
     const L=M.vBot-M.vTop, seg=L/cols, y=M.vBot-(l.ci+1)*seg, rx = l.l==="A" ? M.vx(l.r) : M.vx(l.r+1);
     return {kind:"v", aisle:l.r, x:ax, y:y+seg/2, cell:{x:rx, y:y+1, w:M.rackW, h:Math.max(3,seg-2)}};
@@ -3127,10 +3153,10 @@ const NAV_ICO={ L:`<svg viewBox="0 0 24 24" width="30" height="30" fill="none" s
 /* nível do endereço = fileira de caixas bin: níveis 1..binStack na 2ª prateleira, os seguintes na 3ª, e assim por diante */
 function binLevel(n){ const st=Math.max(1,CONFIG.binStack||5), k=Math.max(1,n||1)-1; return {shelf:2+Math.floor(k/st), pos:k%st+1, st}; }
 const ordinal = n => n+"ª";
-function navHTML(item){ const l=item.loc, bl=binLevel(l.n);
+function navHTML(item){ const l=item.loc, sl=locSelo(l);
   return `<div class="nav3d" id="nav3d"><canvas id="navcv" aria-hidden="true"></canvas>
     <div class="navtop"><div class="navico">${NAV_ICO.P}</div><div class="navtx"><b class="mono">${esc(code(l))}</b><span>Rua ${esc(String(l.r))} · Lado ${esc(String(l.l))} · Coluna ${esc(String(l.c))} · <em id="navLvl">Nível ${esc(String(l.n))}</em></span></div></div>
-    <div class="navlvl" id="navLvlBig" aria-hidden="true"><small>Olhe no</small><b>Nível ${esc(String(l.n))}</b><span>${ordinal(bl.shelf)} prateleira · ${ordinal(bl.pos)} caixa de baixo</span></div>
+    <div class="navlvl" id="navLvlBig" aria-hidden="true"><small>Olhe no</small><b>${esc(sl.big)}</b><span>${esc(sl.sm)}</span></div>
     <div class="navload" id="navLoad">Carregando mapa 3D…</div></div>`;
 }
 function navStart(item, prevItem, force){
@@ -3166,10 +3192,12 @@ function navScene(box, item, prevItem, force, run){
   const BH=.15, BW=.27, st=Math.max(1,CONFIG.binStack||5), bl=binLevel(l.n), nSh=Math.max(CONFIG.binShelves||2, bl.shelf-1);
   const shY=[.1]; for(let i=0;i<nSh;i++) shY.push((i?shY[i]:.5)+(i?st*BH+.14:0)); // 1ª prateleira (reposição) + prateleiras de bin
   const HR=shY[shY.length-1]+st*BH+.18;
-  const racks=[M.H2, M.small, M.H1, ...[1,2,3,4].map(k=>({x:M.vx(k),y:M.vTop,w:M.rackW,h:M.vBot-M.vTop}))];
+  const SIDES={}; [1,2,3,4].forEach(r=>["A","B"].forEach(ld=>{ if(r===4 && ld==="B") return; const L=sideLayout(r,ld); if(L) SIDES[r+ld]=L; }));
+  // estante em pé k: o lado +x é o lado A da rua k, o lado -x é o lado B da rua k-1 (a estante 1 encosta na parede)
+  const racks=[M.H2, M.small, M.H1, ...[1,2,3,4].map(k=>{ const pa=!!SIDES[k+"A"], pb=k===1 || !!SIDES[(k-1)+"B"]; return {x:M.vx(k),y:M.vTop,w:M.rackW,h:M.vBot-M.vTop, k, skip:{1:pa,"-1":!!SIDES[(k-1)+"B"]}, hide:pa&&pb}; })];
   const up=[], beam=[], deck=[], bin=[], box2=[], tape=[], dm=new T.Object3D();
   const push=(arr,x,y,z,sx,sy,sz)=>{ dm.position.set(x,y,z); dm.scale.set(sx,sy,sz); dm.rotation.set(0,0,0); dm.updateMatrix(); arr.push(dm.matrix.clone()); };
-  racks.forEach(r=>{ const along = r.h>=r.w, L = along ? Z(r.h) : X(r.w), D = along ? X(r.w) : Z(r.h), cx=X(r.x+r.w/2), cz=Z(r.y+r.h/2);
+  racks.forEach(r=>{ if(r.hide) return; const along = r.h>=r.w, L = along ? Z(r.h) : X(r.w), D = along ? X(r.w) : Z(r.h), cx=X(r.x+r.w/2), cz=Z(r.y+r.h/2);
     const P=(a,d,y)=> along ? [cx+d, y, cz+a] : [cx+a, y, cz+d];
     const S3=(sa,sy,sd)=> along ? [sd,sy,sa] : [sa,sy,sd];
     const bays=Math.max(1,Math.round(L/1.8));
@@ -3179,11 +3207,27 @@ function navScene(box, item, prevItem, force, run){
     { const n=Math.floor(L/.55); for(let j=0;j<n;j++){ if((j*5)%7===3) continue; const a=-L/2+(j+.5)*L/n; push(box2,...P(a,0,shY[0]+.08+.17),...S3(.48,.34,D-.12)); } }
     // prateleiras de bin: colunas de caixas empilhadas (frente para os dois corredores)
     for(let k=1;k<shY.length;k++){ const y0=shY[k]+.075, n=Math.floor(L/(BW+.03));
-      for(let j=0;j<n;j++){ const a=-L/2+(j+.5)*L/n; [-1,1].forEach(sd=>{ const hgt = st - ((j*7+k*3+(sd>0?2:0))%9===0 ? 1 : 0);
+      for(let j=0;j<n;j++){ const a=-L/2+(j+.5)*L/n; [-1,1].forEach(sd=>{ if(r.skip && r.skip[sd]) return; const hgt = st - ((j*7+k*3+(sd>0?2:0))%9===0 ? 1 : 0);
         for(let q=0;q<hgt;q++) push(bin,...P(a,sd*(D/4+.02),y0+q*BH+BH/2),...S3(BW,BH-.012,D/2-.12)); }); } }
     [-1,1].forEach(sd=>push(tape,...P(0,sd*(D/2+.04),.004),...S3(L+.1,.004,.05)));
   });
+  // lados montados: gaveteiros brancos, colmeia de madeira e pilhas de caixas bin pretas, de frente para o corredor
+  const gBody=[], gFront=[], gHand=[], cWood=[], cBack=[], bBlk=[], bLbl=[];
+  Object.values(SIDES).forEach(Lr=>{ const dir=Lr.l==="A"?1:-1, fx=Lr.l==="A" ? X(M.vx(Lr.r)+M.rackW) : X(M.vx(Lr.r+1)), z0=Z(M.vBot);
+    const Pz=a=>z0-a, Px=dd=>fx-dir*dd; // a = metros a partir da frente (coluna A); dd = profundidade para dentro
+    Lr.els.forEach(e=>{
+      if(e.t==="GAV"){ for(let c=0;c<e.nc;c++){ const zc=Pz(e.a0+(c+.5)*e.cw); push(gBody,Px(e.d/2),e.top/2,zc,e.d,e.top,e.cw-.02);
+          for(let k=0;k<e.nl;k++){ const y=e.y0+(k+.5)*e.lh; push(gFront,fx+dir*.008,y,zc,.016,e.lh-.022,e.cw-.06); push(gHand,fx+dir*.03,y+e.lh*.12,zc,.03,.05,.07); } } }
+      else if(e.t==="COL"){ const W=e.a1-e.a0, H=e.nl*e.lh, zc=Pz((e.a0+e.a1)/2), yc=e.y0+H/2;
+        push(cBack,Px(e.d-.01),yc,zc,.02,H,W); push(cWood,Px(e.d/2),e.y0+.01,zc,e.d,.02,W);
+        for(let k=1;k<=e.nl;k++) push(cWood,Px(e.d/2),e.y0+k*e.lh,zc,e.d,.02,W);
+        for(let c=0;c<=e.nc;c++) push(cWood,Px(e.d/2),yc,Pz(e.a0+c*e.cw),e.d,H,.02);
+        for(let c=0;c<e.nc;c++) for(let k=0;k<e.nl;k++) push(bLbl,fx+dir*.004,e.y0+k*e.lh+.04,Pz(e.a0+(c+.5)*e.cw),.006,.04,e.cw*.55); }
+      else { for(let c=0;c<e.nc;c++) for(let k=0;k<e.nl;k++){ const zc=Pz(e.a0+(c+.5)*e.cw), y=e.y0+(k+.5)*e.lh;
+          push(bBlk,Px(e.d/2),y,zc,e.d,e.lh-.014,e.cw-.016); push(bLbl,fx+dir*.004,y+e.lh*.08,zc,.006,e.lh*.3,e.cw*.55); } }
+    }); });
   const inst=(arr, color, o)=>{ if(!arr.length) return; const g=new T.BoxGeometry(1,1,1), m=new T.InstancedMesh(g, mat(color,o), arr.length); arr.forEach((mx,i)=>m.setMatrixAt(i,mx)); m.instanceMatrix.needsUpdate=true; scene.add(m); };
+  inst(gBody,0xC9CFE0); inst(gFront,0xEEF1F8); inst(gHand,0x15171B); inst(cWood,0xD9B27A); inst(cBack,0x7A5C34); inst(bBlk,0x14161F); inst(bLbl,0xF4F5FA);
   inst(up,0xA9B0D6); inst(beam,0xF7841F,{emissive:0x3A1A00}); inst(deck,0x8B91CF); inst(bin,0x272C52); inst(box2,0xA9825C); inst(tape,0x35E0FF,{emissive:0x0E5866});
   // mesa de expedição (mesmo porta-pallet, tampo branco, monitor e plástico bolha)
   { const r=M.mesa, cx=X(r.x+r.w/2), cz=Z(r.y+r.h/2), Lm=X(r.w), Dm=Z(r.h)+.3, top=.95;
@@ -3197,7 +3241,7 @@ function navScene(box, item, prevItem, force, run){
     g.position.set(cx,0,cz); scene.add(g); }
   // destino: lado da estante voltado para o corredor, coluna e nível
   const tc=t.cell ? {x:t.cell.x+t.cell.w/2, y:t.cell.y+t.cell.h/2} : {x:t.x, y:t.y};
-  const yLv=shY[Math.min(shY.length-1,bl.shelf-1)]+.075+(bl.pos-1)*BH+BH/2;
+  const yLv=t.ph ? t.ph.y : shY[Math.min(shY.length-1,bl.shelf-1)]+.075+(bl.pos-1)*BH+BH/2;
   const nrm=new T.Vector3(X(t.x)-X(tc.x),0,Z(t.y)-Z(tc.y)); if(nrm.lengthSq()<1e-6) nrm.set(1,0,0); nrm.normalize();
   const along=t.kind==="v", rackD = along ? X(M.rackW) : Z(M.H1.h);
   // encaixa na coluna de caixas real da estante (mesmo tamanho e posição de uma caixa bin)
@@ -3206,13 +3250,18 @@ function navScene(box, item, prevItem, force, run){
   if(rk){ const al=rk.h>=rk.w, Lr=al?Z(rk.h):X(rk.w), nB=Math.floor(Lr/(BW+.03)), c0=al?Z(rk.y+rk.h/2):X(rk.x+rk.w/2), pos=(al?bz:bx)-c0, j=Math.max(0,Math.min(nB-1,Math.floor((pos+Lr/2)/(Lr/nB)))), a=-Lr/2+(j+.5)*Lr/nB;
     if(al) bz=c0+a; else bx=c0+a;
     const ctr=al?X(rk.x+rk.w/2):Z(rk.y+rk.h/2), Dd=al?X(rk.w):Z(rk.h), side=(al?nrm.x:nrm.z)>=0?1:-1; if(al) bx=ctr+side*(Dd/4+.02); else bz=ctr+side*(Dd/4+.02); }
-  const binPos=rk ? new T.Vector3(bx,yLv,bz) : new T.Vector3(bx,yLv,bz).addScaledVector(nrm, rackD/4+.02);
-  const hiBin=new T.Mesh(new T.BoxGeometry(along?rackD/2-.14:BW, BH-.012, along?BW:rackD/2-.14), mat(0xFFB020,{emissive:0x7A4A00}));
+  let binPos=rk ? new T.Vector3(bx,yLv,bz) : new T.Vector3(bx,yLv,bz).addScaledVector(nrm, rackD/4+.02);
+  let hiGeo=new T.BoxGeometry(along?rackD/2-.14:BW, BH-.012, along?BW:rackD/2-.14), slide=.1, topY=HR;
+  const ph=t.ph; if(ph){ const e=ph.e, dir=l.l==="A"?1:-1, fx=l.l==="A" ? X(M.vx(l.r)+M.rackW) : X(M.vx(l.r+1)), zc=Z(M.vBot)-ph.along;
+    const dd = e.t==="GAV" ? .03 : e.d; // gaveta: destaca a frente (e a gaveta "abre"); bin e nicho: a caixa/nicho inteiro
+    binPos=new T.Vector3(fx-dir*dd/2+dir*(e.t==="GAV"?.012:0), ph.y, zc); hiGeo=new T.BoxGeometry(dd+.004, ph.h-(e.t==="GAV"?.02:.012), ph.w-(e.t==="BIN"?.012:.03));
+    slide = e.t==="GAV" ? .28 : e.t==="COL" ? .06 : .12; topY=ph.L.top; }
+  const hiBin=new T.Mesh(hiGeo, mat(0xFFB020,{emissive:0x7A4A00}));
   hiBin.position.copy(binPos); scene.add(hiBin);
   const lvBand=new T.Mesh(new T.BoxGeometry(along?.04:Math.max(.6,X(t.cell?.w||12)), BH*.95, along?Math.max(.6,Z(t.cell?.h||12)):.04), new T.MeshBasicMaterial({color:0xFFB020, transparent:true, opacity:0, depthWrite:false}));
   lvBand.position.copy(new T.Vector3(X(tc.x),yLv,Z(tc.y)).addScaledVector(nrm, rackD/2+.03)); scene.add(lvBand);
   const pin=new T.Group(); { const head=new T.Mesh(new T.SphereGeometry(.3, 24, 16), mat(0xEA4335, {emissive:0x3A0A06})), tip=new T.Mesh(new T.ConeGeometry(.22, .5, 20), mat(0xEA4335)); tip.rotation.x=Math.PI; tip.position.y=-.32; head.add(tip); pin.add(head); }
-  pin.position.set(binPos.x, HR+.75, binPos.z); scene.add(pin);
+  pin.position.set(binPos.x, topY+.75, binPos.z); scene.add(pin);
   // rota
   const P3=p=>new T.Vector3(X(p.x), .03, Z(p.y)), curve=new T.CurvePath(); for(let i=0;i<pts.length-1;i++) curve.add(new T.LineCurve3(P3(pts[i]), P3(pts[i+1])));
   if(pts.length<2) curve.add(new T.LineCurve3(P3(pts[0]), P3(pts[0]).add(new T.Vector3(0,0,-.01))));
@@ -3242,13 +3291,13 @@ function navScene(box, item, prevItem, force, run){
     let wantPos=f.pos, wantLook=f.look;
     if(u>=1){ const k=FIN?Math.min(1,(el-dur)/FIN):1, e=ease(k); // aproxima da prateleira e mostra o nível
       wantPos=f.pos.clone().lerp(faceCam,e); wantLook=f.look.clone().lerp(faceLook,e); cam.fov=50+24*e; cam.updateProjectionMatrix();
-      hiBin.position.copy(binPos).addScaledVector(nrm, .1*e);
+      hiBin.position.copy(binPos).addScaledVector(nrm, slide*e);
       lvBand.material.opacity = e*(.32+.18*Math.sin(now/260));
       hiBin.material.emissive.setHex(Math.sin(now/220)>0?0x8A5200:0x5A3300);
       if(k>=1 && !arrived){ arrived=true; big.classList.add("on"); box.querySelector("#navLvl")?.classList.add("on"); document.getElementById("map")?.classList.add("arrived"); } }
     if(first){ camPos.copy(wantPos); camLook.copy(wantLook); first=false; } else { camPos.lerp(wantPos,.1); camLook.lerp(wantLook,.1); }
     cam.position.copy(camPos); cam.lookAt(camLook);
-    pin.position.y = HR+.75 + Math.sin(now/380)*.1; pin.rotation.y += .02;
+    pin.position.y = topY+.75 + Math.sin(now/380)*.1; pin.rotation.y += .02;
     R.render(scene, cam); requestAnimationFrame(loop); };
   requestAnimationFrame(loop);
 }
