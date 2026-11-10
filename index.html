@@ -596,6 +596,8 @@ select.tin{width:auto}
 .sologrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
 .vincgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.vincgrid>div{border:1.5px dashed var(--line);border-radius:12px;padding:12px;min-height:96px}
 .vincgrid>div.on{border-style:solid;border-color:var(--ok);background:var(--ok-soft)}.vincgrid .eyebrow{margin-bottom:4px}.vincgrid b.mono{font-size:1.15em}
+.mbox.mbad{border:2px solid var(--bad);border-top-width:8px;background:color-mix(in srgb,var(--bad) 7%,var(--surface))}.mbox.mbad h2{color:var(--bad);display:flex;align-items:center;gap:10px}
+.mbadic{width:30px;height:30px;border-radius:50%;background:var(--bad);color:#fff;display:inline-grid;place-items:center;font-size:18px;font-weight:800;flex:none}
 .vinclog .li{cursor:default;align-items:flex-start}.vinclog .lc{white-space:nowrap;min-width:120px}.vinclog .ln{white-space:normal;overflow:visible;text-overflow:clip}.vinclog .ln small{display:block;margin-top:2px}
 @media (max-width:520px){.vincgrid{grid-template-columns:1fr}}
 .llgrid{display:flex;flex-direction:column;gap:12px}
@@ -3078,10 +3080,10 @@ const ICON_SKIP = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" s
 const ICON_RESTART = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>`;
 const ICON_TRASH = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>`;
 /* Janela simples de confirmação, com campo de texto opcional (obrigatório quando input.min) */
-function askModal({title, text, okText="Confirmar", danger=false, input=null}){
+function askModal({title, text, okText="Confirmar", danger=false, input=null, tone=""}){
   return new Promise(resolve=>{
     const ov=document.createElement("div"); ov.className="modal";
-    ov.innerHTML=`<div class="mbox" role="dialog" aria-modal="true" aria-label="${esc(title)}"><h2>${esc(title)}</h2>${text?`<p>${text}</p>`:""}
+    ov.innerHTML=`<div class="mbox ${tone==="bad"?"mbad":""}" role="dialog" aria-modal="true" aria-label="${esc(title)}"><h2>${tone==="bad"?`<span class="mbadic" aria-hidden="true">!</span>`:""}${esc(title)}</h2>${text?`<p>${text}</p>`:""}
       ${input?`<textarea id="mIn" rows="3" placeholder="${esc(input.placeholder||"")}"></textarea><div class="merr" id="mErr"></div>`:""}
       <div class="mact"><button class="btn ghost" id="mNo">Cancelar</button><button class="btn ${danger?"danger":"primary"}" id="mOk">${esc(okText)}</button></div></div>`;
     document.body.appendChild(ov); scanbar.hidden=true;
@@ -4056,7 +4058,7 @@ function renderVinc(){
     <div class="grow"><h1>Vincular produto ao endereço</h1><div class="sub">Bipe o produto e depois a etiqueta do endereço</div></div></div>
     <div class="traystep">
       <div class="vincgrid">
-        <div class="${p?"on":""}"><div class="eyebrow">1 · Produto</div>${p?`<b class="mono">${esc(p.code)}</b><div>${esc(p.name)}</div><small class="muted-s">${p.loc?`Hoje no endereço <b class="mono">${esc(p.loc)}</b>`:"Sem endereço"}</small>`:`<span class="muted-s">Bipe o produto (EAN ou código interno)</span>`}</div>
+        <div class="${p?"on":""}"><div class="eyebrow">1 · Produto</div>${p?`<b class="mono">${esc(p.code)}</b><div>${esc(p.name)}</div><small class="muted-s">${p.loc?`${V.move?"Mudando de local · hoje em":"Hoje no endereço"} <b class="mono">${esc(p.loc)}</b>${V.move?" · bipe o novo endereço":""}`:"Sem endereço"}</small>`:`<span class="muted-s">Bipe o produto (EAN ou código interno)</span>`}</div>
         <div class="${V.lc?"on":""}"><div class="eyebrow">2 · Endereço</div>${V.lc?`<b class="mono">${esc(V.lc)}</b><div><small class="muted-s">${multiLoc(V.lc) ? (lps.length ? `Gaveta com ${lps.length} produto(s): ${lps.map(x=>`<b class="mono">${esc(x.code)}</b>`).join(", ")} · aceita mais` : "Gaveta livre · aceita mais de um produto") : lp?`Hoje com o produto <b class="mono">${esc(lp.code)}</b> · ${esc(lp.name)}`:"Endereço livre"}</small></div>`:`<span class="muted-s">Bipe a etiqueta do endereço</span>`}</div>
       </div>
       ${p||V.lc?`<button class="btn ghost sm" id="vincClear" style="margin-top:10px">Limpar e começar de novo</button>`:""}
@@ -4064,12 +4066,12 @@ function renderVinc(){
     </div>
     <div class="section vinclog"><div class="eyebrow">Vinculados agora · ${V.log.length}</div><div class="list">${V.log.map((x,i)=>`<div class="li"><span class="lc mono">${esc(x.lc)}</span><span class="ln"><b class="mono">${esc(x.code)}</b> ${esc(PRODUCTS[x.code]?.name||"")}${x.from?` <small>(saiu de ${esc(x.from)})</small>`:""}${x.out?` <small>· ${esc(x.out)} ficou sem endereço</small>`:""}${x.junto>1?` <small>· gaveta com ${x.junto} produtos</small>`:""}</span>${i===0&&!x.undone?`<button class="mini" id="vincUndo">Desfazer</button>`:x.undone?`<small class="muted-s">desfeito</small>`:""}</div>`).join("")||`<div class="li"><span class="ln muted-s">Nenhum produto vinculado nesta sessão.</span></div>`}</div></div>`;
   document.getElementById("back").onclick=()=>{ state.vinc.p=null; state.vinc.lc=null; state.view="orders"; state.etab="enderecos"; render(); };
-  const c=document.getElementById("vincClear"); if(c) c.onclick=()=>{ V.p=null; V.lc=null; render(); };
+  const c=document.getElementById("vincClear"); if(c) c.onclick=()=>{ V.p=null; V.lc=null; V.move=false; render(); };
   const sp=document.getElementById("simP"); if(sp) sp.onclick=()=>{ if(noLoc) handleScan(noLoc.ean||noLoc.code); };
   const sl=document.getElementById("simL"); if(sl) sl.onclick=()=>{ if(freeLc) handleScan(freeLc); };
   const u=document.getElementById("vincUndo"); if(u) u.onclick=vincUndo;
   if(V.flash && Date.now()-V.flash.at<5000) setMsg(V.flash.t, V.flash.k);
-  else setMsg(!p ? (V.lc ? `Endereço ${V.lc}: agora bipe o produto` : "Bipe o produto") : `Produto ${p.code}: agora bipe a etiqueta do endereço`, "info");
+  else setMsg(!p ? (V.lc ? `Endereço ${V.lc}: agora bipe o produto` : "Bipe o produto") : V.move ? `Mudar local de ${p.code}: bipe o novo endereço` : `Produto ${p.code}: agora bipe a etiqueta do endereço`, "info");
   focusScan();
 }
 async function scanVinc(v){
@@ -4080,7 +4082,13 @@ async function scanVinc(v){
     V.lc=lc; V.flash=null; feedback(true); if(!V.p){ render(); return; } return vincSave(); }
   const p=vincProd(v);
   if(!p){ feedback(false); return setMsg(`Código ${v} não é um produto cadastrado nem um endereço.`,"bad"); }
-  V.p=p.code; V.flash=null; feedback(true); if(!V.lc){ render(); return; } return vincSave();
+  if(p.loc && p.loc!==V.lc){ // produto já tem endereço: avisa em vermelho e só muda se o usuário pedir
+    feedback(false); V.p=null; V.move=false; V.flash=null;
+    const ok=await askModal({tone:"bad", danger:true, okText:"Mudar local", title:"Produto já tem endereço",
+      text:`O produto <b>${esc(p.code)}</b> · ${esc(p.name)} já está vinculado ao endereço <b class="mono">${esc(p.loc)}</b>.<br><br>Para mudar, toque em <b>Mudar local</b> e bipe o novo endereço.`});
+    if(!ok){ V.lc=null; render(); return; }
+    V.p=p.code; V.move=true; if(V.lc) return vincSave(); render(); return; }
+  V.p=p.code; V.move=false; V.flash=null; feedback(true); if(!V.lc){ render(); return; } return vincSave();
 }
 async function vincSave(){
   const V=state.vinc, p=PRODUCTS[V.p], lc=V.lc; if(!p||!lc) return render();
@@ -4094,7 +4102,7 @@ async function vincSave(){
   if(occ) saveProduct({...occ, loc:""});
   saveProduct({...p, loc:lc});
   V.log.unshift({code:p.code, lc, from, out: occ ? occ.code : "", junto: multiLoc(lc) ? locProducts(lc).length : 0}); V.log=V.log.slice(0,30);
-  V.p=null; V.lc=null; V.flash={t:`${p.code} vinculado ao endereço ${lc}. Bipe o próximo produto.`, k:"good", at:Date.now()}; render(); feedback(true);
+  V.p=null; V.lc=null; V.move=false; V.flash={t:`${p.code} ${from?"mudou para":"vinculado ao"} endereço ${lc}. Bipe o próximo produto.`, k:"good", at:Date.now()}; render(); feedback(true);
 }
 function vincUndo(){
   const V=state.vinc, x=V?.log[0]; if(!x || x.undone) return;
