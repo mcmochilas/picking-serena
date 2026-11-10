@@ -308,11 +308,17 @@ Aba **Locais**: endereços dos produtos, EAN e etiquetas.
 - **Endereço** = Rua-Lado-Tipo-Nível.Coluna. Ex.: `R1-LB-BIN-8.M` = rua 1, lado B, bin, nível 8, coluna M. Tipos: **GAV** gaveta, **COL** colmeia (de estoque), **BIN** bin.
 - **Criar estrutura**: cadastra um móvel/bloco de locais de uma vez (rua, lado, tipo, faixa de níveis e colunas).
 - Clique num local da grade para **colocar o produto**, **remover do local** ou **Gerar etiqueta deste local (PDF)**.
+- **Gaveta (GAV) aceita mais de um produto** (a grade mostra "N produtos"; no painel do local cada produto tem "Remover do local" e o campo vira "Adicionar outro produto nesta gaveta"). **BIN e colmeia (COL) aceitam só um produto.** Na etiqueta "Endereços" de uma gaveta com vários produtos sai uma etiqueta por produto.
 - **Produtos e EAN**: busque por código, descrição ou EAN. Para cadastrar o EAN, clique no campo do produto e bipe a embalagem (o leitor digita e dá Enter; salva na hora). **Novo produto** cadastra um item.
 - **Etiquetas** ("O que imprimir"): Endereços, Só endereço, Produtos, Bandejas, Mesas, Cestas, Colmeias.
 - **Só endereço**: etiqueta provisória de 5 × 2 cm, **56 por folha A4** (4 na largura × 14 na altura, com linha de corte). Tem o código de barras do endereço e o quadro com o endereço escrito (ex.: R1-LA-BIN / 1.A). O código de barras guarda o endereço em forma curta (ex.: `1AB1A` = rua 1, lado A, BIN, nível 1, coluna A), com menos barras; ao bipar, o sistema entende como o endereço completo em qualquer tela (Vincular produto, separação do e-commerce, devolução). Filtros: rua, lado, tipo e "só endereços sem produto". Imprima em tamanho real (100%).
-- **Vincular produto ao endereço** (botão no topo de Locais): bipe o produto (EAN ou código interno) e a etiqueta do endereço, em qualquer ordem, e o produto fica gravado naquele local (o endereço antigo dele fica livre). Se o endereço já tem outro produto, o sistema pergunta se quer **Trocar** (o outro fica sem endereço). A lista "Vinculados agora" mostra o que foi feito na sessão, e o último dá para **Desfazer**. Endereço que não está cadastrado em Endereços é recusado.
+- **Vincular produto ao endereço** (botão no topo de Locais): bipe o produto (EAN ou código interno) e a etiqueta do endereço, em qualquer ordem, e o produto fica gravado naquele local (o endereço antigo dele fica livre). Se o endereço for BIN ou colmeia e já tiver outro produto, o sistema pergunta se quer **Trocar** (o outro fica sem endereço); se for **gaveta**, o produto é acrescentado junto com os que já estão lá. A lista "Vinculados agora" mostra o que foi feito na sessão, e o último dá para **Desfazer**. Endereço que não está cadastrado em Endereços é recusado.
 - **Configuração da separação**: usar bandeja, mesas e cestas; tamanho da grade das colmeias.
+
+---
+
+## 9a. Menu no celular
+No celular (tela estreita), o menu de setores fica num botão **☰** no canto superior esquerdo: toque para abrir o menu lateral, que desliza da esquerda; toque de novo (no X), fora do menu ou num setor para fechar. No computador o menu continua no topo.
 
 ---
 
