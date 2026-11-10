@@ -587,9 +587,13 @@ select.tin{width:auto}
 .ll-bc svg{width:100%;height:100%;display:block}
 .ll-ean{left:67cqw;top:39.8cqw;font-size:2.1cqw}
 .ll-ean b{display:block;font-family:"Courier New",monospace;font-size:3.3cqw;margin-top:1.2cqw}
-.ll-bcs{left:4cqw;top:7cqw;width:52cqw;height:17.5cqw}.ll-bcs svg{width:100%;height:100%;display:block}
-.ll-big{left:4cqw;right:4cqw;top:30.5cqw;font-weight:700;font-size:8.6cqw;line-height:1;white-space:nowrap;font-family:"Courier New",monospace;letter-spacing:-.02em}
-.ll-foot{left:4cqw;right:4cqw;top:42.5cqw;font-size:2.4cqw}
+/* etiqueta "só endereço": 50 × 20 mm (1 mm = 2cqw) */
+.soloLabel{container-type:inline-size;width:100%;max-width:300px;aspect-ratio:50/20;background:#FFFFFF;color:#000000;border:1px solid var(--line);border-radius:4px;position:relative;font-family:Helvetica,Arial,sans-serif;overflow:hidden}
+.soloLabel > *{position:absolute}
+.sl-bc{left:4cqw;top:5cqw;width:60cqw;height:30cqw}.sl-bc svg{width:100%;height:100%;display:block}
+.sl-box{left:69cqw;top:4cqw;width:27cqw;height:32cqw;border:.5cqw solid #000;border-radius:2cqw;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:700}
+.sl-box span{font-size:4.4cqw;white-space:nowrap;border-bottom:.3cqw solid #000;padding-bottom:1cqw;margin-bottom:1cqw}.sl-box b{font-size:11cqw;line-height:1;white-space:nowrap}
+.sologrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
 .vincgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.vincgrid>div{border:1.5px dashed var(--line);border-radius:12px;padding:12px;min-height:96px}
 .vincgrid>div.on{border-style:solid;border-color:var(--ok);background:var(--ok-soft)}.vincgrid .eyebrow{margin-bottom:4px}.vincgrid b.mono{font-size:1.15em}
 .vinclog .li{cursor:default}.vinclog .lc{white-space:nowrap;min-width:150px}
@@ -4402,26 +4406,20 @@ function locLabels(list){ return list.map(locLabelData); }
 /* Etiqueta "só endereço": código de barras com o código do local (ex.: R1-LA-GAV-1.A), para vincular o produto bipando o produto e depois o local */
 function locSoloData(lc){ const l=parseLoc(lc)||parseCode(lc); return {kind:"solo", lc, type:l.t, head:`R${l.r}-L${l.l}-${l.t}`, pos:`${l.n}.${l.c}`, value:lc, bcf:"CODE128"}; }
 function locSoloHTML(d){
-  return `<div class="loclabel" role="img" aria-label="Etiqueta só do endereço ${d.lc}">
-    <div class="ll-cap">ENDEREÇO</div><div class="ll-bcs"><svg class="bc-loc" data-v="${esc(d.value)}" data-f="CODE128"></svg></div>
-    <div class="ll-box two"><span class="hd">${d.head}</span><b>${d.pos}</b></div>
-    <div class="ll-rule"></div>
-    <div class="ll-big">${esc(d.lc)}</div>
-    <div class="ll-foot">Vincular produto: bipe o produto e depois este código</div>
+  return `<div class="soloLabel" role="img" aria-label="Etiqueta só do endereço ${d.lc}">
+    <div class="sl-bc"><svg class="bc-loc" data-v="${esc(d.value)}" data-f="CODE128"></svg></div>
+    <div class="sl-box"><span>${d.head}</span><b>${d.pos}</b></div>
   </div>`;
 }
-function drawLocSolo(doc, x, y, l, bc){ // 100 × 50 mm
-  const W=100, M=4, fit=(t,size,maxW)=>{ let s=size; doc.setFontSize(s); while(s>5 && doc.getTextWidth(t)>maxW){ s-=.5; doc.setFontSize(s); } return s; };
+const SOLO = {w:50, h:20, cols:4, rows:14}; // folha A4: 4 na largura × 14 na altura = 56 etiquetas de 5 × 2 cm
+function drawLocSolo(doc, x, y, l, bc){ // 50 × 20 mm: código de barras do endereço + quadro com o endereço
+  const fit=(t,size,maxW)=>{ let s=size; doc.setFontSize(s); while(s>4 && doc.getTextWidth(t)>maxW){ s-=.25; doc.setFontSize(s); } return s; };
   doc.setTextColor(0,0,0); doc.setDrawColor(0,0,0);
-  doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.text("ENDEREÇO", x+M, y+5.5);
-  if(bc) doc.addImage(bc, "PNG", x+M, y+7, 52, 17.5);
-  doc.setLineWidth(.5); doc.roundedRect(x+58, y+3, 38, 21.5, 1.5, 1.5);
-  doc.setFont("helvetica","bold"); fit(l.head,16,34); doc.text(l.head, x+77, y+8.6, {align:"center", baseline:"middle"});
-  doc.setLineWidth(.2); doc.line(x+61, y+12, x+93, y+12);
-  fit(l.pos,34,34); doc.text(l.pos, x+77, y+18.6, {align:"center", baseline:"middle"});
-  doc.setLineWidth(.25); doc.line(x+M, y+27.5, x+W-M, y+27.5);
-  doc.setFont("courier","bold"); fit(l.lc,26,W-2*M); doc.text(l.lc, x+M, y+38.5);
-  doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.text("Vincular produto: bipe o produto e depois este código", x+M, y+45.5);
+  if(bc) doc.addImage(bc, "PNG", x+2, y+2.5, 30, 15); // 2,5 mm livres até o quadro (zona de silêncio do leitor)
+  doc.setLineWidth(.35); doc.roundedRect(x+34.5, y+2, 13.5, 16, 1, 1);
+  doc.setFont("helvetica","bold"); fit(l.head,7,12.4); doc.text(l.head, x+41.25, y+5.6, {align:"center", baseline:"middle"});
+  doc.setLineWidth(.15); doc.line(x+35.5, y+8, x+47, y+8);
+  fit(l.pos,18,12.4); doc.text(l.pos, x+41.25, y+13.2, {align:"center", baseline:"middle"});
 }
 function labelSet(){
   const t=state.lblType||"enderecos";
@@ -4484,18 +4482,18 @@ function etiquetasHTML(){
       ${t==="mesas"||t==="cestas"?spotsAdminHTML(t):""}
       ${t==="produtos"?`<div class="filters"><label class="chk"><input type="checkbox" id="lblNoEan" ${state.lblOnlyNoEan?"checked":""}> Só produtos sem EAN (etiqueta com código interno)</label></div>`:""}
       <div><h3>Formato</h3><div class="modes" style="margin-top:8px;grid-template-columns:1fr 1fr">
-        ${solo?`<label class="mode"><input type="radio" name="fmt" value="solo" checked><span><b>Folha A4 · 10 por folha</b><small>Endereços de 10 × 5 cm em impressora comum, para recortar e colar de forma provisória.</small></span></label>`:isLoc?`<label class="mode"><input type="radio" name="fmt" value="loc3" ${fmt==="loc3"?"checked":""}><span><b>Térmica 10 × 15 cm · 3 por etiqueta</b><small>Cada etiqueta de 10 × 15 cm sai com 3 endereços de 10 × 5 cm, com linha de corte.</small></span></label>
+        ${solo?`<label class="mode"><input type="radio" name="fmt" value="solo" checked><span><b>Folha A4 · 56 por folha</b><small>Etiquetas de 5 × 2 cm (4 na largura × 14 na altura) em impressora comum, para recortar e colar de forma provisória.</small></span></label>`:isLoc?`<label class="mode"><input type="radio" name="fmt" value="loc3" ${fmt==="loc3"?"checked":""}><span><b>Térmica 10 × 15 cm · 3 por etiqueta</b><small>Cada etiqueta de 10 × 15 cm sai com 3 endereços de 10 × 5 cm, com linha de corte.</small></span></label>
         <label class="mode"><input type="radio" name="fmt" value="loca4" ${fmt==="loca4"?"checked":""}><span><b>Folha A4 · 10 por folha</b><small>Endereços de 10 × 5 cm em impressora comum, para recortar.</small></span></label>`:`
         <label class="mode"><input type="radio" name="fmt" value="termica" ${fmt==="termica"?"checked":""}><span><b>Térmica 100 × 50 mm</b><small>Uma etiqueta por página, para impressoras de rolo (Zebra, Argox, Elgin).</small></span></label>
         <label class="mode"><input type="radio" name="fmt" value="a4" ${fmt==="a4"?"checked":""}><span><b>Folha A4 · 3 × 8</b><small>24 etiquetas de 70 × 37 mm por folha, impressora comum.</small></span></label>
         ${t==="mesas"||t==="cestas"?`<label class="mode"><input type="radio" name="fmt" value="placa" ${fmt==="placa"?"checked":""}><span><b>Placa A4 deitada</b><small>Uma por folha, letra e código de barras grandes, para fixar no local.</small></span></label>`:""}`}
       </div></div>
-      <div class="sumbar"><div class="totals"><div><small>Etiquetas</small><b class="tnum">${set.length}</b></div>${fmt==="a4"?`<div><small>Folhas A4</small><b class="tnum">${Math.ceil(set.length/24)}</b></div>`:fmt==="loca4"||fmt==="solo"?`<div><small>Folhas A4</small><b class="tnum">${Math.ceil(set.length/10)}</b></div>`:fmt==="loc3"?`<div><small>Etiquetas 10 × 15</small><b class="tnum">${Math.ceil(set.length/3)}</b></div>`:""}</div>
+      <div class="sumbar"><div class="totals"><div><small>Etiquetas</small><b class="tnum">${set.length}</b></div>${fmt==="a4"?`<div><small>Folhas A4</small><b class="tnum">${Math.ceil(set.length/24)}</b></div>`:fmt==="solo"?`<div><small>Folhas A4</small><b class="tnum">${Math.ceil(set.length/(SOLO.cols*SOLO.rows))}</b></div>`:fmt==="loca4"?`<div><small>Folhas A4</small><b class="tnum">${Math.ceil(set.length/10)}</b></div>`:fmt==="loc3"?`<div><small>Etiquetas 10 × 15</small><b class="tnum">${Math.ceil(set.length/3)}</b></div>`:""}</div>
         <button class="btn dark" id="genPdf" ${set.length?"":"disabled"}>Gerar PDF para imprimir</button></div>
       <p class="hint">O PDF é baixado para o seu computador. Abra e imprima em tamanho real (100%), sem "ajustar à página".</p>
     </section>
     <aside class="panel"><h3>Prévia · ${Math.min(6,set.length)} de ${set.length}</h3>
-      ${solo?`<p class="hint">Cada local: 10 × 5 cm (10 por folha A4). O código de barras é o do <b>endereço</b>: use em <b>Vincular produto</b> (bipe o produto e depois esta etiqueta) para amarrar o produto ao local.</p><div class="llgrid">${set.slice(0,4).map(locSoloHTML).join("")}</div>`:isLoc?`<p class="hint">Cada local: 10 × 5 cm (3 por etiqueta de 10 × 15 cm). O código de barras é o do produto (EAN, ou o código interno quando não há EAN), que o separador bipa no local.</p><div class="llgrid">${set.slice(0,4).map(locLabelHTML).join("")}</div>`:`<div class="labels" style="grid-template-columns:1fr">${set.slice(0,6).map(l=>`<div class="label"><div class="lb">${esc(l.big)}</div><div class="lt">${esc(l.small)}</div>${l.sub?`<div class="lt" style="font-weight:400">${esc(l.sub)}</div>`:""}<svg class="bc" data-v="${esc(l.value)}" data-f="${l.fmt}"></svg></div>`).join("")}</div>`}
+      ${solo?`<p class="hint">Cada local: 5 × 2 cm (56 por folha A4: 4 na largura × 14 na altura). O código de barras é o do <b>endereço</b>: use em <b>Vincular produto</b> (bipe o produto e depois esta etiqueta) para amarrar o produto ao local.</p><div class="sologrid">${set.slice(0,6).map(locSoloHTML).join("")}</div>`:isLoc?`<p class="hint">Cada local: 10 × 5 cm (3 por etiqueta de 10 × 15 cm). O código de barras é o do produto (EAN, ou o código interno quando não há EAN), que o separador bipa no local.</p><div class="llgrid">${set.slice(0,4).map(locLabelHTML).join("")}</div>`:`<div class="labels" style="grid-template-columns:1fr">${set.slice(0,6).map(l=>`<div class="label"><div class="lb">${esc(l.big)}</div><div class="lt">${esc(l.small)}</div>${l.sub?`<div class="lt" style="font-weight:400">${esc(l.sub)}</div>`:""}<svg class="bc" data-v="${esc(l.value)}" data-f="${l.fmt}"></svg></div>`).join("")}</div>`}
     </aside></div>`;
 }
 function bindEtiquetas(){
@@ -4528,14 +4526,21 @@ async function makePdf(labels, fmt, filename){
     await Promise.all([loadJsPdf(), ensureBarcode()]); const { jsPDF } = window.jspdf;
     const fit = (doc, txt, size, maxW) => { let s=size; doc.setFontSize(s); while(s>6 && doc.getTextWidth(txt)>maxW){ s-=.5; doc.setFontSize(s); } return s; };
     let doc;
-    if(fmt==="loc3" || fmt==="loca4" || fmt==="solo"){
-      const a4 = fmt!=="loc3", per = a4 ? 10 : 3;
+    if(fmt==="solo"){ // 4 × 14 etiquetas de 50 × 20 mm, centralizadas na A4, com linhas de corte
+      doc = new jsPDF({unit:"mm", format:"a4"}); const per=SOLO.cols*SOLO.rows, x0=(210-SOLO.cols*SOLO.w)/2, y0=(297-SOLO.rows*SOLO.h)/2;
+      labels.forEach((l,i)=>{ if(i && i%per===0) doc.addPage();
+        const k=i%per, x=x0+(k%SOLO.cols)*SOLO.w, y=y0+Math.floor(k/SOLO.cols)*SOLO.h;
+        const c=document.createElement("canvas"); JsBarcode(c, l.value, {format:"CODE128", width:3, height:110, margin:0, displayValue:false, flat:true, background:"#FFFFFF", lineColor:"#000000"});
+        drawLocSolo(doc, x, y, l, c.toDataURL("image/png"));
+        doc.setDrawColor(170); doc.setLineWidth(.15); doc.setLineDashPattern([1.2,1.2],0); doc.rect(x, y, SOLO.w, SOLO.h); doc.setLineDashPattern([],0); });
+    } else if(fmt==="loc3" || fmt==="loca4"){
+      const a4 = fmt==="loca4", per = a4 ? 10 : 3;
       doc = a4 ? new jsPDF({unit:"mm", format:"a4"}) : new jsPDF({unit:"mm", format:[100,150], orientation:"portrait"});
       labels.forEach((l,i)=>{
         if(i && i%per===0) a4 ? doc.addPage() : doc.addPage([100,150],"portrait");
         const k=i%per, x = a4 ? 5+(k%2)*100 : 0, y = a4 ? 23.5+Math.floor(k/2)*50 : k*50;
         let bc=null; if(l.value){ const c=document.createElement("canvas"); JsBarcode(c, l.value, {format:l.bcf||"CODE128", width:3, height:110, margin:0, displayValue:false, flat:true, background:"#FFFFFF", lineColor:"#000000"}); bc=c.toDataURL("image/png"); }
-        l.kind==="solo" ? drawLocSolo(doc, x, y, l, bc) : drawLocLabel(doc, x, y, l, bc);
+        drawLocLabel(doc, x, y, l, bc);
         // linhas de corte
         doc.setDrawColor(170); doc.setLineWidth(.15); doc.setLineDashPattern([1.5,1.5],0);
         if(a4) doc.rect(x, y, 100, 50); else if(k<2 && i<labels.length-1) doc.line(0, y+50, 100, y+50);
