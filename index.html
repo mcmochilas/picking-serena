@@ -764,6 +764,24 @@ body.pda .keyhint{display:block}
 .sync{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
 .sync i{width:8px;height:8px;border-radius:50%;background:var(--ok)}
 .navright{display:flex;align-items:center;gap:10px}
+/* Menu: no celular vira um menu lateral que desliza da esquerda (botão ☰ abre e fecha) */
+.navburger{display:none}
+@media (min-width:761px){.navdrawer{display:contents}.navdrawer .dhead,.navshade{display:none}}
+@media (max-width:760px){
+  .topnav{flex-wrap:nowrap;padding-bottom:6px;gap:10px}.topnav .brand{margin-right:auto;white-space:nowrap;font-size:15px}.topnav .sync{font-size:0;gap:0}
+  .navburger{display:flex;flex-direction:column;justify-content:center;gap:4px;width:40px;height:40px;flex:none;border-radius:10px;border:1px solid var(--line);background:var(--surface);padding:0 10px;position:relative;z-index:62;cursor:pointer}
+  .navburger i{display:block;height:2px;border-radius:2px;background:var(--ink);transition:transform .25s ease,opacity .2s ease}
+  .navburger.x i:nth-child(1){transform:translateY(6px) rotate(45deg)}.navburger.x i:nth-child(2){opacity:0}.navburger.x i:nth-child(3){transform:translateY(-6px) rotate(-45deg)}
+  .navdrawer{position:fixed;top:0;left:0;bottom:0;width:min(80vw,300px);z-index:61;background:var(--surface);border-right:1px solid var(--line);box-shadow:8px 0 30px rgba(0,0,0,.25);transform:translateX(-104%);transition:transform .3s cubic-bezier(.2,.8,.2,1);padding:68px 14px calc(16px + env(safe-area-inset-bottom,0px));overflow-y:auto;display:flex;flex-direction:column;gap:14px}
+  .navdrawer.open{transform:none}
+  .navdrawer .dhead{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:0 6px}
+  .navdrawer .mainnav{flex-direction:column;flex-wrap:nowrap;border:0;background:none;padding:0;gap:4px}
+  .navdrawer .mainnav button{text-align:left;padding:13px 14px;font-size:15px;border-radius:10px}
+  .navdrawer .me{margin-top:auto;padding-top:12px;border-top:1px solid var(--line)}
+  .navshade{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:opacity .3s ease}
+  .navshade.open{opacity:1;pointer-events:auto}
+}
+@media (max-width:760px) and (prefers-reduced-motion:reduce){.navdrawer,.navshade,.navburger i{transition:none}}
 .bell{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--muted);display:grid;place-items:center;cursor:pointer;padding:0;flex:none}
 .bell.on{color:var(--accent);border-color:var(--accent)}
 .bell.busy{opacity:.6;pointer-events:none}
@@ -1166,16 +1184,22 @@ function res(o){ if(!o.res || o.res.length!==o.items.length) o.res = o.items.map
 function topnav(){
   const names = {chamados:"Chamados", comercial:"Comercial", expedicao:"Separação", colmeias:"Colmeias", compras:"Compras", recebimento:"Recebimento", estoque:"Locais", usuarios:"Usuários"};
   return `<nav class="topnav" aria-label="Setores">
+    <button class="navburger ${state.navOpen?"x":""}" id="navBurger" aria-label="Menu" aria-expanded="${!!state.navOpen}" aria-controls="navDrawer"><i></i><i></i><i></i></button>
     <div class="brand">Picking <span>Serena</span></div>
     <div class="navright"><div class="sync ${synced?"":"local"}" title="${synced?"Dados sincronizados entre os setores":"Sem sincronização: os dados ficam só nesta tela"}"><i></i>${synced?"Sincronizado":"Modo local"}</div>${themeBtnHTML()}${bellHTML()}</div>
+    <div class="navshade ${state.navOpen?"open":""}" id="navShade"></div>
+    <div class="navdrawer ${state.navOpen?"open":""}" id="navDrawer"><div class="dhead">Menu</div>
     <div class="seg mainnav" role="group">${allowedSectors().flatMap(k=> k==="expedicao"
       ? [["fila","Separação"],["historico","Separados"]].map(([t,n])=>`<button data-sec="expedicao" data-tab="${t}" aria-pressed="${state.sector==="expedicao" && (state.sepTab||"fila")===t}">${n}</button>`)
       : [`<button data-sec="${k}" aria-pressed="${state.sector===k}">${names[k]}</button>`]).join("")}</div>
-    ${userChip()}
+    ${userChip()}</div>
   </nav>${state.viewAs?`<div class="viewas"><span>Simulando o nível ${ROLES[state.viewAs].t}. Os dados são reais.</span><button class="mini" id="exitViewAs">Voltar ao meu acesso</button></div>`:""}`;
 }
 function bindNav(){
-  app.querySelectorAll("[data-sec]").forEach(b=>b.onclick=()=>{ state.sector=b.dataset.sec; if(b.dataset.tab) state.sepTab=b.dataset.tab; state.view="orders"; render(); scrollTo(0,0); });
+  const bg=document.getElementById("navBurger"), dr=document.getElementById("navDrawer"), sh=document.getElementById("navShade");
+  const setNav=o=>{ state.navOpen=o; dr?.classList.toggle("open",o); sh?.classList.toggle("open",o); if(bg){ bg.classList.toggle("x",o); bg.setAttribute("aria-expanded",o); } };
+  if(bg) bg.onclick=()=>setNav(!state.navOpen); if(sh) sh.onclick=()=>setNav(false);
+  app.querySelectorAll("[data-sec]").forEach(b=>b.onclick=()=>{ state.navOpen=false; state.sector=b.dataset.sec; if(b.dataset.tab) state.sepTab=b.dataset.tab; state.view="orders"; render(); scrollTo(0,0); });
   const ex=document.getElementById("exitViewAs"); if(ex) ex.onclick=()=>{ state.viewAs=null; state.sector="usuarios"; state.view="orders"; render(); };
   fillNames(app.querySelector(".topnav"));
   const bell=document.getElementById("bellBtn"); if(bell) bell.onclick=toggleBell;
@@ -4000,6 +4024,10 @@ function receiveMesa(o){
 
 /* ================== ESTOQUE: endereços, produtos/EAN, etiquetas ================== */
 function locProduct(lc){ return Object.values(PRODUCTS).find(p=>p.loc===lc); }
+/* Gaveta (GAV) aceita mais de um produto; BIN e COL só um */
+const multiLoc = lc => parseCode(lc)?.t==="GAV";
+function locProducts(lc){ return Object.values(PRODUCTS).filter(p=>p.loc===lc).sort((a,b)=>a.code.localeCompare(b.code)); }
+const locBlocker = (lc, code) => { if(multiLoc(lc)) return null; const o=locProduct(lc); return o && o.code!==code ? o : null; }; // produto que impede ocupar o local
 function eanState(e){ if(!e) return {t:"Sem EAN", c:"norm"}; if(/^\d{13}$/.test(e)) return validEan(e)?{t:"EAN-13 ok",c:"done"}:{t:"Dígito inválido",c:"bad"}; if(/^\d{8}$/.test(e)) return ean8ok(e)?{t:"EAN-8 ok",c:"done"}:{t:"Dígito inválido",c:"bad"}; return {t:"Formato inválido",c:"bad"}; }
 function ean8ok(e){ let s=0; [...e.slice(0,7)].forEach((c,i)=>s+=(+c)*(i%2?1:3)); return (10-s%10)%10===+e[7]; }
 
@@ -4022,19 +4050,19 @@ function renderEstoque(){
 /* ---- Vincular produto ao endereço: bipa o produto e a etiqueta do local (em qualquer ordem) ---- */
 const vincProd = v => Object.values(PRODUCTS).find(p=>p.ean && p.ean===v) || PRODUCTS[v] || null;
 function renderVinc(){
-  const V=state.vinc ||= {p:null, lc:null, log:[]}, p=V.p?PRODUCTS[V.p]:null, lp=V.lc?locProduct(V.lc):null;
+  const V=state.vinc ||= {p:null, lc:null, log:[]}, p=V.p?PRODUCTS[V.p]:null, lps=V.lc?locProducts(V.lc):[], lp=lps[0]||null;
   const freeLc=allLocs().find(lc=>!locProduct(lc)), noLoc=Object.values(PRODUCTS).find(x=>!x.loc)||Object.values(PRODUCTS)[0];
   app.innerHTML=`<div class="pickbar"><button class="back" id="back" aria-label="Voltar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
     <div class="grow"><h1>Vincular produto ao endereço</h1><div class="sub">Bipe o produto e depois a etiqueta do endereço</div></div></div>
     <div class="traystep">
       <div class="vincgrid">
         <div class="${p?"on":""}"><div class="eyebrow">1 · Produto</div>${p?`<b class="mono">${esc(p.code)}</b><div>${esc(p.name)}</div><small class="muted-s">${p.loc?`Hoje no endereço <b class="mono">${esc(p.loc)}</b>`:"Sem endereço"}</small>`:`<span class="muted-s">Bipe o produto (EAN ou código interno)</span>`}</div>
-        <div class="${V.lc?"on":""}"><div class="eyebrow">2 · Endereço</div>${V.lc?`<b class="mono">${esc(V.lc)}</b><div><small class="muted-s">${lp?`Hoje com o produto <b class="mono">${esc(lp.code)}</b> · ${esc(lp.name)}`:"Endereço livre"}</small></div>`:`<span class="muted-s">Bipe a etiqueta do endereço</span>`}</div>
+        <div class="${V.lc?"on":""}"><div class="eyebrow">2 · Endereço</div>${V.lc?`<b class="mono">${esc(V.lc)}</b><div><small class="muted-s">${multiLoc(V.lc) ? (lps.length ? `Gaveta com ${lps.length} produto(s): ${lps.map(x=>`<b class="mono">${esc(x.code)}</b>`).join(", ")} · aceita mais` : "Gaveta livre · aceita mais de um produto") : lp?`Hoje com o produto <b class="mono">${esc(lp.code)}</b> · ${esc(lp.name)}`:"Endereço livre"}</small></div>`:`<span class="muted-s">Bipe a etiqueta do endereço</span>`}</div>
       </div>
       ${p||V.lc?`<button class="btn ghost sm" id="vincClear" style="margin-top:10px">Limpar e começar de novo</button>`:""}
       <button class="demo" id="simP">Simular produto ${esc(noLoc?.code||"")} (demo)</button> <button class="demo" id="simL">Simular endereço ${esc(freeLc||"")} (demo)</button>
     </div>
-    <div class="section vinclog"><div class="eyebrow">Vinculados agora · ${V.log.length}</div><div class="list">${V.log.map((x,i)=>`<div class="li"><span class="lc mono">${esc(x.lc)}</span><span class="ln"><b class="mono">${esc(x.code)}</b> ${esc(PRODUCTS[x.code]?.name||"")}${x.from?` <small>(saiu de ${esc(x.from)})</small>`:""}${x.out?` <small>· ${esc(x.out)} ficou sem endereço</small>`:""}</span>${i===0&&!x.undone?`<button class="mini" id="vincUndo">Desfazer</button>`:x.undone?`<small class="muted-s">desfeito</small>`:""}</div>`).join("")||`<div class="li"><span class="ln muted-s">Nenhum produto vinculado nesta sessão.</span></div>`}</div></div>`;
+    <div class="section vinclog"><div class="eyebrow">Vinculados agora · ${V.log.length}</div><div class="list">${V.log.map((x,i)=>`<div class="li"><span class="lc mono">${esc(x.lc)}</span><span class="ln"><b class="mono">${esc(x.code)}</b> ${esc(PRODUCTS[x.code]?.name||"")}${x.from?` <small>(saiu de ${esc(x.from)})</small>`:""}${x.out?` <small>· ${esc(x.out)} ficou sem endereço</small>`:""}${x.junto>1?` <small>· gaveta com ${x.junto} produtos</small>`:""}</span>${i===0&&!x.undone?`<button class="mini" id="vincUndo">Desfazer</button>`:x.undone?`<small class="muted-s">desfeito</small>`:""}</div>`).join("")||`<div class="li"><span class="ln muted-s">Nenhum produto vinculado nesta sessão.</span></div>`}</div></div>`;
   document.getElementById("back").onclick=()=>{ state.vinc.p=null; state.vinc.lc=null; state.view="orders"; state.etab="enderecos"; render(); };
   const c=document.getElementById("vincClear"); if(c) c.onclick=()=>{ V.p=null; V.lc=null; render(); };
   const sp=document.getElementById("simP"); if(sp) sp.onclick=()=>{ if(noLoc) handleScan(noLoc.ean||noLoc.code); };
@@ -4057,21 +4085,21 @@ async function scanVinc(v){
 async function vincSave(){
   const V=state.vinc, p=PRODUCTS[V.p], lc=V.lc; if(!p||!lc) return render();
   if(p.loc===lc){ toast(`${p.code} já está no endereço ${lc}`); V.p=null; V.lc=null; return render(); }
-  const occ=locProduct(lc);
-  if(occ && occ.code!==p.code){ render();
+  const occ=locBlocker(lc, p.code);
+  if(occ){ render();
     const ok=await askModal({title:`Endereço ${lc} já tem produto`, okText:"Trocar",
       text:`O endereço <b>${esc(lc)}</b> está com o produto <b>${esc(occ.code)}</b> · ${esc(occ.name)}.<br><br>Trocar para <b>${esc(p.code)}</b> · ${esc(p.name)}? O produto ${esc(occ.code)} fica sem endereço.`});
     if(!ok){ V.lc=null; render(); return setMsg(`Produto ${p.code}: bipe outro endereço`,"info"); } }
   const from=p.loc||"";
-  if(occ && occ.code!==p.code) saveProduct({...occ, loc:""});
+  if(occ) saveProduct({...occ, loc:""});
   saveProduct({...p, loc:lc});
-  V.log.unshift({code:p.code, lc, from, out: occ && occ.code!==p.code ? occ.code : ""}); V.log=V.log.slice(0,30);
+  V.log.unshift({code:p.code, lc, from, out: occ ? occ.code : "", junto: multiLoc(lc) ? locProducts(lc).length : 0}); V.log=V.log.slice(0,30);
   V.p=null; V.lc=null; V.flash={t:`${p.code} vinculado ao endereço ${lc}. Bipe o próximo produto.`, k:"good", at:Date.now()}; render(); feedback(true);
 }
 function vincUndo(){
   const V=state.vinc, x=V?.log[0]; if(!x || x.undone) return;
   const p=PRODUCTS[x.code]; if(p && p.loc===x.lc) saveProduct({...p, loc:x.from||""});
-  if(x.out){ const o=PRODUCTS[x.out]; if(o && !o.loc && !locProduct(x.lc)) saveProduct({...o, loc:x.lc}); }
+  if(x.out){ const o=PRODUCTS[x.out]; if(o && !o.loc && !locBlocker(x.lc, o.code)) saveProduct({...o, loc:x.lc}); }
   x.undone=true; V.flash={t:`Desfeito: ${x.code} voltou para ${x.from||"sem endereço"}`, k:"info", at:Date.now()}; render();
 }
 
@@ -4079,7 +4107,7 @@ function vincUndo(){
 function enderecosHTML(){
   const rs = ruas(); if(!rs.includes(state.rua)) state.rua = rs[0] || 1;
   const r = state.rua, lado = state.lado || "A", sel = state.selLoc;
-  const used = {}; Object.values(PRODUCTS).forEach(p=>{ if(p.loc) used[p.loc]=p; });
+  const used = {}, cnt = {}; Object.values(PRODUCTS).forEach(p=>{ if(p.loc){ used[p.loc] ||= p; cnt[p.loc]=(cnt[p.loc]||0)+1; } });
   const blocksHere = Object.entries(BLOCKS).filter(([,b])=>b.r===r && b.l===lado);
   const nMax = Math.max(0, ...blocksHere.map(([,b])=>b.n2)), cMax = Math.max(-1, ...blocksHere.map(([,b])=>colIdx(b.c2)));
   const cellAt = (n,ci) => { const hit = blocksHere.find(([,b])=>n>=b.n1 && n<=b.n2 && ci>=colIdx(b.c1) && ci<=colIdx(b.c2)); return hit ? hit[1].t : null; };
@@ -4089,7 +4117,7 @@ function enderecosHTML(){
       ${Array.from({length:nMax},(_,k)=>{ const n=nMax-k; return `<div class="rh">N${n}</div>`+Array.from({length:cMax+1},(_,ci)=>{
         const t=cellAt(n,ci); if(!t) return `<div class="cell void"></div>`;
         const lc=code({r, l:lado, t, n, c:colName(ci)}), p=used[lc];
-        return `<button class="cell ${p?"busy":""} ${sel===lc?"sel":""}" data-lc="${lc}" title="${lc}${p?" · "+esc(p.name):""}"><span><em class="ty">${t}</em> ${n}.${colName(ci)}</span>${p?`<b>${esc(p.code)}</b>`:`<i>livre</i>`}</button>`; }).join(""); }).join("")}
+        return `<button class="cell ${p?"busy":""} ${sel===lc?"sel":""}" data-lc="${lc}" title="${lc}${p?" · "+esc(cnt[lc]>1?Object.values(PRODUCTS).filter(x=>x.loc===lc).map(x=>x.code).join(", "):p.name):""}"><span><em class="ty">${t}</em> ${n}.${colName(ci)}</span>${p?(cnt[lc]>1?`<b>${cnt[lc]} produtos</b>`:`<b>${esc(p.code)}</b>`):`<i>livre</i>`}</button>`; }).join(""); }).join("")}
     </div>` : `<div class="empty">Nenhum local cadastrado no lado ${lado} da rua R${r}. Crie a estrutura ao lado.</div>`;
   return `<div class="cgrid">
     <section class="panel">
@@ -4135,15 +4163,16 @@ function blockPreview(f){
   return {b, count:locs.length, first:locs[0], last:locs[locs.length-1]};
 }
 function locPanelHTML(){
-  const lc = state.selLoc, l=parseLoc(lc), p=locProduct(lc), q=(state.locQ||"").trim().toUpperCase();
+  const lc = state.selLoc, l=parseLoc(lc), ps=locProducts(lc), p=ps[0], multi=multiLoc(lc), q=(state.locQ||"").trim().toUpperCase();
   const matches = q ? Object.values(PRODUCTS).filter(x=>x.code.includes(q) || x.name.toUpperCase().includes(q) || (x.ean||"").includes(q)).slice(0,8) : [];
   return `<div class="filters" style="justify-content:space-between"><h2>Local</h2><button class="mini" id="newBlock">+ Criar estrutura</button></div>
     <div class="store-code" style="font-size:30px">${lc}</div>
     <div class="meta"><span>Rua R${l.r}</span><span>Lado ${l.l}</span><span>${LOC_TYPES[l.t]}</span><span>Nível ${l.n}</span><span>Coluna ${l.c}</span></div>
     ${locLabelHTML(locLabelData(lc))}
-    ${p?`<div class="qcard"><div class="eyebrow">Produto neste local</div><div class="cl">${esc(p.name)}</div><div class="meta tnum"><span>Cód. ${esc(p.code)}</span><span>${p.ean?"EAN "+esc(p.ean):"sem EAN"}</span></div><div><button class="mini" id="unassign">Remover do local</button></div></div>`
+    ${ps.length?ps.map(x=>`<div class="qcard"><div class="eyebrow">${ps.length>1?"Produto nesta gaveta":"Produto neste local"}</div><div class="cl">${esc(x.name)}</div><div class="meta tnum"><span>Cód. ${esc(x.code)}</span><span>${x.ean?"EAN "+esc(x.ean):"sem EAN"}</span></div><div><button class="mini" data-unassign="${esc(x.code)}">Remover do local</button></div></div>`).join("")
       :`<div class="empty">Local livre.</div>`}
-    <div><label class="eyebrow" for="locQ">${p?"Trocar por outro produto":"Colocar um produto aqui"}</label>
+    ${multi?`<p class="hint">Gaveta: aceita mais de um produto (BIN e colmeia aceitam só um).</p>`:""}
+    <div><label class="eyebrow" for="locQ">${multi?(p?"Adicionar outro produto nesta gaveta":"Colocar um produto aqui"):p?"Trocar por outro produto":"Colocar um produto aqui"}</label>
       <input class="tin" id="locQ" placeholder="Código, descrição ou EAN" value="${esc(state.locQ||"")}" autocomplete="off"></div>
     <div class="qlist" id="locMatches">${matches.map(x=>`<button class="match" data-assign="${esc(x.code)}"><b>${esc(x.code)}</b> ${esc(x.name)}<small>${x.loc?(x.loc===lc?"já está aqui":"move de "+x.loc):"sem local"}</small></button>`).join("") || (q?`<div class="empty">Nenhum produto encontrado. Cadastre em Produtos e EAN.</div>`:"")}</div>
     <div><button class="mini" id="printOne">Gerar etiqueta deste local (PDF)</button></div>`;
@@ -4175,13 +4204,13 @@ function bindLocPanel(){
   document.getElementById("newBlock").onclick=()=>{ state.selLoc=null; state.bf=null; render(); };
   const q=document.getElementById("locQ");
   q.oninput=()=>{ state.locQ=q.value; const pos=q.selectionStart; document.getElementById("locpanel").innerHTML=locPanelHTML(); bindLocPanel(); const n=document.getElementById("locQ"); n.focus(); n.setSelectionRange(pos,pos); };
-  const un=document.getElementById("unassign"); if(un) un.onclick=()=>{ const p=locProduct(lc); saveProduct({...p, loc:""}); toast(`${p.code} removido de ${lc}`); };
+  app.querySelectorAll("[data-unassign]").forEach(b=>b.onclick=()=>{ const p=PRODUCTS[b.dataset.unassign]; if(!p) return; saveProduct({...p, loc:""}); toast(`${p.code} removido de ${lc}`); });
   app.querySelectorAll("[data-assign]").forEach(b=>b.onclick=()=>{
-    const p=PRODUCTS[b.dataset.assign], prev=locProduct(lc);
-    if(prev && prev.code!==p.code) saveProduct({...prev, loc:""});
+    const p=PRODUCTS[b.dataset.assign], prev=locBlocker(lc, p.code);
+    if(prev) saveProduct({...prev, loc:""});
     saveProduct({...p, loc:lc}); state.locQ=""; toast(`${p.code} agora está em ${lc}`);
   });
-  document.getElementById("printOne").onclick=()=>makePdf(locLabels([lc]), state.locFmt||"loc3", `etiqueta-${lc}.pdf`);
+  document.getElementById("printOne").onclick=()=>makePdf(locLabels([lc]), state.locFmt||"loc3", `etiqueta-${lc}.pdf`); // gaveta com vários produtos: uma etiqueta por produto
 }
 
 /* ---- Produtos e EAN ---- */
@@ -4224,7 +4253,7 @@ function validateProduct(p){
     const dup=Object.values(PRODUCTS).find(x=>x.code!==p.code && x.ean===p.ean); if(dup) return `EAN ${p.ean} já está cadastrado no produto ${dup.code}.`; }
   if(p.loc){ if(!parseCode(p.loc)) return `Local ${p.loc} inválido. Use Rua-Lado-Tipo-Nível.Coluna, ex.: R1-LB-BIN-8.M.`;
     if(!parseLoc(p.loc)) return `O local ${p.loc} não está cadastrado. Crie a estrutura em Locais → Endereços.`;
-    const occ=locProduct(p.loc); if(occ && occ.code!==p.code) return `O local ${p.loc} já está ocupado pelo produto ${occ.code}. Libere em Endereços primeiro.`; }
+    const occ=locBlocker(p.loc, p.code); if(occ) return `O local ${p.loc} já está ocupado pelo produto ${occ.code}. Libere em Endereços primeiro (só gaveta aceita mais de um produto).`; }
   return "";
 }
 function saveRow(codeV){
@@ -4307,10 +4336,10 @@ function analyzeCsv(rows, update){
       else { p.ean=ean; eanInFile[ean]=code; }
     }
     if(loc){
-      const occ = locProduct(loc), occFile = locInFile[loc];
+      const occ = locBlocker(loc, code), occFile = multiLoc(loc) ? null : locInFile[loc];
       if(!parseCode(loc)) msgs.push(`local "${locRaw}" inválido (ignorado)`);
       else if(!parseLoc(loc)) msgs.push(`local ${loc} não cadastrado em Endereços (ignorado)`);
-      else if((occ && occ.code!==code) || (occFile && occFile!==code)) msgs.push(`local ${loc} já ocupado (ignorado)`);
+      else if(occ || (occFile && occFile!==code)) msgs.push(`local ${loc} já ocupado (ignorado)`);
       else { p.loc=loc; locInFile[loc]=code; }
     }
     if(ex && p.name===ex.name && p.ean===(ex.ean||"") && p.loc===(ex.loc||"")) status="same";
@@ -4377,7 +4406,7 @@ async function importCsv(){
 
 /* ---- Etiquetas ---- */
 function locDet(l){ return `Rua ${l.r} · Lado ${l.l} · ${LOC_TYPES[l.t]} · Nível ${l.n} · Coluna ${l.c}`; }
-function locLabelData(lc){ const l=parseLoc(lc), p=locProduct(lc), e=p?.ean && eanState(p.ean).c==="done";
+function locLabelData(lc, prod){ const l=parseLoc(lc), p=prod||locProduct(lc), e=p?.ean && eanState(p.ean).c==="done";
   return {kind:"loc", lc, type:l.t, head:`R${l.r}-L${l.l}-${l.t}`, pos:`${l.n}.${l.c}`, value: p ? (e ? p.ean : p.code) : "", bcf: e ? (p.ean.length===8?"EAN8":"EAN13") : "CODE128", code:p?.code||"", name:p?.name||"", ean:p?.ean||"", det:locDet(l)}; }
 function locLabelHTML(d){
   return `<div class="loclabel" role="img" aria-label="Etiqueta do endereço ${d.lc}">
@@ -4406,7 +4435,7 @@ function drawLocLabel(doc, x, y, l, bc){ // 100 × 50 mm
     doc.setFont("courier","bold"); fit(l.value,9.5,29); doc.text(l.value, x+67, y+47.3);
   } else { doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.text("Local sem produto", x+M, y+45); }
 }
-function locLabels(list){ return list.map(locLabelData); }
+function locLabels(list){ return list.flatMap(lc=>{ const ps=multiLoc(lc)?locProducts(lc):[]; return ps.length>1 ? ps.map(p=>locLabelData(lc,p)) : [locLabelData(lc)]; }); }
 /* Etiqueta "só endereço": código de barras com o código do local (ex.: R1-LA-GAV-1.A), para vincular o produto bipando o produto e depois o local */
 function locSoloData(lc){ const l=parseLoc(lc)||parseCode(lc); return {kind:"solo", lc, type:l.t, head:`R${l.r}-L${l.l}-${l.t}`, pos:`${l.n}.${l.c}`, value:`${l.r}${l.l}${l.t[0]}${l.n}${l.c}`, bcf:"CODE128"}; }
 function locSoloHTML(d){
