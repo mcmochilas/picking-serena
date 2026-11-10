@@ -352,7 +352,7 @@ details.cpcard summary{display:flex;justify-content:space-between;align-items:ce
 .loc-parts b{font-family:var(--display);font-size:20px;line-height:1.1}
 
 .map-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:10px;margin-top:12px;position:relative}
-.map-card svg{display:block;width:100%;height:auto;max-width:100%;max-height:440px;margin:0 auto}
+.map-card svg{display:block;width:100%;height:auto;max-width:100%;margin:0 auto}
 .map-tools{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:2px 4px 8px}
 .legend{display:flex;gap:12px;font-size:12px;color:var(--muted);flex-wrap:wrap}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
@@ -520,7 +520,7 @@ html:not(.ps-test):not(.can-sim) .demo{display:none!important}
 
 /* Estoque */
 .phases.three{grid-template-columns:repeat(3,1fr)}
-.subtabs{margin-top:12px;width:max-content;max-width:100%;overflow-x:auto}
+.subtabs{margin-top:12px;width:max-content;max-width:100%;overflow-x:auto}@media (max-width:600px){.subtabs{flex-wrap:wrap;width:auto}}
 .tin{height:40px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);padding:0 10px;font:inherit;width:100%;min-width:0}
 .tin:focus{outline:2px solid var(--route);outline-offset:0}
 .tin.mono{font-family:var(--mono);font-size:13px}
@@ -621,6 +621,7 @@ select.tin{width:auto}
 .sl-box{left:69cqw;top:4cqw;width:27cqw;height:32cqw;border:.5cqw solid #000;border-radius:2cqw;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:700}
 .sl-box span{font-size:4.4cqw;white-space:nowrap;border-bottom:.3cqw solid #000;padding-bottom:1cqw;margin-bottom:1cqw}.sl-box b{font-size:11cqw;line-height:1;white-space:nowrap}
 .sologrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
+.lzpanel .map-card{margin-top:4px}.lzpanel .loc{margin:0}.qlist .match.on{border-color:var(--accent);background:var(--accent-soft)}
 .vincgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.vincgrid>div{border:1.5px dashed var(--line);border-radius:12px;padding:12px;min-height:96px}
 .vincgrid>div.on{border-style:solid;border-color:var(--ok);background:var(--ok-soft)}.vincgrid .eyebrow{margin-bottom:4px}.vincgrid b.mono{font-size:1.15em}
 .mbox.mbad{border:2px solid var(--bad);border-top-width:8px;background:color-mix(in srgb,var(--bad) 7%,var(--surface))}.mbox.mbad h2{color:var(--bad);display:flex;align-items:center;gap:10px}
@@ -666,7 +667,7 @@ body.pda .product .name{font-size:16px}
 body.pda .instr{padding:8px}
 body.pda .instr svg{width:22px;height:22px}
 body.pda .map-card{padding:6px;margin-top:8px}
-body.pda .map-card svg{max-height:300px}
+body.pda .map-card svg{max-height:none}
 body.pda .stepper output{font-size:34px;min-width:72px}
 body.pda .stepper button{width:56px;height:56px}
 body.pda .keyhint{display:block}
@@ -3079,7 +3080,7 @@ function mapRoute(a, b){ // caminho pelos corredores (a = item anterior ou null 
    Projeção afim: o piso inclina para trás e as estantes sobem; linhas retas continuam retas (a animação da rota funciona igual). */
 const MAP3D_KEY="ps-map3d";
 const map3d = () => { try{ const m=localStorage.getItem("ps-mapmode"); if(m) return m!=="2d"; return localStorage.getItem(MAP3D_KEY)!=="0"; }catch(e){ return true; } };
-function mapSVG(item, prevItem){ return map3d() ? mapSVG3D(item, prevItem) : mapSVG2D(item, prevItem); }
+function mapSVG(item, prevItem){ return mapSVG2D(item, prevItem); } // telas sem animação 3D (devolução, colmeia): planta 2D
 function mapSVG3D(item, prevItem){
   const M=MAP, l=item.loc, t=mapTarget(l), pv=prevItem?.loc ? mapTarget(prevItem.loc) : null;
   const SK=0.16, FS=0.8, ZR=26; // inclinação, encurtamento do piso e altura das estantes
@@ -3129,7 +3130,19 @@ function mapSVG3D(item, prevItem){
 /* ================== Mapa de navegação 3D (inspirado na navegação do Google Maps) ==================
    Cena 3D com as estantes do estoque; a câmera segue o separador pela rota até o local do item. */
 const MAPMODE_KEY="ps-mapmode";
-const mapMode = () => { try{ const v=localStorage.getItem(MAPMODE_KEY); if(v) return v; return localStorage.getItem(MAP3D_KEY)==="0" ? "2d" : "nav"; }catch(e){ return "nav"; } };
+const mapMode = () => { try{ const v=localStorage.getItem(MAPMODE_KEY); if(v) return v==="2d" ? "2d" : "nav"; return localStorage.getItem(MAP3D_KEY)==="0" ? "2d" : "nav"; }catch(e){ return "nav"; } }; // 3D (navegação) ou 2D
+/* Cartão do mapa (separação e Locais → Localizar): 3D de navegação ou 2D, o usuário escolhe no botão */
+function mapCardHTML(item, prev){ const m=mapMode();
+  return `<div class="map-card" id="map">
+      <button class="replay-ic map3dbtn" id="map3d" aria-label="Trocar o tipo de mapa (agora: ${m==="2d"?"2D":"3D"})" title="Trocar mapa: 3D ou 2D">${m==="2d"?"3D":"2D"}</button>
+      <button class="replay-ic" id="replay" aria-label="Ver rota de novo" title="Ver rota de novo"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
+      ${m!=="2d" && navOK() ? navHTML(item) : mapSVG2D(item, prev)}
+    </div>`; }
+function bindMapCard(item, prev, force){
+  const rp=document.getElementById("replay"); if(rp) rp.onclick = ()=> document.getElementById("nav3d") ? navStart(item, prev, true) : animateRoute(true);
+  const m3=document.getElementById("map3d"); if(m3) m3.onclick=()=>{ const nx=mapMode()==="2d"?"nav":"2d"; try{ localStorage.setItem(MAPMODE_KEY, nx); localStorage.setItem(MAP3D_KEY, nx==="2d"?"0":"1"); }catch(e){} lastAnimKey=null; render(); };
+  requestAnimationFrame(()=> document.getElementById("nav3d") ? navStart(item, prev, !!force) : document.getElementById("route") && animateRoute(!!force));
+}
 const NAV={ three:null, loading:null, r:null, run:0 };
 const ensureThree = () => window.THREE ? Promise.resolve() : (NAV.loading ||= loadLib("three","https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"));
 const navOK = () => { try{ const c=document.createElement("canvas"); return !!(window.WebGLRenderingContext && (c.getContext("webgl")||c.getContext("experimental-webgl"))); }catch(e){ return false; } };
@@ -3165,7 +3178,7 @@ function navStart(item, prevItem, force){
   ensureThree().then(()=>{ if(run!==NAV.run || !box.isConnected) return; try{ navScene(box, item, prevItem, force, run); }catch(e){ console.warn(e); navFallback(box, item, prevItem); } },
     ()=>navFallback(box, item, prevItem));
 }
-function navFallback(box, item, prevItem){ if(!box.isConnected) return; box.outerHTML=mapSVG3D(item, prevItem); requestAnimationFrame(()=>animateRoute(true)); }
+function navFallback(box, item, prevItem){ if(!box.isConnected) return; box.outerHTML=mapSVG2D(item, prevItem); requestAnimationFrame(()=>animateRoute(true)); }
 /* textura do piso: porcelanato branco com rejunte */
 function navFloorTex(T){ const c=document.createElement("canvas"); c.width=c.height=256; const g=c.getContext("2d");
   g.fillStyle="#3A3F78"; g.fillRect(0,0,256,256);
@@ -3730,11 +3743,7 @@ function renderPick(){
         <div class="noloc-t">Procure o produto no estoque pelo código <b class="tnum">${esc(it.code)}</b> e bipe a peça normalmente. Depois avise o estoque para cadastrar o local.</div></div>`}
     </div>`}
     ${taskCard(it)}
-    ${l ? `<div class="map-card" id="map">
-      <button class="replay-ic map3dbtn" id="map3d" aria-label="Trocar o tipo de mapa (agora: ${({nav:"navegação",["3d"]:"3D",["2d"]:"2D"})[mapMode()]})" title="Trocar mapa: navegação, 3D ou 2D">${({nav:"3D",["3d"]:"2D",["2d"]:"Nav"})[mapMode()]}</button>
-      <button class="replay-ic" id="replay" aria-label="Ver rota de novo" title="Ver rota de novo"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
-      ${mapMode()==="nav" && navOK() ? navHTML(it) : mapMode()==="2d" ? mapSVG2D(it, prev) : mapSVG3D(it, prev)}
-    </div>` : ""}
+    ${l ? mapCardHTML(it, prev) : ""}
     <div class="eyebrow" style="margin-top:14px">Itens · ${done} de ${pl.length}</div>
     <div class="list" style="margin-top:6px">
       ${pl.map((x,k)=>{ const s=r[x.i].status; const ic = s==="ok"?"✓":s==="miss"?"!":s==="part"?r[x.i].got:"";
@@ -3745,7 +3754,7 @@ function renderPick(){
   const sk=document.getElementById("skipPick"); if(sk) sk.onclick=()=>skipLote(o.id);
   document.getElementById("deletePick").onclick = ()=>deleteOrder(o.id);
   const rp=document.getElementById("replay"); if(rp) rp.onclick = ()=> document.getElementById("nav3d") ? navStart(it, prev, true) : animateRoute(true);
-  const m3=document.getElementById("map3d"); if(m3) m3.onclick=()=>{ const nx=({nav:"3d",["3d"]:"2d",["2d"]:"nav"})[mapMode()]; try{ localStorage.setItem(MAPMODE_KEY, nx); localStorage.setItem(MAP3D_KEY, nx==="2d"?"0":"1"); }catch(e){} lastAnimKey=null; render(); };
+  const m3=document.getElementById("map3d"); if(m3) m3.onclick=()=>{ const nx=mapMode()==="2d"?"nav":"2d"; try{ localStorage.setItem(MAPMODE_KEY, nx); localStorage.setItem(MAP3D_KEY, nx==="2d"?"0":"1"); }catch(e){} lastAnimKey=null; render(); };
   const si=document.getElementById("stkInfo"); if(si) si.onclick = ()=>openStock(it);
   const sim=document.getElementById("sim"); if(sim) sim.onclick = ()=> handleScan(state.phase==="tray" ? freeTray(o) : state.phase==="loc" && it.loc ? code(it.loc) : scanCode(it));
   const um=document.getElementById("useMesa"); if(um) um.onclick = ()=> handleScan(defMesa());
@@ -4323,12 +4332,58 @@ function renderEstoque(){
       <button data-etab="enderecos" aria-pressed="${tab==="enderecos"}">Endereços</button>
       <button data-etab="produtos" aria-pressed="${tab==="produtos"}">Produtos e EAN</button>
       <button data-etab="etiquetas" aria-pressed="${tab==="etiquetas"}">Etiquetas</button>
+      <button data-etab="localizar" aria-pressed="${tab==="localizar"}">Localizar produto</button>
     </div>
-    <div id="etab">${tab==="produtos"?produtosHTML():tab==="etiquetas"?etiquetasHTML():enderecosHTML()}</div>`;
+    <div id="etab">${tab==="produtos"?produtosHTML():tab==="etiquetas"?etiquetasHTML():tab==="localizar"?localizarHTML():enderecosHTML()}</div>`;
   bindNav();
   app.querySelectorAll("[data-etab]").forEach(b=>b.onclick=()=>{ state.etab=b.dataset.etab; render(); });
   document.getElementById("vincGo").onclick=()=>{ state.vinc={p:null, lc:null, log:state.vinc?.log||[]}; state.view="vinc"; render(); scrollTo(0,0); };
-  tab==="produtos" ? bindProdutos() : tab==="etiquetas" ? bindEtiquetas() : bindEnderecos();
+  tab==="produtos" ? bindProdutos() : tab==="etiquetas" ? bindEtiquetas() : tab==="localizar" ? bindLocalizar() : bindEnderecos();
+}
+
+/* ---- Localizar produto: bipe (EAN, código ou etiqueta do endereço) ou digite código/descrição; mostra o endereço no mapa 3D ou 2D ---- */
+function lzMatches(q){ const Q=String(q||"").trim().toUpperCase(); if(!Q) return [];
+  const ex=Object.values(PRODUCTS).filter(p=>p.code===Q || (p.ean && p.ean===Q));
+  const rest=Object.values(PRODUCTS).filter(p=>!ex.includes(p) && (p.code.includes(Q) || (p.ean||"").includes(Q) || p.name.toUpperCase().includes(Q)));
+  return [...ex, ...rest.sort((a,b)=>a.code.localeCompare(b.code))].slice(0,40); }
+function lzListHTML(){ const q=state.lzQ||"", ms=lzMatches(q);
+  if(!q.trim()) return `<div class="empty">Bipe o produto ou a etiqueta do endereço, ou digite o código ou a descrição.</div>`;
+  return ms.map(p=>`<button class="match ${state.lzSel===p.code?"on":""}" data-lz="${esc(p.code)}"><b>${esc(p.code)}</b> ${esc(p.name)}<small>${p.loc?`<span class="mono">${esc(p.loc)}</span>`:"sem endereço"}</small></button>`).join("") || `<div class="empty">Nenhum produto encontrado.</div>`; }
+function lzTarget(){ const sel=state.lzSel; if(!sel) return null;
+  if(sel.startsWith("@")){ const lc=sel.slice(1); return {lc, ps:locProducts(lc)}; }
+  const p=PRODUCTS[sel]; return p ? {p, lc:p.loc||"", ps:p.loc?locProducts(p.loc):[]} : null; }
+function localizarHTML(){
+  const T=lzTarget(), L=T&&T.lc&&parseLoc(T.lc) ? parseCode(T.lc) : null;
+  return `<div class="cgrid">
+    <section class="panel">
+      <div><label class="eyebrow" for="lzQ">Produto ou endereço</label>
+        <input class="tin" id="lzQ" placeholder="Bipe ou digite o código, o EAN ou a descrição" value="${esc(state.lzQ||"")}" autocomplete="off" enterkeyhint="search"></div>
+      <div class="qlist" id="lzList">${lzListHTML()}</div>
+    </section>
+    <aside class="panel lzpanel">${!T ? `<div class="empty">Escolha um produto para ver onde ele está.</div>` : `
+      ${T.p?`<div class="qcard"><div class="eyebrow">Produto</div><div class="cl">${esc(T.p.name)}</div><div class="meta tnum"><span>Cód. ${esc(T.p.code)}</span><span>${T.p.ean?"EAN "+esc(T.p.ean):"sem EAN"}</span></div></div>`:""}
+      ${L ? `<div class="loc"><div class="grow"><div class="eyebrow">Endereço no estoque</div>
+          <div class="loc-code tnum">R${L.r}<span>-</span>L${L.l}<span>-</span><span class="ttag">${L.t}</span>${L.n}<span>.</span>${L.c}</div>
+          <small class="muted-s">${esc(locSelo(L).sm)}</small>${T.ps.length>(T.p?1:0)?`<small class="muted-s" style="display:block">${T.p?"Junto nesta gaveta":"Neste endereço"}: ${T.ps.filter(x=>x!==T.p).map(x=>`<b class="mono">${esc(x.code)}</b> ${esc(x.name)}`).join(" · ")}</small>`:""}</div></div>
+        ${mapCardHTML({loc:L}, null)}`
+      : `<div class="loc noloc"><div class="grow"><div class="eyebrow">Endereço no estoque</div><div class="loc-code">Sem endereço cadastrado</div>
+          <div class="noloc-t">Use <b>Vincular produto ao endereço</b> (botão no topo) para gravar onde ele fica.</div></div></div>`}`}
+    </aside></div>`;
+}
+function bindLocalizar(){
+  const q=document.getElementById("lzQ"), list=document.getElementById("lzList");
+  const pick=code=>{ state.lzSel=code; state.lzForce=true; render(); };
+  const bindList=()=>list.querySelectorAll("[data-lz]").forEach(b=>b.onclick=()=>pick(b.dataset.lz));
+  q.oninput=()=>{ state.lzQ=q.value; list.innerHTML=lzListHTML(); bindList(); };
+  q.onkeydown=e=>{ if(e.key!=="Enter") return; e.preventDefault(); const v=q.value.trim().toUpperCase(); if(!v) return;
+    const lc=locFromShort(v) || (parseLoc(v) ? code(parseCode(v)) : null);
+    if(lc && parseLoc(lc)){ state.lzQ=""; state.lzSel="@"+lc; state.lzForce=true; feedback(true); render(); return; }
+    const ms=lzMatches(v), ex=ms.find(p=>p.code===v || p.ean===v);
+    if(ex || ms.length===1){ state.lzQ=v; feedback(true); pick((ex||ms[0]).code); setTimeout(()=>{ const n=document.getElementById("lzQ"); if(n){ n.select(); } },0); return; }
+    if(!ms.length) feedback(false); };
+  bindList();
+  if(!matchMedia("(pointer:coarse)").matches) q.focus();
+  const T=lzTarget(); if(T && T.lc && parseLoc(T.lc)){ bindMapCard({loc:parseCode(T.lc)}, null, state.lzForce); state.lzForce=false; }
 }
 
 /* ---- Vincular produto ao endereço: bipa o produto e a etiqueta do local (em qualquer ordem) ---- */
