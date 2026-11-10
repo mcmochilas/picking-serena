@@ -633,6 +633,11 @@ select.tin{width:auto}
 .lzopt span{color:var(--muted);font-size:14px}.lzopt.hi,.lzopt:hover{background:var(--accent-soft)}.lzopt.none{color:var(--muted);cursor:default}
 .lzpanel{display:flex;flex-direction:column;gap:12px;border:2px solid var(--accent);border-radius:14px;padding:14px;margin:4px 0 6px;background:color-mix(in srgb,var(--accent) 5%,var(--surface))}
 .lzhead{display:flex;justify-content:space-between;align-items:center}
+.ptab .pm{display:none}.pmodal .pmf{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;margin-top:8px}.pmodal .pmf .tin{font-size:16px}.pmst{margin-top:6px}
+@media (max-width:760px){.prodcsv,.newprod{display:none!important}
+  .ptab thead th:nth-child(n+3),.ptab tbody td:nth-child(n+3){display:none}
+  .ptab tbody tr[data-row]{cursor:pointer}.ptab tbody tr[data-row]:active{background:var(--accent-soft)}
+  .ptab .pm{display:block;font-size:12px;color:var(--muted);font-family:var(--mono);margin-top:2px}}
 .lzbody{display:flex;flex-direction:column;gap:12px}.lzinfo{display:flex;flex-direction:column;gap:12px;min-width:0}
 @media (min-width:900px){.lzbody{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,440px);align-items:start;gap:18px}}.lzpanel .map-card{margin-top:0}.lzpanel .loc{margin:0}
 .lzgav .eyebrow{margin-bottom:6px}.lztab{width:100%;border-collapse:collapse;font-size:14px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
@@ -4600,7 +4605,7 @@ function produtosHTML(){
   const list=all.filter(p=>(!q || p.code.includes(q) || p.name.toUpperCase().includes(q) || (p.ean||"").includes(q)) && (f==="todos" || (f==="sem-ean"&&!p.ean) || (f==="sem-end"&&!p.loc)));
   const pg=pageOf(list, "prod", 50);
   return `<section class="panel" style="margin-top:14px">
-    ${csvPanelHTML()}
+    <div class="prodcsv">${csvPanelHTML()}</div>
     <form class="newprod" id="newprod" autocomplete="off">
       <h3 style="grid-column:1/-1">Novo produto</h3>
       <input class="tin" id="np-code" placeholder="Código" required>
@@ -4618,10 +4623,10 @@ function produtosHTML(){
     ${lzResultHTML()}
     <p class="hint">Para ver onde está um produto: digite e escolha na sugestão, ou bipe o EAN, o código ou a etiqueta do endereço. Para cadastrar o EAN: clique no campo do produto, bipe a embalagem com o leitor (ele digita e dá Enter) e o cadastro é salvo na hora.</p>
     ${pg.top}${pg.pager.replace('class="pager"','class="pager top"')}
-    <div class="tablewrap"><table class="items">
+    <div class="tablewrap"><table class="items ptab">
       <thead><tr><th>Cód.</th><th>Descrição</th><th>EAN</th><th>Situação</th><th>Endereço</th><th></th></tr></thead>
       <tbody>${pg.items.map(p=>{ const st=eanState(p.ean); return `<tr data-row="${esc(p.code)}">
-        <td class="code">${esc(p.code)}</td><td class="desc">${esc(p.name)}</td>
+        <td class="code">${esc(p.code)}</td><td class="desc">${esc(p.name)}<small class="pm">${p.ean?"EAN "+esc(p.ean):"sem EAN"}${p.loc?" · "+esc(p.loc):""}</small></td>
         <td><input class="tin mono sm" data-ean="${esc(p.code)}" value="${esc(p.ean||"")}" placeholder="bipe o EAN" inputmode="numeric" aria-label="EAN de ${esc(p.code)}"></td>
         <td><span class="chip ${st.c==="bad"?"bad":st.c}">${st.t}</span></td>
         <td><input class="tin mono sm" data-loc="${esc(p.code)}" value="${esc(p.loc||"")}" placeholder="R1-LB-BIN-8.M" aria-label="Endereço de ${esc(p.code)}" style="width:110px"></td>
@@ -4636,6 +4641,29 @@ function validateProduct(p){
     if(!parseLoc(p.loc)) return `O local ${p.loc} não está cadastrado. Crie a estrutura em Locais → Endereços.`;
     const occ=locBlocker(p.loc, p.code); if(occ) return `O local ${p.loc} já está ocupado pelo produto ${occ.code}. Libere em Endereços primeiro (só gaveta aceita mais de um produto).`; }
   return "";
+}
+const prodMobile = () => matchMedia("(max-width:760px)").matches;
+function openProdModal(codeV){
+  const p=PRODUCTS[codeV]; if(!p) return;
+  const ov=document.createElement("div"); ov.className="modal";
+  const draw=(err="")=>{ const st=eanState(p.ean);
+    ov.innerHTML=`<div class="mbox pmodal" role="dialog" aria-modal="true" aria-label="Produto ${esc(p.code)}">
+      <div class="eyebrow">Produto</div><h2 style="margin:2px 0 0"><span class="mono">${esc(p.code)}</span></h2><p style="margin:2px 0 10px">${esc(p.name)}</p>
+      <label class="pmf">EAN<input class="tin mono" id="pmEan" value="${esc(p.ean||"")}" placeholder="bipe ou digite o EAN" inputmode="numeric" autocomplete="off"></label>
+      <div class="pmst"><span class="chip ${st.c==="bad"?"bad":st.c}">${st.t}</span></div>
+      <label class="pmf">Endereço<input class="tin mono" id="pmLoc" value="${esc(p.loc||"")}" placeholder="ex.: R1-LA-GAV-2.C" autocomplete="off" autocapitalize="characters"></label>
+      ${err?`<div class="err">${esc(err)}</div>`:""}
+      ${p.loc?`<button class="btn ghost sm" id="pmMap" style="margin-top:6px">Ver no mapa</button>`:""}
+      <div class="mact"><button class="btn ghost" id="pmClose">Fechar</button><button class="btn primary" id="pmSave">Salvar</button></div></div>`;
+    const close=()=>{ ov.remove(); render(); };
+    ov.querySelector("#pmClose").onclick=close; ov.onclick=e=>{ if(e.target===ov) close(); };
+    const mp=ov.querySelector("#pmMap"); if(mp) mp.onclick=()=>{ ov.remove(); state.lzSel=p.code; state.lzForce=true; render(); requestAnimationFrame(()=>document.getElementById("lzRes")?.scrollIntoView({behavior:"smooth", block:"start"})); };
+    const save=()=>{ const np={...p, ean:(ov.querySelector("#pmEan").value||"").replace(/\D/g,""), loc:normLoc(ov.querySelector("#pmLoc").value)}; const er=validateProduct(np);
+      if(er){ Object.assign(p,{}); return draw(er); } saveProduct(np); toast(`Produto ${p.code} salvo`); ov.remove(); render(); };
+    ov.querySelector("#pmSave").onclick=save;
+    ov.querySelectorAll("#pmEan,#pmLoc").forEach(i=>i.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); if(i.id==="pmEan") ov.querySelector("#pmLoc").focus(); else save(); } });
+  };
+  document.body.appendChild(ov); scanbar.hidden=true; draw();
 }
 function saveRow(codeV){
   const p=PRODUCTS[codeV]; if(!p) return;
@@ -4654,6 +4682,8 @@ function bindProdutos(){
   const T=lzTarget(); if(T && T.lc && parseLoc(T.lc)){ bindMapCard({loc:parseCode(T.lc)}, null, state.lzForce); state.lzForce=false; }
   app.querySelectorAll("[data-pf]").forEach(b=>b.onclick=()=>{ state.prodF=b.dataset.pf; resetPage("prod"); render(); });
   app.querySelectorAll("[data-save]").forEach(b=>b.onclick=()=>saveRow(b.dataset.save));
+  // celular: a lista mostra só código e descrição; tocar no produto abre a janela com EAN, endereço, Salvar e Fechar
+  app.querySelectorAll(".ptab tr[data-row]").forEach(tr=>tr.onclick=e=>{ if(!prodMobile() || e.target.closest("input,button")) return; openProdModal(tr.dataset.row); });
   app.querySelectorAll("[data-ean],[data-loc]").forEach(inp=>inp.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); saveRow(inp.dataset.ean||inp.dataset.loc); } });
   document.getElementById("newprod").onsubmit=e=>{
     e.preventDefault();
