@@ -3193,7 +3193,9 @@ const NAV_ICO={ L:`<svg viewBox="0 0 24 24" width="30" height="30" fill="none" s
   S:`<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V5"/><path d="M7 10l5-5 5 5"/></svg>`,
   P:`<svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>` };
 /* nível do endereço = fileira de caixas bin: níveis 1..binStack na 2ª prateleira, os seguintes na 3ª, e assim por diante */
-function binLevel(n){ const st=Math.max(1,CONFIG.binStack||5), k=Math.max(1,n||1)-1; return {shelf:2+Math.floor(k/st), pos:k%st+1, st}; }
+/* caixas bin empilhadas em cada prateleira, de baixo para cima (a 1ª prateleira, de reposição, não conta). Padrão: 6 na 2ª e 4 na 3ª */
+const binStacks = () => { const a=(CONFIG.binStacks||[]).map(x=>Math.max(1,Math.min(12,+x||0))).filter(Boolean); return a.length ? a : (CONFIG.binStack ? Array(Math.max(1,CONFIG.binShelves||2)).fill(CONFIG.binStack) : [6,4]); };
+function binLevel(n){ const S=binStacks(); let k=Math.max(1,n||1), i=0; while(true){ const st=S[Math.min(i,S.length-1)]; if(k<=st) return {shelf:2+i, pos:k, st}; k-=st; i++; } }
 const ordinal = n => n+"ª";
 function navHTML(item){ const l=item.loc, sl=locSelo(l);
   return `<div class="nav3d" id="nav3d"><canvas id="navcv" aria-hidden="true"></canvas>
@@ -3231,9 +3233,9 @@ function navScene(box, item, prevItem, force, run){
   const ft=navFloorTex(T); ft.repeat.set((X(M.W)+8)/1.2, (Z(M.H)+8)/1.2);
   const fl=new T.Mesh(new T.PlaneGeometry(X(M.W)+8, Z(M.H)+8), mat(0xffffff,{map:ft})); fl.rotation.x=-Math.PI/2; fl.position.set(X(M.W/2),0,Z(M.H/2)); scene.add(fl);
   // estrutura porta-pallet com caixas bin (instâncias para ficar leve no celular)
-  const BH=.15, BW=.27, st=Math.max(1,CONFIG.binStack||5), bl=binLevel(l.n), nSh=Math.max(CONFIG.binShelves||2, bl.shelf-1);
-  const shY=[.1]; for(let i=0;i<nSh;i++) shY.push((i?shY[i]:.5)+(i?st*BH+.14:0)); // 1ª prateleira (reposição) + prateleiras de bin
-  const HR=shY[shY.length-1]+st*BH+.18;
+  const BH=.15, BW=.27, STK=binStacks(), bl=binLevel(l.n), nSh=Math.max(STK.length, bl.shelf-1), stk=i=>STK[Math.min(i,STK.length-1)];
+  const shY=[.1]; for(let i=0;i<nSh;i++) shY.push(i ? shY[i]+stk(i-1)*BH+.14 : .5); // 1ª prateleira (reposição) + prateleiras de bin (altura conforme as caixas de cada uma)
+  const HR=shY[shY.length-1]+stk(nSh-1)*BH+.18;
   const SIDES={}; [1,2,3,4].forEach(r=>["A","B"].forEach(ld=>{ if(r===4 && ld==="B") return; const L=sideLayout(r,ld); if(L) SIDES[r+ld]=L; }));
   // estante em pé k: o lado +x é o lado A da rua k, o lado -x é o lado B da rua k-1 (a estante 1 encosta na parede)
   const racks=[M.H2, M.small, M.H1, ...[1,2,3,4].map(k=>{ const pa=!!SIDES[k+"A"], pb=k===1 || !!SIDES[(k-1)+"B"]; return {x:M.vx(k),y:M.vTop,w:M.rackW,h:M.vBot-M.vTop, k, skip:{1:pa,"-1":!!SIDES[(k-1)+"B"]}, hide:pa&&pb}; })];
@@ -3249,7 +3251,7 @@ function navScene(box, item, prevItem, force, run){
     { const n=Math.floor(L/.55); for(let j=0;j<n;j++){ if((j*5)%7===3) continue; const a=-L/2+(j+.5)*L/n; push(box2,...P(a,0,shY[0]+.08+.17),...S3(.48,.34,D-.12)); } }
     // prateleiras de bin: colunas de caixas empilhadas (frente para os dois corredores)
     for(let k=1;k<shY.length;k++){ const y0=shY[k]+.075, n=Math.floor(L/(BW+.03));
-      for(let j=0;j<n;j++){ const a=-L/2+(j+.5)*L/n; [-1,1].forEach(sd=>{ if(r.skip && r.skip[sd]) return; const hgt = st - ((j*7+k*3+(sd>0?2:0))%9===0 ? 1 : 0);
+      for(let j=0;j<n;j++){ const a=-L/2+(j+.5)*L/n; [-1,1].forEach(sd=>{ if(r.skip && r.skip[sd]) return; const hgt = stk(k-1) - ((j*7+k*3+(sd>0?2:0))%9===0 ? 1 : 0);
         for(let q=0;q<hgt;q++) push(bin,...P(a,sd*(D/4+.02),y0+q*BH+BH/2),...S3(BW,BH-.012,D/2-.12)); }); } }
     [-1,1].forEach(sd=>push(tape,...P(0,sd*(D/2+.04),.004),...S3(L+.1,.004,.05)));
   });
@@ -3674,7 +3676,7 @@ const ICON_SCAN = `<svg width="30" height="30" viewBox="0 0 24 24" fill="none" s
 const cur = () => { const o=ORDERS.find(x=>x.id===state.oid); if(!o) return null; const pl=pickList(o); return {o, r:res(o), pl, it:pl[state.idx]}; };
 const scanCode = it => it.ean || it.code;
 const hasTray = o => !!o.tray && o.trayStatus==="separando";
-let CONFIG = {requireLoc:false, useTray:true, binShelves:2, binStack:5}, cfgDoc = null; // configuração da separação
+let CONFIG = {requireLoc:false, useTray:true, binStacks:[6,4]}, cfgDoc = null; // configuração da separação
 /* Venda consultiva · Envio total · Cliente na loja: conferência peça por peça no local, sem bandeja e sem mesa; vai na sacola direto para o vendedor */
 const pickDirect = o => !!o && !isEco(o) && !!o.naLoja && o.mode==="total" && !o.fase2;
 /* E-commerce: o separador bipa a etiqueta do ENDEREÇO (não o produto), confirma a quantidade e leva para a mesa */
@@ -5177,9 +5179,9 @@ function renderUsuarios(){
         <label class="chk"><input type="checkbox" id="cfgTray" ${CONFIG.useTray?"checked":""}> Usar bandeja (bipar no 1º item e desvincular na mesa depois da conferência)</label>
         <p class="hint">Uma bandeja vinculada não pode ser usada em outro pedido até ser desvinculada.</p>
         <h3>Estantes (mapa 3D)</h3>
-        <p class="hint">Cada <b>nível</b> do endereço é uma fileira de caixas bin. A 1ª prateleira (perto do chão) é de caixas de reposição; as caixas bin começam na 2ª. Ex.: com 5 caixas empilhadas, níveis 1–5 ficam na 2ª prateleira e 6–10 na 3ª.</p>
-        <div class="cfgrow"><label>Prateleiras com caixas bin <input class="tin r" type="number" id="cfgBinSh" min="1" max="6" value="${CONFIG.binShelves}"></label>
-        <label>Caixas bin empilhadas por prateleira <input class="tin r" type="number" id="cfgBinSt" min="1" max="10" value="${CONFIG.binStack}"></label></div>
+        <p class="hint">Cada <b>nível</b> do endereço é uma caixa bin, contando de baixo para cima. A 1ª prateleira (perto do chão) é de caixas de reposição e não conta. Informe quantas caixas cabem empilhadas em cada prateleira, de baixo para cima, separadas por vírgula. Ex.: <b>6, 4</b> = níveis 1–6 na 2ª prateleira e 7–10 na 3ª.</p>
+        <div class="cfgrow"><label>Caixas bin por prateleira <input class="tin mono" id="cfgBinStk" value="${esc(binStacks().join(", "))}" placeholder="6, 4" style="width:120px"></label>
+        <span class="hint" id="cfgBinPrev">${binStacks().map((n,i)=>{ const a=binStacks().slice(0,i).reduce((x,y)=>x+y,0); return `${i+2}ª prateleira: níveis ${a+1}–${a+n}`; }).join(" · ")}</span></div>
         <h3>Simular um nível</h3>
         <p class="hint">Veja o sistema como outro nível de acesso, para testar. Só muda a sua tela.</p>
         <div class="filters"><select class="tin" id="viewAs"><option value="">Escolha um nível…</option>${Object.entries(ROLES).filter(([k])=>k!=="admin").map(([k,r])=>`<option value="${k}">${r.t}</option>`).join("")}</select><button class="mini" id="viewAsBtn">Simular</button></div>
@@ -5226,10 +5228,11 @@ function renderUsuarios(){
       b.onclick=()=>{ const role=document.getElementById("newRole").value; saveUser(p.id, {role, roles:[role], active:true, addedAt:Date.now(), addedBy:ME.id||""}, true); toast(`${p.name} adicionado como ${ROLES[role].t}`); };
       hits.appendChild(b); });
   };
-  const binCfg=()=>{ const sh=Math.max(1,Math.min(6,Math.round(+document.getElementById("cfgBinSh").value||2))), st=Math.max(1,Math.min(10,Math.round(+document.getElementById("cfgBinSt").value||5)));
-    CONFIG={...CONFIG, binShelves:sh, binStack:st}; if(cfgDoc) queueWrite("cfg", ()=>cfgDoc.set({useTray:CONFIG.useTray, binShelves:sh, binStack:st})); toast(`Estantes: ${sh} prateleira(s) de bin · ${st} caixas empilhadas`); };
-  document.getElementById("cfgBinSh").onchange=binCfg; document.getElementById("cfgBinSt").onchange=binCfg;
-  document.getElementById("cfgTray").onchange=e=>{ CONFIG={...CONFIG, useTray:e.target.checked}; if(cfgDoc) queueWrite("cfg", ()=>cfgDoc.set({useTray:CONFIG.useTray, binShelves:CONFIG.binShelves, binStack:CONFIG.binStack})); toast(CONFIG.useTray?"Bandeja ligada na separação":"Bandeja desligada na separação"); };
+  const binCfg=()=>{ const a=String(document.getElementById("cfgBinStk").value||"").split(/[^0-9]+/).map(x=>Math.round(+x)).filter(x=>x>=1&&x<=12).slice(0,6);
+    if(!a.length){ toast("Informe as caixas por prateleira, ex.: 6, 4"); return; }
+    CONFIG={...CONFIG, binStacks:a}; if(cfgDoc) queueWrite("cfg", ()=>cfgDoc.set({useTray:CONFIG.useTray, binStacks:a})); toast(`Estantes: ${a.map((n,i)=>`${i+2}ª prateleira ${n} caixas`).join(" · ")}`); render(); };
+  document.getElementById("cfgBinStk").onchange=binCfg;
+  document.getElementById("cfgTray").onchange=e=>{ CONFIG={...CONFIG, useTray:e.target.checked}; if(cfgDoc) queueWrite("cfg", ()=>cfgDoc.set({useTray:CONFIG.useTray, binStacks:binStacks()})); toast(CONFIG.useTray?"Bandeja ligada na separação":"Bandeja desligada na separação"); };
   bindMz(); bindTransp();
   document.getElementById("viewAsBtn").onclick=()=>{ const v=document.getElementById("viewAs").value; if(!v) return; state.viewAs=v; state.sector=allowedSectors()[0]||"expedicao"; state.view="orders"; render(); toast(`Simulando: ${ROLES[v].t}`); };
 }
@@ -6146,7 +6149,7 @@ render();
   if(userCap){ const me = await userCap.me(); ME = {id:me.id, name:me.name, isOwner:me.isOwner, avatarUrl:me.avatarUrl}; }
   if(!db){ synced=false; authReady=true; rerender(); return; }
   cfgDoc = db.doc("config/picking");
-  cfgDoc.onSnapshot(snap=>{ const d=snap.exists?snap.data():null; CONFIG = {requireLoc:false, useTray: d?.useTray ?? true, binShelves: d?.binShelves || 2, binStack: d?.binStack || 5}; rerender(); }, ()=>{ cfgDoc=null; });
+  cfgDoc.onSnapshot(snap=>{ const d=snap.exists?snap.data():null; CONFIG = {requireLoc:false, useTray: d?.useTray ?? true, binStacks: Array.isArray(d?.binStacks) && d.binStacks.length ? d.binStacks : (d?.binStack ? Array(d.binShelves||2).fill(d.binStack) : [6,4])}; rerender(); }, ()=>{ cfgDoc=null; });
   db.doc("config/magazord_sync").onSnapshot(snap=>{ MZSYNC = snap.exists ? JSON.parse(JSON.stringify(snap.data())) : null; if(state.sector==="usuarios") rerender(); }, ()=>{});
   transpDoc = db.doc("config/transportadoras");
   transpDoc.onSnapshot(snap=>{ const l=snap.exists?snap.data()?.list:null; TRANSP = l && typeof l==="object" ? JSON.parse(JSON.stringify(l)) : {}; rerender(); }, ()=>{ transpDoc=null; });
