@@ -8,7 +8,7 @@
 document.documentElement.classList.add("ps-test"); // no teste os botões "Simular leitura (demo)" continuam visíveis
 
 (function(){
-  const KEY = "ps-test-db-v13", UKEY = "ps-test-user";
+  const KEY = "ps-test-db-v14", UKEY = "ps-test-user";
   const mem = {};
   const ls = {
     get(k){ try{ return localStorage.getItem(k); }catch(e){ return mem[k] ?? null; } },
@@ -59,6 +59,14 @@ document.documentElement.classList.add("ps-test"); // no teste os botões "Simul
       {id:"MZ-50004", num:"0012610900004", client:"Paulo Mendes (exemplo)", canal:"ecommerce", origem:"Site", transportadora:"Azul Cargo", mode:"total", status:"aguardando", v2:true, remessa:1, createdAt:now-8*M, items:[it("14410",2)]},
       {id:"MZ-50005", num:"0012610900005", client:"Ana Ribeiro (exemplo)", canal:"ecommerce", origem:"Mercado Livre", transportadora:"Mercado Livre Coletas", mode:"total", status:"pronto_envio", v2:true, remessa:1, createdAt:now-90*M, startedAt:now-70*M, pickedAt:now-68*M, atMesaAt:now-68*M, items:[it("13088",1)], res:[{status:"ok",got:1}]}
     ];
+    // histórico de separações dos últimos 90 dias (para o Mapa de calor): produtos com endereço, uns bem mais pedidos que outros
+    { let seedR=7; const rnd=()=>{ seedR=(seedR*16807)%2147483647; return seedR/2147483647; };
+      const W=[["13088",9],["16120",6],["14410",4],["12045",3],["17333",2],["15002",1]], WT=W.reduce((s,x)=>s+x[1],0);
+      const pick=()=>{ let r=rnd()*WT; for(const [c,w] of W){ if((r-=w)<0) return c; } return W[0][0]; };
+      for(let k=0;k<140;k++){ const t=now-Math.floor(rnd()*90*864e5)-3*60*M, n=1+Math.floor(rnd()*3), cs=[...new Set(Array.from({length:n},pick))];
+        const its=cs.map(c=>it(c,1+Math.floor(rnd()*6)));
+        orders.push({...base, id:"PV-H"+(1000+k), num:String(80000+k), client:"HISTÓRICO "+(k+1)+" (EXEMPLO)", clientCode:"9"+k, obs:"", mode:"total", status:"enviado", canal:"consultiva", transportadora:"Azul Cargo",
+          createdAt:t-20*M, startedAt:t-10*M, pickedAt:t, atMesaAt:t, sentAt:t+60*M, items:its, res:its.map(x=>({status:"ok",got:x.qty}))}); } }
     // pedidos ao fornecedor de exemplo: um atrasado e um no prazo
     const iso = ms => new Date(ms).toISOString().slice(0,10);
     const lateD = iso(now-2*864e5), okD = iso(now+6*864e5);

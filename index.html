@@ -407,6 +407,14 @@ details.cpcard summary{display:flex;justify-content:space-between;align-items:ce
 @keyframes ring{0%{opacity:.9;transform:scale(.6)}100%{opacity:0;transform:scale(2.6)}}
 @keyframes blink{50%{opacity:.55}}
 
+.calorbar{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px}.calorbar label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+.calorbar select{min-width:180px}.calorstats{display:flex;gap:14px;flex-wrap:wrap;margin-left:auto;font-size:13px;color:var(--muted)}.calorstats b{color:var(--ink);font-size:16px}
+.m-heat{stroke:rgba(0,0,0,.35);stroke-width:.6}
+.calorleg{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin:8px 2px 0}.calorleg i{flex:0 1 220px;height:10px;border-radius:6px;background:linear-gradient(90deg,rgb(56,132,255),rgb(0,200,170),rgb(255,214,0),rgb(255,128,0),rgb(230,30,30))}
+.calorgrid{display:grid;gap:16px}.calorgrid .eyebrow:first-child,.calorgrid .calorsem:first-child{margin-top:0 !important}
+@media (min-width:900px){.calorgrid{grid-template-columns:minmax(0,520px) minmax(0,1fr);align-items:start}}
+.calorsem{margin-top:8px}.calortab td.r,.calortab th.r{text-align:right;white-space:nowrap}.calordot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+@media (max-width:600px){.calorstats{margin-left:0}.calorbar select{min-width:0;width:100%}.calorbar label{flex:1 1 140px}}
 .elev{flex:none}
 .e-lvl{fill:var(--floor);stroke:var(--rack);stroke-width:1.5}
 .e-lvl.on{fill:var(--accent);stroke:var(--ink)}
@@ -4365,12 +4373,76 @@ function renderEstoque(){
       <button data-etab="enderecos" aria-pressed="${tab==="enderecos"}">Endereços</button>
       <button data-etab="produtos" aria-pressed="${tab==="produtos"}">Produtos e EAN</button>
       <button data-etab="etiquetas" aria-pressed="${tab==="etiquetas"}">Etiquetas</button>
+      <button data-etab="calor" aria-pressed="${tab==="calor"}">Mapa de calor</button>
     </div>
-    <div id="etab">${tab==="produtos"?produtosHTML():tab==="etiquetas"?etiquetasHTML():enderecosHTML()}</div>`;
+    <div id="etab">${tab==="produtos"?produtosHTML():tab==="etiquetas"?etiquetasHTML():tab==="calor"?calorHTML():enderecosHTML()}</div>`;
   bindNav();
   app.querySelectorAll("[data-etab]").forEach(b=>b.onclick=()=>{ state.etab=b.dataset.etab; render(); });
   document.getElementById("vincGo").onclick=()=>{ state.vinc={p:null, lc:null, log:state.vinc?.log||[]}; state.view="vinc"; render(); scrollTo(0,0); };
-  tab==="produtos" ? bindProdutos() : tab==="etiquetas" ? bindEtiquetas() : bindEnderecos();
+  tab==="produtos" ? bindProdutos() : tab==="etiquetas" ? bindEtiquetas() : tab==="calor" ? bindCalor() : bindEnderecos();
+}
+
+/* ---- Mapa de calor: onde os separadores mais bipam (endereços visitados nas separações), na planta 2D ---- */
+const CALOR_DIAS=[7,15,30,90];
+function calorData(dias, by){
+  const since=Date.now()-dias*864e5, locs={}; let tot=0, sem=0, peds=0;
+  ORDERS.forEach(o=>{
+    const t=+o.pickedAt||0; if(!t || t<since) return;
+    const r=Array.isArray(o.res)?o.res:[]; let any=false;
+    (o.items||[]).forEach((it,i)=>{ const got=+(r[i]?.got)||0; if(got<=0) return; any=true;
+      const v = by==="pecas" ? got : 1; tot+=v;
+      const lc = (isEco(o) && it.loc) ? it.loc : (PRODUCTS[it.code]?.loc || it.loc || "");
+      const L = lc ? parseLoc(lc) : null; if(!L){ sem+=v; return; }
+      const k=String(lc).toUpperCase(); const e=locs[k] ||= {lc:k, L, v:0, codes:new Set()}; e.v+=v; e.codes.add(it.code); });
+    if(any) peds++; });
+  return {locs:Object.values(locs).sort((a,b)=>b.v-a.v), tot, sem, peds};
+}
+function calorColor(f){ // 0 → azul frio, 1 → vermelho quente
+  const st=[[0,[56,132,255]],[.35,[0,200,170]],[.6,[255,214,0]],[.8,[255,128,0]],[1,[230,30,30]]];
+  let a=st[0], b=st[st.length-1]; for(let i=1;i<st.length;i++) if(f<=st[i][0]){ a=st[i-1]; b=st[i]; break; }
+  const k=(f-a[0])/((b[0]-a[0])||1), c=a[1].map((x,j)=>Math.round(x+(b[1][j]-x)*k)); return `rgb(${c.join(",")})`; }
+function calorSVG(D){
+  const M=MAP, cells={};
+  D.locs.forEach(e=>{ const t=mapTarget(e.L); if(!t?.cell) return; const c=t.cell, k=[c.x,c.y,c.w,c.h].map(n=>n.toFixed(1)).join(",");
+    const g=cells[k] ||= {c, x:t.x, y:t.y, v:0, n:[]}; g.v+=e.v; g.n.push(e); });
+  const list=Object.values(cells), max=Math.max(1,...list.map(g=>g.v));
+  const R=(r,cls)=>`<rect class="${cls}" x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" rx="2"/>`;
+  let s=`<svg viewBox="0 0 ${M.W} ${M.H}" role="img" aria-label="Mapa de calor das bipagens no estoque"><defs><filter id="hblur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="7"/></filter></defs>`;
+  s+=`<rect class="m-floor" x="0" y="0" width="${M.W}" height="${M.H}" rx="12"/>`;
+  s+=`<path class="m-wall" d="M8 38 H${M.small.x+M.small.w+4} V${M.vTop+8} H${M.W-8} V${M.H-12} H8 Z"/>`;
+  // brilho do calor por baixo das estantes
+  s+=`<g filter="url(#hblur)" opacity=".75">${list.map(g=>{ const f=g.v/max; return `<circle cx="${g.c.x+g.c.w/2}" cy="${g.c.y+g.c.h/2}" r="${8+16*Math.sqrt(f)}" fill="${calorColor(f)}" opacity="${(.35+.65*f).toFixed(2)}"/>`; }).join("")}</g>`;
+  for(let k=1;k<=4;k++) s+=R({x:M.vx(k),y:M.vTop,w:M.rackW,h:M.vBot-M.vTop},"m-rack");
+  s+=R(M.H1,"m-rack")+R(M.H2,"m-rack")+R(M.small,"m-rack");
+  list.sort((a,b)=>a.v-b.v).forEach(g=>{ const f=g.v/max, tip=g.n.sort((a,b)=>b.v-a.v).map(e=>`${e.lc}: ${e.v}`).join(" · ");
+    s+=`<rect class="m-heat" x="${g.c.x}" y="${g.c.y}" width="${g.c.w}" height="${g.c.h}" rx="2" fill="${calorColor(f)}"><title>${esc(tip)}</title></rect>`; });
+  for(let k=1;k<=4;k++){ const x=M.aisleX(k)+4, y=M.vBot-6; s+=`<text class="m-rua" x="${x}" y="${y}" transform="rotate(-90 ${x} ${y})">RUA ${k}</text>`; }
+  s+=`<text class="m-rua" x="${M.x0+6}" y="${M.ruaA+4}">RUA A</text><text class="m-rua" x="${M.x0+6}" y="${M.ruaB+4}">RUA B</text>`;
+  s+=`<rect class="m-dock" x="${M.mesa.x}" y="${M.mesa.y}" width="${M.mesa.w}" height="${M.mesa.h}" rx="6"/><text class="m-dock-t" x="${M.mesa.x+M.mesa.w/2}" y="${M.mesa.y+18}" text-anchor="middle">MESA DE SEPARAÇÃO</text>`;
+  return s+`</svg>`;
+}
+function calorHTML(){
+  const dias=state.calorDias||30, by=state.calorBy||"visitas", D=calorData(dias, by), un=by==="pecas"?"pç":"bip.";
+  const top=D.locs.slice(0,15), max=Math.max(1,...D.locs.map(e=>e.v)), pct=D.tot?Math.round(D.sem*100/D.tot):0;
+  const prodTxt=e=>[...e.codes].map(c=>PRODUCTS[c]?.name||c).join(" · ");
+  return `<section class="card calor">
+    <div class="calorbar">
+      <label><span>Período</span><select class="tin" id="calorDias">${CALOR_DIAS.map(d=>`<option value="${d}" ${d===dias?"selected":""}>Últimos ${d} dias</option>`).join("")}</select></label>
+      <label><span>Medir por</span><select class="tin" id="calorBy"><option value="visitas" ${by==="visitas"?"selected":""}>Bipagens (cada item separado)</option><option value="pecas" ${by==="pecas"?"selected":""}>Peças separadas</option></select></label>
+      <div class="calorstats tnum"><span><b>${D.peds}</b> pedidos</span><span><b>${D.tot}</b> ${by==="pecas"?"peças":"bipagens"}</span><span><b>${D.locs.length}</b> endereços</span></div>
+    </div>
+    <div class="calorgrid"><div><div class="map-card calormap">${calorSVG(D)}</div>
+    <div class="calorleg"><span>Menos</span><i></i><span>Mais</span></div></div><div>
+    ${D.sem?`<p class="muted-s calorsem">${D.sem} ${by==="pecas"?"peças":"bipagens"} (${pct}%) foram de produtos <b>sem endereço</b> e não aparecem no mapa. Use <b>Vincular produto ao endereço</b> para gravar onde eles ficam.</p>`:""}
+    ${top.length?`<div class="eyebrow" style="margin-top:14px">Endereços mais bipados</div>
+    <table class="lztab calortab"><thead><tr><th>#</th><th>Endereço</th><th>Produto</th><th class="r">${by==="pecas"?"Peças":"Bipagens"}</th></tr></thead><tbody>
+      ${top.map((e,i)=>`<tr><td class="tnum">${i+1}</td><td class="mono">${esc(e.lc)}</td><td>${esc(prodTxt(e))}</td><td class="r tnum"><span class="calordot" style="background:${calorColor(e.v/max)}"></span>${e.v}</td></tr>`).join("")}</tbody></table>`
+    :`<p class="muted-s" style="margin-top:12px">Nenhuma bipagem em endereço cadastrado nos últimos ${dias} dias.</p>`}
+  </div></div></section>`;
+}
+function bindCalor(){
+  const d=document.getElementById("calorDias"); if(d) d.onchange=()=>{ state.calorDias=+d.value; render(); };
+  const b=document.getElementById("calorBy"); if(b) b.onchange=()=>{ state.calorBy=b.value; render(); };
 }
 
 /* ---- Localizar produto: bipe (EAN, código ou etiqueta do endereço) ou digite código/descrição; mostra o endereço no mapa 3D ou 2D ---- */
