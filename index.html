@@ -534,7 +534,13 @@ select.tin{width:auto}
 .ruabtn small{color:var(--muted);font-size:11px}
 .ruabtn[aria-pressed="true"]{border-color:var(--ink);background:var(--surface);box-shadow:inset 0 -3px 0 var(--accent)}
 .rackwrap{display:flex;flex-direction:column;gap:14px;overflow-x:auto}
-.rack{display:flex;flex-direction:column;gap:6px;min-width:620px}
+.rack{display:flex;flex-direction:column;gap:6px;min-width:0}
+.rackscroll{overflow-x:auto;container-type:inline-size;scroll-snap-type:x mandatory;scroll-padding-left:48px;-webkit-overflow-scrolling:touch;padding-bottom:4px}
+.rackscroll .rackgrid{--rcw:calc((100cqw - 44px - 12px) / 3);gap:4px}
+.rackscroll .cell{scroll-snap-align:start;min-height:66px;padding:10px 6px;justify-content:center;gap:3px}
+.rackscroll .cell span{font-size:12px}.rackscroll .cell .ty{font-size:11px}.rackscroll .cell b{font-size:16px}.rackscroll .cell i{font-size:13px}
+.rackscroll .rh{font-size:13px;padding:2px 0}
+.rh.lv{position:sticky;left:0;z-index:2;background:var(--surface);box-shadow:4px 0 6px -4px rgba(0,0,0,.18)}
 .rackgrid{display:grid;gap:4px}
 .rh{font-size:10px;color:var(--muted);font-weight:600;display:flex;align-items:center;justify-content:center;letter-spacing:.04em}
 .cell{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:5px 4px;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0}
@@ -4461,13 +4467,14 @@ function enderecosHTML(){
   const nMax = Math.max(0, ...blocksGrid.map(([,b])=>b.n2)), cMax = Math.max(-1, ...blocksGrid.map(([,b])=>colIdx(b.c2)));
   const cellAt = (n,ci) => { const hit = blocksGrid.find(([,b])=>n>=b.n1 && n<=b.n2 && ci>=colIdx(b.c1) && ci<=colIdx(b.c2)); return hit ? hit[1].t : null; };
   const countR = rr => { const all=allLocs().filter(lc=>parseCode(lc).r===rr); return `${all.filter(lc=>used[lc]).length}/${all.length}`; };
-  const grid = nMax ? `<div class="rackgrid" style="grid-template-columns:30px repeat(${cMax+1},minmax(54px,1fr))">
-      <div></div>${Array.from({length:cMax+1},(_,ci)=>`<div class="rh">${colName(ci)}</div>`).join("")}
-      ${Array.from({length:nMax},(_,k)=>{ const n=nMax-k; return `<div class="rh">N${n}</div>`+Array.from({length:cMax+1},(_,ci)=>{
+  // níveis fixos à esquerda; mostra 3 colunas por vez e o resto aparece arrastando para o lado
+  const grid = nMax ? `<div class="rackscroll"><div class="rackgrid" style="grid-template-columns:44px repeat(${cMax+1},${cMax+1>3?"var(--rcw)":"minmax(0,1fr)"})">
+      <div class="rh lv"></div>${Array.from({length:cMax+1},(_,ci)=>`<div class="rh">${colName(ci)}</div>`).join("")}
+      ${Array.from({length:nMax},(_,k)=>{ const n=nMax-k; return `<div class="rh lv">N${n}</div>`+Array.from({length:cMax+1},(_,ci)=>{
         const t=cellAt(n,ci); if(!t) return `<div class="cell void"></div>`;
         const lc=code({r, l:lado, t, n, c:colName(ci)}), p=used[lc];
         return `<button class="cell ${p?"busy":""} ${sel===lc?"sel":""}" data-lc="${lc}" title="${lc}${p?" · "+esc(cnt[lc]>1?Object.values(PRODUCTS).filter(x=>x.loc===lc).map(x=>x.code).join(", "):p.name):""}"><span><em class="ty">${t}</em> ${n}.${colName(ci)}</span>${p?(cnt[lc]>1?`<b>${cnt[lc]} produtos</b>`:`<b>${esc(p.code)}</b>`):`<i>livre</i>`}</button>`; }).join(""); }).join("")}
-    </div>` : `<div class="empty">Nenhum local cadastrado no lado ${lado} da rua R${r}. Crie a estrutura ao lado.</div>`;
+    </div></div>${cMax+1>3?`<div class="hint" style="margin-top:6px">Arraste para o lado para ver as colunas ${colName(3)} a ${colName(cMax)}.</div>`:""}` : `<div class="empty">Nenhum local cadastrado no lado ${lado} da rua R${r}. Crie a estrutura ao lado.</div>`;
   return `<div class="cgrid">
     <section class="panel">
       <div class="filters" style="justify-content:space-between">
@@ -4475,7 +4482,7 @@ function enderecosHTML(){
         <div class="seg">${["A","B"].map(x=>`<button data-lado="${x}" aria-pressed="${x===lado}">Lado ${x}</button>`).join("")}</div>
       </div>
       ${tiposHere.length>1?`<div class="seg" style="align-self:flex-start">${tiposHere.map(t=>`<button data-ltipo="${t}" aria-pressed="${state.locTipo===t}">${({GAV:"Gavetas",COL:"Colmeia",BIN:"Caixas bin"})[t]}</button>`).join("")}</div>`:""}
-      <div class="rackwrap"><div class="rack" style="min-width:${Math.max(320,(cMax+2)*58)}px"><div class="eyebrow">R${r} · lado ${lado} · níveis de baixo (1) para cima, colunas da esquerda (A) para a direita</div>${grid}</div></div>
+      <div class="rackwrap"><div class="rack"><div class="eyebrow">R${r} · lado ${lado} · níveis de baixo (1) para cima, colunas da esquerda (A) para a direita</div>${grid}</div></div>
       ${blocksHere.length?`<div><h3>Estruturas deste lado</h3><div class="qlist" style="margin-top:6px">${blocksHere.map(([id,b])=>{ const locs=blockLocs(b), occ=locs.filter(lc=>used[lc]).length;
         return `<div class="urow" style="border:1px solid var(--line);border-radius:10px"><span class="ttag" style="font-size:12px">${b.t}</span><div class="grow"><b>${LOC_TYPES[b.t]} · níveis ${b.n1}–${b.n2} · colunas ${b.c1}–${b.c2}${b.base==="gav"?` · em cima do gaveteiro ${b.g1||"…"}${b.g2&&b.g2!==b.g1?"–"+b.g2:""}`:b.base==="col"?" · em cima da colmeia":""}</b><small>${locs.length} locais · ${occ} com produto</small></div><button class="mini" data-delblock="${esc(id)}" ${occ?"disabled title=\"Retire os produtos antes de remover\"":""}>Remover</button></div>`; }).join("")}</div></div>`:""}
       <p class="hint">Endereço = Rua-Lado-Tipo-Nível.Coluna, ex.: <b>R1-LB-BIN-8.M</b> (rua 1, lado B, bin, nível 8, coluna M). Tipos: GAV gaveta, COL colmeia, BIN bin.</p>
