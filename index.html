@@ -205,7 +205,7 @@ html.tvmode body{background:var(--bg);color:var(--ink);overflow:hidden}
 @keyframes tvblink{50%{opacity:.35}}
 .tvsound{font-size:.9em;color:var(--ok);font-weight:600}.app.tv .tvtools .refbtn.tvsound{color:var(--ok);border-color:currentColor}
 .tvunlock{position:fixed;left:50%;bottom:3vh;transform:translateX(-50%);z-index:50;background:#B42318;color:#fff;border-radius:18px;padding:1.1em 2em;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.45);cursor:pointer;animation:tvunl 1.6s ease-in-out infinite;max-width:80vw}
-.tvunlock b{display:block;font-size:1.5em}.tvunlock small{display:block;font-size:.95em;opacity:.9;margin-top:.35em}
+.tvlast{display:block;font-size:.72em;opacity:.75;max-width:22em;line-height:1.2;text-align:right}.tvunlock b{display:block;font-size:1.5em}.tvunlock small{display:block;font-size:.95em;opacity:.9;margin-top:.35em}
 @keyframes tvunl{50%{box-shadow:0 0 0 14px rgba(180,35,24,.25),0 12px 40px rgba(0,0,0,.45)}}
 .tvcanais{color:var(--ink);letter-spacing:.04em;margin-left:.3em}
 .tvnone{color:var(--muted);padding:.6em .2em}.tvnone.ok{color:var(--ok);font-weight:600}
@@ -3468,6 +3468,7 @@ function renderTV(){
       <div class="tvclock"><b class="tnum" id="tvClock">${d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</b><small>${d.toLocaleDateString("pt-BR",{weekday:"long", day:"2-digit", month:"long"})}</small></div>
       <div class="tvtools"><div class="sync ${synced?"":"local"}"><i></i>${synced?"Ao vivo":"Sem conexão"}</div>
         ${audioCtx && audioCtx.state==="running" ? `<button class="refbtn tvsound" id="tvTest" title="Toca um aviso de teste com a voz do Cliente na loja">🔊 Som e voz ligados · testar</button>` : `<button class="refbtn" id="tvSound" title="A TV só toca som depois de um toque na tela">🔇 Ativar som</button>`}
+        ${TVV.last?`<small class="tvlast" id="tvLast">${esc(tvLastTxt())}</small>`:`<small class="tvlast" id="tvLast"></small>`}
         ${document.fullscreenElement?"":`<button class="refbtn" id="tvFull">Tela cheia</button>`}
         ${painel?`<button class="refbtn" onclick="psLogout&&psLogout()">Sair</button>`:`<a class="refbtn" href="/#expedicao" id="tvExit">Voltar ao sistema</a>`}</div>
     </header>
@@ -5428,7 +5429,8 @@ function tvVoiceLoad(){
   try{ audioCtx ||= new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return Promise.resolve(false); }
   const names=["atencao","aguarda","ligado","d0","d1","d2","d3","d4","d5","d6","d7","d8","d9"];
   TVV.p = Promise.all(names.map(n=>fetch(TV_TTS+n+".mp3").then(r=>{ if(!r.ok) throw new Error(n); return r.arrayBuffer(); })
-      .then(a=>new Promise((ok,ko)=>audioCtx.decodeAudioData(a,ok,ko))).then(b=>[n,tvTrim(b)])))
+      .then(a=>new Promise((ok,ko)=>audioCtx.decodeAudioData(a,ok,ko))).then(b=>[n,tvTrim(b)])));
+  TVV.p = Promise.race([TVV.p, new Promise((_,ko)=>setTimeout(()=>ko(new Error("tempo esgotado")),15000))]) // não fica preso se a rede travar; tenta de novo no próximo aviso
     .then(l=>{ TVV.buf=Object.fromEntries(l); return true; })
     .catch(e=>{ console.warn("Voz gravada da TV não carregou; usando a voz do navegador", e); TVV.p=null; return false; });
   return TVV.p;
@@ -5440,12 +5442,25 @@ function tvPlay(parts){ // [[trecho, pausa depois (s)], ...] em sequência, sem 
 }
 async function tvAnnounce(num){
   const dg=String(num||"").replace(/\D/g,"").split("");
-  if(await tvVoiceLoad() && audioCtx.state==="running"){
-    tvPlay([["atencao",.22], ...dg.map((d,i)=>["d"+d, i<dg.length-1?.05:.35]), ["aguarda",0]]); return; }
-  tvSay(`Atenção. Pedido ${tvDigits(num)}. Cliente aguarda na loja para retirada.`);
+  /* o som pode ter sido suspenso pelo navegador/TV (descanso de tela, aba em segundo plano): tenta religar antes de falar */
+  try{ if(audioCtx && audioCtx.state!=="running") await Promise.race([audioCtx.resume(), new Promise(ok=>setTimeout(ok,800))]); }catch(e){}
+  /* não espera para sempre pelos arquivos de voz (rede lenta ou TV que não decodifica): em 4 s usa a voz do navegador */
+  const ok = await Promise.race([tvVoiceLoad(), new Promise(r=>setTimeout(()=>r(false),4000))]);
+  const via = ok && audioCtx && audioCtx.state==="running" ? "voz gravada" : window.speechSynthesis ? "voz do navegador" : "sem voz (som bloqueado)";
+  TVV.last = {num, at:Date.now(), via};
+  if(via==="voz gravada"){ tvPlay([["atencao",.22], ...dg.map((d,i)=>["d"+d, i<dg.length-1?.05:.35]), ["aguarda",0]]); }
+  else tvSay(`Atenção. Pedido ${tvDigits(num)}. Cliente aguarda na loja para retirada.`);
+  const el=document.getElementById("tvLast"); if(el) el.textContent=tvLastTxt();
 }
+const tvLastTxt = () => TVV.last ? `Último aviso de voz: #${TVV.last.num} às ${new Date(TVV.last.at).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})} · ${TVV.last.via}` : "";
+let tvLastSync=Date.now(), tvAudioSeen="";
 function tvAnnounceTick(){
   if(!(state.view==="tv" || myRole()==="painel")) return;
+  /* o navegador da TV pode suspender o som depois de um tempo: tenta religar e mostra a faixa vermelha se não conseguir */
+  try{ if(audioCtx && audioCtx.state!=="running") audioCtx.resume().catch(()=>{}); }catch(e){}
+  const as=audioCtx?audioCtx.state:"none"; if(as!==tvAudioSeen){ const was=tvAudioSeen; tvAudioSeen=as; if(was) render(); }
+  /* o tempo real pode cair sem aviso (Wi-Fi da TV, aba parada): busca a fila de novo a cada 1 min para não perder pedido */
+  if(Date.now()-tvLastSync>60000 && window.psRefresh){ tvLastSync=Date.now(); window.psRefresh().then(()=>{ synced=true; checkNewOrders(); render(); tvAnnounceTick(); }).catch(()=>{}); }
   const now=Date.now(), wait=ORDERS.filter(o=>o.status==="aguardando" && naLojaNow(o) && !o.startedBy && pickList(o).length);
   const ids=new Set(wait.map(o=>o.id)); Object.keys(TV_SAID).forEach(k=>{ if(!ids.has(k)) delete TV_SAID[k]; });
   const due=wait.filter(o=>!TV_SAID[o.id] || now-TV_SAID[o.id]>=60000);
