@@ -8,7 +8,7 @@
 document.documentElement.classList.add("ps-test"); // no teste os botões "Simular leitura (demo)" continuam visíveis
 
 (function(){
-  const KEY = "ps-test-db-v12", UKEY = "ps-test-user";
+  const KEY = "ps-test-db-v13", UKEY = "ps-test-user";
   const mem = {};
   const ls = {
     get(k){ try{ return localStorage.getItem(k); }catch(e){ return mem[k] ?? null; } },
@@ -87,7 +87,12 @@ document.documentElement.classList.add("ps-test"); // no teste os botões "Simul
     return {
       orders: Object.fromEntries(orders.map(o=>[o.id,o])),
       products,
-      blocks: Object.fromEntries([[1,"A","BIN"],[1,"B","BIN"],[2,"A","GAV"],[2,"B","COL"],[3,"A","BIN"],[3,"B","BIN"]].map(([r,l,t])=>[`R${r}-L${l}-${t}-1-4-A-F`, {r,l,t,n1:1,n2:4,c1:"A",c2:"F"}])),
+      blocks: Object.assign(Object.fromEntries([[1,"B","BIN"],[2,"A","GAV"],[2,"B","COL"],[3,"A","BIN"],[3,"B","BIN"]].map(([r,l,t])=>[`R${r}-L${l}-${t}-1-4-A-F`, {r,l,t,n1:1,n2:4,c1:"A",c2:"F"}])), {
+        // Rua 1, lado A (parede): 5 gaveteiros de 4 gavetas; colmeia em cima dos gaveteiros D–E; bin 9×9 em cima dos gaveteiros A–C e 6×5 em cima da colmeia
+        "R1-LA-GAV-1-4-A-E": {r:1,l:"A",t:"GAV",n1:1,n2:4,c1:"A",c2:"E"},
+        "R1-LA-COL-1-3-A-H": {r:1,l:"A",t:"COL",n1:1,n2:3,c1:"A",c2:"H",base:"gav",g1:"D",g2:"E"},
+        "R1-LA-BIN-1-9-A-I": {r:1,l:"A",t:"BIN",n1:1,n2:9,c1:"A",c2:"I",base:"gav",g1:"A",g2:"C"},
+        "R1-LA-BIN-1-5-J-O": {r:1,l:"A",t:"BIN",n1:1,n2:5,c1:"J",c2:"O",base:"col"} }),
       purchases,
       invoices,
       users,

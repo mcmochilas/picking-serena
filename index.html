@@ -4117,8 +4117,12 @@ function enderecosHTML(){
   const r = state.rua, lado = state.lado || "A", sel = state.selLoc;
   const used = {}, cnt = {}; Object.values(PRODUCTS).forEach(p=>{ if(p.loc){ used[p.loc] ||= p; cnt[p.loc]=(cnt[p.loc]||0)+1; } });
   const blocksHere = Object.entries(BLOCKS).filter(([,b])=>b.r===r && b.l===lado);
-  const nMax = Math.max(0, ...blocksHere.map(([,b])=>b.n2)), cMax = Math.max(-1, ...blocksHere.map(([,b])=>colIdx(b.c2)));
-  const cellAt = (n,ci) => { const hit = blocksHere.find(([,b])=>n>=b.n1 && n<=b.n2 && ci>=colIdx(b.c1) && ci<=colIdx(b.c2)); return hit ? hit[1].t : null; };
+  // um lado pode ter gaveteiro, colmeia e bin ao mesmo tempo (ex.: R1 lado A): a grade mostra um tipo de cada vez
+  const tiposHere = ["GAV","COL","BIN"].filter(t=>blocksHere.some(([,b])=>b.t===t));
+  if(!tiposHere.includes(state.locTipo)) state.locTipo = tiposHere[0];
+  const blocksGrid = tiposHere.length>1 ? blocksHere.filter(([,b])=>b.t===state.locTipo) : blocksHere;
+  const nMax = Math.max(0, ...blocksGrid.map(([,b])=>b.n2)), cMax = Math.max(-1, ...blocksGrid.map(([,b])=>colIdx(b.c2)));
+  const cellAt = (n,ci) => { const hit = blocksGrid.find(([,b])=>n>=b.n1 && n<=b.n2 && ci>=colIdx(b.c1) && ci<=colIdx(b.c2)); return hit ? hit[1].t : null; };
   const countR = rr => { const all=allLocs().filter(lc=>parseCode(lc).r===rr); return `${all.filter(lc=>used[lc]).length}/${all.length}`; };
   const grid = nMax ? `<div class="rackgrid" style="grid-template-columns:30px repeat(${cMax+1},minmax(54px,1fr))">
       <div></div>${Array.from({length:cMax+1},(_,ci)=>`<div class="rh">${colName(ci)}</div>`).join("")}
@@ -4133,9 +4137,10 @@ function enderecosHTML(){
         <div class="ruas" style="grid-template-columns:repeat(${Math.max(1,Math.min(6,rs.length))},minmax(90px,1fr));flex:1">${rs.map(x=>`<button class="ruabtn" data-rua="${x}" aria-pressed="${x===r}"><b>Rua R${x}</b><small class="tnum">${countR(x)} ocupados</small></button>`).join("") || `<div class="empty">Nenhuma rua cadastrada.</div>`}</div>
         <div class="seg">${["A","B"].map(x=>`<button data-lado="${x}" aria-pressed="${x===lado}">Lado ${x}</button>`).join("")}</div>
       </div>
+      ${tiposHere.length>1?`<div class="seg" style="align-self:flex-start">${tiposHere.map(t=>`<button data-ltipo="${t}" aria-pressed="${state.locTipo===t}">${({GAV:"Gavetas",COL:"Colmeia",BIN:"Caixas bin"})[t]}</button>`).join("")}</div>`:""}
       <div class="rackwrap"><div class="rack" style="min-width:${Math.max(320,(cMax+2)*58)}px"><div class="eyebrow">R${r} · lado ${lado} · níveis de baixo (1) para cima, colunas da esquerda (A) para a direita</div>${grid}</div></div>
       ${blocksHere.length?`<div><h3>Estruturas deste lado</h3><div class="qlist" style="margin-top:6px">${blocksHere.map(([id,b])=>{ const locs=blockLocs(b), occ=locs.filter(lc=>used[lc]).length;
-        return `<div class="urow" style="border:1px solid var(--line);border-radius:10px"><span class="ttag" style="font-size:12px">${b.t}</span><div class="grow"><b>${LOC_TYPES[b.t]} · níveis ${b.n1}–${b.n2} · colunas ${b.c1}–${b.c2}</b><small>${locs.length} locais · ${occ} com produto</small></div><button class="mini" data-delblock="${esc(id)}" ${occ?"disabled title=\"Retire os produtos antes de remover\"":""}>Remover</button></div>`; }).join("")}</div></div>`:""}
+        return `<div class="urow" style="border:1px solid var(--line);border-radius:10px"><span class="ttag" style="font-size:12px">${b.t}</span><div class="grow"><b>${LOC_TYPES[b.t]} · níveis ${b.n1}–${b.n2} · colunas ${b.c1}–${b.c2}${b.base==="gav"?` · em cima do gaveteiro ${b.g1||"…"}${b.g2&&b.g2!==b.g1?"–"+b.g2:""}`:b.base==="col"?" · em cima da colmeia":""}</b><small>${locs.length} locais · ${occ} com produto</small></div><button class="mini" data-delblock="${esc(id)}" ${occ?"disabled title=\"Retire os produtos antes de remover\"":""}>Remover</button></div>`; }).join("")}</div></div>`:""}
       <p class="hint">Endereço = Rua-Lado-Tipo-Nível.Coluna, ex.: <b>R1-LB-BIN-8.M</b> (rua 1, lado B, bin, nível 8, coluna M). Tipos: GAV gaveta, COL colmeia, BIN bin.</p>
     </section>
     <aside class="panel" id="locpanel">${state.selLoc && parseLoc(state.selLoc) ? locPanelHTML() : blockFormHTML()}</aside>
@@ -4154,6 +4159,8 @@ function blockFormHTML(){
       <label>até<input class="tin mono" id="bf-n2" type="number" min="1" max="99" value="${f.n2}"></label>
       <label>Coluna de<input class="tin mono" id="bf-c1" maxlength="2" value="${esc(f.c1)}"></label>
       <label>até<input class="tin mono" id="bf-c2" maxlength="2" value="${esc(f.c2)}"></label>
+      ${f.t!=="GAV"?`<label style="grid-column:1/-1">Fica em cima de<select class="tin" id="bf-base">${[["","Nada (porta-pallet / estante)"],["gav","Gaveteiro"],["col","Colmeia"]].filter(([k])=>!(f.t==="COL"&&k==="col")).map(([k,t])=>`<option value="${k}" ${(f.base||"")===k?"selected":""}>${t}</option>`).join("")}</select></label>
+      ${f.base==="gav"?`<label>Do gaveteiro<input class="tin mono" id="bf-g1" maxlength="2" value="${esc(f.g1||"A")}"></label><label>até o gaveteiro<input class="tin mono" id="bf-g2" maxlength="2" value="${esc(f.g2||f.g1||"A")}"></label>`:""}`:""}
     </form>
     <div class="${prev.err?"err":"warn"}" id="bf-prev">${esc(prev.err || `${prev.count} locais: de ${prev.first} até ${prev.last}`)}</div>
     <div><button class="btn dark" id="bf-go" ${prev.err?"disabled":""}>Criar locais</button></div>
@@ -4161,12 +4168,14 @@ function blockFormHTML(){
 }
 function blockPreview(f){
   const b = {r:ruaKey(f.r), l:String(f.l).toUpperCase(), t:f.t, n1:+f.n1, n2:+f.n2, c1:String(f.c1||"").toUpperCase(), c2:String(f.c2||"").toUpperCase()};
+  if(f.t!=="GAV" && (f.base==="gav" || (f.base==="col" && f.t==="BIN"))){ b.base=f.base; if(f.base==="gav"){ b.g1=String(f.g1||"A").toUpperCase(); b.g2=String(f.g2||f.g1||"A").toUpperCase();
+    if(!/^[A-Z]{1,2}$/.test(b.g1)||!/^[A-Z]{1,2}$/.test(b.g2)||colIdx(b.g2)<colIdx(b.g1)) return {err:"Informe os gaveteiros de baixo (letras, ex.: D até E)."}; } }
   if(b.r===null) return {err:"Informe a rua: número (1 a 99) ou letra (A, B)."};
   if(!(b.n1>=1 && b.n2>=b.n1 && b.n2<=99)) return {err:"Faixa de níveis inválida."};
   if(!/^[A-Z]{1,2}$/.test(b.c1) || !/^[A-Z]{1,2}$/.test(b.c2) || colIdx(b.c2)<colIdx(b.c1)) return {err:"Faixa de colunas inválida (letras, ex.: A até M)."};
   const locs = blockLocs(b);
   if(locs.length>600) return {err:`São ${locs.length} locais de uma vez. Divida em blocos menores (até 600).`};
-  const clash = allLocs().map(parseCode).find(x=>x.r===b.r && x.l===b.l && x.n>=b.n1 && x.n<=b.n2 && x.ci>=colIdx(b.c1) && x.ci<=colIdx(b.c2));
+  const clash = allLocs().map(parseCode).find(x=>x.r===b.r && x.l===b.l && x.t===b.t && x.n>=b.n1 && x.n<=b.n2 && x.ci>=colIdx(b.c1) && x.ci<=colIdx(b.c2));
   if(clash) return {err:`Essa faixa já tem locais cadastrados (ex.: ${code(clash)}).`};
   return {b, count:locs.length, first:locs[0], last:locs[locs.length-1]};
 }
@@ -4188,6 +4197,7 @@ function locPanelHTML(){
 function bindEnderecos(){
   app.querySelectorAll("[data-rua]").forEach(b=>b.onclick=()=>{ state.rua=ruaKey(b.dataset.rua); state.selLoc=null; state.bf=null; render(); });
   app.querySelectorAll("[data-lado]").forEach(b=>b.onclick=()=>{ state.lado=b.dataset.lado; state.selLoc=null; state.bf=null; render(); });
+  app.querySelectorAll("[data-ltipo]").forEach(b=>b.onclick=()=>{ state.locTipo=b.dataset.ltipo; render(); });
   app.querySelectorAll("[data-lc]").forEach(b=>b.onclick=()=>{ state.selLoc=b.dataset.lc; state.locQ=""; render(); });
   app.querySelectorAll("[data-delblock]").forEach(b=>b.onclick=()=>{
     if(!b.dataset.confirm){ b.dataset.confirm="1"; b.textContent="Confirmar"; b.classList.add("danger"); return; }
@@ -4198,10 +4208,12 @@ function bindEnderecos(){
 function bindBlockForm(){
   const f=state.bf, upd=()=>{ const pv=blockPreview(f), el=document.getElementById("bf-prev"); el.className=pv.err?"err":"warn"; el.textContent=pv.err||`${pv.count} locais: de ${pv.first} até ${pv.last}`; document.getElementById("bf-go").disabled=!!pv.err; };
   [["bf-r","r"],["bf-l","l"],["bf-n1","n1"],["bf-n2","n2"],["bf-c1","c1"],["bf-c2","c2"]].forEach(([id,k])=>{ const el=document.getElementById(id); el.oninput=el.onchange=()=>{ f[k]= /c\d/.test(k)? el.value.toUpperCase() : el.value; upd(); }; });
-  app.querySelectorAll("[data-bft]").forEach(b=>b.onclick=()=>{ f.t=b.dataset.bft; app.querySelectorAll("[data-bft]").forEach(x=>x.setAttribute("aria-pressed", x===b)); upd(); });
+  app.querySelectorAll("[data-bft]").forEach(b=>b.onclick=()=>{ f.t=b.dataset.bft; if(f.t==="GAV") delete f.base; if(f.t==="COL" && f.base==="col") f.base="gav"; render(); });
+  const bb=document.getElementById("bf-base"); if(bb) bb.onchange=()=>{ f.base=bb.value; render(); };
+  [["bf-g1","g1"],["bf-g2","g2"]].forEach(([id,k])=>{ const el=document.getElementById(id); if(el) el.oninput=()=>{ f[k]=el.value.toUpperCase(); upd(); }; });
   document.getElementById("bf-go").onclick=()=>{
     const pv=blockPreview(f); if(pv.err) return toast(pv.err);
-    const id = `R${pv.b.r}-L${pv.b.l}-${pv.b.t}-${pv.b.n1}-${pv.b.n2}-${pv.b.c1}-${pv.b.c2}`;
+    const id = `R${pv.b.r}-L${pv.b.l}-${pv.b.t}-${pv.b.n1}-${pv.b.n2}-${pv.b.c1}-${pv.b.c2}`; // base/g1/g2 (em cima de) vão junto no bloco
     BLOCKS[id]=pv.b; if(blockCol) queueWrite("b:"+id, ()=>blockCol.doc(id).set(pv.b));
     state.rua=pv.b.r; state.lado=pv.b.l; toast(`${pv.count} locais criados (${pv.first} … ${pv.last})`); render();
   };
