@@ -3480,7 +3480,7 @@ function renderTV(){
   const snd=document.getElementById("tvSound"), unl=document.getElementById("tvUnlock");
   [snd,unl].forEach(b=>{ if(b) b.onclick=()=>{ unlockAudio(); setTimeout(render, 300); }; }); // a confirmação "Aviso de voz ligado" toca no unlockAudio
   document.addEventListener("pointerdown", ()=>{ try{ if(window.speechSynthesis && !TVV.buf) speechSynthesis.speak(new SpeechSynthesisUtterance(" ")); }catch(e){} }, {once:true}); // libera também a voz do navegador (reserva)
-  const tst=document.getElementById("tvTest"); if(tst) tst.onclick=()=>{ unlockAudio(); chime(true); setTimeout(()=>tvAnnounce("123"), 1700); };
+  const tst=document.getElementById("tvTest"); if(tst) tst.onclick=()=>{ unlockAudio(); chime(true); setTimeout(()=>tvAnnounce("37526"), 1700); };
   const f=document.getElementById("tvFull"); if(f) f.onclick=()=>{ unlockAudio(); document.documentElement.requestFullscreen?.().then(()=>render()).catch(()=>{}); };
   const ex=document.getElementById("tvExit"); if(ex) ex.onclick=e=>{ e.preventDefault(); history.replaceState(null,"","/#expedicao"); state.view="orders"; state.sector="expedicao"; document.documentElement.classList.remove("tvmode"); render(); };
   // a cada minuto: busca tudo de novo (garante a fila mesmo se o tempo real cair) e redesenha
@@ -5384,7 +5384,7 @@ function deleteUser(id){ delete USERS[id]; if(usersCol) queueWrite("u:"+id, ()=>
 let seenOrders = null, newIds = new Set(), alertQueue = [];
 let SOUND = true; try{ SOUND = localStorage.getItem("ps-sound")!=="0"; }catch(e){}
 const unlockAudio = () => { try{ audioCtx ||= new (window.AudioContext||window.webkitAudioContext)(); if(audioCtx.state==="running") return;
-  const p=audioCtx.resume?.(); if(p && p.then) p.then(()=>{ if(audioCtx.state==="running" && (state.view==="tv" || myRole()==="painel")){ tvVoiceLoad().then(ok=>{ if(ok) tvPlay([["ligado",0]]); else tvSay("Aviso de voz ligado."); }); render(); } }, ()=>{}); }catch(e){} };
+  const p=audioCtx.resume?.(); if(p && p.then) p.then(()=>{ if(audioCtx.state==="running" && (state.view==="tv" || myRole()==="painel")){ if(tvHasVoice()) tvSay("Aviso de voz ligado."); else tvVoiceLoad().then(ok=>{ if(ok) tvPlay([["ligado",0]]); }); render(); } }, ()=>{}); }catch(e){} };
 /* qualquer toque/tecla (inclusive o OK do controle da TV) libera o som; não é "once" porque o primeiro toque pode não bastar em alguns navegadores */
 document.addEventListener("pointerdown", unlockAudio); document.addEventListener("keydown", unlockAudio);
 function chime(force){
@@ -5440,16 +5440,32 @@ function tvPlay(parts){ // [[trecho, pausa depois (s)], ...] em sequência, sem 
   parts.forEach(([n,gap])=>{ const b=TVV.buf&&TVV.buf[n]; if(!b) return; const s=c.createBufferSource(); s.buffer=b; s.connect(c.destination); s.start(t); t+=b.duration+(gap||0); });
   TVV.until=t+.6;
 }
+/* Número da pré-venda falado em grupos: 37526 → "trinta e sete, quinhentos e vinte e seis"; 38038 → "trinta e oito, zero trinta e oito"; 90001 → "noventa, zero zero um" */
+const NUM_U=["zero","um","dois","três","quatro","cinco","seis","sete","oito","nove","dez","onze","doze","treze","quatorze","quinze","dezesseis","dezessete","dezoito","dezenove"];
+const NUM_D=["","","vinte","trinta","quarenta","cinquenta","sessenta","setenta","oitenta","noventa"];
+const NUM_C=["","cento","duzentos","trezentos","quatrocentos","quinhentos","seiscentos","setecentos","oitocentos","novecentos"];
+function numWords(n){ n=+n||0; if(n<20) return NUM_U[n]; if(n<100) return NUM_D[Math.floor(n/10)]+(n%10?" e "+NUM_U[n%10]:""); if(n===100) return "cem";
+  if(n<1000) return NUM_C[Math.floor(n/100)]+(n%100?" e "+numWords(n%100):""); return numWords(Math.floor(n/1000))+" mil"+(n%1000?" e "+numWords(n%1000):""); }
+function pvSpoken(num){
+  const s=String(num||"").replace(/\D/g,""); if(!s) return String(num||"");
+  if(s.length<=3) return numWords(+s);
+  const head=s.slice(0,-3), tail=s.slice(-3), z=tail.match(/^0*/)[0].length, rest=+tail;
+  const tw = rest ? [..."zero ".repeat(z).trim().split(" ").filter(Boolean), numWords(rest)].join(" ") : "zero zero zero";
+  return `${numWords(+head)}, ${tw}`;
+}
+/* Aviso falado com a voz do navegador (nativa). Se o aparelho não tiver nenhuma voz, usa a voz gravada dígito por dígito. */
+function tvHasVoice(){ try{ return !!window.speechSynthesis && speechSynthesis.getVoices().length>0; }catch(e){ return false; } }
 async function tvAnnounce(num){
-  const dg=String(num||"").replace(/\D/g,"").split("");
-  /* o som pode ter sido suspenso pelo navegador/TV (descanso de tela, aba em segundo plano): tenta religar antes de falar */
   try{ if(audioCtx && audioCtx.state!=="running") await Promise.race([audioCtx.resume(), new Promise(ok=>setTimeout(ok,800))]); }catch(e){}
-  /* não espera para sempre pelos arquivos de voz (rede lenta ou TV que não decodifica): em 4 s usa a voz do navegador */
-  const ok = await Promise.race([tvVoiceLoad(), new Promise(r=>setTimeout(()=>r(false),4000))]);
-  const via = ok && audioCtx && audioCtx.state==="running" ? "voz gravada" : window.speechSynthesis ? "voz do navegador" : "sem voz (som bloqueado)";
+  let via="voz do navegador";
+  if(tvHasVoice()) tvSay(`Atenção! Pré-venda ${pvSpoken(num)}. Cliente aguarda na loja para retirada.`);
+  else {
+    const ok = await Promise.race([tvVoiceLoad(), new Promise(r=>setTimeout(()=>r(false),4000))]);
+    if(ok && audioCtx && audioCtx.state==="running"){ via="voz gravada (TV sem voz)"; const dg=String(num||"").replace(/\D/g,"").split("");
+      tvPlay([["atencao",.22], ...dg.map((d,i)=>["d"+d, i<dg.length-1?.05:.35]), ["aguarda",0]]); }
+    else { via="sem voz neste aparelho"; tvSay(`Atenção! Pré-venda ${pvSpoken(num)}. Cliente aguarda na loja para retirada.`); }
+  }
   TVV.last = {num, at:Date.now(), via};
-  if(via==="voz gravada"){ tvPlay([["atencao",.22], ...dg.map((d,i)=>["d"+d, i<dg.length-1?.05:.35]), ["aguarda",0]]); }
-  else tvSay(`Atenção. Pedido ${tvDigits(num)}. Cliente aguarda na loja para retirada.`);
   const el=document.getElementById("tvLast"); if(el) el.textContent=tvLastTxt();
 }
 const tvLastTxt = () => TVV.last ? `Último aviso de voz: #${TVV.last.num} às ${new Date(TVV.last.at).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})} · ${TVV.last.via}` : "";
