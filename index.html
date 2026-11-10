@@ -1026,6 +1026,10 @@ const colIdx = c => c.length===1 ? c.charCodeAt(0)-65 : (c.charCodeAt(0)-64)*26 
 const colName = i => i<26 ? String.fromCharCode(65+i) : String.fromCharCode(64+Math.floor(i/26)) + String.fromCharCode(65+i%26);
 /* Rua: número (R1…R99) ou letra (RA, RB — ruas do fundo do estoque) */
 const LOC_RE = /^R(\d{1,2}|[A-Z])-L([A-Z])-(GAV|COL|BIN)-(\d{1,2})\.([A-Z]{1,2})$/;
+/* Código curto do endereço, usado no código de barras da etiqueta "Só endereço" (menos barras, mais largas):
+   rua + lado + 1ª letra do tipo + nível + coluna. Ex.: R1-LA-BIN-1.A → 1AB1A. Na leitura vira o código completo. */
+const LOC_SHORT_RE = /^(\d{1,2}|[A-Z])([A-Z])([GCB])(\d{1,2})([A-Z]{1,2})$/;
+const locFromShort = v => { const m=String(v||"").toUpperCase().match(LOC_SHORT_RE); return m ? `R${m[1]}-L${m[2]}-${({G:"GAV",C:"COL",B:"BIN"})[m[3]]}-${+m[4]}.${m[5]}` : null; };
 const ruaKey = v => { const s=String(v??"").trim().toUpperCase().replace(/^R/,""); return /^\d{1,2}$/.test(s) && +s>=1 ? +s : /^[A-Z]$/.test(s) ? s : null; };
 const ruaSort = (a,b) => (typeof a==="number"?0:1)-(typeof b==="number"?0:1) || (typeof a==="number" ? a-b : String(a).localeCompare(String(b)));
 function parseCode(s){ const m=String(s||"").toUpperCase().match(LOC_RE); return m ? {r:ruaKey(m[1]), l:m[2], t:m[3], n:+m[4], c:m[5], ci:colIdx(m[5])} : null; }
@@ -3650,7 +3654,7 @@ function qtyKey(delta){ if(state.view!=="pick" || state.phase!=="qty") return fa
 function focusScan(){ if(document.querySelector(".modal") || window.LUCAS_OPEN) return; if((SCAN_VIEWS.includes(state.view) || state.sector==="recebimento") && document.activeElement!==scanIn) try{ scanIn.focus({preventScroll:true}); }catch(e){} }
 
 function handleScan(raw){
-  const v = normSpot(String(raw||"").trim().toUpperCase().replace(/\s+/g,""));
+  const v0 = normSpot(String(raw||"").trim().toUpperCase().replace(/\s+/g,"")), v = locFromShort(v0) || v0; // etiqueta "Só endereço" (código curto) vira o endereço completo
   if(state.view==="pick" && state.phase==="qty"){
     const ok=document.getElementById("okQty");
     if(!v && ok){ ok.click(); return; }
@@ -3663,7 +3667,7 @@ function handleScan(raw){
   if(state.view==="unstore") return scanUnstore(v);
   if(state.view==="hvout") return scanHvOut(v);
   if(state.view==="hvloc" || state.view==="hvmove") return scanHvPlace(v);
-  if(state.view==="vinc") return scanVinc(String(raw||"").trim().toUpperCase().replace(/\s+/g,""));
+  if(state.view==="vinc"){ const r=String(raw||"").trim().toUpperCase().replace(/\s+/g,""); return scanVinc(locFromShort(r) || r); }
   if(onHiveTab()) return scanHiveLookup(v);
   if(state.view==="adjust") return scanAdjust(v);
   if(state.sector==="recebimento") return scanReceb(String(raw||"").trim());
@@ -4404,7 +4408,7 @@ function drawLocLabel(doc, x, y, l, bc){ // 100 × 50 mm
 }
 function locLabels(list){ return list.map(locLabelData); }
 /* Etiqueta "só endereço": código de barras com o código do local (ex.: R1-LA-GAV-1.A), para vincular o produto bipando o produto e depois o local */
-function locSoloData(lc){ const l=parseLoc(lc)||parseCode(lc); return {kind:"solo", lc, type:l.t, head:`R${l.r}-L${l.l}-${l.t}`, pos:`${l.n}.${l.c}`, value:lc, bcf:"CODE128"}; }
+function locSoloData(lc){ const l=parseLoc(lc)||parseCode(lc); return {kind:"solo", lc, type:l.t, head:`R${l.r}-L${l.l}-${l.t}`, pos:`${l.n}.${l.c}`, value:`${l.r}${l.l}${l.t[0]}${l.n}${l.c}`, bcf:"CODE128"}; }
 function locSoloHTML(d){
   return `<div class="soloLabel" role="img" aria-label="Etiqueta só do endereço ${d.lc}">
     <div class="sl-bc"><svg class="bc-loc" data-v="${esc(d.value)}" data-f="CODE128"></svg></div>
