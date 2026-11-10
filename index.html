@@ -633,7 +633,8 @@ select.tin{width:auto}
 .lzopt span{color:var(--muted);font-size:14px}.lzopt.hi,.lzopt:hover{background:var(--accent-soft)}.lzopt.none{color:var(--muted);cursor:default}
 .lzpanel{display:flex;flex-direction:column;gap:12px;border:2px solid var(--accent);border-radius:14px;padding:14px;margin:4px 0 6px;background:color-mix(in srgb,var(--accent) 5%,var(--surface))}
 .lzhead{display:flex;justify-content:space-between;align-items:center}
-.ptab .pm{display:none}.pmodal .pmf{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;margin-top:8px}.pmodal .pmf .tin{font-size:16px}.pmst{margin-top:6px}
+.ptab .pm{display:none}
+@media (max-width:760px){.bar.lochead{flex-direction:column;align-items:stretch;gap:12px}.bar.lochead .grow{width:100%}.bar.lochead .sub{max-width:none}.bar.lochead #vincGo{align-self:center}}.pmodal .pmf{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;margin-top:8px}.pmodal .pmf .tin{font-size:16px}.pmst{margin-top:6px}
 @media (max-width:760px){.prodcsv,.newprod{display:none!important}
   .ptab thead th:nth-child(n+3),.ptab tbody td:nth-child(n+3){display:none}
   .ptab tbody tr[data-row]{cursor:pointer}.ptab tbody tr[data-row]:active{background:var(--accent-soft)}
@@ -4349,7 +4350,7 @@ function renderEstoque(){
   if(state.etab==="localizar") state.etab="produtos";
   const tab = state.etab;
   app.innerHTML = topnav() + `
-    <header class="bar"><div class="grow"><h1>Locais</h1><div class="sub">Endereços dos puxadores, cadastro de EAN e impressão de etiquetas</div></div><button class="btn dark sm" id="vincGo">Vincular produto ao endereço</button></header>
+    <header class="bar lochead"><div class="grow"><h1>Locais</h1><div class="sub">Endereços dos puxadores, cadastro de EAN e impressão de etiquetas</div></div><button class="btn dark sm" id="vincGo">Vincular produto ao endereço</button></header>
     <div class="seg subtabs" role="tablist">
       <button data-etab="enderecos" aria-pressed="${tab==="enderecos"}">Endereços</button>
       <button data-etab="produtos" aria-pressed="${tab==="produtos"}">Produtos e EAN</button>
