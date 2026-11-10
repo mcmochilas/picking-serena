@@ -5384,7 +5384,7 @@ function deleteUser(id){ delete USERS[id]; if(usersCol) queueWrite("u:"+id, ()=>
 let seenOrders = null, newIds = new Set(), alertQueue = [];
 let SOUND = true; try{ SOUND = localStorage.getItem("ps-sound")!=="0"; }catch(e){}
 const unlockAudio = () => { try{ audioCtx ||= new (window.AudioContext||window.webkitAudioContext)(); if(audioCtx.state==="running") return;
-  const p=audioCtx.resume?.(); if(p && p.then) p.then(()=>{ if(audioCtx.state==="running" && (state.view==="tv" || myRole()==="painel")){ if(tvHasVoice()) tvSay("Aviso de voz ligado."); else tvVoiceLoad().then(ok=>{ if(ok) tvPlay([["ligado",0]]); }); render(); } }, ()=>{}); }catch(e){} };
+  const p=audioCtx.resume?.(); if(p && p.then) p.then(()=>{ if(audioCtx.state==="running" && (state.view==="tv" || myRole()==="painel")){ tvVoiceLoad().then(ok=>{ if(ok) tvPlay([["ligado",0]]); else tvSay("Aviso de voz ligado."); }); render(); } }, ()=>{}); }catch(e){} };
 /* qualquer toque/tecla (inclusive o OK do controle da TV) libera o som; não é "once" porque o primeiro toque pode não bastar em alguns navegadores */
 document.addEventListener("pointerdown", unlockAudio); document.addEventListener("keydown", unlockAudio);
 function chime(force){
@@ -5466,18 +5466,15 @@ function pvClips(num){
   const b=rest ? [...Array(z).fill("d0"), ...numClips(rest)] : ["d0","d0","d0"];
   return [...a, ...b.map(c=>[c,.04])];
 }
-/* Aviso falado com a voz do navegador (nativa). Se o aparelho não tiver nenhuma voz, usa a voz gravada dígito por dígito. */
+/* Aviso falado sempre com a voz gravada do backend (tts/tv). Só se ela não carregar usa a voz do navegador. */
 function tvHasVoice(){ try{ return !!window.speechSynthesis && speechSynthesis.getVoices().length>0; }catch(e){ return false; } }
 async function tvAnnounce(num){
   try{ if(audioCtx && audioCtx.state!=="running") await Promise.race([audioCtx.resume(), new Promise(ok=>setTimeout(ok,800))]); }catch(e){}
-  let via="voz do navegador";
-  if(tvHasVoice()) tvSay(`Atenção! Pré-venda ${pvSpoken(num)}. Cliente aguarda na loja para retirada.`);
-  else {
-    const ok = await Promise.race([tvVoiceLoad(), new Promise(r=>setTimeout(()=>r(false),4000))]);
-    if(ok && audioCtx && audioCtx.state==="running"){ via="voz gravada (TV sem voz)";
-      const cl=pvClips(num); if(cl.length) cl[cl.length-1][1]=.35; tvPlay([["pv",.12], ...cl, ["aguarda",0]]); }
-    else { via="sem voz neste aparelho"; tvSay(`Atenção! Pré-venda ${pvSpoken(num)}. Cliente aguarda na loja para retirada.`); }
-  }
+  const ok = await Promise.race([tvVoiceLoad(), new Promise(r=>setTimeout(()=>r(false),4000))]);
+  let via;
+  if(ok && audioCtx && audioCtx.state==="running"){ via="voz gravada";
+    const cl=pvClips(num); if(cl.length) cl[cl.length-1][1]=.35; tvPlay([["pv",.12], ...cl, ["aguarda",0]]); }
+  else { via = tvHasVoice() ? "voz do navegador (a gravada não carregou)" : "sem voz neste aparelho"; tvSay(`Atenção! Pré-venda ${pvSpoken(num)}. Cliente aguarda na loja para retirada.`); }
   TVV.last = {num, at:Date.now(), via};
   const el=document.getElementById("tvLast"); if(el) el.textContent=tvLastTxt();
 }
