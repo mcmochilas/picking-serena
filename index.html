@@ -633,6 +633,13 @@ select.tin{width:auto}
 .lzopt span{color:var(--muted);font-size:14px}.lzopt.hi,.lzopt:hover{background:var(--accent-soft)}.lzopt.none{color:var(--muted);cursor:default}
 .lzpanel{display:flex;flex-direction:column;gap:12px;border:2px solid var(--accent);border-radius:14px;padding:14px;margin:4px 0 6px;background:color-mix(in srgb,var(--accent) 5%,var(--surface))}
 .lzhead{display:flex;justify-content:space-between;align-items:center}
+.okpop{position:fixed;inset:0;z-index:2000;display:grid;place-items:center;pointer-events:none;background:rgba(0,0,0,.18);animation:okIn .18s ease}
+.okpop.out{opacity:0;transition:opacity .2s}
+.okpop-box{background:#1D845A;color:#fff;border-radius:22px;padding:24px 34px;display:flex;flex-direction:column;align-items:center;gap:6px;box-shadow:0 18px 50px rgba(0,0,0,.3);animation:okPopIn .28s cubic-bezier(.2,1.4,.4,1);max-width:86vw;text-align:center}
+.okpop-box b{font-size:22px}.okpop-box span{font-family:var(--mono);font-size:15px;opacity:.92}
+.okpop-ic{width:64px;height:64px}.okpop-ic circle{fill:none;stroke:#fff;stroke-width:3.5;opacity:.9}.okpop-ic path{fill:none;stroke:#fff;stroke-width:4.5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:40;stroke-dashoffset:40;animation:okTick .35s .12s ease forwards}
+@keyframes okIn{from{opacity:0}}@keyframes okPopIn{from{transform:scale(.7);opacity:0}}@keyframes okTick{to{stroke-dashoffset:0}}
+@media (prefers-reduced-motion:reduce){.okpop,.okpop-box,.okpop-ic path{animation:none;stroke-dashoffset:0}}
 .ptab .pm{display:none}
 @media (max-width:760px){.bar.lochead{flex-direction:column;align-items:stretch;gap:12px}.bar.lochead .grow{width:100%}.bar.lochead .sub{max-width:none}.bar.lochead #vincGo{align-self:center}}.pmodal .pmf{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;margin-top:8px}.pmodal .pmf .tin{font-size:16px}.pmst{margin-top:6px}
 @media (max-width:760px){.prodcsv,.newprod{display:none!important}
@@ -4467,6 +4474,14 @@ async function vincSave(){
   saveProduct({...p, loc:lc});
   V.log.unshift({code:p.code, lc, from, out: occ ? occ.code : "", junto: multiLoc(lc) ? locProducts(lc).length : 0}); V.log=V.log.slice(0,30);
   V.p=null; V.lc=null; V.move=false; V.flash={t:`${p.code} ${from?"mudou para":"vinculado ao"} endereço ${lc}. Bipe o próximo produto.`, k:"good", at:Date.now()}; render(); feedback(true);
+  okPop(from?"Local alterado":"Produto vinculado", `${p.code} → ${lc}`);
+}
+/* aviso verde de sucesso no meio da tela, some sozinho em 1 segundo */
+function okPop(title, sub=""){
+  document.querySelectorAll(".okpop").forEach(x=>x.remove());
+  const el=document.createElement("div"); el.className="okpop"; el.setAttribute("role","status");
+  el.innerHTML=`<div class="okpop-box"><svg class="okpop-ic" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="24"/><path d="M15 27l7 7 15-16"/></svg><b>${esc(title)}</b>${sub?`<span>${esc(sub)}</span>`:""}</div>`;
+  document.body.appendChild(el); setTimeout(()=>{ el.classList.add("out"); setTimeout(()=>el.remove(),220); }, 1000);
 }
 function vincUndo(){
   const V=state.vinc, x=V?.log[0]; if(!x || x.undone) return;
