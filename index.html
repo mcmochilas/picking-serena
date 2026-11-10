@@ -5414,6 +5414,7 @@ const tvDigits = n => String(n||"").replace(/\D/g,"").split("").join(" ");
    Toca pelo Web Audio, então funciona mesmo em TV sem voz do navegador. Se não carregar, usa a voz do navegador (tvSay). */
 const TV_TTS = ((window.PS_CONFIG||{}).SUPABASE_URL || "https://dtrfujxhfcyefbipkcwz.supabase.co").replace(/\/$/,"") + "/storage/v1/object/public/tts/tv/";
 const TVV = { buf:null, p:null, until:0 };
+const TV_TTS_V = { x2e:2 }; // trecho regravado: nome novo para não pegar o arquivo antigo do cache
 function tvTrim(b){ // tira o silêncio do começo e do fim de cada trecho
   const d=b.getChannelData(0), n=d.length; let pk=0; for(let i=0;i<n;i++){ const v=Math.abs(d[i]); if(v>pk) pk=v; }
   const th=Math.max(.008, pk*.035); let s=0, e=n-1; while(s<n && Math.abs(d[s])<th) s++; while(e>s && Math.abs(d[e])<th) e--;
@@ -5429,7 +5430,7 @@ function tvVoiceLoad(){
   try{ audioCtx ||= new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return Promise.resolve(false); }
   const names=["atencao","aguarda","ligado","pv","cem", ...Array.from({length:10},(_,i)=>"d"+i), ...Array.from({length:10},(_,i)=>"t"+(10+i)),
     ...[2,3,4,5,6,7,8,9].flatMap(i=>["x"+i,"x"+i+"e"]), "h1e", ...[2,3,4,5,6,7,8,9].flatMap(i=>["h"+i,"h"+i+"e"])];
-  TVV.p = Promise.all(names.map(n=>fetch(TV_TTS+n+".mp3").then(r=>{ if(!r.ok) throw new Error(n); return r.arrayBuffer(); })
+  TVV.p = Promise.all(names.map(n=>fetch(TV_TTS+n+(TV_TTS_V[n]?"_v"+TV_TTS_V[n]:"")+".mp3").then(r=>{ if(!r.ok) throw new Error(n); return r.arrayBuffer(); })
       .then(a=>new Promise((ok,ko)=>audioCtx.decodeAudioData(a,ok,ko))).then(b=>[n,tvTrim(b)])));
   TVV.p = Promise.race([TVV.p, new Promise((_,ko)=>setTimeout(()=>ko(new Error("tempo esgotado")),15000))]) // não fica preso se a rede travar; tenta de novo no próximo aviso
     .then(l=>{ TVV.buf=Object.fromEntries(l); return true; })
