@@ -627,7 +627,14 @@ select.tin{width:auto}
 .sl-box{left:69cqw;top:4cqw;width:27cqw;height:32cqw;border:.5cqw solid #000;border-radius:2cqw;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:700}
 .sl-box span{font-size:4.4cqw;white-space:nowrap;border-bottom:.3cqw solid #000;padding-bottom:1cqw;margin-bottom:1cqw}.sl-box b{font-size:11cqw;line-height:1;white-space:nowrap}
 .sologrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
-.lzpanel .map-card{margin-top:4px}.lzpanel .loc{margin:0}.qlist .match.on{border-color:var(--accent);background:var(--accent-soft)}
+.lzwrap{display:flex;flex-direction:column;gap:12px}.lzsearch{overflow:visible;position:relative;z-index:5}.lzbox{position:relative;margin-top:6px}
+.lzsug{position:absolute;left:0;right:0;top:calc(100% + 4px);background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.18);max-height:340px;overflow:auto;padding:4px;z-index:20}
+.lzopt{display:flex;gap:10px;align-items:baseline;width:100%;text-align:left;border:0;background:none;padding:10px 12px;border-radius:8px;font:inherit;color:var(--ink);cursor:pointer}
+.lzopt span{color:var(--muted);font-size:14px}.lzopt.hi,.lzopt:hover{background:var(--accent-soft)}.lzopt.none{color:var(--muted);cursor:default}
+.lzpanel{display:flex;flex-direction:column;gap:12px}.lzpanel .map-card{margin-top:0}.lzpanel .loc{margin:0}
+.lzgav .eyebrow{margin-bottom:6px}.lztab{width:100%;border-collapse:collapse;font-size:14px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.lztab th{text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--bg);padding:8px 12px}
+.lztab td{padding:9px 12px;border-top:1px solid var(--line)}.lztab td.mono{font-weight:700;white-space:nowrap;width:1%}
 .vincgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.vincgrid>div{border:1.5px dashed var(--line);border-radius:12px;padding:12px;min-height:96px}
 .vincgrid>div.on{border-style:solid;border-color:var(--ok);background:var(--ok-soft)}.vincgrid .eyebrow{margin-bottom:4px}.vincgrid b.mono{font-size:1.15em}
 .mbox.mbad{border:2px solid var(--bad);border-top-width:8px;background:color-mix(in srgb,var(--bad) 7%,var(--surface))}.mbox.mbad h2{color:var(--bad);display:flex;align-items:center;gap:10px}
@@ -4352,42 +4359,51 @@ function lzMatches(q){ const Q=String(q||"").trim().toUpperCase(); if(!Q) return
   const ex=Object.values(PRODUCTS).filter(p=>p.code===Q || (p.ean && p.ean===Q));
   const rest=Object.values(PRODUCTS).filter(p=>!ex.includes(p) && (p.code.includes(Q) || (p.ean||"").includes(Q) || p.name.toUpperCase().includes(Q)));
   return [...ex, ...rest.sort((a,b)=>a.code.localeCompare(b.code))].slice(0,40); }
-function lzListHTML(){ const q=state.lzQ||"", ms=lzMatches(q);
-  if(!q.trim()) return `<div class="empty">Bipe o produto ou a etiqueta do endereço, ou digite o código ou a descrição.</div>`;
-  return ms.map(p=>`<button class="match ${state.lzSel===p.code?"on":""}" data-lz="${esc(p.code)}"><b>${esc(p.code)}</b> ${esc(p.name)}<small>${p.loc?`<span class="mono">${esc(p.loc)}</span>`:"sem endereço"}</small></button>`).join("") || `<div class="empty">Nenhum produto encontrado.</div>`; }
+function lzSugHTML(q){ const ms=lzMatches(q).slice(0,8); // sugestões enquanto digita (escolhe um e some)
+  return ms.map((p,i)=>`<button type="button" class="lzopt ${i?"":"hi"}" data-lz="${esc(p.code)}"><b class="mono">${esc(p.code)}</b><span>${esc(p.name)}</span></button>`).join("") || `<div class="lzopt none">Nenhum produto encontrado</div>`; }
 function lzTarget(){ const sel=state.lzSel; if(!sel) return null;
   if(sel.startsWith("@")){ const lc=sel.slice(1); return {lc, ps:locProducts(lc)}; }
   const p=PRODUCTS[sel]; return p ? {p, lc:p.loc||"", ps:p.loc?locProducts(p.loc):[]} : null; }
 function localizarHTML(){
-  const T=lzTarget(), L=T&&T.lc&&parseLoc(T.lc) ? parseCode(T.lc) : null;
-  return `<div class="cgrid">
-    <section class="panel">
-      <div><label class="eyebrow" for="lzQ">Produto ou endereço</label>
-        <input class="tin" id="lzQ" placeholder="Bipe ou digite o código, o EAN ou a descrição" value="${esc(state.lzQ||"")}" autocomplete="off" enterkeyhint="search"></div>
-      <div class="qlist" id="lzList">${lzListHTML()}</div>
+  const T=lzTarget(), L=T&&T.lc&&parseLoc(T.lc) ? parseCode(T.lc) : null, others=T ? T.ps.filter(x=>x!==T.p) : [];
+  return `<div class="lzwrap">
+    <section class="panel lzsearch">
+      <label class="eyebrow" for="lzQ">Produto ou endereço</label>
+      <div class="lzbox"><input class="tin" id="lzQ" placeholder="Bipe ou digite o código, o EAN ou a descrição" value="${esc(state.lzQ||"")}" autocomplete="off" enterkeyhint="search" role="combobox" aria-expanded="false" aria-controls="lzSug">
+        <div class="lzsug" id="lzSug" role="listbox" hidden></div></div>
     </section>
-    <aside class="panel lzpanel">${!T ? `<div class="empty">Escolha um produto para ver onde ele está.</div>` : `
+    <section class="panel lzpanel">${!T ? `<div class="empty">Bipe ou digite o produto e escolha na sugestão para ver onde ele está.</div>` : `
       ${T.p?`<div class="qcard"><div class="eyebrow">Produto</div><div class="cl">${esc(T.p.name)}</div><div class="meta tnum"><span>Cód. ${esc(T.p.code)}</span><span>${T.p.ean?"EAN "+esc(T.p.ean):"sem EAN"}</span></div></div>`:""}
       ${L ? `<div class="loc"><div class="grow"><div class="eyebrow">Endereço no estoque</div>
           <div class="loc-code tnum">R${L.r}<span>-</span>L${L.l}<span>-</span><span class="ttag">${L.t}</span>${L.n}<span>.</span>${L.c}</div>
-          <small class="muted-s">${esc(locSelo(L).sm)}</small>${T.ps.length>(T.p?1:0)?`<small class="muted-s" style="display:block">${T.p?"Junto nesta gaveta":"Neste endereço"}: ${T.ps.filter(x=>x!==T.p).map(x=>`<b class="mono">${esc(x.code)}</b> ${esc(x.name)}`).join(" · ")}</small>`:""}</div></div>
+          <small class="muted-s">${esc(locSelo(L).sm)}</small></div></div>
+        ${others.length?`<div class="lzgav"><div class="eyebrow">${T.p?(L.t==="GAV"?"Também nesta gaveta":"Também neste endereço"):(L.t==="GAV"?"Nesta gaveta":"Neste endereço")} · ${others.length}</div>
+          <table class="lztab"><thead><tr><th>SKU</th><th>Descrição</th></tr></thead><tbody>${others.map(x=>`<tr><td class="mono">${esc(x.code)}</td><td>${esc(x.name)}</td></tr>`).join("")}</tbody></table></div>`:""}
         ${mapCardHTML({loc:L}, null)}`
       : `<div class="loc noloc"><div class="grow"><div class="eyebrow">Endereço no estoque</div><div class="loc-code">Sem endereço cadastrado</div>
           <div class="noloc-t">Use <b>Vincular produto ao endereço</b> (botão no topo) para gravar onde ele fica.</div></div></div>`}`}
-    </aside></div>`;
+    </section></div>`;
 }
 function bindLocalizar(){
-  const q=document.getElementById("lzQ"), list=document.getElementById("lzList");
-  const pick=code=>{ state.lzSel=code; state.lzForce=true; render(); };
-  const bindList=()=>list.querySelectorAll("[data-lz]").forEach(b=>b.onclick=()=>pick(b.dataset.lz));
-  q.oninput=()=>{ state.lzQ=q.value; list.innerHTML=lzListHTML(); bindList(); };
-  q.onkeydown=e=>{ if(e.key!=="Enter") return; e.preventDefault(); const v=q.value.trim().toUpperCase(); if(!v) return;
+  const q=document.getElementById("lzQ"), sug=document.getElementById("lzSug");
+  const pick=c=>{ const p=PRODUCTS[c]; state.lzSel=c; state.lzQ=p?`${p.code} · ${p.name}`:c; state.lzForce=true; render(); };
+  const close=()=>{ sug.hidden=true; q.setAttribute("aria-expanded","false"); };
+  const open=()=>{ const v=q.value.trim(); if(!v){ close(); return; } sug.innerHTML=lzSugHTML(v); sug.hidden=false; q.setAttribute("aria-expanded","true");
+    sug.querySelectorAll("[data-lz]").forEach(b=>{ b.onmousedown=e=>e.preventDefault(); b.onclick=()=>pick(b.dataset.lz); }); };
+  const move=d=>{ const os=[...sug.querySelectorAll("[data-lz]")]; if(!os.length) return; let i=os.findIndex(o=>o.classList.contains("hi")); os[i]?.classList.remove("hi"); i=(i+d+os.length)%os.length; os[i].classList.add("hi"); os[i].scrollIntoView({block:"nearest"}); };
+  q.oninput=()=>{ state.lzQ=q.value; open(); };
+  q.onfocus=()=>{ if(state.lzSel) q.select(); };
+  q.onblur=()=>setTimeout(close,120);
+  q.onkeydown=e=>{
+    if(e.key==="ArrowDown"||e.key==="ArrowUp"){ e.preventDefault(); if(sug.hidden) open(); else move(e.key==="ArrowDown"?1:-1); return; }
+    if(e.key==="Escape"){ close(); return; }
+    if(e.key!=="Enter") return; e.preventDefault(); const v=q.value.trim().toUpperCase(); if(!v) return;
     const lc=locFromShort(v) || (parseLoc(v) ? code(parseCode(v)) : null);
-    if(lc && parseLoc(lc)){ state.lzQ=""; state.lzSel="@"+lc; state.lzForce=true; feedback(true); render(); return; }
-    const ms=lzMatches(v), ex=ms.find(p=>p.code===v || p.ean===v);
-    if(ex || ms.length===1){ state.lzQ=v; feedback(true); pick((ex||ms[0]).code); setTimeout(()=>{ const n=document.getElementById("lzQ"); if(n){ n.select(); } },0); return; }
-    if(!ms.length) feedback(false); };
-  bindList();
+    if(lc && parseLoc(lc)){ state.lzQ=lc; state.lzSel="@"+lc; state.lzForce=true; feedback(true); render(); return; }
+    const ex=Object.values(PRODUCTS).find(p=>p.code===v || (p.ean && p.ean===v)), hi=!sug.hidden && sug.querySelector(".lzopt.hi[data-lz]");
+    if(ex){ feedback(true); pick(ex.code); return; }
+    if(hi){ pick(hi.dataset.lz); return; }
+    const ms=lzMatches(v); if(ms.length){ open(); } else feedback(false); };
   if(!matchMedia("(pointer:coarse)").matches) q.focus();
   const T=lzTarget(); if(T && T.lc && parseLoc(T.lc)){ bindMapCard({loc:parseCode(T.lc)}, null, state.lzForce); state.lzForce=false; }
 }
