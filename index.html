@@ -5427,7 +5427,8 @@ function tvVoiceLoad(){
   if(TVV.buf) return Promise.resolve(true);
   if(TVV.p) return TVV.p;
   try{ audioCtx ||= new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return Promise.resolve(false); }
-  const names=["atencao","aguarda","ligado","d0","d1","d2","d3","d4","d5","d6","d7","d8","d9"];
+  const names=["atencao","aguarda","ligado","pv","cem", ...Array.from({length:10},(_,i)=>"d"+i), ...Array.from({length:10},(_,i)=>"t"+(10+i)),
+    ...[2,3,4,5,6,7,8,9].flatMap(i=>["x"+i,"x"+i+"e"]), "h1e", ...[2,3,4,5,6,7,8,9].flatMap(i=>["h"+i,"h"+i+"e"])];
   TVV.p = Promise.all(names.map(n=>fetch(TV_TTS+n+".mp3").then(r=>{ if(!r.ok) throw new Error(n); return r.arrayBuffer(); })
       .then(a=>new Promise((ok,ko)=>audioCtx.decodeAudioData(a,ok,ko))).then(b=>[n,tvTrim(b)])));
   TVV.p = Promise.race([TVV.p, new Promise((_,ko)=>setTimeout(()=>ko(new Error("tempo esgotado")),15000))]) // não fica preso se a rede travar; tenta de novo no próximo aviso
@@ -5453,6 +5454,18 @@ function pvSpoken(num){
   const tw = rest ? [..."zero ".repeat(z).trim().split(" ").filter(Boolean), numWords(rest)].join(" ") : "zero zero zero";
   return `${numWords(+head)}, ${tw}`;
 }
+/* Mesmo número em trechos gravados (tts/tv/): d0–d9 (zero a nove), t10–t19, x2–x9 (vinte…noventa), x2e–x9e ("vinte e"…),
+   cem, h1e ("cento e"), h2–h9 (duzentos…), h2e–h9e ("duzentos e"…) */
+function numClips(n){ n=+n||0; if(n<10) return ["d"+n]; if(n<20) return ["t"+n]; if(n<100){ const t=Math.floor(n/10), u=n%10; return u?["x"+t+"e","d"+u]:["x"+t]; }
+  if(n===100) return ["cem"]; const h=Math.floor(n/100), r=n%100; return r?["h"+h+"e", ...numClips(r)]:["h"+h]; }
+function pvClips(num){
+  const s=String(num||"").replace(/\D/g,""); if(!s) return [];
+  if(s.length<=3 || s.length>6) return s.length<=3 ? numClips(+s).map(c=>[c,.04]) : s.split("").map(d=>["d"+d,.05]);
+  const head=s.slice(0,-3), tail=s.slice(-3), z=tail.match(/^0*/)[0].length, rest=+tail;
+  const a=numClips(+head).map(c=>[c,.04]); a[a.length-1][1]=.28; // pausa da vírgula
+  const b=rest ? [...Array(z).fill("d0"), ...numClips(rest)] : ["d0","d0","d0"];
+  return [...a, ...b.map(c=>[c,.04])];
+}
 /* Aviso falado com a voz do navegador (nativa). Se o aparelho não tiver nenhuma voz, usa a voz gravada dígito por dígito. */
 function tvHasVoice(){ try{ return !!window.speechSynthesis && speechSynthesis.getVoices().length>0; }catch(e){ return false; } }
 async function tvAnnounce(num){
@@ -5461,8 +5474,8 @@ async function tvAnnounce(num){
   if(tvHasVoice()) tvSay(`Atenção! Pré-venda ${pvSpoken(num)}. Cliente aguarda na loja para retirada.`);
   else {
     const ok = await Promise.race([tvVoiceLoad(), new Promise(r=>setTimeout(()=>r(false),4000))]);
-    if(ok && audioCtx && audioCtx.state==="running"){ via="voz gravada (TV sem voz)"; const dg=String(num||"").replace(/\D/g,"").split("");
-      tvPlay([["atencao",.22], ...dg.map((d,i)=>["d"+d, i<dg.length-1?.05:.35]), ["aguarda",0]]); }
+    if(ok && audioCtx && audioCtx.state==="running"){ via="voz gravada (TV sem voz)";
+      const cl=pvClips(num); if(cl.length) cl[cl.length-1][1]=.35; tvPlay([["pv",.12], ...cl, ["aguarda",0]]); }
     else { via="sem voz neste aparelho"; tvSay(`Atenção! Pré-venda ${pvSpoken(num)}. Cliente aguarda na loja para retirada.`); }
   }
   TVV.last = {num, at:Date.now(), via};
