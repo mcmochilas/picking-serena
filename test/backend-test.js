@@ -8,7 +8,7 @@
 document.documentElement.classList.add("ps-test"); // no teste os botões "Simular leitura (demo)" continuam visíveis
 
 (function(){
-  const KEY = "ps-test-db-v14", UKEY = "ps-test-user";
+  const KEY = "ps-test-db-v15", UKEY = "ps-test-user";
   const mem = {};
   const ls = {
     get(k){ try{ return localStorage.getItem(k); }catch(e){ return mem[k] ?? null; } },
@@ -66,7 +66,7 @@ document.documentElement.classList.add("ps-test"); // no teste os botões "Simul
       for(let k=0;k<140;k++){ const t=now-Math.floor(rnd()*90*864e5)-3*60*M, n=1+Math.floor(rnd()*3), cs=[...new Set(Array.from({length:n},pick))];
         const its=cs.map(c=>it(c,1+Math.floor(rnd()*6)));
         orders.push({...base, id:"PV-H"+(1000+k), num:String(80000+k), client:"HISTÓRICO "+(k+1)+" (EXEMPLO)", clientCode:"9"+k, obs:"", mode:"total", status:"enviado", canal:"consultiva", transportadora:"Azul Cargo",
-          createdAt:t-20*M, startedAt:t-10*M, pickedAt:t, atMesaAt:t, sentAt:t+60*M, items:its, res:its.map(x=>({status:"ok",got:x.qty}))}); } }
+          createdAt:t-20*M, startedAt:t-10*M, pickedAt:t, atMesaAt:t, sentAt:t+60*M, items:its, res:its.map(x=>({status:"ok",got:x.qty})), locScans:cs.filter(c=>LOCS[c] && rnd()<.85).map((c,j)=>({lc:LOCS[c], at:t-8*M+j*M, by:"u-sep"}))}); } }
     // pedidos ao fornecedor de exemplo: um atrasado e um no prazo
     const iso = ms => new Date(ms).toISOString().slice(0,10);
     const lateD = iso(now-2*864e5), okD = iso(now+6*864e5);

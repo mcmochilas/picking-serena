@@ -3689,6 +3689,8 @@ let CONFIG = {requireLoc:false, useTray:true, binStacks:[6,4]}, cfgDoc = null; /
 /* Venda consultiva · Envio total · Cliente na loja: conferência peça por peça no local, sem bandeja e sem mesa; vai na sacola direto para o vendedor */
 const pickDirect = o => !!o && !isEco(o) && !!o.naLoja && o.mode==="total" && !o.fase2;
 /* E-commerce: o separador bipa a etiqueta do ENDEREÇO (não o produto), confirma a quantidade e leva para a mesa */
+/* Mapa de calor: cada vez que o separador bipa a etiqueta do endereço certo fica gravado no pedido (locScans: endereço, hora, quem) */
+function logLocScan(o, lc){ try{ const e={lc:code(lc), at:Date.now(), by:ME.id||""}; const x=ORDERS.find(y=>y.id===o.id)||o; const l=[...(x.locScans||[]), e].slice(-400); x.locScans=l; patchOrder(o.id,{locScans:l}); }catch(err){} }
 const ecoLoc = (o, it) => !!o && isEco(o) && !!it?.loc;
 const curItem = o => { const pl=o?pickList(o):[]; return pl[state.idx]; };
 const startPhase = o => pickDirect(o) ? "prod" : (CONFIG.useTray && o && !hasTray(o)) ? "tray" : ecoLoc(o, curItem(o)) ? "loc" : "prod";
@@ -4057,10 +4059,10 @@ function handleScan(raw){
   }
   if(state.phase==="loc" && !it.loc) state.phase = startPhase(o);
   if(state.phase==="loc" && ecoLoc(o,it) && (v===code(it.loc) || isProd)){ // e-commerce: endereço (ou o próprio produto) confirma o item
-    feedback(true); state.phase="qty"; state.count=it.need; render(); setMsg(`${isProd?"Produto":"Endereço"} confirmado. Pegue ${it.need} pç, coloque na bandeja e confirme.`,"good"); return;
+    if(!isProd) logLocScan(o, it.loc); feedback(true); state.phase="qty"; state.count=it.need; render(); setMsg(`${isProd?"Produto":"Endereço"} confirmado. Pegue ${it.need} pç, coloque na bandeja e confirme.`,"good"); return;
   }
   if(state.phase==="loc"){
-    if(v===code(it.loc)){ feedback(true); state.count=0;
+    if(v===code(it.loc)){ logLocScan(o, it.loc); feedback(true); state.count=0;
       if(hasTray(o)){ state.phase="prod"; render(); setMsg(`Endereço ${v} confirmado. Bipe as peças.`,"good"); }
       else { state.phase="tray"; render(); setMsg(`Endereço ${v} confirmado. Agora bipe a bandeja.`,"good"); }
       return; }
@@ -4070,7 +4072,7 @@ function handleScan(raw){
   }
   if(isLoc && !it.loc){ feedback(false); return setMsg(`Este produto não tem local cadastrado. Bipe a peça.`,"bad"); }
   if(isLoc){
-    if(v===code(it.loc)){ feedback(true); return setMsg(state.phase==="tray" ? "Local certo. Agora bipe a bandeja." : "Local certo. Agora bipe o produto.","good"); }
+    if(v===code(it.loc)){ logLocScan(o, it.loc); feedback(true); return setMsg(state.phase==="tray" ? "Local certo. Agora bipe a bandeja." : "Local certo. Agora bipe o produto.","good"); }
     feedback(false); return setMsg(`Local errado: ${v}. O produto está em ${code(it.loc)}.`,"bad");
   }
   if(state.phase==="tray"){
@@ -4384,60 +4386,66 @@ function renderEstoque(){
 
 /* ---- Mapa de calor: onde os separadores mais bipam (endereços visitados nas separações), na planta 2D ---- */
 const CALOR_DIAS=[7,15,30,90];
-function calorData(dias, by){
+function calorData(dias, by){ // by "bip": vezes que a etiqueta do endereço foi bipada; "pecas": peças separadas (endereço atual do produto)
   const since=Date.now()-dias*864e5, locs={}; let tot=0, sem=0, peds=0;
-  ORDERS.forEach(o=>{
-    const t=+o.pickedAt||0; if(!t || t<since) return;
-    const r=Array.isArray(o.res)?o.res:[]; let any=false;
-    (o.items||[]).forEach((it,i)=>{ const got=+(r[i]?.got)||0; if(got<=0) return; any=true;
-      const v = by==="pecas" ? got : 1; tot+=v;
-      const lc = (isEco(o) && it.loc) ? it.loc : (PRODUCTS[it.code]?.loc || it.loc || "");
-      const L = lc ? parseLoc(lc) : null; if(!L){ sem+=v; return; }
-      const k=String(lc).toUpperCase(); const e=locs[k] ||= {lc:k, L, v:0, codes:new Set()}; e.v+=v; e.codes.add(it.code); });
+  const add=(lc, v, codes)=>{ const L=lc?parseLoc(lc):null; if(!L){ sem+=v; return; } const k=String(lc).toUpperCase(); const e=locs[k] ||= {lc:k, L, v:0, codes:new Set()}; e.v+=v; (codes||[]).forEach(c=>e.codes.add(c)); };
+  ORDERS.forEach(o=>{ let any=false;
+    if(by==="pecas"){ const t=+o.pickedAt||0; if(!t || t<since) return; const r=Array.isArray(o.res)?o.res:[];
+      (o.items||[]).forEach((it,i)=>{ const got=+(r[i]?.got)||0; if(got<=0) return; any=true; tot+=got;
+        add((isEco(o) && it.loc) ? it.loc : (PRODUCTS[it.code]?.loc || it.loc || ""), got, [it.code]); }); }
+    else (o.locScans||[]).forEach(e=>{ if(!e || !(+e.at>=since)) return; any=true; tot++; add(e.lc, 1); });
     if(any) peds++; });
+  Object.values(locs).forEach(e=>{ if(!e.codes.size) locProducts(e.lc).forEach(p=>e.codes.add(p.code)); });
   return {locs:Object.values(locs).sort((a,b)=>b.v-a.v), tot, sem, peds};
 }
 function calorColor(f){ // 0 → azul frio, 1 → vermelho quente
   const st=[[0,[56,132,255]],[.35,[0,200,170]],[.6,[255,214,0]],[.8,[255,128,0]],[1,[230,30,30]]];
   let a=st[0], b=st[st.length-1]; for(let i=1;i<st.length;i++) if(f<=st[i][0]){ a=st[i-1]; b=st[i]; break; }
   const k=(f-a[0])/((b[0]-a[0])||1), c=a[1].map((x,j)=>Math.round(x+(b[1][j]-x)*k)); return `rgb(${c.join(",")})`; }
+function calorFace(t){ // metade da estante virada para o corredor do endereço (lado A e lado B da mesma estante ficam separados) e o ponto do corredor em frente
+  const c=t.cell; if(!c) return null;
+  if(t.kind==="v"){ const right = t.x > c.x+c.w/2, w=c.w/2, fx = right ? c.x+w : c.x, edge = right ? c.x+c.w : c.x;
+    return {r:{x:fx, y:c.y+c.h/2-Math.max(4,c.h)/2, w, h:Math.max(4,c.h)}, gx: edge + (right?1:-1)*MAP.aisle*.3, gy: c.y+c.h/2, rx: MAP.aisle*.32, ry: Math.max(9, c.h/2+5)}; }
+  const down = t.y > c.y+c.h/2, h=c.h>8 ? c.h/2 : c.h, fy = down ? c.y+c.h-h : c.y, edge = down ? c.y+c.h : c.y;
+  return {r:{x:c.x, y:fy, w:c.w, h}, gx: c.x+c.w/2, gy: edge + (down?1:-1)*Math.min(14, Math.abs(t.y-edge)*.55), rx: Math.max(9, c.w/2+5), ry: 11};
+}
 function calorSVG(D){
   const M=MAP, cells={};
-  D.locs.forEach(e=>{ const t=mapTarget(e.L); if(!t?.cell) return; const c=t.cell, k=[c.x,c.y,c.w,c.h].map(n=>n.toFixed(1)).join(",");
-    const g=cells[k] ||= {c, x:t.x, y:t.y, v:0, n:[]}; g.v+=e.v; g.n.push(e); });
-  const list=Object.values(cells), max=Math.max(1,...list.map(g=>g.v));
+  D.locs.forEach(e=>{ const t=mapTarget(e.L), f=t && calorFace(t); if(!f) return; const k=[f.r.x,f.r.y,f.r.w,f.r.h].map(n=>n.toFixed(1)).join(",");
+    const g=cells[k] ||= {f, v:0, n:[]}; g.v+=e.v; g.n.push(e); });
+  const list=Object.values(cells).sort((a,b)=>a.v-b.v), max=Math.max(1,...list.map(g=>g.v));
   const R=(r,cls)=>`<rect class="${cls}" x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" rx="2"/>`;
-  let s=`<svg viewBox="0 0 ${M.W} ${M.H}" role="img" aria-label="Mapa de calor das bipagens no estoque"><defs><filter id="hblur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="7"/></filter></defs>`;
+  let s=`<svg viewBox="0 0 ${M.W} ${M.H}" role="img" aria-label="Mapa de calor das bipagens de endereço no estoque"><defs><filter id="hblur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="5"/></filter></defs>`;
   s+=`<rect class="m-floor" x="0" y="0" width="${M.W}" height="${M.H}" rx="12"/>`;
   s+=`<path class="m-wall" d="M8 38 H${M.small.x+M.small.w+4} V${M.vTop+8} H${M.W-8} V${M.H-12} H8 Z"/>`;
-  // brilho do calor por baixo das estantes
-  s+=`<g filter="url(#hblur)" opacity=".75">${list.map(g=>{ const f=g.v/max; return `<circle cx="${g.c.x+g.c.w/2}" cy="${g.c.y+g.c.h/2}" r="${8+16*Math.sqrt(f)}" fill="${calorColor(f)}" opacity="${(.35+.65*f).toFixed(2)}"/>`; }).join("")}</g>`;
   for(let k=1;k<=4;k++) s+=R({x:M.vx(k),y:M.vTop,w:M.rackW,h:M.vBot-M.vTop},"m-rack");
   s+=R(M.H1,"m-rack")+R(M.H2,"m-rack")+R(M.small,"m-rack");
-  list.sort((a,b)=>a.v-b.v).forEach(g=>{ const f=g.v/max, tip=g.n.sort((a,b)=>b.v-a.v).map(e=>`${e.lc}: ${e.v}`).join(" · ");
-    s+=`<rect class="m-heat" x="${g.c.x}" y="${g.c.y}" width="${g.c.w}" height="${g.c.h}" rx="2" fill="${calorColor(f)}"><title>${esc(tip)}</title></rect>`; });
+  // calor no corredor, na frente do endereço (só do lado bipado)
+  s+=`<g filter="url(#hblur)">${list.map(g=>{ const f=g.v/max, F=g.f; return `<ellipse cx="${F.gx}" cy="${F.gy}" rx="${F.rx}" ry="${F.ry}" fill="${calorColor(f)}" opacity="${(.4+.55*f).toFixed(2)}"/>`; }).join("")}</g>`;
+  list.forEach(g=>{ const f=g.v/max, tip=g.n.sort((a,b)=>b.v-a.v).map(e=>`${e.lc}: ${e.v}`).join(" · ");
+    s+=`<rect class="m-heat" x="${g.f.r.x}" y="${g.f.r.y}" width="${g.f.r.w}" height="${g.f.r.h}" rx="1.5" fill="${calorColor(f)}"><title>${esc(tip)}</title></rect>`; });
   for(let k=1;k<=4;k++){ const x=M.aisleX(k)+4, y=M.vBot-6; s+=`<text class="m-rua" x="${x}" y="${y}" transform="rotate(-90 ${x} ${y})">RUA ${k}</text>`; }
   s+=`<text class="m-rua" x="${M.x0+6}" y="${M.ruaA+4}">RUA A</text><text class="m-rua" x="${M.x0+6}" y="${M.ruaB+4}">RUA B</text>`;
   s+=`<rect class="m-dock" x="${M.mesa.x}" y="${M.mesa.y}" width="${M.mesa.w}" height="${M.mesa.h}" rx="6"/><text class="m-dock-t" x="${M.mesa.x+M.mesa.w/2}" y="${M.mesa.y+18}" text-anchor="middle">MESA DE SEPARAÇÃO</text>`;
   return s+`</svg>`;
 }
 function calorHTML(){
-  const dias=state.calorDias||30, by=state.calorBy||"visitas", D=calorData(dias, by), un=by==="pecas"?"pç":"bip.";
+  const dias=state.calorDias||30, by=state.calorBy==="pecas"?"pecas":"bip", D=calorData(dias, by);
   const top=D.locs.slice(0,15), max=Math.max(1,...D.locs.map(e=>e.v)), pct=D.tot?Math.round(D.sem*100/D.tot):0;
   const prodTxt=e=>[...e.codes].map(c=>PRODUCTS[c]?.name||c).join(" · ");
   return `<section class="card calor">
     <div class="calorbar">
       <label><span>Período</span><select class="tin" id="calorDias">${CALOR_DIAS.map(d=>`<option value="${d}" ${d===dias?"selected":""}>Últimos ${d} dias</option>`).join("")}</select></label>
-      <label><span>Medir por</span><select class="tin" id="calorBy"><option value="visitas" ${by==="visitas"?"selected":""}>Bipagens (cada item separado)</option><option value="pecas" ${by==="pecas"?"selected":""}>Peças separadas</option></select></label>
-      <div class="calorstats tnum"><span><b>${D.peds}</b> pedidos</span><span><b>${D.tot}</b> ${by==="pecas"?"peças":"bipagens"}</span><span><b>${D.locs.length}</b> endereços</span></div>
+      <label><span>Medir por</span><select class="tin" id="calorBy"><option value="bip" ${by==="bip"?"selected":""}>Bipagens do endereço</option><option value="pecas" ${by==="pecas"?"selected":""}>Peças separadas</option></select></label>
+      <div class="calorstats tnum"><span><b>${D.peds}</b> pedidos</span><span><b>${D.tot}</b> ${by==="pecas"?"peças":"bipagens de endereço"}</span><span><b>${D.locs.length}</b> endereços</span></div>
     </div>
     <div class="calorgrid"><div><div class="map-card calormap">${calorSVG(D)}</div>
     <div class="calorleg"><span>Menos</span><i></i><span>Mais</span></div></div><div>
-    ${D.sem?`<p class="muted-s calorsem">${D.sem} ${by==="pecas"?"peças":"bipagens"} (${pct}%) foram de produtos <b>sem endereço</b> e não aparecem no mapa. Use <b>Vincular produto ao endereço</b> para gravar onde eles ficam.</p>`:""}
+    ${D.sem?`<p class="muted-s calorsem">${D.sem} ${by==="pecas"?"peças":"bipagens"} (${pct}%) ${by==="pecas"?"foram de produtos <b>sem endereço</b> e não aparecem no mapa. Use <b>Vincular produto ao endereço</b> para gravar onde eles ficam.":"foram de endereços que não estão mais cadastrados e não aparecem no mapa."}</p>`:""}
     ${top.length?`<div class="eyebrow" style="margin-top:14px">Endereços mais bipados</div>
     <table class="lztab calortab"><thead><tr><th>#</th><th>Endereço</th><th>Produto</th><th class="r">${by==="pecas"?"Peças":"Bipagens"}</th></tr></thead><tbody>
       ${top.map((e,i)=>`<tr><td class="tnum">${i+1}</td><td class="mono">${esc(e.lc)}</td><td>${esc(prodTxt(e))}</td><td class="r tnum"><span class="calordot" style="background:${calorColor(e.v/max)}"></span>${e.v}</td></tr>`).join("")}</tbody></table>`
-    :`<p class="muted-s" style="margin-top:12px">Nenhuma bipagem em endereço cadastrado nos últimos ${dias} dias.</p>`}
+    :`<p class="muted-s" style="margin-top:12px">${by==="pecas"?`Nenhuma peça separada de produto com endereço nos últimos ${dias} dias.`:`Nenhuma etiqueta de endereço bipada nos últimos ${dias} dias. As bipagens passaram a ser registradas em 10/11/2026: o mapa vai se preenchendo conforme os separadores bipam os endereços.`}</p>`}
   </div></div></section>`;
 }
 function bindCalor(){
