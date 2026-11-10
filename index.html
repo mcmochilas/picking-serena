@@ -631,7 +631,10 @@ select.tin{width:auto}
 .lzsug{position:absolute;left:0;right:0;top:calc(100% + 4px);background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.18);max-height:340px;overflow:auto;padding:4px;z-index:20}
 .lzopt{display:flex;gap:10px;align-items:baseline;width:100%;text-align:left;border:0;background:none;padding:10px 12px;border-radius:8px;font:inherit;color:var(--ink);cursor:pointer}
 .lzopt span{color:var(--muted);font-size:14px}.lzopt.hi,.lzopt:hover{background:var(--accent-soft)}.lzopt.none{color:var(--muted);cursor:default}
-.lzpanel{display:flex;flex-direction:column;gap:12px}.lzpanel .map-card{margin-top:0}.lzpanel .loc{margin:0}
+.lzpanel{display:flex;flex-direction:column;gap:12px;border:2px solid var(--accent);border-radius:14px;padding:14px;margin:4px 0 6px;background:color-mix(in srgb,var(--accent) 5%,var(--surface))}
+.lzhead{display:flex;justify-content:space-between;align-items:center}
+.lzbody{display:flex;flex-direction:column;gap:12px}.lzinfo{display:flex;flex-direction:column;gap:12px;min-width:0}
+@media (min-width:900px){.lzbody{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,440px);align-items:start;gap:18px}}.lzpanel .map-card{margin-top:0}.lzpanel .loc{margin:0}
 .lzgav .eyebrow{margin-bottom:6px}.lztab{width:100%;border-collapse:collapse;font-size:14px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .lztab th{text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--bg);padding:8px 12px}
 .lztab td{padding:9px 12px;border-top:1px solid var(--line)}.lztab td.mono{font-weight:700;white-space:nowrap;width:1%}
@@ -4338,6 +4341,7 @@ function eanState(e){ if(!e) return {t:"Sem EAN", c:"norm"}; if(/^\d{13}$/.test(
 function ean8ok(e){ let s=0; [...e.slice(0,7)].forEach((c,i)=>s+=(+c)*(i%2?1:3)); return (10-s%10)%10===+e[7]; }
 
 function renderEstoque(){
+  if(state.etab==="localizar") state.etab="produtos";
   const tab = state.etab;
   app.innerHTML = topnav() + `
     <header class="bar"><div class="grow"><h1>Locais</h1><div class="sub">Endereços dos puxadores, cadastro de EAN e impressão de etiquetas</div></div><button class="btn dark sm" id="vincGo">Vincular produto ao endereço</button></header>
@@ -4345,13 +4349,12 @@ function renderEstoque(){
       <button data-etab="enderecos" aria-pressed="${tab==="enderecos"}">Endereços</button>
       <button data-etab="produtos" aria-pressed="${tab==="produtos"}">Produtos e EAN</button>
       <button data-etab="etiquetas" aria-pressed="${tab==="etiquetas"}">Etiquetas</button>
-      <button data-etab="localizar" aria-pressed="${tab==="localizar"}">Localizar produto</button>
     </div>
-    <div id="etab">${tab==="produtos"?produtosHTML():tab==="etiquetas"?etiquetasHTML():tab==="localizar"?localizarHTML():enderecosHTML()}</div>`;
+    <div id="etab">${tab==="produtos"?produtosHTML():tab==="etiquetas"?etiquetasHTML():enderecosHTML()}</div>`;
   bindNav();
   app.querySelectorAll("[data-etab]").forEach(b=>b.onclick=()=>{ state.etab=b.dataset.etab; render(); });
   document.getElementById("vincGo").onclick=()=>{ state.vinc={p:null, lc:null, log:state.vinc?.log||[]}; state.view="vinc"; render(); scrollTo(0,0); };
-  tab==="produtos" ? bindProdutos() : tab==="etiquetas" ? bindEtiquetas() : tab==="localizar" ? bindLocalizar() : bindEnderecos();
+  tab==="produtos" ? bindProdutos() : tab==="etiquetas" ? bindEtiquetas() : bindEnderecos();
 }
 
 /* ---- Localizar produto: bipe (EAN, código ou etiqueta do endereço) ou digite código/descrição; mostra o endereço no mapa 3D ou 2D ---- */
@@ -4364,48 +4367,44 @@ function lzSugHTML(q){ const ms=lzMatches(q).slice(0,8); // sugestões enquanto 
 function lzTarget(){ const sel=state.lzSel; if(!sel) return null;
   if(sel.startsWith("@")){ const lc=sel.slice(1); return {lc, ps:locProducts(lc)}; }
   const p=PRODUCTS[sel]; return p ? {p, lc:p.loc||"", ps:p.loc?locProducts(p.loc):[]} : null; }
-function localizarHTML(){
-  const T=lzTarget(), L=T&&T.lc&&parseLoc(T.lc) ? parseCode(T.lc) : null, others=T ? T.ps.filter(x=>x!==T.p) : [];
-  return `<div class="lzwrap">
-    <section class="panel lzsearch">
-      <label class="eyebrow" for="lzQ">Produto ou endereço</label>
-      <div class="lzbox"><input class="tin" id="lzQ" placeholder="Bipe ou digite o código, o EAN ou a descrição" value="${esc(state.lzQ||"")}" autocomplete="off" enterkeyhint="search" role="combobox" aria-expanded="false" aria-controls="lzSug">
-        <div class="lzsug" id="lzSug" role="listbox" hidden></div></div>
-    </section>
-    <section class="panel lzpanel">${!T ? `<div class="empty">Bipe ou digite o produto e escolha na sugestão para ver onde ele está.</div>` : `
+function lzResultHTML(){ // resultado do "localizar" (aba Produtos e EAN): produto, endereço, outros da gaveta e mapa 3D/2D
+  const T=lzTarget(); if(!T) return "";
+  const L=T.lc&&parseLoc(T.lc) ? parseCode(T.lc) : null, others=T.ps.filter(x=>x!==T.p);
+  return `<section class="lzpanel" id="lzRes">
+      <div class="lzhead"><div class="eyebrow">${T.p?"Onde está o produto":"Endereço bipado"}</div><button class="mini" id="lzClose">Fechar</button></div>
+      <div class="lzbody"><div class="lzinfo">
       ${T.p?`<div class="qcard"><div class="eyebrow">Produto</div><div class="cl">${esc(T.p.name)}</div><div class="meta tnum"><span>Cód. ${esc(T.p.code)}</span><span>${T.p.ean?"EAN "+esc(T.p.ean):"sem EAN"}</span></div></div>`:""}
       ${L ? `<div class="loc"><div class="grow"><div class="eyebrow">Endereço no estoque</div>
           <div class="loc-code tnum">R${L.r}<span>-</span>L${L.l}<span>-</span><span class="ttag">${L.t}</span>${L.n}<span>.</span>${L.c}</div>
           <small class="muted-s">${esc(locSelo(L).sm)}</small></div></div>
         ${others.length?`<div class="lzgav"><div class="eyebrow">${T.p?(L.t==="GAV"?"Também nesta gaveta":"Também neste endereço"):(L.t==="GAV"?"Nesta gaveta":"Neste endereço")} · ${others.length}</div>
           <table class="lztab"><thead><tr><th>SKU</th><th>Descrição</th></tr></thead><tbody>${others.map(x=>`<tr><td class="mono">${esc(x.code)}</td><td>${esc(x.name)}</td></tr>`).join("")}</tbody></table></div>`:""}
-        ${mapCardHTML({loc:L}, null)}`
+        </div><div class="lzmap">${mapCardHTML({loc:L}, null)}</div>`
       : `<div class="loc noloc"><div class="grow"><div class="eyebrow">Endereço no estoque</div><div class="loc-code">Sem endereço cadastrado</div>
-          <div class="noloc-t">Use <b>Vincular produto ao endereço</b> (botão no topo) para gravar onde ele fica.</div></div></div>`}`}
-    </section></div>`;
+          <div class="noloc-t">Use <b>Vincular produto ao endereço</b> (botão no topo) para gravar onde ele fica.</div></div></div></div>`}
+      </div>
+    </section>`;
 }
-function bindLocalizar(){
-  const q=document.getElementById("lzQ"), sug=document.getElementById("lzSug");
-  const pick=c=>{ const p=PRODUCTS[c]; state.lzSel=c; state.lzQ=p?`${p.code} · ${p.name}`:c; state.lzForce=true; render(); };
+/* busca com sugestões (Produtos e EAN): escolher uma sugestão, bipar o EAN/código ou a etiqueta do endereço mostra onde está */
+function bindLzSearch(q, sug, onType){
+  const pick=c=>{ state.lzSel=c; state.prodQ=c; state.lzForce=true; resetPage("prod"); render(); requestAnimationFrame(()=>document.getElementById("lzRes")?.scrollIntoView({behavior:"smooth", block:"start"})); };
   const close=()=>{ sug.hidden=true; q.setAttribute("aria-expanded","false"); };
   const open=()=>{ const v=q.value.trim(); if(!v){ close(); return; } sug.innerHTML=lzSugHTML(v); sug.hidden=false; q.setAttribute("aria-expanded","true");
     sug.querySelectorAll("[data-lz]").forEach(b=>{ b.onmousedown=e=>e.preventDefault(); b.onclick=()=>pick(b.dataset.lz); }); };
   const move=d=>{ const os=[...sug.querySelectorAll("[data-lz]")]; if(!os.length) return; let i=os.findIndex(o=>o.classList.contains("hi")); os[i]?.classList.remove("hi"); i=(i+d+os.length)%os.length; os[i].classList.add("hi"); os[i].scrollIntoView({block:"nearest"}); };
-  q.oninput=()=>{ state.lzQ=q.value; open(); };
-  q.onfocus=()=>{ if(state.lzSel) q.select(); };
-  q.onblur=()=>setTimeout(close,120);
+  q.oninput=()=>onType(q.value);
+  q.onblur=()=>setTimeout(close,150);
   q.onkeydown=e=>{
     if(e.key==="ArrowDown"||e.key==="ArrowUp"){ e.preventDefault(); if(sug.hidden) open(); else move(e.key==="ArrowDown"?1:-1); return; }
     if(e.key==="Escape"){ close(); return; }
     if(e.key!=="Enter") return; e.preventDefault(); const v=q.value.trim().toUpperCase(); if(!v) return;
     const lc=locFromShort(v) || (parseLoc(v) ? code(parseCode(v)) : null);
-    if(lc && parseLoc(lc)){ state.lzQ=lc; state.lzSel="@"+lc; state.lzForce=true; feedback(true); render(); return; }
+    if(lc && parseLoc(lc)){ state.prodQ=""; state.lzSel="@"+lc; state.lzForce=true; feedback(true); resetPage("prod"); render(); return; }
     const ex=Object.values(PRODUCTS).find(p=>p.code===v || (p.ean && p.ean===v)), hi=!sug.hidden && sug.querySelector(".lzopt.hi[data-lz]");
     if(ex){ feedback(true); pick(ex.code); return; }
     if(hi){ pick(hi.dataset.lz); return; }
-    const ms=lzMatches(v); if(ms.length){ open(); } else feedback(false); };
-  if(!matchMedia("(pointer:coarse)").matches) q.focus();
-  const T=lzTarget(); if(T && T.lc && parseLoc(T.lc)){ bindMapCard({loc:parseCode(T.lc)}, null, state.lzForce); state.lzForce=false; }
+    if(lzMatches(v).length) open(); else feedback(false); };
+  return {open};
 }
 
 /* ---- Vincular produto ao endereço: bipa o produto e a etiqueta do local (em qualquer ordem) ---- */
@@ -4612,10 +4611,12 @@ function produtosHTML(){
     </form>
     ${state.prodErr?`<div class="err">${esc(state.prodErr)}</div>`:""}
     <div class="filters">
-      <input class="tin" id="prodQ" placeholder="Buscar por código, descrição ou EAN" value="${esc(state.prodQ||"")}" style="flex:1;min-width:200px">
+      <div class="lzbox" style="flex:1;min-width:220px;margin:0"><input class="tin" id="prodQ" placeholder="Buscar ou bipar: código, descrição, EAN ou etiqueta do endereço" value="${esc(state.prodQ||"")}" autocomplete="off" enterkeyhint="search" role="combobox" aria-expanded="false" aria-controls="lzSug" style="width:100%">
+        <div class="lzsug" id="lzSug" role="listbox" hidden></div></div>
       <div class="seg">${[["todos",`Todos · ${all.length}`],["sem-ean",`Sem EAN · ${noEan}`],["sem-end",`Sem endereço · ${noLoc}`]].map(([k,t])=>`<button data-pf="${k}" aria-pressed="${f===k}">${t}</button>`).join("")}</div>
     </div>
-    <p class="hint">Para cadastrar o EAN: clique no campo do produto, bipe a embalagem com o leitor (ele digita e dá Enter) e o cadastro é salvo na hora.</p>
+    ${lzResultHTML()}
+    <p class="hint">Para ver onde está um produto: digite e escolha na sugestão, ou bipe o EAN, o código ou a etiqueta do endereço. Para cadastrar o EAN: clique no campo do produto, bipe a embalagem com o leitor (ele digita e dá Enter) e o cadastro é salvo na hora.</p>
     ${pg.top}${pg.pager.replace('class="pager"','class="pager top"')}
     <div class="tablewrap"><table class="items">
       <thead><tr><th>Cód.</th><th>Descrição</th><th>EAN</th><th>Situação</th><th>Endereço</th><th></th></tr></thead>
@@ -4624,7 +4625,7 @@ function produtosHTML(){
         <td><input class="tin mono sm" data-ean="${esc(p.code)}" value="${esc(p.ean||"")}" placeholder="bipe o EAN" inputmode="numeric" aria-label="EAN de ${esc(p.code)}"></td>
         <td><span class="chip ${st.c==="bad"?"bad":st.c}">${st.t}</span></td>
         <td><input class="tin mono sm" data-loc="${esc(p.code)}" value="${esc(p.loc||"")}" placeholder="R1-LB-BIN-8.M" aria-label="Endereço de ${esc(p.code)}" style="width:110px"></td>
-        <td><button class="mini" data-save="${esc(p.code)}">Salvar</button></td></tr>`; }).join("") || `<tr><td colspan="6" class="empty">Nenhum produto.</td></tr>`}</tbody>
+        <td style="white-space:nowrap"><button class="mini" data-save="${esc(p.code)}">Salvar</button>${p.loc?` <button class="mini" data-lzp="${esc(p.code)}" title="Ver no mapa">Mapa</button>`:""}</td></tr>`; }).join("") || `<tr><td colspan="6" class="empty">Nenhum produto.</td></tr>`}</tbody>
     </table></div>${pg.pager}
   </section>`;
 }
@@ -4646,7 +4647,11 @@ function saveRow(codeV){
 function bindProdutos(){
   bindCsv();
   const q=document.getElementById("prodQ");
-  q.oninput=()=>{ state.prodQ=q.value; resetPage("prod"); const pos=q.selectionStart; render(); const n=document.getElementById("prodQ"); n.focus(); n.setSelectionRange(pos,pos); };
+  const lz=bindLzSearch(q, document.getElementById("lzSug"), v=>{ state.prodQ=v; resetPage("prod"); const pos=q.selectionStart; state.lzOpenSug=true; render(); const n=document.getElementById("prodQ"); n.focus(); n.setSelectionRange(pos,pos); });
+  if(state.lzOpenSug){ state.lzOpenSug=false; lz.open(); }
+  const lc=document.getElementById("lzClose"); if(lc) lc.onclick=()=>{ state.lzSel=null; render(); };
+  app.querySelectorAll("[data-lzp]").forEach(b=>b.onclick=()=>{ state.lzSel=b.dataset.lzp; state.lzForce=true; render(); requestAnimationFrame(()=>document.getElementById("lzRes")?.scrollIntoView({behavior:"smooth", block:"start"})); });
+  const T=lzTarget(); if(T && T.lc && parseLoc(T.lc)){ bindMapCard({loc:parseCode(T.lc)}, null, state.lzForce); state.lzForce=false; }
   app.querySelectorAll("[data-pf]").forEach(b=>b.onclick=()=>{ state.prodF=b.dataset.pf; resetPage("prod"); render(); });
   app.querySelectorAll("[data-save]").forEach(b=>b.onclick=()=>saveRow(b.dataset.save));
   app.querySelectorAll("[data-ean],[data-loc]").forEach(inp=>inp.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); saveRow(inp.dataset.ean||inp.dataset.loc); } });
