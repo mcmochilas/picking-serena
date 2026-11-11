@@ -441,6 +441,8 @@ details.cpcard summary{display:flex;justify-content:space-between;align-items:ce
 .nai:hover,.nae:hover{border-color:var(--muted)}.nai.on{border-color:var(--accent);background:var(--accent-soft)}
 .nai.sel,.nae.sel{border-color:var(--route);box-shadow:0 0 0 2px var(--route) inset}.nae.full{opacity:.6}
 .nait,.naet{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;font-size:14px;line-height:1.3}.naq{white-space:nowrap}.naei{font-size:13px;color:var(--ink)}
+.naeit{display:grid;grid-template-columns:auto minmax(0,1fr);gap:1px 14px;align-items:baseline;padding:6px 10px;border-radius:8px;background:var(--bg);font-weight:400;font-size:13px;color:var(--muted)}
+.naeit .k{font-size:10px;letter-spacing:.06em;text-transform:uppercase;opacity:.8}.naeit .mono{font-family:var(--mono);color:var(--ink);font-weight:500}.naeit span:last-child{color:var(--ink)}
 .naic{display:flex;gap:6px;flex-wrap:wrap;align-items:center}.naic .nabtn{margin-left:auto}.nabtn.on{background:var(--route);border-color:var(--route);color:#fff}
 .chip.sug{background:color-mix(in srgb,var(--route) 14%,var(--surface));color:var(--route)}
 .nasel{border:2px solid var(--route);border-radius:12px;padding:10px 12px;display:grid;gap:6px;background:var(--surface)}
@@ -2796,7 +2798,8 @@ function renderNfEdit(){
   const nAm=N.lines.filter(l=>used(l)).length, nSug=sugCount.filter(Boolean).length, links=N.lines.reduce((t,l)=>t+(l.alloc||[]).length,0);
   const selL = E.sel!=null ? N.lines[E.sel] : null, selE = !selL && E.enc ? encAll.find(c=>c.key===E.enc) : null;
   const pvTxt = c => `<b class="mono">#${esc(c.o.num)}</b> ${esc(c.o.client)}`;
-  const itTxt = c => `<span class="mono">${esc(c.x.code)}</span> ${esc(c.x.name)}`;
+  const itTxt = c => `<span class="naeit"><span class="k">SKU</span><span class="k">Produto</span><span class="mono">${esc(c.x.code)}</span><span>${esc(c.x.name)}</span></span>`;
+  const pvTxt2 = c => `<b class="mono">#${esc(c.o.num)}</b> <b>${esc(c.o.client)}</b>`;
 
   /* ----- coluna esquerda: itens da nota ----- */
   const leftRows = () => { const q=E.qL.trim().toUpperCase();
@@ -2816,7 +2819,7 @@ function renderNfEdit(){
   /* ----- coluna direita: pré-vendas com encomenda ----- */
   const encRow = (c, why) => { const left=encLeft(c), mine=draftUsed(c.o.id,c.x.i);
     return `<div class="nae ${E.enc===c.key?"sel":""} ${left<=0?"full":""}" data-nae="${c.key}" role="button" tabindex="0">
-      <div class="naet"><span>${pvTxt(c)}</span>${why?`<span class="chip sug">${why}</span>`:""}</div>
+      <div class="naet"><span>${pvTxt2(c)}</span>${why?`<span class="chip sug">${why}</span>`:""}</div>
       <div class="naei">${itTxt(c)}</div>
       <div class="naic"><span class="chip">encomenda ${c.x.qtyEnc} pç</span>${mine?`<span class="chip enc">${mine} pç nesta nota</span>`:""}${left>0?`<span class="chip need">faltam ${left} pç</span>`:`<span class="chip done">completa</span>`}
         ${selL ? `<button class="mini nabtn on" data-naadd="${c.key}">Amarrar${left>0?` · ${Math.min(left, Math.max(0,selL.qty-used(selL))) || ""}`:""}</button>` : ""}</div></div>`; };
@@ -2835,7 +2838,7 @@ function renderNfEdit(){
         <div class="eyebrow nah">${sug.length?"Outras encomendas em aberto":"Encomendas em aberto"} · ${others.length}</div>
         ${(()=>{ const pg=pageOf(others,"naR",20); return others.length ? pg.top + pg.items.map(c=>encRow(c)).join("") + pg.pager : `<div class="empty">${q?"Nenhuma encomenda com essa busca.":"Não há outras encomendas em aberto."}</div>`; })()}`; }
     const list=encAll.filter(match).sort((a,b)=>(encLeft(b)>0)-(encLeft(a)>0) || (a.o.createdAt||0)-(b.o.createdAt||0));
-    return `${selE?`<div class="nasel"><div class="eyebrow">Encomenda selecionada</div><div>${pvTxt(selE)}</div><div class="naei">${itTxt(selE)}</div><small class="muted-s">Encomenda de ${selE.x.qtyEnc} pç · faltam ${encLeft(selE)}. Agora toque em <b>Amarrar aqui</b> no item da nota (os mais parecidos estão em cima).</small><button class="lnk" id="naDesel">Cancelar</button></div>`
+    return `${selE?`<div class="nasel"><div class="eyebrow">Encomenda selecionada</div><div>${pvTxt2(selE)}</div><div class="naei">${itTxt(selE)}</div><small class="muted-s">Encomenda de ${selE.x.qtyEnc} pç · faltam ${encLeft(selE)}. Agora toque em <b>Amarrar aqui</b> no item da nota (os mais parecidos estão em cima).</small><button class="lnk" id="naDesel">Cancelar</button></div>`
       : `<div class="nahint">Toque num <b>item da nota</b> para ver as sugestões de pré-venda, ou escolha aqui uma <b>encomenda</b> e depois o item da nota.</div>`}
       <div class="eyebrow nah">Encomendas em aberto · ${list.length}</div>
       ${(()=>{ const pg=pageOf(list,"naR",20); return list.length ? pg.top + pg.items.map(c=>encRow(c)).join("") + pg.pager : `<div class="empty">${q?"Nenhuma encomenda com essa busca. Se a pré-venda ainda não está no sistema, use <b>Cadastrar pré-venda</b>.":"Nenhuma pré-venda com encomenda em aberto. Use <b>Cadastrar pré-venda</b>."}</div>`; })()}`; };
