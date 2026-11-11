@@ -432,6 +432,14 @@ details.cpcard summary{display:flex;justify-content:space-between;align-items:ce
 .nahead{display:grid;gap:8px}.nastats{display:flex;gap:8px 16px;flex-wrap:wrap;font-size:13px;color:var(--muted)}.nastats b{font-size:17px;color:var(--ink);font-family:var(--display)}.nastats .s-on b{color:var(--accent-ink)}.nastats .s-sug b{color:var(--route)}
 .nawarn{padding:8px 12px;border-radius:10px;background:var(--bad-soft);color:var(--bad);font-size:13px}.nawarn.ok{background:var(--ok-soft);color:var(--ok)}
 .seg.napanes{display:none;margin:12px 0 0}
+.tour{position:fixed;inset:0;z-index:2147483000}
+.tourhole{position:fixed;border-radius:12px;box-shadow:0 0 0 9999px rgba(8,12,18,.62);outline:3px solid var(--accent);transition:all .25s ease;pointer-events:none}
+.tourtip{position:fixed;background:var(--surface);color:var(--ink);border-radius:14px;padding:14px 16px;box-shadow:0 12px 32px rgba(0,0,0,.35);transition:top .25s ease,left .25s ease}
+.tourtip::before{content:"";position:absolute;left:var(--ax,24px);width:14px;height:14px;background:var(--surface);transform:translateX(-50%) rotate(45deg)}
+.tourtip[data-side="b"]::before{top:-7px}.tourtip[data-side="t"]::before{bottom:-7px}
+.tourtip h3{margin:2px 0 6px;font-size:17px}.tourtip p{margin:0;font-size:14px;line-height:1.45;color:var(--ink)}.tourn{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.tourb{display:flex;justify-content:space-between;align-items:center;margin-top:12px}.tourb span{display:flex;gap:6px}.tourb .mini.on{background:var(--accent);border-color:var(--accent);color:#1A1405}
+@media (prefers-reduced-motion:reduce){.tourhole,.tourtip{transition:none}}
 .bar.nahdr .btn.cpbtn{height:38px;min-height:38px;padding:0 16px;font-size:14px;border-radius:10px}
 .pvenc .mact .btn{flex:none;width:auto;min-height:38px;height:38px;padding:0 16px;font-size:14px;border-radius:10px}
 .nacl{background:color-mix(in srgb,var(--route) 9%,var(--surface));border-color:color-mix(in srgb,var(--route) 35%,var(--line))}.nacl .nach{border-bottom-color:color-mix(in srgb,var(--route) 25%,var(--line))}
@@ -2789,6 +2797,48 @@ function startNfEdit(nf, fresh){
   state.nfEdit={ N, id: ex ? ex.id : null, fresh:!!fresh, dirty:!!fresh, auto: fresh && !ex?.lines?.length ? N.lines.reduce((t,l)=>t+l.alloc.length,0) : 0, sel:null, enc:null, qL:"", qR:"", fL:"todos", pane:"itens", err:"" };
   render(); scrollTo(0,0);
 }
+/* ---- Tutorial da amarração: destaca cada parte da tela com um balão explicando o que fazer ---- */
+function nfTour(){
+  const mob=()=>matchMedia("(max-width:900px)").matches;
+  const steps=[
+    {sel:".nahead", t:"Dados da nota", d:"Confira o fornecedor, o número da NF e quantas caixas vieram. Aqui em baixo aparece o resumo: quantos itens já estão amarrados e quantos vão para o estoque."},
+    {sel:".nacl .nach", pane:"itens", t:"Itens da nota", d:"A coluna azul, embaixo deste título, mostra tudo o que veio na nota fiscal. Item com fundo amarelo já está amarrado a uma pré-venda; os outros vão para o estoque."},
+    {sel:"#naQL", pane:"itens", t:"Buscar item da nota", d:"Digite o código ou parte da descrição para achar o item na nota."},
+    {sel:".nafil", pane:"itens", t:"Filtros", d:"<b>Com sugestão</b>: itens que o sistema acha que são de alguma pré-venda. <b>Amarrados</b>: o que já foi ligado. <b>Estoque</b>: o que ainda não tem pré-venda."},
+    {sel:".nai", pane:"itens", t:"1. Toque no item", d:"Toque num item da nota. Do lado das pré-vendas aparecem primeiro as <b>sugestões</b> (mesmo pedido ao fornecedor, mesmo produto ou descrição parecida)."},
+    {sel:".nacr .nach", pane:"pvs", t:"2. Escolha a pré-venda", d:"Nesta coluna estão as pré-vendas esperando encomenda: número, cliente e o produto (SKU e descrição). Depois de tocar no item da nota, toque em <b>Amarrar</b> na pré-venda certa. A quantidade entra com o que falta, e você ajusta com − e +."},
+    {sel:"#naQR", pane:"pvs", t:"Buscar pré-venda", d:"Procure pelo número da pré-venda, nome do cliente, código ou descrição do produto."},
+    {sel:".nae", pane:"pvs", t:"Também dá ao contrário", d:"Toque numa encomenda primeiro: os itens da nota mais parecidos sobem para o topo e cada um ganha o botão <b>Amarrar aqui</b>."},
+    {sel:"#naNewPv", pane:"pvs", t:"Pré-venda que não está no sistema", d:"Se a pré-venda ainda não foi cadastrada, use <b>+ Cadastrar pré-venda</b>: envie o PDF ou digite número, cliente e itens."},
+    {sel:"#naSave", t:"3. Salve a nota", d:"Quando terminar, toque em <b>Salvar nota</b>. O que não foi amarrado vai para o estoque. Dá para voltar depois pela aba <b>Notas fiscais</b>."}
+  ];
+  let k=0;
+  const ov=document.createElement("div"); ov.className="tour"; ov.innerHTML=`<div class="tourhole"></div><div class="tourtip" role="dialog" aria-modal="true" aria-live="polite"></div>`;
+  document.body.appendChild(ov); scanbar.hidden=true;
+  const hole=ov.querySelector(".tourhole"), tip=ov.querySelector(".tourtip");
+  const close=()=>{ ov.remove(); removeEventListener("resize",place); removeEventListener("scroll",place,true); document.removeEventListener("keydown",key); render(); };
+  function place(){ const st=steps[k], el=[...document.querySelectorAll(st.sel)].find(e=>e.offsetParent!==null); if(!el){ hole.style.opacity=0; return; }
+    const r=el.getBoundingClientRect(), pad=6; hole.style.opacity=1;
+    Object.assign(hole.style,{left:(r.left-pad)+"px", top:(r.top-pad)+"px", width:(r.width+pad*2)+"px", height:(r.height+pad*2)+"px"});
+    const tw=Math.min(340, innerWidth-24); tip.style.width=tw+"px"; const th=tip.offsetHeight;
+    let top = r.bottom+14+th < innerHeight ? r.bottom+14 : r.top-14-th >= 8 ? r.top-14-th : Math.max(8, innerHeight-th-8), below = top>r.bottom;
+    let left=Math.min(Math.max(12, r.left + r.width/2 - tw/2), innerWidth-tw-12);
+    tip.style.top=top+"px"; tip.style.left=left+"px"; tip.dataset.side = below?"b":"t";
+    tip.style.setProperty("--ax", Math.min(Math.max(16, r.left+r.width/2-left), tw-16)+"px"); }
+  function show(){ const st=steps[k];
+    if(st.pane && mob() && state.nfEdit && state.nfEdit.pane!==st.pane){ state.nfEdit.pane=st.pane; render(); }
+    tip.innerHTML=`<div class="tourn">Passo ${k+1} de ${steps.length}</div><h3>${st.t}</h3><p>${st.d}</p>
+      <div class="tourb"><button class="lnk" data-tq>Sair</button><span>${k?`<button class="mini" data-tp>Voltar</button>`:""}<button class="mini on" data-tn>${k===steps.length-1?"Concluir":"Próximo"}</button></span></div>`;
+    tip.querySelector("[data-tq]").onclick=close; tip.querySelector("[data-tn]").onclick=()=>{ if(k===steps.length-1) return close(); k++; show(); };
+    const pb=tip.querySelector("[data-tp]"); if(pb) pb.onclick=()=>{ k--; show(); };
+    const el=[...document.querySelectorAll(st.sel)].find(e=>e.offsetParent!==null);
+    if(el){ const r=el.getBoundingClientRect(); if(r.top<70 || r.bottom>innerHeight-220) el.scrollIntoView({block: r.height>innerHeight*.6?"start":"center"}); }
+    requestAnimationFrame(()=>{ place(); tip.querySelector("[data-tn]").focus(); }); }
+  const key=e=>{ if(e.key==="Escape") close(); else if(e.key==="ArrowRight") tip.querySelector("[data-tn]")?.click(); else if(e.key==="ArrowLeft") tip.querySelector("[data-tp]")?.click(); };
+  addEventListener("resize",place); addEventListener("scroll",place,true); document.addEventListener("keydown",key);
+  ov.addEventListener("click",e=>{ if(e.target===ov) close(); });
+  show();
+}
 function renderNfEdit(){
   const E=state.nfEdit, N=E.N, selfId=E.id || nfId(N);
   const used = l => (l.alloc||[]).reduce((t,a)=>t+(+a.qty||0),0);
@@ -2844,14 +2894,14 @@ function renderNfEdit(){
         ${(()=>{ const pg=pageOf(others,"naR",20); return others.length ? pg.top + pg.items.map(c=>encRow(c)).join("") + pg.pager : `<div class="empty">${q?"Nenhuma encomenda com essa busca.":"Não há outras encomendas em aberto."}</div>`; })()}`; }
     const list=encAll.filter(match).sort((a,b)=>(encLeft(b)>0)-(encLeft(a)>0) || (a.o.createdAt||0)-(b.o.createdAt||0));
     return `${selE?`<div class="nasel"><div class="eyebrow">Encomenda selecionada</div><div>${pvTxt2(selE)}</div><div class="naei">${itTxt(selE)}</div><small class="muted-s">Encomenda de ${selE.x.qtyEnc} pç · faltam ${encLeft(selE)}. Agora toque em <b>Amarrar aqui</b> no item da nota (os mais parecidos estão em cima).</small><button class="lnk" id="naDesel">Cancelar</button></div>`
-      : `<div class="nahint">Toque num <b>item da nota</b> para ver as sugestões de pré-venda, ou escolha aqui uma <b>encomenda</b> e depois o item da nota.</div>`}
+      : ""}
       <div class="eyebrow nah">Encomendas em aberto · ${list.length}</div>
       ${(()=>{ const pg=pageOf(list,"naR",20); return list.length ? pg.top + pg.items.map(c=>encRow(c)).join("") + pg.pager : `<div class="empty">${q?"Nenhuma encomenda com essa busca. Se a pré-venda ainda não está no sistema, use <b>Cadastrar pré-venda</b>.":"Nenhuma pré-venda com encomenda em aberto. Use <b>Cadastrar pré-venda</b>."}</div>`; })()}`; };
 
   const ex = NFS[selfId];
   app.innerHTML = topnav() + `
     <header class="bar nahdr"><div class="grow"><h1>Amarrar nota fiscal</h1><div class="sub">Relacione os itens da nota com as pré-vendas que estão esperando encomenda. O que não for amarrado vai para o estoque.</div></div>
-      <div class="cpbtns"><button class="btn ghost cpbtn" id="naBack">Voltar</button><button class="btn primary cpbtn" id="naSave">Salvar nota</button></div></header>
+      <div class="cpbtns"><button class="btn ghost cpbtn" id="naTour">Tutorial</button><button class="btn ghost cpbtn" id="naBack">Voltar</button><button class="btn primary cpbtn" id="naSave">Salvar nota</button></div></header>
     <section class="card nahead">
       <div class="hnf nff"><label><span>Fornecedor</span><input class="tinput" id="nfForn" value="${esc(N.forn)}"></label><label><span>Nº da NF</span><input class="tinput" id="nfNum" value="${esc(N.num)}"></label><label><span>Volumes (caixas)</span><input class="tinput" id="nfVols" type="number" min="0" value="${N.vols||""}"></label></div>
       <small class="muted-s">${N.cnpj?"CNPJ "+fmtCnpj(N.cnpj)+" · ":""}${N.emissao?"emitida em "+fmtDate(N.emissao)+" · ":""}${N.chave?"chave lida":"sem chave de acesso: o recebimento será pelo nº da NF"}</small>
@@ -2907,6 +2957,7 @@ function renderNfEdit(){
     const over=N.lines.findIndex(l=>used(l)>l.qty); if(over>=0){ E.err=`O item ${N.lines[over].code} tem mais peças amarradas do que na nota.`; E.sel=over; E.enc=null; E.pane="pvs"; return redraw(); }
     saveNf(N); state.nfEdit=null; state.cTab="notas"; render(); scrollTo(0,0); };
   g("naSave").onclick=save; if(g("naSave2")) g("naSave2").onclick=save;
+  g("naTour").onclick=()=>nfTour();
   g("naNewPv").onclick=()=>openPvEnc(o=>{ E.qR=o.num; E.enc=null; resetPage("naR"); if(!selL) E.pane="pvs"; });
   g("naBack").onclick=async()=>{ if(E.dirty && !(await askModal({title:"Sair sem salvar?", text:"As amarrações feitas nesta tela ainda não foram salvas.", okText:"Sair sem salvar", danger:true}))) return; state.nfEdit=null; render(); };
 }
