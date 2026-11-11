@@ -278,7 +278,7 @@ Botão **Importar pedido do fornecedor**. Fornecedores reconhecidos: Living, Zen
 ### 7.3 Importar a nota fiscal (NF) do fornecedor e amarrar às pré-vendas
 Botão **Importar nota fiscal**: escolha o arquivo **XML** da NF-e (recomendado) ou o **PDF do DANFE**. Depois de ler, abre a tela **Amarrar nota fiscal** (não é mais uma janela).
 - **Duas colunas**: à esquerda (fundo azul, etiqueta NOTA FISCAL) os **itens da nota**; à direita (etiqueta PRÉ-VENDAS) as **pré-vendas com encomenda** em aberto. No celular viram duas abas.
-- **Busca dos dois lados**: itens da nota por código ou descrição; pré-vendas por número, cliente, código ou descrição. Filtros dos itens: **Todos / Com sugestão / Amarrados / Estoque**. Cada lado mostra **20 por página**.
+- **Busca dos dois lados**: itens da nota por código ou descrição; pré-vendas por número, cliente, código ou descrição. Filtros dos itens: **Todos / Com sugestão / Amarrados / Estoque**. Cada lado mostra **20 por página** e o card cresce com a lista (sem rolagem interna).
 - **Como amarrar**: toque num **item da nota**: aparecem as **sugestões** (mesmo pedido ao fornecedor, mesmo produto ou descrição parecida) e as outras encomendas; toque em **Amarrar**. Ou comece pela **pré-venda**: toque na encomenda e depois em **Amarrar aqui** no item da nota (os mais parecidos sobem). A quantidade entra com o que falta da encomenda, limitada ao que veio na nota; ajuste com − / + ou **tirar**. O que não for amarrado vai para o **estoque**.
 - O sistema já amarra sozinho o que consegue pelos pedidos ao fornecedor; confira no filtro **Amarrados**.
 - **+ Cadastrar pré-venda** (na coluna das pré-vendas): para pré-venda com encomenda que ainda não está no sistema. **Enviar o PDF** (lê número, cliente e itens; marque quantas peças são encomenda) ou **Digitar** (número, cliente e itens com código, descrição e quantidade). Se todas as peças forem encomenda, entra como "Encomenda total · aguardando chegada"; se só parte for (pelo PDF), a parte do estoque vai para a fila de separação. Número que já existe é recusado.
@@ -289,6 +289,9 @@ Botão **Importar nota fiscal**: escolha o arquivo **XML** da NF-e (recomendado)
 - A nota fica em **Notas a receber** para o Recebimento.
 
 ### 7.4 Chegada e liberação
+- **Item de pré-venda no recebimento**: quando o conferente bipa (ou dá OK em) um item da nota que está amarrado a uma pré-venda, abre o aviso **Este item é de pré-venda**, com a pré-venda, o cliente e quantas peças separar. Ele deixa essas peças numa **mesa** e **bipa a etiqueta da mesa** (ou toca no nome da mesa). "Agora não" pula e a peça fica como "Área de recebimento".
+- **Na TV e na fila**: quando a encomenda do pedido chega toda, ele entra na fila como **Encomenda chegou · buscar na Mesa-X**.
+- **Separador**: a tela mostra em qual mesa o conferente deixou; ele **bipa a mesa para desvincular** e depois bipa a peça (se bipar a peça antes, o sistema pede a mesa). Se o pedido tem peças na colmeia aguardando a encomenda, aparece o aviso para buscar lá também. **Envio**: finaliza na mesa dele e a colmeia é liberada. **Cliente retira**: no fim guarda na colmeia (junta com o que já está lá ou escolhe outra).
 - Quando o Recebimento confirma a nota e **todos os itens de encomenda** de um pedido chegaram, o pedido volta sozinho para a separação como **Encomenda recebida** (local "Área de recebimento"). Termina na mesa (envio) ou na colmeia (cliente retira).
 - Também dá para marcar manualmente **Chegou** / **Desfazer chegada** em cada item e usar **Encomenda completa · enviar para a separação**.
 
