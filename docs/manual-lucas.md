@@ -299,7 +299,7 @@ No fim, o pedido volta para **Para decidir** e a colmeia fica livre.
 Aba **Recebimento**: chegada de mercadoria dos fornecedores.
 1. **Bipe o código de barras da DANFE** (nota impressa que vem com as caixas, 44 dígitos) ou digite o número da NF. Ou toque na nota em **Notas a receber**.
 2. **Conte as caixas**: cada bipe da mesma nota soma uma caixa (ou use − / +). Mostra "X de Y caixas".
-3. **Confira os itens visualmente**, item por item: se a quantidade bate, toque em **OK**; se veio diferente, digite o que chegou e toque em OK (fica registrado como divergência).
+3. **Confira os itens**, item por item. **Bipe o código de barras (EAN) de uma peça** do produto: o item entra como chegado, com a quantidade da nota, e o botão fica **✓ Bipado**. Se veio diferente (faltou uma caixa, por exemplo), digite no campo de quantidade o que chegou: fica **Ajustado** e registrado como divergência. Produto sem código de barras: confira e toque em **OK**. Se o bipe não achar o item, é porque ele não tem EAN na nota nem em Produtos e EAN (use o OK); se o produto não for da nota, aparece "O produto … não está nesta nota". Bipar a nota fiscal continua contando caixa.
 4. **Confirmar recebimento**. As pré-vendas atendidas são liberadas para a separação.
 - A conferência é **salva automaticamente**; dá para parar ("Salvar e continuar depois") e continuar depois, por outra pessoa ou outro aparelho. Na lista aparece "Em conferência".
 - **Nota ainda não importada por Compras**: dá para registrar a chegada assim mesmo; Compras amarra os itens depois.
