@@ -422,7 +422,11 @@ details.cpcard summary{display:flex;justify-content:space-between;align-items:ce
 @media (max-width:600px){.calorstats{margin-left:0}.calorbar select{min-width:0;width:100%}.calorbar label{flex:1 1 140px}}
 .nahead{display:grid;gap:8px}.nastats{display:flex;gap:8px 16px;flex-wrap:wrap;font-size:13px;color:var(--muted)}.nastats b{font-size:17px;color:var(--ink);font-family:var(--display)}.nastats .s-on b{color:var(--accent-ink)}.nastats .s-sug b{color:var(--route)}
 .nawarn{padding:8px 12px;border-radius:10px;background:var(--bad-soft);color:var(--bad);font-size:13px}.nawarn.ok{background:var(--ok-soft);color:var(--ok)}
-.seg.napanes{display:none;margin:12px 0 0}.chip.need{background:var(--accent-soft);color:var(--accent-ink)}
+.seg.napanes{display:none;margin:12px 0 0}
+.nacl{background:color-mix(in srgb,var(--route) 9%,var(--surface));border-color:color-mix(in srgb,var(--route) 35%,var(--line))}.nacl .nach{border-bottom-color:color-mix(in srgb,var(--route) 25%,var(--line))}
+.natag{justify-self:start;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:6px}.natag.nf{background:var(--route);color:#fff}.natag.pv{background:var(--accent);color:var(--ink)}
+.nachr{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}.nalist .pager{margin-top:6px}
+.perows{display:grid;gap:6px;margin:6px 0}.perow{display:grid;grid-template-columns:110px minmax(0,1fr) 80px auto;gap:6px;align-items:center}@media (max-width:600px){.perow{grid-template-columns:1fr 80px auto}.perow [data-pen]{grid-column:1/-1;grid-row:2}}.chip.need{background:var(--accent-soft);color:var(--accent-ink)}
 .nagrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-top:12px;align-items:start}
 .nacol{display:flex;flex-direction:column;gap:0;padding:0;overflow:hidden;position:sticky;top:8px}
 .nach{display:grid;gap:8px;padding:14px 14px 10px;border-bottom:1px solid var(--line)}.nach h2{font-size:16px;margin:0}.nach .tinput{width:100%}.nafil{flex-wrap:wrap}
@@ -2699,6 +2703,68 @@ function openNfImport(){
     }catch(x){ askModal({title:"Não consegui ler a nota", text: x.message==="vazio" ? "Não encontrei os itens nesta nota. Me mande este arquivo para eu ensinar o sistema a ler." : "Este arquivo não parece uma nota fiscal (XML ou PDF da DANFE). Prefira o XML.", okText:"Entendi"}); } };
   inp.click();
 }
+/* Compras cadastra uma pré-venda que está esperando encomenda e ainda não está no sistema: pelo PDF ou digitando */
+function openPvEnc(done){
+  const f={num:"", cli:"", obs:"", rows:[{code:"", name:"", qty:"", enc:""}]}; let p=null, err="", busy=false, tab="pdf";
+  const ov=document.createElement("div"); ov.className="modal";
+  const close=()=>{ ov.remove(); render(); };
+  const draw=()=>{
+    ov.innerHTML=`<div class="mbox wide pvenc" role="dialog" aria-modal="true" aria-label="Cadastrar pré-venda de encomenda"><h2>Cadastrar pré-venda</h2>
+      <p>Para pré-venda com encomenda que ainda não está no sistema. Depois de salvar ela aparece na lista para amarrar.</p>
+      <div class="seg" role="group" aria-label="Como cadastrar"><button type="button" data-pt="pdf" aria-pressed="${tab==="pdf"}">Enviar o PDF</button><button type="button" data-pt="man" aria-pressed="${tab==="man"}">Digitar</button></div>
+      ${tab==="pdf" ? `<div class="hnpdf" style="margin-top:10px"><label class="mini tup">${busy?"Lendo PDF…":p?"Trocar PDF":"Escolher o PDF da pré-venda"}<input type="file" id="peFile" accept="application/pdf,.pdf" hidden></label><span class="muted-s">${p?`Pré-venda ${esc(p.num)} · ${p.items.length} itens lidos`:"O sistema lê o número, o cliente e os itens."}</span></div>` : ""}
+      ${tab==="man" || p ? `<div class="hnf" style="margin-top:10px"><label><span>Nº da pré-venda</span><input class="tinput" id="peNum" inputmode="numeric" value="${esc(f.num)}"></label><label><span>Cliente</span><input class="tinput" id="peCli" value="${esc(f.cli)}"></label></div>
+        <label class="hnl"><span>Observação</span><input class="tinput" id="peObs" value="${esc(f.obs)}" placeholder="Opcional"></label>` : ""}
+      ${tab==="pdf" && p ? `<div class="hnenc"><div class="hnench"><span>Quantas peças de cada item são encomenda?</span><button type="button" class="mini" id="peAll">Marcar todas</button></div>
+          <div class="hnencl">${p.items.map((it,i)=>{ const e=f.rows[i]?.enc||0; return `<div class="hnenci ${e?"on":""}"><span class="grow"><b class="mono">${esc(it.code)}</b> ${esc(it.name)}<small>${it.qty} pç na pré-venda${e&&e<it.qty?` · ${it.qty-e} pç do estoque`:e?"":" · do estoque"}</small></span>
+            <span class="encin"><input type="number" min="0" max="${it.qty}" step="1" value="${e}" data-pee="${i}" aria-label="Peças de encomenda de ${esc(it.code)}"><label><input type="checkbox" data-peall="${i}" ${e===it.qty?"checked":""}>todas</label></span></div>`; }).join("")}</div></div>` : ""}
+      ${tab==="man" ? `<div class="hnenc"><div class="hnench"><span>Itens de encomenda</span></div>
+          <div class="perows">${f.rows.map((r,i)=>`<div class="perow"><input class="tinput mono" data-pec="${i}" placeholder="Código" value="${esc(r.code)}" autocomplete="off" aria-label="Código do item ${i+1}"><input class="tinput" data-pen="${i}" placeholder="Descrição" value="${esc(r.name)}" aria-label="Descrição do item ${i+1}"><input class="tinput r" type="number" min="1" data-peq="${i}" placeholder="Qtd" value="${esc(r.qty)}" aria-label="Quantidade do item ${i+1}">${f.rows.length>1?`<button class="lnk" data-perm="${i}" aria-label="Tirar o item ${i+1}">tirar</button>`:"<span></span>"}</div>`).join("")}</div>
+          <button type="button" class="mini" id="peAdd">+ Adicionar item</button>
+          <small class="muted-s">Digite o código do produto do picking: a descrição preenche sozinha. A quantidade é a que está em encomenda.</small></div>` : ""}
+      <div class="merr">${esc(err)}</div>
+      <div class="mact"><button class="btn ghost" id="mNo">Cancelar</button>${tab==="man"||p?`<button class="btn primary" id="mOk">Salvar pré-venda</button>`:""}</div></div>`;
+    const g=id=>ov.querySelector("#"+id);
+    ov.querySelectorAll("[data-pt]").forEach(b=>b.onclick=()=>{ tab=b.dataset.pt; err=""; if(tab==="man" && p){ p=null; f.rows=[{code:"",name:"",qty:"",enc:""}]; } draw(); });
+    g("mNo").onclick=close;
+    if(g("peFile")) g("peFile").onchange=async e=>{ const file=e.target.files[0]; if(!file) return; busy=true; err=""; draw();
+      try{ p=await readPresalePdf(file); f.num=p.num||""; f.cli=p.client||""; f.obs=p.obs||""; f.rows=p.items.map(it=>({enc:it.qty})); }catch(x){ p=null; err="Não reconheci este PDF como uma pré-venda, orçamento ou condicional. Use Digitar."; }
+      busy=false; draw(); };
+    if(g("peNum")){ g("peNum").oninput=e=>f.num=e.target.value; g("peCli").oninput=e=>f.cli=e.target.value; g("peObs").oninput=e=>f.obs=e.target.value; }
+    ov.querySelectorAll("[data-pee]").forEach(inp=>inp.onchange=()=>{ const i=+inp.dataset.pee; f.rows[i].enc=Math.max(0,Math.min(p.items[i].qty,Math.round(+inp.value||0))); draw(); });
+    ov.querySelectorAll("[data-peall]").forEach(cb=>cb.onchange=()=>{ const i=+cb.dataset.peall; f.rows[i].enc=cb.checked?p.items[i].qty:0; draw(); });
+    if(g("peAll")) g("peAll").onclick=()=>{ p.items.forEach((it,i)=>f.rows[i].enc=it.qty); draw(); };
+    ov.querySelectorAll("[data-pec]").forEach(inp=>{ inp.oninput=()=>{ f.rows[+inp.dataset.pec].code=inp.value.trim().toUpperCase(); };
+      inp.onchange=()=>{ const r=f.rows[+inp.dataset.pec], P=PRODUCTS[r.code]; if(P && !r.name){ r.name=P.name; draw(); ov.querySelector(`[data-peq="${inp.dataset.pec}"]`)?.focus(); } }; });
+    ov.querySelectorAll("[data-pen]").forEach(inp=>inp.oninput=()=>{ f.rows[+inp.dataset.pen].name=inp.value; });
+    ov.querySelectorAll("[data-peq]").forEach(inp=>inp.oninput=()=>{ f.rows[+inp.dataset.peq].qty=inp.value; });
+    ov.querySelectorAll("[data-perm]").forEach(b=>b.onclick=()=>{ f.rows.splice(+b.dataset.perm,1); draw(); });
+    if(g("peAdd")) g("peAdd").onclick=()=>{ f.rows.push({code:"",name:"",qty:"",enc:""}); draw(); const l=ov.querySelectorAll("[data-pec]"); l[l.length-1]?.focus(); };
+    if(g("mOk")) g("mOk").onclick=()=>{
+      const num=f.num.trim().replace(/^(PV-|Nº\s*)/i,""), cli=f.cli.trim();
+      if(!num){ err="Informe o número da pré-venda."; return draw(); }
+      if(!cli){ err="Informe o cliente."; return draw(); }
+      let items;
+      if(tab==="pdf"){ items=p.items.map((it,i)=>({code:it.code, name:it.name, ean:it.ean||PRODUCTS[it.code]?.ean||"", un:it.un, qty:it.qty, price:it.price, loc:"", qtyEnc:Math.min(it.qty, f.rows[i].enc||0), eta:""}));
+        if(!items.some(it=>it.qtyEnc>0)){ err="Marque pelo menos um item como encomenda."; return draw(); } }
+      else { const rows=f.rows.filter(r=>r.code||r.name||r.qty);
+        if(!rows.length){ err="Adicione pelo menos um item."; return draw(); }
+        const bad=rows.find(r=>!r.code || !(+r.qty>0)); if(bad){ err="Cada item precisa de código e quantidade."; return draw(); }
+        items=rows.map(r=>{ const P=PRODUCTS[r.code], q=Math.round(+r.qty); return {code:r.code, name:(r.name||P?.name||r.code).trim().toUpperCase(), ean:P?.ean||"", un:"PC", qty:q, price:0, loc:"", qtyEnc:q, eta:""}; }); }
+      const sl=pvSlot({num, docType: tab==="pdf" ? p.docType : ""}), ex=sl.prev && sl.prev.status!=="excluido" ? sl.prev : null;
+      if(ex){ err=`A pré-venda ${num} já está no sistema (${statusInfo(ex).t}). Procure por ela na busca.`; return draw(); }
+      const now=Date.now(), obs=f.obs.trim(), all=items.every(it=>it.qtyEnc>=it.qty);
+      const o={ id:sl.id, num, docType: tab==="pdf" ? p.docType||"" : "", date:p?.date||"", time:p?.time||"", clientCode:p?.clientCode||"", client:cli, city:p?.city||"", seller:p?.seller||"", obs, total:p?.total||0,
+        ...(all ? {mode:"encomenda", status:"encomenda"} : {mode:"aguarda", status:"aguardando"}), colmeia:null,
+        v2:true, items, remessa:1, createdAt:now, createdBy:ME.id||"", canal:"consultiva", viaCompras:true, transportadora:carrierFromObs(obs)||"", ...(sl.again?{reenvio:sl.again, reenvioDe:sl.last?.id||""}:{}),
+        hist:[{t:now, by:ME.id||"", ev:"Pré-venda cadastrada por Compras na amarração da nota fiscal"}] };
+      saveOrder(o); done && done(o);
+      toast(all ? `Pré-venda ${num} cadastrada · encomenda total` : `Pré-venda ${num} cadastrada · a parte do estoque foi para a fila de separação`);
+      close(); };
+  };
+  ov.onclick=e=>{ if(e.target===ov) close(); };
+  document.body.appendChild(ov); scanbar.hidden=true; draw();
+}
 function startNfEdit(nf, fresh){
   const ex=NFS[nfId(nf)];
   const N = fresh ? nf : JSON.parse(JSON.stringify(nf));
@@ -2706,6 +2772,7 @@ function startNfEdit(nf, fresh){
     if(ex?.lines?.length) N.lines.forEach((l,k)=>{ const o=ex.lines.find(x=>x.code===l.code && x.qty===l.qty); if(o){ l.sku=l.sku||o.sku; l.alloc=JSON.parse(JSON.stringify(o.alloc||[])); } });
     else N.lines.forEach(l=>{ l.alloc=autoAlloc(l, N.forn); }); }
   N.lines.forEach(l=>{ l.alloc ||= []; });
+  resetPage("naL"); resetPage("naR");
   state.nfEdit={ N, id: ex ? ex.id : null, fresh:!!fresh, dirty:!!fresh, auto: fresh && !ex?.lines?.length ? N.lines.reduce((t,l)=>t+l.alloc.length,0) : 0, sel:null, enc:null, qL:"", qR:"", fL:"todos", pane:"itens", err:"" };
   render(); scrollTo(0,0);
 }
@@ -2731,12 +2798,13 @@ function renderNfEdit(){
     if(q) rows=rows.filter(r=>(r.l.code+" "+r.l.name+" "+(r.l.sku||"")).toUpperCase().includes(q));
     if(E.fL==="amar") rows=rows.filter(r=>used(r.l)); else if(E.fL==="estq") rows=rows.filter(r=>!used(r.l)); else if(E.fL==="sug") rows=rows.filter(r=>sugCount[r.j]);
     if(selE) rows.sort((a,b)=>b.sc-a.sc);
-    return rows.length ? rows.map(({l,j,sc})=>{ const u=used(l), over=u>l.qty;
+    const pg=pageOf(rows, "naL", 20);
+    return rows.length ? pg.top + pg.items.map(({l,j,sc})=>{ const u=used(l), over=u>l.qty;
       return `<div class="nai ${E.sel===j?"sel":""} ${u?"on":""}" data-nal="${j}" role="button" tabindex="0">
         <div class="nait"><span><b class="mono">${esc(l.code)}</b> ${esc(l.name)}</span><b class="tnum naq">${l.qty} ${esc(l.un||"pç")}</b></div>
         <div class="naic">${(l.alloc||[]).map(a=>{ const o=ORDERS.find(x=>x.id===a.oid); return `<span class="chip enc">→ #${esc(o?.num||"?")} · ${a.qty} pç</span>`; }).join("")}
           ${over?`<span class="chip bad">${u-l.qty} pç a mais que a nota</span>`: u ? (u<l.qty?`<span class="chip">${l.qty-u} pç estoque</span>`:"") : sugCount[j] ? `<span class="chip sug">${sugCount[j]} sugest${sugCount[j]===1?"ão":"ões"}</span>` : `<span class="chip">estoque</span>`}
-          ${selE ? `<button class="mini nabtn ${sc>=3?"on":""}" data-nabind="${j}">Amarrar aqui</button>` : ""}</div></div>`; }).join("")
+          ${selE ? `<button class="mini nabtn ${sc>=3?"on":""}" data-nabind="${j}">Amarrar aqui</button>` : ""}</div></div>`; }).join("") + pg.pager
       : `<div class="empty">Nenhum item da nota com esse filtro.</div>`; };
 
   /* ----- coluna direita: pré-vendas com encomenda ----- */
@@ -2759,12 +2827,12 @@ function renderNfEdit(){
           <button class="lnk" id="naDesel">Fechar este item</button></div>
         ${sug.length?`<div class="eyebrow nah">Sugestões para este item</div>${sug.map(x=>encRow(x.c, x.sc>=100?"mesmo pedido ao fornecedor":x.sc>=50?"mesmo produto":"descrição parecida")).join("")}`:""}
         <div class="eyebrow nah">${sug.length?"Outras encomendas em aberto":"Encomendas em aberto"} · ${others.length}</div>
-        ${others.length ? others.slice(0,40).map(c=>encRow(c)).join("") + (others.length>40?`<small class="muted-s">Mostrando 40 de ${others.length}. Use a busca para achar as outras.</small>`:"") : `<div class="empty">${q?"Nenhuma encomenda com essa busca.":"Não há outras encomendas em aberto."}</div>`}`; }
+        ${(()=>{ const pg=pageOf(others,"naR",20); return others.length ? pg.top + pg.items.map(c=>encRow(c)).join("") + pg.pager : `<div class="empty">${q?"Nenhuma encomenda com essa busca.":"Não há outras encomendas em aberto."}</div>`; })()}`; }
     const list=encAll.filter(match).sort((a,b)=>(encLeft(b)>0)-(encLeft(a)>0) || (a.o.createdAt||0)-(b.o.createdAt||0));
     return `${selE?`<div class="nasel"><div class="eyebrow">Encomenda selecionada</div><div>${pvTxt(selE)}</div><div class="naei">${itTxt(selE)}</div><small class="muted-s">Encomenda de ${selE.x.qtyEnc} pç · faltam ${encLeft(selE)}. Agora toque em <b>Amarrar aqui</b> no item da nota (os mais parecidos estão em cima).</small><button class="lnk" id="naDesel">Cancelar</button></div>`
       : `<div class="nahint">Toque num <b>item da nota</b> para ver as sugestões de pré-venda, ou escolha aqui uma <b>encomenda</b> e depois o item da nota.</div>`}
       <div class="eyebrow nah">Encomendas em aberto · ${list.length}</div>
-      ${list.length ? list.slice(0,60).map(c=>encRow(c)).join("") + (list.length>60?`<small class="muted-s">Mostrando 60 de ${list.length}. Use a busca.</small>`:"") : `<div class="empty">${q?"Nenhuma encomenda com essa busca.":"Nenhuma pré-venda com encomenda em aberto."}</div>`}`; };
+      ${(()=>{ const pg=pageOf(list,"naR",20); return list.length ? pg.top + pg.items.map(c=>encRow(c)).join("") + pg.pager : `<div class="empty">${q?"Nenhuma encomenda com essa busca. Se a pré-venda ainda não está no sistema, use <b>Cadastrar pré-venda</b>.":"Nenhuma pré-venda com encomenda em aberto. Use <b>Cadastrar pré-venda</b>."}</div>`; })()}`; };
 
   const ex = NFS[selfId];
   app.innerHTML = topnav() + `
@@ -2780,12 +2848,12 @@ function renderNfEdit(){
     </section>
     <div class="seg napanes">${[["itens",`Itens da nota · ${N.lines.length}`],["pvs","Pré-vendas (encomendas)"]].map(([k,t])=>`<button data-napane="${k}" aria-pressed="${E.pane===k}">${t}</button>`).join("")}</div>
     <div class="nagrid" data-pane="${E.pane}">
-      <section class="card nacol nacl"><div class="nach"><h2>Itens da nota</h2>
+      <section class="card nacol nacl"><div class="nach"><span class="natag nf">Nota fiscal</span><h2>Itens da nota</h2>
           <input class="tinput" id="naQL" placeholder="Buscar item da nota: código ou descrição" value="${esc(E.qL)}" autocomplete="off">
           <div class="seg nafil">${[["todos","Todos"],["sug",`Com sugestão${nSug?` · ${nSug}`:""}`],["amar",`Amarrados · ${nAm}`],["estq","Estoque"]].map(([k,t])=>`<button data-nafil="${k}" aria-pressed="${E.fL===k}">${t}</button>`).join("")}</div>
           ${selE?`<div class="nahint on">Amarrando <b>#${esc(selE.o.num)}</b> · ${esc(selE.x.code)}: toque em <b>Amarrar aqui</b> no item certo.</div>`:""}</div>
         <div class="nalist" id="naL">${leftRows()}</div></section>
-      <section class="card nacol nacr"><div class="nach"><h2>Pré-vendas com encomenda</h2>
+      <section class="card nacol nacr"><div class="nach"><span class="natag pv">Pré-vendas</span><div class="nachr"><h2>Pré-vendas com encomenda</h2><button class="mini" id="naNewPv">+ Cadastrar pré-venda</button></div>
           <input class="tinput" id="naQR" placeholder="Buscar pré-venda: número, cliente, código ou descrição" value="${esc(E.qR)}" autocomplete="off"></div>
         <div class="nalist" id="naR">${rightBody()}</div></section>
     </div>
@@ -2796,11 +2864,11 @@ function renderNfEdit(){
     if(E.pane!==pane0 && matchMedia("(max-width:900px)").matches) app.querySelector(".napanes")?.scrollIntoView({block:"start"}); };
   const touch=()=>{ E.dirty=true; E.err=""; E.auto=0; };
   g("nfForn").oninput=e=>{ N.forn=e.target.value; E.dirty=true; }; g("nfNum").oninput=e=>{ N.num=e.target.value.trim(); E.dirty=true; }; g("nfVols").oninput=e=>{ N.vols=Math.max(0,+e.target.value||0); E.dirty=true; };
-  const bindL=()=>{ g("naL").querySelectorAll("[data-nal]").forEach(d=>{ const go=e=>{ if(e.target.closest("[data-nabind]")) return; const j=+d.dataset.nal; E.sel = E.sel===j ? null : j; E.enc=null; if(E.sel!=null) E.pane="pvs"; redraw(true); };
+  const bindL=()=>{ g("naL").querySelectorAll("[data-nal]").forEach(d=>{ const go=e=>{ if(e.target.closest("[data-nabind]")) return; const j=+d.dataset.nal; E.sel = E.sel===j ? null : j; E.enc=null; resetPage("naR"); if(E.sel!=null) E.pane="pvs"; redraw(true); };
       d.onclick=go; d.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); go(e); } }; });
     g("naL").querySelectorAll("[data-nabind]").forEach(b=>b.onclick=()=>{ add(+b.dataset.nabind, selE); }); };
   const bindR=()=>{ const R=g("naR");
-    R.querySelectorAll("[data-nae]").forEach(d=>{ const go=e=>{ if(e.target.closest("[data-naadd]")) return; if(selL) return; E.enc = E.enc===d.dataset.nae ? null : d.dataset.nae; if(E.enc) E.pane="itens"; redraw(); };
+    R.querySelectorAll("[data-nae]").forEach(d=>{ const go=e=>{ if(e.target.closest("[data-naadd]")) return; if(selL) return; E.enc = E.enc===d.dataset.nae ? null : d.dataset.nae; resetPage("naL"); if(E.enc) E.pane="itens"; redraw(); };
       d.onclick=go; d.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); go(e); } }; });
     R.querySelectorAll("[data-naadd]").forEach(b=>b.onclick=()=>add(E.sel, encAll.find(c=>c.key===b.dataset.naadd)));
     R.querySelectorAll("[data-naq]").forEach(b=>b.onclick=()=>{ const a=selL.alloc[+b.dataset.naq]; a.qty=Math.max(1,(+a.qty||0)+(+b.dataset.d)); touch(); redraw(); });
@@ -2814,9 +2882,9 @@ function renderNfEdit(){
     const q=Math.max(1, Math.min(free, left>0?left:c.x.qtyEnc)); if(left<=0) setTimeout(()=>toast(`Atenção: a encomenda do #${c.o.num} já estava completa em outra nota`), 50); l.alloc.push({oid:c.o.id, i:c.x.i, qty:q}); touch();
     toast(`${l.code} → #${c.o.num} · ${q} pç`); E.sel=j; E.enc=null; E.pane="pvs"; redraw(); }
   bindL(); bindR();
-  const typed=(id, key, list, html, bind)=>{ const el=g(id); el.oninput=()=>{ E[key]=el.value; clearTimeout(el._t); el._t=setTimeout(()=>{ g(list).innerHTML=html(); g(list).scrollTop=0; bind(); },120); }; };
+  const typed=(id, key, list, html, bind)=>{ const el=g(id); el.oninput=()=>{ E[key]=el.value; resetPage(list); clearTimeout(el._t); el._t=setTimeout(()=>{ g(list).innerHTML=html(); g(list).scrollTop=0; bind(); },120); }; };
   typed("naQL","qL","naL",leftRows,bindL); typed("naQR","qR","naR",rightBody,bindR);
-  app.querySelectorAll("[data-nafil]").forEach(b=>b.onclick=()=>{ E.fL=b.dataset.nafil; const k=keep(); render(); scrollTo(0,k.y); });
+  app.querySelectorAll("[data-nafil]").forEach(b=>b.onclick=()=>{ E.fL=b.dataset.nafil; resetPage("naL"); const k=keep(); render(); scrollTo(0,k.y); });
   app.querySelectorAll("[data-napane]").forEach(b=>b.onclick=()=>{ E.pane=b.dataset.napane; redraw(); });
   const save=()=>{
     if(!N.num){ E.err="Informe o número da NF."; return redraw(); }
@@ -2824,6 +2892,7 @@ function renderNfEdit(){
     const over=N.lines.findIndex(l=>used(l)>l.qty); if(over>=0){ E.err=`O item ${N.lines[over].code} tem mais peças amarradas do que na nota.`; E.sel=over; E.enc=null; E.pane="pvs"; return redraw(); }
     saveNf(N); state.nfEdit=null; state.cTab="notas"; render(); scrollTo(0,0); };
   g("naSave").onclick=save; if(g("naSave2")) g("naSave2").onclick=save;
+  g("naNewPv").onclick=()=>openPvEnc(o=>{ E.qR=o.num; E.enc=null; resetPage("naR"); if(!selL) E.pane="pvs"; });
   g("naBack").onclick=async()=>{ if(E.dirty && !(await askModal({title:"Sair sem salvar?", text:"As amarrações feitas nesta tela ainda não foram salvas.", okText:"Sair sem salvar", danger:true}))) return; state.nfEdit=null; render(); };
 }
 function saveNf(N){
