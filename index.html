@@ -302,7 +302,7 @@ details.cpcard summary{display:flex;justify-content:space-between;align-items:ce
 .cptwrap{overflow-x:auto}
 .cptab{width:100%;border-collapse:collapse;font-size:13px}
 .cptab th{text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line)}
-.cptab td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}.cptab tr:last-child td{border-bottom:0}
+.cptab td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}.cptab.cpnf td{vertical-align:middle}.cptab tr:last-child td{border-bottom:0}
 .cptab .r{text-align:right}.cptab .mono,.ppline .mono{font-family:var(--mono)}
 .cpref{font-size:12px;color:var(--muted);margin-top:3px}
 .lnk{border:0;background:none;color:var(--route);font:inherit;font-size:12px;cursor:pointer;padding:0;text-decoration:underline}
@@ -1979,7 +1979,7 @@ function renderCompras(){
   } else if(tab==="notas"){
     const nfs=Object.values(NFS).sort((a,b)=>(b.importedAt||b.createdAt||0)-(a.importedAt||a.createdAt||0)), qn=q.toUpperCase();
     const rows=nfs.filter(n=>!qn || (n.num+" "+n.forn+" "+(n.lines||[]).map(l=>l.code+" "+l.name).join(" ")).toUpperCase().includes(qn)), pgn=pageOf(rows,"cpnf",15);
-    body = rows.length ? `${pgn.top}<div class="cpcard"><div class="cptwrap"><table class="cptab"><thead><tr><th>NF</th><th>Fornecedor</th><th>Importada</th><th class="r">Itens</th><th>Amarração</th><th>Situação</th><th></th></tr></thead><tbody>
+    body = rows.length ? `${pgn.top}<div class="cpcard"><div class="cptwrap"><table class="cptab cpnf"><thead><tr><th>NF</th><th>Fornecedor</th><th>Importada</th><th class="r">Itens</th><th>Amarração</th><th>Situação</th><th></th></tr></thead><tbody>
       ${pgn.items.map(n=>{ const L=n.lines||[], am=L.filter(l=>(l.alloc||[]).length).length, pv=new Set(L.flatMap(l=>(l.alloc||[]).map(a=>a.oid))).size;
         return `<tr><td><b class="mono">${esc(n.num)}</b></td><td>${esc(n.forn||"—")}</td><td class="tnum">${new Date(n.importedAt||n.createdAt||0).toLocaleDateString("pt-BR")}</td><td class="r tnum">${L.length||"—"}</td>
           <td>${!L.length?`<span class="chip bad">nota sem itens: importe o XML</span>`:am?`<span class="chip enc">${am} ite${am===1?"m":"ns"} · ${pv} pré-venda${pv===1?"":"s"}</span>`:`<span class="chip">tudo para estoque</span>`}</td>
