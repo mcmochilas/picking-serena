@@ -283,10 +283,11 @@ Botão **Importar nota fiscal**: escolha o arquivo **XML** da NF-e (recomendado)
 - O sistema já amarra sozinho o que consegue pelos pedidos ao fornecedor; confira no filtro **Amarrados**.
 - **+ Cadastrar pré-venda** (na coluna das pré-vendas): para pré-venda com encomenda que ainda não está no sistema. **Enviar o PDF** (lê número, cliente e itens; marque quantas peças são encomenda) ou **Digitar** (número, cliente e itens com código, descrição e quantidade). Se todas as peças forem encomenda, entra como "Encomenda total · aguardando chegada"; se só parte for (pelo PDF), a parte do estoque vai para a fila de separação. Número que já existe é recusado.
 - **Salvar nota** grava; a faixa "Alterações ainda não salvas" lembra, e **Voltar** pergunta antes de sair.
+- **Tutorial** (botão ao lado de Voltar): passo a passo da amarração em 10 passos; cada parte da tela fica em destaque com um balão explicando o que fazer (Próximo / Voltar / Sair; no computador também as setas e Esc). Só abre quando a pessoa toca no botão.
 - Aceita **faturamento parcial** (a nota traz só parte dos itens). Situações: "Faturado em parte", "Faturado · a caminho".
 - **Aba Notas fiscais** (em Compras): lista as notas importadas com a amarração e a situação (Aguardando chegada, Recebida, Recebida com divergência). O botão **Amarrar / Ver amarração** reabre a nota.
 - **Amarrar depois do recebimento**: nota já conferida no Recebimento também pode ser amarrada (ou ter a amarração ajustada). Ao salvar, as pré-vendas amarradas já contam como encomenda chegada; se houve divergência, vale a quantidade conferida (o que sobrar vai para o estoque).
-- A nota fica em **Notas a receber** para o Recebimento.
+- A nota fica em **Notas a receber** para o Recebimento. Na lista do Recebimento cada nota mostra o fornecedor (com caixas e itens), as **pré-vendas amarradas** e, à direita, a situação (**Aguardando** ou **Em conferência**, com itens conferidos, quantos faltam e caixas contadas).
 
 ### 7.4 Chegada e liberação
 - **Item de pré-venda no recebimento**: quando o conferente bipa (ou dá OK em) um item da nota que está amarrado a uma pré-venda, abre o aviso **Este item é de pré-venda**, com a pré-venda, o cliente e quantas peças separar. Ele deixa essas peças numa **mesa** e **bipa a etiqueta da mesa** (ou toca no nome da mesa). "Agora não" pula e a peça fica como "Área de recebimento".
