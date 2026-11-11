@@ -490,7 +490,12 @@ body.scan-cam .in:has(.kbd.on) .cam{display:none}
 .slot{position:relative}.slotn{position:absolute;top:2px;right:3px;font-style:normal;font-size:9px;font-weight:700;background:var(--ink);color:var(--bg);border-radius:8px;min-width:14px;height:14px;line-height:14px;text-align:center;padding:0 3px}
 button.slot{padding:0;cursor:pointer;font-family:var(--mono)}button.slot:hover{outline:2px solid var(--route);outline-offset:1px}
 .scancfg{flex:none;width:44px;height:48px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);display:grid;place-items:center}
-body.scan-reader .cam{display:none}body.scan-col .scanfield .kbd{display:none}body.scan-col .scanfield input{padding-right:12px}
+body.scan-reader .cam{display:none}
+.colhint{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;margin:0 0 6px;padding:8px 12px;border-radius:10px;border:1px solid var(--route);background:color-mix(in srgb,var(--route) 12%,var(--surface));color:var(--ink);font:inherit;font-size:13px;text-align:left;cursor:pointer}
+.colhint b{flex:none;padding:4px 10px;border-radius:8px;background:var(--route);color:#fff;font-size:12px}
+.coltest .ctstep{font-size:13px;color:var(--muted);margin-bottom:4px}.coltest .ctin{width:100%;height:52px;font-size:18px;text-align:center;margin-top:10px;border:2px solid var(--route)}
+.coltok{display:grid;justify-items:center;gap:6px;text-align:center;color:var(--ok);margin:6px 0}.coltok b{font-size:18px;color:var(--ink)}.coltok b .mono{word-break:break-all}.coltok p{color:var(--ink);margin:0}
+.coltip{margin-top:10px;padding:10px 12px;border-radius:10px;background:var(--bg);border:1px solid var(--line);font-size:13px;line-height:1.4}.ctlist{margin:8px 0 0;padding-left:18px;font-size:14px;line-height:1.5}
 body.scan-reader .scanfield input{font-size:16px;border-width:2px;border-color:var(--route)}
 body.scan-cam .cam{flex:1;justify-content:center;height:56px;font-size:16px}
 body.scan-cam .scanfield{flex:none;width:52px}body.scan-cam .scanfield input{cursor:pointer}body.scan-cam .scanfield input{padding:0;color:transparent;caret-color:transparent;border-color:var(--line)}body.scan-cam .scanfield input::placeholder{color:transparent}
@@ -4104,45 +4109,131 @@ function handleScan(raw){
   const other = o.items.find(x=>x.ean===v||x.code===v);
   setMsg(enc ? `${enc.name} é sob encomenda. Não separar.` : other ? `Produto de outro item: ${other.name}. Este item ${it.loc?"está em "+code(it.loc):"é o "+it.code}.` : `Código ${v} não é deste produto.`, "bad");
 }
-let wedgeT0=0, wedgeN=0, autoT;
+let wedgeT0=0, wedgeN=0, autoT, inT0=0;
+/* Para onde vai um código lido: o teste do coletor (se estiver aberto) ou a tela atual */
+let SCAN_TEST=null;
+function routeScan(v, via){ if(SCAN_TEST){ SCAN_TEST(String(v||"").trim(), via); return; } handleScan(v); }
+const scanActive = () => !scanbar.hidden && !document.querySelector(".modal") && !window.LUCAS_OPEN;
+const isEditable = el => !!el && el!==scanIn && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable);
 scanIn.addEventListener("keydown", e=>{
   if(e.key==="Enter"||e.key==="Tab"){ e.preventDefault(); clearTimeout(autoT);
     const v=scanIn.value, fast = wedgeN>=6 && (performance.now()-wedgeT0)/wedgeN < 35;
     if(fast && PDA===null) setTimeout(()=>{ setPDA(true, true); toast("Leitor do coletor detectado · modo coletor ligado"); }, 50);
-    wedgeN=0; handleScan(v); scanIn.value=""; return; }
+    wedgeN=0; inT0=0; scanIn.value="";
+    const kb=document.getElementById("kbd"); if(kb.classList.contains("on") && scanMode()==="coletor" && colKb() && colKb()!=="show"){ kb.classList.remove("on"); applyScanMode(true); } // digitou e confirmou: o teclado some de novo
+    routeScan(v,"teclas"); return; }
   if(e.key==="ArrowUp"||e.key==="+"){ if(qtyKey(1)) e.preventDefault(); return; }
   if(e.key==="ArrowDown"||e.key==="-"){ if(qtyKey(-1)) e.preventDefault(); return; }
   if(e.key.length===1){ if(!wedgeN) wedgeT0=performance.now(); wedgeN++; }
 });
-// Leitores configurados sem "Enter" no final: processa quando a digitação para
+// Leitores sem "Enter" no final, ou que mandam o código inteiro de uma vez como texto: processa quando a entrada para.
+// Só vale para entrada rápida (leitor); quem digita com o dedo confirma com Enter.
 scanIn.addEventListener("input", ()=>{
   clearTimeout(autoT);
-  if(scanIn.getAttribute("inputmode")!=="none" && scanMode()!=="coletor") return;
-  autoT=setTimeout(()=>{ const v=scanIn.value.trim(); if(v.length>=6){ wedgeN=0; handleScan(v); scanIn.value=""; } }, 180);
+  if(!scanIn.value){ inT0=0; return; }
+  if(!inT0) inT0=performance.now();
+  autoT=setTimeout(()=>{ const v=scanIn.value.trim(), per=(performance.now()-180-inT0)/Math.max(1,v.length);
+    if(v.length>=6 && per<60){ wedgeN=0; inT0=0; scanIn.value=""; routeScan(v,"texto"); } }, 180);
 });
-let buf="", bufT;
+/* Captura global: o leitor que manda teclas funciona mesmo com o foco fora do campo (depois de tocar num botão, por exemplo),
+   sem precisar de teclado na tela. */
+let buf="", bufT, bufT0=0;
 document.addEventListener("keydown", e=>{
-  if(!SCAN_VIEWS.includes(state.view) || state.sector!=="expedicao" || e.target===scanIn || /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
-  if(e.key==="Enter"){ e.preventDefault(); handleScan(buf); buf=""; return; }
+  if(!(scanActive() || SCAN_TEST) || e.target===scanIn || isEditable(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
+  if(e.key==="Enter"||e.key==="Tab"){ if(e.key==="Tab" && !buf) return; e.preventDefault(); clearTimeout(bufT); const v=buf; buf=""; routeScan(v,"teclas"); return; }
   if(e.key==="ArrowUp"){ if(qtyKey(1)) e.preventDefault(); return; }
   if(e.key==="ArrowDown"){ if(qtyKey(-1)) e.preventDefault(); return; }
-  if(e.key.length===1){ buf+=e.key; clearTimeout(bufT); bufT=setTimeout(()=>buf="",300); }
+  if(e.key.length===1){ if(e.key===" ") e.preventDefault(); if(!buf) bufT0=performance.now(); buf+=e.key; clearTimeout(bufT);
+    bufT=setTimeout(()=>{ const v=buf, per=(performance.now()-150-bufT0)/Math.max(1,v.length); buf=""; if(v.length>=6 && per<60) routeScan(v,"teclas"); }, 150); }
+}, true);
+// Leitor configurado para "colar" o código (área de transferência)
+document.addEventListener("paste", e=>{
+  if(!(scanActive() || SCAN_TEST) || isEditable(e.target)) return;
+  const t=(e.clipboardData?.getData("text")||"").trim(); if(!t || t.length>64 || /\n/.test(t)) return;
+  e.preventDefault(); scanIn.value=""; routeScan(t,"colar");
 });
+// Mantém o campo de leitura com o foco (o leitor que "digita" texto precisa de um campo ativo): volta o foco depois de tocar em botões
+scanIn.addEventListener("blur", ()=>setTimeout(()=>{ if(scanActive() && !isEditable(document.activeElement)) focusScan(); }, 120));
+document.addEventListener("pointerup", ()=>setTimeout(()=>{ if(scanActive() && !isEditable(document.activeElement)) focusScan(); }, 160));
 document.getElementById("kbd").onclick = ()=>{
-  const k=document.getElementById("kbd"), on = scanIn.getAttribute("inputmode")==="none";
-  scanIn.setAttribute("inputmode", on?"text":"none"); k.classList.toggle("on",on);
-  scanIn.placeholder = on ? "Digite o código e toque Enter" : "Leitor pronto: bipe o código";
-  scanIn.blur(); setTimeout(()=>scanIn.focus(),50);
+  document.getElementById("kbd").classList.toggle("on"); applyScanMode(true);
 };
 /* Tipo de leitura, escolhido por cada separador neste aparelho: câmera do celular ou leitor de código (Bluetooth/USB) */
 const scanModeKey = () => "ps-scanmode:"+(ME.id||"");
 function scanMode(){ try{ return localStorage.getItem(scanModeKey()) || "leitor"; }catch(e){ return "leitor"; } }
-function applyScanMode(){ const m=scanMode(); document.body.classList.toggle("scan-cam", m==="camera"); document.body.classList.toggle("scan-reader", m!=="camera"); document.body.classList.toggle("scan-col", m==="coletor");
+/* Coletor: como o campo se comporta com o teclado da tela (guardado por aparelho, definido pelo teste do leitor):
+   "manual" = campo ativo, teclado só aparece no botão do teclado · "none" = campo sem teclado · "show" = teclado sempre aberto (modo antigo) */
+function colKb(){ try{ return localStorage.getItem("ps-colkb") || ""; }catch(e){ return ""; } }
+function setColKb(v){ try{ localStorage.setItem("ps-colkb", v); }catch(e){} applyScanMode(true); }
+function applyScanMode(refocus){ const m=scanMode(), kbd=document.getElementById("kbd"), typing=kbd.classList.contains("on"), kb=colKb()||"show";
+  document.body.classList.toggle("scan-cam", m==="camera"); document.body.classList.toggle("scan-reader", m!=="camera"); document.body.classList.toggle("scan-col", m==="coletor");
   const c=document.getElementById("cam"); if(c) c.lastChild.textContent = m==="camera" ? "Abrir câmera" : "Câmera";
-  // Coletor (leitor embutido no aparelho Android): o leitor "digita" pelo teclado do sistema, então o campo precisa aceitar teclado
-  if(m==="coletor"){ if(scanIn.getAttribute("inputmode")!=="text"){ scanIn.setAttribute("inputmode","text"); scanIn.setAttribute("enterkeyhint","done"); } scanIn.placeholder="Coletor pronto: aperte o gatilho"; return; }
-  if(scanIn.getAttribute("inputmode")==="text" && !document.getElementById("kbd").classList.contains("on")) scanIn.setAttribute("inputmode","none");
-  if(scanIn.getAttribute("inputmode")==="none") scanIn.placeholder = m==="camera" ? "Toque em Abrir câmera" : "Leitor pronto: bipe o código"; }
+  let im="none", pol="auto", ph = m==="camera" ? "Toque em Abrir câmera" : "Leitor pronto: bipe o código";
+  if(typing){ im="text"; ph="Digite o código e toque Enter"; }
+  else if(m==="coletor"){ ph="Coletor pronto: aperte o gatilho"; if(kb==="show") im="text"; else if(kb==="manual"){ im="text"; pol="manual"; } }
+  const ch = scanIn.getAttribute("inputmode")!==im || (scanIn.getAttribute("virtualkeyboardpolicy")||"auto")!==pol;
+  scanIn.setAttribute("inputmode", im); scanIn.setAttribute("virtualkeyboardpolicy", pol); scanIn.setAttribute("enterkeyhint","done"); scanIn.placeholder=ph;
+  if((ch || refocus) && scanActive()){ scanIn.blur(); setTimeout(()=>{ try{ scanIn.focus({preventScroll:true}); if(typing && pol==="auto") navigator.virtualKeyboard?.show?.(); }catch(e){} }, 50); }
+  colHint();
+}
+/* Faixa de aviso do coletor, em cima do campo: convite para testar o leitor sem teclado, ou aviso de que o teclado fechou (modo antigo) */
+let vvBase=0;
+function kbOpen(){ const vv=window.visualViewport; if(!vv) return true; vvBase=Math.max(vvBase, vv.height); return vv.height < vvBase-120; }
+function colHint(){
+  let el=document.getElementById("colhint");
+  const m=scanMode(), kb=colKb(), typing=document.getElementById("kbd").classList.contains("on");
+  let txt="", act="";
+  if(m==="coletor" && !scanbar.hidden && !typing){
+    if(!kb){ txt="Bipar sem o teclado na tela"; act="Testar leitor"; }
+    else if(kb==="show" && !kbOpen()){ txt="Teclado fechado: o leitor pode não ler"; act="Reabrir"; }
+  }
+  if(!txt){ if(el) el.hidden=true; return; }
+  if(!el){ el=document.createElement("button"); el.id="colhint"; el.className="colhint"; scanbar.insertBefore(el, scanbar.querySelector(".in")); }
+  el.hidden=false; el.innerHTML=`<span>${txt}</span><b>${act}</b>`;
+  el.onclick = act==="Reabrir" ? ()=>{ scanIn.blur(); scanIn.focus(); setTimeout(colHint, 600); } : ()=>openColTest();
+}
+window.visualViewport?.addEventListener("resize", ()=>setTimeout(colHint, 80));
+new MutationObserver(()=>colHint()).observe(scanbar, {attributes:true, attributeFilter:["hidden"]});
+/* Teste do leitor do coletor: descobre o jeito de ler sem o teclado na tela e guarda neste aparelho */
+function openColTest(){
+  const steps=[["manual","Sem teclado na tela"],["none","Sem teclado na tela (2º jeito)"],["show","Com o teclado aberto"]];
+  let k=0, got=null; const prev=colKb();
+  const ov=document.createElement("div"); ov.className="modal"; document.body.appendChild(ov); scanbar.hidden=true;
+  const close=()=>{ SCAN_TEST=null; ov.remove(); render(); applyScanMode(true); };
+  const draw=()=>{ const [id,name]=steps[k], last=k===steps.length-1;
+    ov.innerHTML=`<div class="mbox coltest" role="dialog" aria-modal="true" aria-label="Teste do leitor do coletor">
+      <h2>Teste do leitor</h2>
+      ${got ? `<div class="coltok"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M7.5 12.5l3 3 6-6.5"/></svg>
+          <b>Leu: <span class="mono">${esc(got.v)}</span></b>
+          <p>${id==="show" ? "O leitor deste coletor só funciona com o teclado aberto. Ficou gravado assim." : "O leitor funciona <b>sem o teclado na tela</b>. Ficou gravado neste aparelho."}</p></div>
+          ${id==="show" ? `<div class="coltip"><b>Para tirar o teclado de vez</b>, mude a configuração do leitor no próprio coletor (aplicativo de leitura / "Scanner", em Configurações): troque a saída para <b>simular teclado</b> ("Keyboard emulation", "Key event" ou "Simular teclas") e ligue o <b>Enter no final</b>. Depois faça este teste de novo.</div>` : ""}
+          <div class="mact"><button class="btn ghost" id="ctAgain">Testar de novo</button><button class="btn primary" id="ctDone">Concluir</button></div>`
+      : `<p class="ctstep">Teste ${k+1} de ${steps.length} · <b>${name}</b></p>
+          <p>Aponte para <b>qualquer código de barras</b> e aperte o <b>gatilho</b> do coletor.${id==="show"?" Se o teclado não abrir, toque no campo abaixo.":" O teclado não deve aparecer."}</p>
+          <input class="tinput mono ctin" id="ctIn" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="done" placeholder="Esperando a leitura…" inputmode="${id==="none"?"none":"text"}" virtualkeyboardpolicy="${id==="manual"?"manual":"auto"}">
+          <div class="mact"><button class="btn ghost" id="ctNo">Cancelar</button><button class="btn" id="ctNext">${last?"Não leu nada":"Não leu · tentar outro jeito"}</button></div>`}
+    </div>`;
+    const g=q=>ov.querySelector(q);
+    if(got){ g("#ctDone").onclick=close; g("#ctAgain").onclick=()=>{ got=null; k=0; draw(); }; return; }
+    const inp=g("#ctIn"); let t, t0=0;
+    const ok=(v,via)=>{ v=String(v||"").trim(); if(v.length<3) return; got={v,via}; setColKb(id); feedback(true); draw(); };
+    SCAN_TEST=ok;
+    inp.onkeydown=e=>{ if(e.key==="Enter"||e.key==="Tab"){ e.preventDefault(); clearTimeout(t); ok(inp.value,"teclas"); } e.stopPropagation(); };
+    inp.oninput=()=>{ clearTimeout(t); if(!inp.value){ t0=0; return; } if(!t0) t0=performance.now(); t=setTimeout(()=>{ const v=inp.value.trim(); if(v.length>=6 && (performance.now()-250-t0)/v.length<60) ok(v,"texto"); }, 250); };
+    inp.onblur=()=>setTimeout(()=>{ if(document.body.contains(inp) && document.activeElement!==inp) try{ inp.focus({preventScroll:true}); }catch(e){} }, 150);
+    setTimeout(()=>{ try{ inp.focus({preventScroll:true}); }catch(e){} }, 60);
+    g("#ctNo").onclick=()=>{ if(prev!==colKb()) setColKb(prev||"show"); close(); };
+    g("#ctNext").onclick=()=>{ if(!last){ k++; return draw(); }
+      SCAN_TEST=null; ov.querySelector(".mbox").innerHTML=`<h2>O leitor não mandou nada</h2>
+        <p>O sistema não recebeu nenhuma leitura. Confira no coletor:</p>
+        <ul class="ctlist"><li>O leitor está <b>ligado</b> no aplicativo de leitura ("Scanner") do coletor.</li>
+        <li>A saída do leitor está em <b>simular teclado</b> ("Keyboard emulation" / "Key event") ou <b>preencher o campo</b> ("Input box"), e não em "Broadcast".</li>
+        <li>O <b>Enter no final</b> ("Suffix: Enter") está ligado.</li></ul>
+        <div class="mact"><button class="btn ghost" id="ctNo2">Fechar</button><button class="btn primary" id="ctRe">Testar de novo</button></div>`;
+      ov.querySelector("#ctNo2").onclick=close; ov.querySelector("#ctRe").onclick=()=>{ k=0; draw(); }; };
+  };
+  draw();
+}
 document.getElementById("scanCfg").onclick = ()=>{
   const cur=scanMode(), ov=document.createElement("div"); ov.className="modal"; document.body.appendChild(ov);
   const opt=(v,t,d,ic)=>`<label class="mode scanopt"><input type="radio" name="smode" value="${v}" ${cur===v?"checked":""}><span>${ic}<b>${t}</b><small>${d}</small></span></label>`;
@@ -4150,13 +4241,17 @@ document.getElementById("scanCfg").onclick = ()=>{
     <div class="modes" role="radiogroup">
       ${opt("camera","Câmera do celular","Botão grande para abrir a câmera. A câmera fica aberta e lê um código atrás do outro, até você fechar.",`<span class="scanico" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h3l2-2.5h6L17 7h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg></span>`)}
       ${opt("leitor","Leitor de código (Bluetooth/USB)","Sem botão de câmera: é só bipar com o leitor. O campo fica sempre pronto para a próxima leitura.",`<span class="scanico" aria-hidden="true">${ICON_SCAN}</span>`)}
-      ${opt("coletor","Coletor (leitor embutido no aparelho)","Para coletor Android com gatilho de leitura. O campo fica pronto para o leitor do aparelho; se o teclado aparecer, pode ignorar e bipar.",`<span class="scanico" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M10 5h4M9 9h6v5H9z"/></svg></span>`)}
+      ${opt("coletor","Coletor (leitor embutido no aparelho)","Para coletor Android com gatilho de leitura. Lê sem o teclado na tela; o teclado só abre no botão de digitar.",`<span class="scanico" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M10 5h4M9 9h6v5H9z"/></svg></span>`)}
     </div>
+    ${cur==="coletor" ? `<button class="btn ghost sm" id="mTest" style="margin-top:10px;width:100%">Testar o leitor do coletor</button>` : ""}
     <div class="mact"><button class="btn ghost" id="mNo">Cancelar</button><button class="btn primary" id="mOk">Salvar</button></div></div>`;
   const close=()=>{ ov.remove(); focusScan(); };
+  const mt=ov.querySelector("#mTest"); if(mt) mt.onclick=()=>{ ov.remove(); openColTest(); };
   ov.querySelector("#mNo").onclick=close; ov.onclick=e=>{ if(e.target===ov) close(); };
   ov.querySelector("#mOk").onclick=()=>{ const v=ov.querySelector("input[name=smode]:checked")?.value||"leitor"; try{ localStorage.setItem(scanModeKey(), v); }catch(e){}
-    applyScanMode(); close(); toast(v==="camera" ? "Leitura pela câmera do celular" : v==="coletor" ? "Leitura pelo coletor" : "Leitura pelo leitor de código"); };
+    document.getElementById("kbd").classList.remove("on"); applyScanMode(); close();
+    if(v==="coletor"){ if(!PDA) setPDA(true, true); if(v!==cur || !colKb()){ openColTest(); return; } }
+    toast(v==="camera" ? "Leitura pela câmera do celular" : v==="coletor" ? "Leitura pelo coletor" : "Leitura pelo leitor de código"); };
 };
 const camFile=document.getElementById("camfile");
 let liveBlocked = false;
