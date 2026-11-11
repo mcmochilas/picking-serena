@@ -1965,7 +1965,7 @@ function renderCompras(){
         return `<tr><td><b class="mono">${esc(n.num)}</b></td><td>${esc(n.forn||"—")}</td><td class="tnum">${new Date(n.importedAt||n.createdAt||0).toLocaleDateString("pt-BR")}</td><td class="r tnum">${L.length||"—"}</td>
           <td>${!L.length?`<span class="chip bad">nota sem itens: importe o XML</span>`:am?`<span class="chip enc">${am} ite${am===1?"m":"ns"} · ${pv} pré-venda${pv===1?"":"s"}</span>`:`<span class="chip">tudo para estoque</span>`}</td>
           <td>${n.received?`<span class="chip ${n.received.div?"bad":"done"}">Recebida${n.received.div?" com divergência":""}</span>`:`<span class="chip warn">Aguardando chegada</span>`}</td>
-          <td class="r">${L.length?`<button class="mini" data-nfedit="${esc(n.id)}">Amarrar</button>`:""}</td></tr>`; }).join("")}</tbody></table></div></div>${pgn.pager}`
+          <td class="r">${L.length?`<button class="mini ${n.received && !am?"on":""}" data-nfedit="${esc(n.id)}">${am?"Ver amarração":"Amarrar"}</button>`:""}</td></tr>`; }).join("")}</tbody></table></div></div>${pgn.pager}`
       : `<div class="empty">${q?"Nenhuma nota com essa busca.":"Nenhuma nota fiscal importada ainda. Use <b>Importar nota fiscal</b>."}</div>`;
   } else if(tab==="fornecedor"){
     const pgf = pageOf(purch, "cpforn", 10);
@@ -2842,7 +2842,8 @@ function renderNfEdit(){
       <div class="cpbtns"><button class="btn ghost cpbtn" id="naBack">Voltar</button><button class="btn primary cpbtn" id="naSave">Salvar nota</button></div></header>
     <section class="card nahead">
       <div class="hnf nff"><label><span>Fornecedor</span><input class="tinput" id="nfForn" value="${esc(N.forn)}"></label><label><span>Nº da NF</span><input class="tinput" id="nfNum" value="${esc(N.num)}"></label><label><span>Volumes (caixas)</span><input class="tinput" id="nfVols" type="number" min="0" value="${N.vols||""}"></label></div>
-      <small class="muted-s">${N.cnpj?"CNPJ "+fmtCnpj(N.cnpj)+" · ":""}${N.emissao?"emitida em "+fmtDate(N.emissao)+" · ":""}${N.chave?"chave lida":"sem chave de acesso: o recebimento será pelo nº da NF"}${ex?.received?" · <b>nota já recebida</b>":""}</small>
+      <small class="muted-s">${N.cnpj?"CNPJ "+fmtCnpj(N.cnpj)+" · ":""}${N.emissao?"emitida em "+fmtDate(N.emissao)+" · ":""}${N.chave?"chave lida":"sem chave de acesso: o recebimento será pelo nº da NF"}</small>
+      ${ex?.received?`<div class="nawarn ok">Esta nota <b>já foi recebida</b> em ${new Date(ex.received.at).toLocaleDateString("pt-BR")}${ex.received.div?" (com divergência)":""}. Você pode amarrar agora: ao salvar, as pré-vendas amarradas já contam como encomenda chegada${(ex.received.lines||[]).some(x=>x.qty!==x.exp)?", pela quantidade que foi conferida":""}.</div>`:""}
       <div class="nastats"><span><b>${N.lines.length}</b> itens na nota</span><span class="s-on"><b>${nAm}</b> amarrado${nAm===1?"":"s"} · ${links} pré-venda${links===1?"":"s"}</span><span><b>${N.lines.length-nAm}</b> para estoque</span>${nSug?`<span class="s-sug"><b>${nSug}</b> com sugestão para conferir</span>`:""}</div>
       ${E.fresh && ex?.lines?.length ? `<div class="nawarn">Esta nota já tinha sido importada: a amarração anterior foi mantida. Salvar substitui a que estava gravada.</div>`:""}
       ${E.auto ? `<div class="nawarn ok">O sistema já amarrou <b>${E.auto}</b> item(ns) pelos pedidos ao fornecedor. Confira no filtro <b>Amarrados</b>.</div>`:""}
@@ -2902,6 +2903,11 @@ function saveNf(N){
   const doc={ id, chave:N.chave||"", num:N.num, serie:N.serie||"", emissao:N.emissao||"", cnpj:N.cnpj||"", forn:String(N.forn).trim(), vols:N.vols||0,
     lines:N.lines.map(l=>({code:l.code, name:l.name, qty:l.qty, un:l.un||"", ped:l.ped||"", sku:l.sku||"", alloc:(l.alloc||[]).filter(a=>+a.qty>0).map(a=>({oid:a.oid, i:a.i, qty:+a.qty}))})),
     received: prev?.received || null, createdAt: prev?.createdAt||now, importedAt:now, importedBy:ME.id||"" };
+  // nota já recebida: refaz a divisão do que chegou entre as pré-vendas amarradas agora (o conferido de cada item vai primeiro para as pré-vendas, o resto para estoque)
+  if(doc.received){ const R={...doc.received}, same=(R.lines||[]).length===doc.lines.length, alloc={};
+    doc.lines.forEach((l,k)=>{ let left = same ? +R.lines[k].qty||0 : l.qty; l.alloc.forEach(a=>{ const q=Math.min(left, +a.qty||0); alloc[a.oid+":"+a.i]=q; left-=q; }); });
+    if(!same) R.lines=doc.lines.map(l=>({qty:l.qty, exp:l.qty}));
+    R.alloc=alloc; doc.received=R; }
   NFS[id]=doc; if(nfCol) queueWrite("nf-"+id, ()=>nfCol.doc(id).set(JSON.parse(JSON.stringify(doc))));
   // grava a NF nos itens das pré-vendas (substitui amarração anterior desta mesma nota)
   const touched=new Set([...(prev?.lines||[]).flatMap(l=>(l.alloc||[]).map(a=>a.oid)), ...doc.lines.flatMap(l=>l.alloc.map(a=>a.oid))]);
