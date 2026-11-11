@@ -1526,7 +1526,7 @@ function openHiveNew(){
         : `<small class="muted-s">Importe o PDF da pré-venda para marcar quais itens estão aguardando encomenda.</small>`}</div>` : ""}
       <div class="hnbip"><b>Colmeia</b><span>${sel ? `Escolhida aqui: <b>${sel.slice(3)}</b>${(()=>{ const os=ORDERS.filter(o=>usesHive(o)&&o.colmeia===sel); return os.length?` · junto com a pré-venda ${os.map(o=>esc(o.num)).join(", ")}`:""; })()} · <button type="button" class="linkbtn" id="hnClr">bipar no celular em vez disso</button>` : `Depois de salvar, ${isDesk()?"abra o app no celular (QR code) e ":""}<b>bipe a colmeia</b> onde vai guardar o pedido.`}</span></div>
       <details class="hnpick" ${sel?"open":""}><summary>Ou escolher a colmeia aqui</summary>
-        <div class="hnslot"><span>Colmeia</span><input class="tinput" id="hnSlot" value="${sel?sel.slice(3):""}" placeholder="Ex.: A1" autocomplete="off"><small>Toque numa colmeia livre ou digite</small></div>
+        <div class="hnslot"><span>Colmeia</span><input class="tinput" id="hnSlot" data-scan value="${sel?sel.slice(3):""}" placeholder="Ex.: A1" autocomplete="off"><small>Toque numa colmeia livre ou digite</small></div>
         <div class="hnmap">${hiveHTML(sel, true)}</div></details>
       <div class="merr">${esc(err)}</div>
       <div class="mact"><button class="btn ghost" id="mNo">Cancelar</button><button class="btn primary" id="mOk">${sel?"Guardar na colmeia "+sel.slice(3):"Salvar e bipar a colmeia"}</button></div></div>`;
@@ -1631,7 +1631,7 @@ function openOrderEdit(id){
       <label><span>Retirada</span><select class="tin" id="oeRet">${opt("","Transportadora / entrega",f.ret)}${opt("retira","Retira na Loja",f.ret)}${opt("naLoja","Cliente está na loja",f.ret)}</select></label>
       <label><span>Transportadora</span><input class="tin" id="oeTransp" list="oeTList" value="${esc(f.transp)}" placeholder="Não identificada"><datalist id="oeTList">${[...new Set([...ORDERS.map(transpOf).filter(Boolean),...Object.keys(TRANSP)])].sort().map(n=>`<option value="${esc(n)}">`).join("")}</datalist></label>
       <label><span>Situação (onde está no fluxo)</span><select class="tin" id="oeSt">${ST_EDIT.map(([k,t])=>opt(k,t,f.status)).join("")}${ST_EDIT.some(([k])=>k===f.status)?"":opt(f.status,statusInfo(o).t,f.status)}</select></label>
-      <label><span>Bandeja / mesa</span><input class="tin" id="oeTray" value="${esc(f.tray)}" placeholder="Sem bandeja"></label>
+      <label><span>Bandeja / mesa</span><input class="tin" id="oeTray" data-scan value="${esc(f.tray)}" placeholder="Sem bandeja"></label>
       <label><span>Colmeia</span><select class="tin" id="oeHive">${opt("","Sem colmeia",f.colmeia)}${HIVE.map(c=>opt(c, c.slice(3)+(used.has(c)?" · ocupada":""), f.colmeia, used.has(c))).join("")}</select></label>
       <label class="oefull"><span>Observação</span><textarea class="tin" id="oeObs" rows="2">${esc(f.obs)}</textarea></label>
     </div>
@@ -4112,7 +4112,12 @@ function handleScan(raw){
 let wedgeT0=0, wedgeN=0, autoT, inT0=0;
 /* Para onde vai um código lido: o teste do coletor (se estiver aberto) ou a tela atual */
 let SCAN_TEST=null;
-function routeScan(v, via){ if(SCAN_TEST){ SCAN_TEST(String(v||"").trim(), via); return; } handleScan(v); }
+function routeScan(v, via){ if(SCAN_TEST){ SCAN_TEST(String(v||"").trim(), via); return; } if(scanActive()) return handleScan(v); scanToField(v); }
+/* Telas sem a barra de leitura (Produtos e EAN, janela do produto…): o código bipado sem nenhum campo selecionado cai no campo de bipe da tela */
+const scanDefault = () => window.LUCAS_OPEN ? null : [...document.querySelectorAll("[data-scan-default]")].filter(e=>e.offsetParent!==null && (!document.querySelector(".modal") || e.closest(".modal"))).pop() || null;
+function scanToField(v){ v=String(v||"").trim(); const el=scanDefault(); if(!el || !v) return false;
+  try{ el.focus({preventScroll:true}); }catch(e){} el.value=v; el.dispatchEvent(new Event("input",{bubbles:true}));
+  setTimeout(()=>{ const n=(el.id && document.getElementById(el.id)) || el; n.dispatchEvent(new KeyboardEvent("keydown",{key:"Enter",bubbles:true,cancelable:true})); }, 40); return true; }
 const scanActive = () => !scanbar.hidden && !document.querySelector(".modal") && !window.LUCAS_OPEN;
 const isEditable = el => !!el && el!==scanIn && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable);
 scanIn.addEventListener("keydown", e=>{
@@ -4139,19 +4144,43 @@ scanIn.addEventListener("input", ()=>{
    sem precisar de teclado na tela. */
 let buf="", bufT, bufT0=0;
 document.addEventListener("keydown", e=>{
-  if(!(scanActive() || SCAN_TEST) || e.target===scanIn || isEditable(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
-  if(e.key==="Enter"||e.key==="Tab"){ if(e.key==="Tab" && !buf) return; e.preventDefault(); clearTimeout(bufT); const v=buf; buf=""; routeScan(v,"teclas"); return; }
-  if(e.key==="ArrowUp"){ if(qtyKey(1)) e.preventDefault(); return; }
-  if(e.key==="ArrowDown"){ if(qtyKey(-1)) e.preventDefault(); return; }
-  if(e.key.length===1){ if(e.key===" ") e.preventDefault(); if(!buf) bufT0=performance.now(); buf+=e.key; clearTimeout(bufT);
+  if(e.target===scanIn || isEditable(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
+  const main = scanActive() || !!SCAN_TEST;           // tela de separação (ou teste do leitor): tudo que chega é leitura
+  if(!main && !scanDefault()) return;
+  const fastBuf = () => buf.length>=4 && (performance.now()-bufT0)/buf.length < 60;
+  if(e.key==="Enter"||e.key==="Tab"){
+    if(!main && !fastBuf()){ buf=""; return; }          // fora da separação só interfere quando veio uma leitura (teclas rápidas)
+    if(e.key==="Tab" && !buf) return; e.preventDefault(); clearTimeout(bufT); const v=buf; buf=""; routeScan(v,"teclas"); return; }
+  if(main && e.key==="ArrowUp"){ if(qtyKey(1)) e.preventDefault(); return; }
+  if(main && e.key==="ArrowDown"){ if(qtyKey(-1)) e.preventDefault(); return; }
+  if(e.key.length===1){ if(main && e.key===" ") e.preventDefault(); if(!buf) bufT0=performance.now(); buf+=e.key; clearTimeout(bufT);
     bufT=setTimeout(()=>{ const v=buf, per=(performance.now()-150-bufT0)/Math.max(1,v.length); buf=""; if(v.length>=6 && per<60) routeScan(v,"teclas"); }, 150); }
 }, true);
 // Leitor configurado para "colar" o código (área de transferência)
 document.addEventListener("paste", e=>{
-  if(!(scanActive() || SCAN_TEST) || isEditable(e.target)) return;
+  if(isEditable(e.target) || !(scanActive() || SCAN_TEST || scanDefault())) return;
   const t=(e.clipboardData?.getData("text")||"").trim(); if(!t || t.length>64 || /\n/.test(t)) return;
   e.preventDefault(); scanIn.value=""; routeScan(t,"colar");
 });
+/* Campos que aceitam bipe fora da barra de leitura (EAN, endereço, busca de produto, colmeia, bandeja): no coletor sem teclado,
+   o campo fica ativo sem abrir o teclado; tocar de novo no campo abre o teclado para digitar. */
+const colNoKb = () => scanMode()==="coletor" && (colKb()==="manual" || colKb()==="none");
+let KB_FREE="", kbTip=false;
+const scanFieldKey = el => el.id || (el.dataset.ean!==undefined ? "ean:"+el.dataset.ean : el.dataset.loc!==undefined ? "loc:"+el.dataset.loc : "");
+function scanFieldPrep(el){
+  if(!el?.matches?.("[data-scan]")) return;
+  if(el.dataset.im0===undefined) el.dataset.im0=el.getAttribute("inputmode")||"";
+  const free = !colNoKb() || (KB_FREE && KB_FREE===scanFieldKey(el));
+  if(free){ el.setAttribute("virtualkeyboardpolicy","auto"); if(el.dataset.im0) el.setAttribute("inputmode", el.dataset.im0); else el.removeAttribute("inputmode"); return; }
+  if(colKb()==="manual") el.setAttribute("virtualkeyboardpolicy","manual"); else el.setAttribute("inputmode","none");
+  if(!kbTip){ kbTip=true; toast("Bipe o código. Para digitar, toque de novo no campo."); }
+}
+document.addEventListener("pointerdown", e=>{ const el=e.target.closest?.("[data-scan]"); if(!el){ return; } if(!colNoKb()){ scanFieldPrep(el); return; }
+  const key=scanFieldKey(el);
+  if(document.activeElement===el && KB_FREE!==key){ KB_FREE=key; scanFieldPrep(el); el.blur(); setTimeout(()=>{ try{ el.focus(); navigator.virtualKeyboard?.show?.(); }catch(err){} }, 30); return; } // 2º toque: abre o teclado
+  if(KB_FREE!==key) KB_FREE=""; scanFieldPrep(el);
+}, true);
+document.addEventListener("focusin", e=>{ const el=e.target; if(!el?.matches?.("[data-scan]")) return; if(KB_FREE && KB_FREE!==scanFieldKey(el)) KB_FREE=""; scanFieldPrep(el); });
 // Mantém o campo de leitura com o foco (o leitor que "digita" texto precisa de um campo ativo): volta o foco depois de tocar em botões
 scanIn.addEventListener("blur", ()=>setTimeout(()=>{ if(scanActive() && !isEditable(document.activeElement)) focusScan(); }, 120));
 document.addEventListener("pointerup", ()=>setTimeout(()=>{ if(scanActive() && !isEditable(document.activeElement)) focusScan(); }, 160));
@@ -4748,7 +4777,7 @@ function locPanelHTML(){
       :`<div class="empty">Local livre.</div>`}
     ${multi?`<p class="hint">Gaveta: aceita mais de um produto (BIN e colmeia aceitam só um).</p>`:""}
     <div><label class="eyebrow" for="locQ">${multi?(p?"Adicionar outro produto nesta gaveta":"Colocar um produto aqui"):p?"Trocar por outro produto":"Colocar um produto aqui"}</label>
-      <input class="tin" id="locQ" placeholder="Código, descrição ou EAN" value="${esc(state.locQ||"")}" autocomplete="off"></div>
+      <input class="tin" id="locQ" data-scan placeholder="Código, descrição ou EAN" value="${esc(state.locQ||"")}" autocomplete="off"></div>
     <div class="qlist" id="locMatches">${matches.map(x=>`<button class="match" data-assign="${esc(x.code)}"><b>${esc(x.code)}</b> ${esc(x.name)}<small>${x.loc?(x.loc===lc?"já está aqui":"move de "+x.loc):"sem local"}</small></button>`).join("") || (q?`<div class="empty">Nenhum produto encontrado. Cadastre em Produtos e EAN.</div>`:"")}</div>
     <div><button class="mini" id="printOne">Gerar etiqueta deste local (PDF)</button></div>`;
 }
@@ -4804,13 +4833,13 @@ function produtosHTML(){
       <h3 style="grid-column:1/-1">Novo produto</h3>
       <input class="tin" id="np-code" placeholder="Código" required>
       <input class="tin" id="np-name" placeholder="Descrição" required>
-      <input class="tin mono" id="np-ean" placeholder="EAN (bipe ou digite)" inputmode="numeric">
-      <input class="tin mono" id="np-loc" placeholder="Local ex.: R1-LB-BIN-8.M">
+      <input class="tin mono" id="np-ean" data-scan placeholder="EAN (bipe ou digite)" inputmode="numeric">
+      <input class="tin mono" id="np-loc" data-scan placeholder="Local ex.: R1-LB-BIN-8.M">
       <button class="btn dark" type="submit" style="min-height:40px;padding:8px 16px">Adicionar</button>
     </form>
     ${state.prodErr?`<div class="err">${esc(state.prodErr)}</div>`:""}
     <div class="filters">
-      <div class="lzbox" style="flex:1;min-width:220px;margin:0"><input class="tin" id="prodQ" placeholder="Buscar ou bipar: código, descrição, EAN ou etiqueta do endereço" value="${esc(state.prodQ||"")}" autocomplete="off" enterkeyhint="search" role="combobox" aria-expanded="false" aria-controls="lzSug" style="width:100%">
+      <div class="lzbox" style="flex:1;min-width:220px;margin:0"><input class="tin" id="prodQ" data-scan data-scan-default placeholder="Buscar ou bipar: código, descrição, EAN ou etiqueta do endereço" value="${esc(state.prodQ||"")}" autocomplete="off" enterkeyhint="search" role="combobox" aria-expanded="false" aria-controls="lzSug" style="width:100%">
         <div class="lzsug" id="lzSug" role="listbox" hidden></div></div>
       <div class="seg">${[["todos",`Todos · ${all.length}`],["sem-ean",`Sem EAN · ${noEan}`],["sem-end",`Sem endereço · ${noLoc}`]].map(([k,t])=>`<button data-pf="${k}" aria-pressed="${f===k}">${t}</button>`).join("")}</div>
     </div>
@@ -4821,9 +4850,9 @@ function produtosHTML(){
       <thead><tr><th>Cód.</th><th>Descrição</th><th>EAN</th><th>Situação</th><th>Endereço</th><th></th></tr></thead>
       <tbody>${pg.items.map(p=>{ const st=eanState(p.ean); return `<tr data-row="${esc(p.code)}">
         <td class="code">${esc(p.code)}</td><td class="desc">${esc(p.name)}<small class="pm">${p.ean?"EAN "+esc(p.ean):"sem EAN"}${p.loc?" · "+esc(p.loc):""}</small></td>
-        <td><input class="tin mono sm" data-ean="${esc(p.code)}" value="${esc(p.ean||"")}" placeholder="bipe o EAN" inputmode="numeric" aria-label="EAN de ${esc(p.code)}"></td>
+        <td><input class="tin mono sm" data-scan data-ean="${esc(p.code)}" value="${esc(p.ean||"")}" placeholder="bipe o EAN" inputmode="numeric" aria-label="EAN de ${esc(p.code)}"></td>
         <td><span class="chip ${st.c==="bad"?"bad":st.c}">${st.t}</span></td>
-        <td><input class="tin mono sm" data-loc="${esc(p.code)}" value="${esc(p.loc||"")}" placeholder="R1-LB-BIN-8.M" aria-label="Endereço de ${esc(p.code)}" style="width:110px"></td>
+        <td><input class="tin mono sm" data-scan data-loc="${esc(p.code)}" value="${esc(p.loc||"")}" placeholder="R1-LB-BIN-8.M" aria-label="Endereço de ${esc(p.code)}" style="width:110px"></td>
         <td style="white-space:nowrap"><button class="mini" data-save="${esc(p.code)}">Salvar</button>${p.loc?` <button class="mini" data-lzp="${esc(p.code)}" title="Ver no mapa">Mapa</button>`:""}</td></tr>`; }).join("") || `<tr><td colspan="6" class="empty">Nenhum produto.</td></tr>`}</tbody>
     </table></div>${pg.pager}
   </section>`;
@@ -4843,9 +4872,9 @@ function openProdModal(codeV){
   const draw=(err="")=>{ const st=eanState(p.ean);
     ov.innerHTML=`<div class="mbox pmodal" role="dialog" aria-modal="true" aria-label="Produto ${esc(p.code)}">
       <div class="eyebrow">Produto</div><h2 style="margin:2px 0 0"><span class="mono">${esc(p.code)}</span></h2><p style="margin:2px 0 10px">${esc(p.name)}</p>
-      <label class="pmf">EAN<input class="tin mono" id="pmEan" value="${esc(p.ean||"")}" placeholder="bipe ou digite o EAN" inputmode="numeric" autocomplete="off"></label>
+      <label class="pmf">EAN<input class="tin mono" id="pmEan" data-scan data-scan-default value="${esc(p.ean||"")}" placeholder="bipe ou digite o EAN" inputmode="numeric" autocomplete="off"></label>
       <div class="pmst"><span class="chip ${st.c==="bad"?"bad":st.c}">${st.t}</span></div>
-      <label class="pmf">Endereço<input class="tin mono" id="pmLoc" value="${esc(p.loc||"")}" placeholder="ex.: R1-LA-GAV-2.C" autocomplete="off" autocapitalize="characters"></label>
+      <label class="pmf">Endereço<input class="tin mono" id="pmLoc" data-scan value="${esc(p.loc||"")}" placeholder="ex.: R1-LA-GAV-2.C" autocomplete="off" autocapitalize="characters"></label>
       ${err?`<div class="err">${esc(err)}</div>`:""}
       ${p.loc?`<button class="btn ghost sm" id="pmMap" style="margin-top:6px">Ver no mapa</button>`:""}
       <div class="mact"><button class="btn ghost" id="pmClose">Fechar</button><button class="btn primary" id="pmSave">Salvar</button></div></div>`;
