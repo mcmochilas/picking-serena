@@ -275,10 +275,17 @@ Botão **Importar pedido do fornecedor**. Fornecedores reconhecidos: Living, Zen
 4. Relacione às **pré-vendas** (busca por número ou nome do cliente). Dá para **Adicionar pré-venda (PDF)** dentro da própria importação.
 5. Os itens passam a "Encomendado" e entram em **Aguardando chegada** com a previsão.
 
-### 7.3 Importar a nota fiscal (NF) do fornecedor
-Botão **Importar nota fiscal do fornecedor**: arquivo **XML** da NF-e ou **PDF do DANFE**.
-- O sistema distribui os itens da nota entre as pré-vendas automaticamente, usando os vínculos dos pedidos ao fornecedor. Dá para ajustar.
+### 7.3 Importar a nota fiscal (NF) do fornecedor e amarrar às pré-vendas
+Botão **Importar nota fiscal**: escolha o arquivo **XML** da NF-e (recomendado) ou o **PDF do DANFE**. Depois de ler, abre a tela **Amarrar nota fiscal** (não é mais uma janela).
+- **Duas colunas**: à esquerda (fundo azul, etiqueta NOTA FISCAL) os **itens da nota**; à direita (etiqueta PRÉ-VENDAS) as **pré-vendas com encomenda** em aberto. No celular viram duas abas.
+- **Busca dos dois lados**: itens da nota por código ou descrição; pré-vendas por número, cliente, código ou descrição. Filtros dos itens: **Todos / Com sugestão / Amarrados / Estoque**. Cada lado mostra **20 por página**.
+- **Como amarrar**: toque num **item da nota**: aparecem as **sugestões** (mesmo pedido ao fornecedor, mesmo produto ou descrição parecida) e as outras encomendas; toque em **Amarrar**. Ou comece pela **pré-venda**: toque na encomenda e depois em **Amarrar aqui** no item da nota (os mais parecidos sobem). A quantidade entra com o que falta da encomenda, limitada ao que veio na nota; ajuste com − / + ou **tirar**. O que não for amarrado vai para o **estoque**.
+- O sistema já amarra sozinho o que consegue pelos pedidos ao fornecedor; confira no filtro **Amarrados**.
+- **+ Cadastrar pré-venda** (na coluna das pré-vendas): para pré-venda com encomenda que ainda não está no sistema. **Enviar o PDF** (lê número, cliente e itens; marque quantas peças são encomenda) ou **Digitar** (número, cliente e itens com código, descrição e quantidade). Se todas as peças forem encomenda, entra como "Encomenda total · aguardando chegada"; se só parte for (pelo PDF), a parte do estoque vai para a fila de separação. Número que já existe é recusado.
+- **Salvar nota** grava; a faixa "Alterações ainda não salvas" lembra, e **Voltar** pergunta antes de sair.
 - Aceita **faturamento parcial** (a nota traz só parte dos itens). Situações: "Faturado em parte", "Faturado · a caminho".
+- **Aba Notas fiscais** (em Compras): lista as notas importadas com a amarração e a situação (Aguardando chegada, Recebida, Recebida com divergência). O botão **Amarrar / Ver amarração** reabre a nota.
+- **Amarrar depois do recebimento**: nota já conferida no Recebimento também pode ser amarrada (ou ter a amarração ajustada). Ao salvar, as pré-vendas amarradas já contam como encomenda chegada; se houve divergência, vale a quantidade conferida (o que sobrar vai para o estoque).
 - A nota fica em **Notas a receber** para o Recebimento.
 
 ### 7.4 Chegada e liberação
