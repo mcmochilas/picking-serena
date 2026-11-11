@@ -420,6 +420,26 @@ details.cpcard summary{display:flex;justify-content:space-between;align-items:ce
 @media (min-width:900px){.calorgrid{grid-template-columns:minmax(0,520px) minmax(0,1fr);align-items:start}}
 .calorsem{margin-top:8px}.calortab td.r,.calortab th.r{text-align:right;white-space:nowrap}.calordot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px}
 @media (max-width:600px){.calorstats{margin-left:0}.calorbar select{min-width:0;width:100%}.calorbar label{flex:1 1 140px}}
+.nahead{display:grid;gap:8px}.nastats{display:flex;gap:8px 16px;flex-wrap:wrap;font-size:13px;color:var(--muted)}.nastats b{font-size:17px;color:var(--ink);font-family:var(--display)}.nastats .s-on b{color:var(--accent-ink)}.nastats .s-sug b{color:var(--route)}
+.nawarn{padding:8px 12px;border-radius:10px;background:var(--bad-soft);color:var(--bad);font-size:13px}.nawarn.ok{background:var(--ok-soft);color:var(--ok)}
+.seg.napanes{display:none;margin:12px 0 0}.chip.need{background:var(--accent-soft);color:var(--accent-ink)}
+.nagrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-top:12px;align-items:start}
+.nacol{display:flex;flex-direction:column;gap:0;padding:0;overflow:hidden;position:sticky;top:8px}
+.nach{display:grid;gap:8px;padding:14px 14px 10px;border-bottom:1px solid var(--line)}.nach h2{font-size:16px;margin:0}.nach .tinput{width:100%}.nafil{flex-wrap:wrap}
+.nalist{display:flex;flex-direction:column;gap:6px;padding:10px;max-height:calc(100vh - 150px);min-height:240px;overflow:auto}
+.nai,.nae{border:1px solid var(--line);border-radius:10px;padding:8px 10px;display:grid;gap:5px;cursor:pointer;background:var(--surface);text-align:left}
+.nai:hover,.nae:hover{border-color:var(--muted)}.nai.on{border-color:var(--accent);background:var(--accent-soft)}
+.nai.sel,.nae.sel{border-color:var(--route);box-shadow:0 0 0 2px var(--route) inset}.nae.full{opacity:.6}
+.nait,.naet{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;font-size:14px;line-height:1.3}.naq{white-space:nowrap}.naei{font-size:13px;color:var(--ink)}
+.naic{display:flex;gap:6px;flex-wrap:wrap;align-items:center}.naic .nabtn{margin-left:auto}.nabtn.on{background:var(--route);border-color:var(--route);color:#fff}
+.chip.sug{background:color-mix(in srgb,var(--route) 14%,var(--surface));color:var(--route)}
+.nasel{border:2px solid var(--route);border-radius:12px;padding:10px 12px;display:grid;gap:6px;background:var(--surface)}
+.nabar{height:6px;border-radius:4px;background:var(--line);overflow:hidden}.nabar i{display:block;height:100%;background:var(--accent)}.nabar i.over{background:var(--bad)}.bad-s{color:var(--bad);font-size:12px}
+.naal{display:grid;gap:6px}.naalr{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 8px;border-radius:8px;background:var(--accent-soft);font-size:13px}.naalr small{display:block;color:var(--muted)}
+.naqty{display:flex;align-items:center;gap:4px}.naqty .tinput{width:64px;height:34px;text-align:center}.naqty .mini{width:34px;height:34px;font-size:18px}
+.nah{margin-top:8px}.nahint{padding:10px 12px;border-radius:10px;background:var(--bg);font-size:13px;color:var(--muted);line-height:1.4}.nahint.on{background:color-mix(in srgb,var(--route) 12%,var(--surface));color:var(--ink)}
+.nadirty{position:sticky;bottom:8px;z-index:5;display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;padding:10px 14px;border-radius:12px;background:var(--ink);color:var(--bg);box-shadow:0 6px 20px rgba(0,0,0,.25);font-size:14px}.nadirty{padding-right:140px}.nadirty .btn{width:auto !important;flex:none !important;min-height:40px;padding:0 18px}
+@media (max-width:900px){.seg.napanes{display:flex}.nahdr .sub{display:none}.nahdr{flex-wrap:wrap}.nahdr .cpbtns{flex-direction:row;width:100%}.nahdr .cpbtns .btn{flex:1}.nadirty{padding-right:76px}.nagrid{grid-template-columns:1fr}.nagrid[data-pane="itens"] .nacr,.nagrid[data-pane="pvs"] .nacl{display:none}.nacol{position:static}.nalist{max-height:none}}
 .elev{flex:none}
 .e-lvl{fill:var(--floor);stroke:var(--rack);stroke-width:1.5}
 .e-lvl.on{fill:var(--accent);stroke:var(--ink)}
@@ -1907,6 +1927,7 @@ function prazoInfo(it){ const p=prevOf(it); if(!p || compraSt(it)==="chegou") re
 const COMPRA_LABEL = { falta:["A encomendar","bad"], parcial:["Encomendado em parte","prog"], pedido:["Encomendado","enc"], fatparc:["Faturado em parte","prog"], faturado:["Faturado · a caminho","prog"], chegou:["Chegou","done"] };
 
 function renderCompras(){
+  if(state.nfEdit) return renderNfEdit();
   const decide = ORDERS.filter(o=>toDecide(o) && !isEco(o)).sort((a,b)=>(urgRank(b)-urgRank(a)) || (a.createdAt||0)-(b.createdAt||0));
   const tab = state.cTab || (decide.length ? "decidir" : "abertas");
   const open = ORDERS.filter(encOpen).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
@@ -1930,6 +1951,16 @@ function renderCompras(){
           <td>${links.map(l=>{ const p=PURCHASES[l.pid]; return `<div>${esc(p?.forn||"Fornecedor")}${(l.ped||p?.num)?" · ped. "+esc(l.ped||p.num):""}</div>`; }).join("")}</td>
           <td class="r"><button class="mini" data-carr="${x.o.id}:${x.i}" data-v="1">Chegou</button></td></tr>`; }).join("")}</tbody></table></div></div>${pgw.pager}`
       : `<div class="empty">${q?"Nada encontrado para essa busca.":"Nenhum item encomendado aguardando chegada."}</div>`;
+  } else if(tab==="notas"){
+    const nfs=Object.values(NFS).sort((a,b)=>(b.importedAt||b.createdAt||0)-(a.importedAt||a.createdAt||0)), qn=q.toUpperCase();
+    const rows=nfs.filter(n=>!qn || (n.num+" "+n.forn+" "+(n.lines||[]).map(l=>l.code+" "+l.name).join(" ")).toUpperCase().includes(qn)), pgn=pageOf(rows,"cpnf",15);
+    body = rows.length ? `${pgn.top}<div class="cpcard"><div class="cptwrap"><table class="cptab"><thead><tr><th>NF</th><th>Fornecedor</th><th>Importada</th><th class="r">Itens</th><th>Amarração</th><th>Situação</th><th></th></tr></thead><tbody>
+      ${pgn.items.map(n=>{ const L=n.lines||[], am=L.filter(l=>(l.alloc||[]).length).length, pv=new Set(L.flatMap(l=>(l.alloc||[]).map(a=>a.oid))).size;
+        return `<tr><td><b class="mono">${esc(n.num)}</b></td><td>${esc(n.forn||"—")}</td><td class="tnum">${new Date(n.importedAt||n.createdAt||0).toLocaleDateString("pt-BR")}</td><td class="r tnum">${L.length||"—"}</td>
+          <td>${!L.length?`<span class="chip bad">nota sem itens: importe o XML</span>`:am?`<span class="chip enc">${am} ite${am===1?"m":"ns"} · ${pv} pré-venda${pv===1?"":"s"}</span>`:`<span class="chip">tudo para estoque</span>`}</td>
+          <td>${n.received?`<span class="chip ${n.received.div?"bad":"done"}">Recebida${n.received.div?" com divergência":""}</span>`:`<span class="chip warn">Aguardando chegada</span>`}</td>
+          <td class="r">${L.length?`<button class="mini" data-nfedit="${esc(n.id)}">Amarrar</button>`:""}</td></tr>`; }).join("")}</tbody></table></div></div>${pgn.pager}`
+      : `<div class="empty">${q?"Nenhuma nota com essa busca.":"Nenhuma nota fiscal importada ainda. Use <b>Importar nota fiscal</b>."}</div>`;
   } else if(tab==="fornecedor"){
     const pgf = pageOf(purch, "cpforn", 10);
     body = purch.length ? `${pgf.top}<div class="cplist">${pgf.items.map(p=>{ const links=p.lines.reduce((s,l)=>s+(l.links||[]).length,0);
@@ -1948,8 +1979,8 @@ function renderCompras(){
   app.innerHTML = topnav() + `
     <header class="bar"><div class="grow"><h1>Compras · encomendas</h1><div class="sub">Itens que o comercial vendeu sob encomenda e o pedido feito ao fornecedor</div></div>
       <div class="cpbtns"><button class="btn ghost cpbtn" id="cpNf">Importar nota fiscal</button><button class="btn primary cpbtn" id="cpImport">Importar pedido do fornecedor</button></div></header>
-    <div class="cptools"><div class="seg">${[["decidir",`Para decidir · ${decide.length}`],["abertas",`Em aberto · ${open.length}`],["chegada",`Aguardando chegada · ${aguard.length}${late.length?` (${late.length} atrasado${late.length===1?"":"s"})`:""}`],["fornecedor",`Pedidos ao fornecedor · ${purch.length}`],["concluidas","Concluídas"]].map(([k,t])=>`<button data-ctab="${k}" aria-pressed="${tab===k}">${t}</button>`).join("")}</div>
-      ${tab!=="fornecedor"?`<input class="tinput cpq" id="cpQ" placeholder="Buscar pré-venda, cliente ou código" value="${esc(state.cQ||"")}">`:""}</div>
+    <div class="cptools"><div class="seg">${[["decidir",`Para decidir · ${decide.length}`],["abertas",`Em aberto · ${open.length}`],["chegada",`Aguardando chegada · ${aguard.length}${late.length?` (${late.length} atrasado${late.length===1?"":"s"})`:""}`],["fornecedor",`Pedidos ao fornecedor · ${purch.length}`],["notas",`Notas fiscais · ${Object.keys(NFS).length}`],["concluidas","Concluídas"]].map(([k,t])=>`<button data-ctab="${k}" aria-pressed="${tab===k}">${t}</button>`).join("")}</div>
+      ${tab!=="fornecedor"?`<input class="tinput cpq" id="cpQ" placeholder="${tab==="notas"?"Buscar nota, fornecedor ou item":"Buscar pré-venda, cliente ou código"}" value="${esc(state.cQ||"")}">`:""}</div>
     ${adjComprasHTML(ORDERS.filter(o=>o.adjCompras && !o.adjCompras.ok))}
     ${body}`;
   bindNav();
@@ -1969,9 +2000,10 @@ function renderCompras(){
     if(state.adjScroll){ bx.style.scrollBehavior="auto"; bx.scrollLeft=state.adjScroll; bx.style.scrollBehavior=""; }
     sync(); }
   const aa=document.getElementById("adjOkAll"); if(aa) aa.onclick=()=>{ const l=ORDERS.filter(o=>o.adjCompras && !o.adjCompras.ok); l.forEach(adjOk); toast(`${l.length} avisos dispensados`); render(); };
-  const qi=document.getElementById("cpQ"); if(qi){ qi.oninput=()=>{ state.cQ=qi.value; clearTimeout(qi._t); qi._t=setTimeout(()=>{ resetPage("compras"); resetPage("cpwait"); render(); const n=document.getElementById("cpQ"); if(n){ n.focus(); n.setSelectionRange(n.value.length,n.value.length); } },250); }; }
+  const qi=document.getElementById("cpQ"); if(qi){ qi.oninput=()=>{ state.cQ=qi.value; clearTimeout(qi._t); qi._t=setTimeout(()=>{ resetPage("compras"); resetPage("cpwait"); resetPage("cpnf"); render(); const n=document.getElementById("cpQ"); if(n){ n.focus(); n.setSelectionRange(n.value.length,n.value.length); } },250); }; }
   document.getElementById("cpImport").onclick=()=>openPurchaseImport();
   document.getElementById("cpNf").onclick=()=>openNfImport();
+  app.querySelectorAll("[data-nfedit]").forEach(b=>b.onclick=()=>{ const n=NFS[b.dataset.nfedit]; if(n) startNfEdit(n, false); });
   app.querySelectorAll("details[data-cpid]").forEach(d=>d.ontoggle=()=>{ const id=d.dataset.cpid, set=new Set(state.cpOpen||[]); d.open?set.add(id):set.delete(id); state.cpOpen=[...set]; });
   app.querySelectorAll("[data-carr]").forEach(b=>b.onclick=()=>{ const [oid,i]=b.dataset.carr.split(":"); setItemArrived(oid,+i,b.dataset.v==="1"); });
   app.querySelectorAll("[data-crel]").forEach(b=>b.onclick=()=>{ if(!b.dataset.c){ b.dataset.c="1"; b.textContent="Confirmar: encomenda chegou"; return; } releaseEnc(b.dataset.crel); });
@@ -2658,50 +2690,141 @@ function autoAlloc(line, forn){
   return al;
 }
 
+/* ---- Importar NF: escolhe o arquivo e abre a tela de amarração (itens da nota × pré-vendas com encomenda) ---- */
 function openNfImport(){
-  const S = { nf:null, busy:false, err:"" };
-  const ov=document.createElement("div"); ov.className="modal";
-  const close=()=>{ ov.remove(); render(); };
-  const encList = () => ORDERS.filter(o=>!isEco(o) && hasEnc(o) && !["enviado","excluido"].includes(o.status)).flatMap(o=>encItems(o).map(x=>({o,x})));
-  const draw=()=>{ const N=S.nf;
-    const ex = N && Object.values(NFS).find(n=>n.id===nfId(N) && n.lines?.length);
-    ov.innerHTML=`<div class="mbox xwide" role="dialog" aria-modal="true" aria-label="Importar nota fiscal"><h2>Importar nota fiscal do fornecedor</h2>
-      <p>Envie o <b>XML</b> da nota (recomendado) ou o <b>PDF</b> da DANFE. O sistema amarra cada item às pré-vendas pelos pedidos ao fornecedor; confira e ajuste antes de salvar.</p>
-      <div class="hnpdf"><label class="mini tup">${S.busy?"Lendo nota…":N?"Trocar arquivo":"Escolher XML ou PDF da nota"}<input type="file" id="nfFile" accept=".xml,.pdf,application/pdf,text/xml,application/xml" hidden></label>${N?`<span class="muted-s">${N.lines.length} itens lidos${N.chave?" · chave lida":""}</span>`:""}</div>
-      ${N ? `${ex?`<div class="merr">Esta nota já foi importada. Salvar de novo substitui a amarração anterior.</div>`:""}
+  const inp=document.createElement("input"); inp.type="file"; inp.accept=".xml,.pdf,application/pdf,text/xml,application/xml";
+  inp.onchange=async()=>{ const f=inp.files[0]; if(!f) return; toast("Lendo a nota…");
+    try{ const isXml=/xml$/i.test(f.name) || /xml/.test(f.type); const nf = isXml ? parseNfXml(await f.text()) : await readNfPdf(f);
+      if(!nf.lines.length) throw new Error("vazio"); startNfEdit(nf, true);
+    }catch(x){ askModal({title:"Não consegui ler a nota", text: x.message==="vazio" ? "Não encontrei os itens nesta nota. Me mande este arquivo para eu ensinar o sistema a ler." : "Este arquivo não parece uma nota fiscal (XML ou PDF da DANFE). Prefira o XML.", okText:"Entendi"}); } };
+  inp.click();
+}
+function startNfEdit(nf, fresh){
+  const ex=NFS[nfId(nf)];
+  const N = fresh ? nf : JSON.parse(JSON.stringify(nf));
+  if(fresh){ N.lines.forEach(l=>{ l.sku=skuFor(N.forn, l.code); l.alloc=[]; });
+    if(ex?.lines?.length) N.lines.forEach((l,k)=>{ const o=ex.lines.find(x=>x.code===l.code && x.qty===l.qty); if(o){ l.sku=l.sku||o.sku; l.alloc=JSON.parse(JSON.stringify(o.alloc||[])); } });
+    else N.lines.forEach(l=>{ l.alloc=autoAlloc(l, N.forn); }); }
+  N.lines.forEach(l=>{ l.alloc ||= []; });
+  state.nfEdit={ N, id: ex ? ex.id : null, fresh:!!fresh, dirty:!!fresh, auto: fresh && !ex?.lines?.length ? N.lines.reduce((t,l)=>t+l.alloc.length,0) : 0, sel:null, enc:null, qL:"", qR:"", fL:"todos", pane:"itens", err:"" };
+  render(); scrollTo(0,0);
+}
+function renderNfEdit(){
+  const E=state.nfEdit, N=E.N, selfId=E.id || nfId(N);
+  const used = l => (l.alloc||[]).reduce((t,a)=>t+(+a.qty||0),0);
+  // peças de encomenda de cada item de pré-venda que ainda não têm nota (tirando o que esta mesma nota já amarrou)
+  const otherNf = it => (it.compra?.nf||[]).filter(n=>n.id!==selfId).reduce((t,n)=>t+(+n.qty||0),0);
+  const draftUsed = (oid,i) => N.lines.reduce((t,l)=>t+(l.alloc||[]).filter(a=>a.oid===oid && a.i===i).reduce((u,a)=>u+(+a.qty||0),0),0);
+  const encAll = ORDERS.filter(o=>!isEco(o) && hasEnc(o) && !["enviado","excluido"].includes(o.status)).flatMap(o=>encItems(o).map(x=>({o, x, key:o.id+":"+x.i})));
+  const encLeft = c => Math.max(0, c.x.qtyEnc - otherNf(c.o.items[c.x.i]||{}) - draftUsed(c.o.id, c.x.i));
+  const cands = l => { const byPed=nfCandidates(l, N.forn).map(c=>c.o.id+":"+c.i);
+    return encAll.map(c=>({c, sc: (byPed.includes(c.key)?100:0) + (l.sku && l.sku===c.x.code ? 50 : 0) + rcSim(l.name, c.x.name)})).filter(x=>x.sc>=100 || x.sc>=50 || x.sc>=3).sort((a,b)=>b.sc-a.sc); };
+  const sugCount = N.lines.map(l=>used(l) ? 0 : cands(l).filter(x=>encLeft(x.c)>0 && (x.sc>=50)).length);
+  const nAm=N.lines.filter(l=>used(l)).length, nSug=sugCount.filter(Boolean).length, links=N.lines.reduce((t,l)=>t+(l.alloc||[]).length,0);
+  const selL = E.sel!=null ? N.lines[E.sel] : null, selE = !selL && E.enc ? encAll.find(c=>c.key===E.enc) : null;
+  const pvTxt = c => `<b class="mono">#${esc(c.o.num)}</b> ${esc(c.o.client)}`;
+  const itTxt = c => `<span class="mono">${esc(c.x.code)}</span> ${esc(c.x.name)}`;
+
+  /* ----- coluna esquerda: itens da nota ----- */
+  const leftRows = () => { const q=E.qL.trim().toUpperCase();
+    let rows=N.lines.map((l,j)=>({l,j, sc: selE ? (l.sku && l.sku===selE.x.code ? 50 : 0) + rcSim(l.name, selE.x.name) : 0}));
+    if(q) rows=rows.filter(r=>(r.l.code+" "+r.l.name+" "+(r.l.sku||"")).toUpperCase().includes(q));
+    if(E.fL==="amar") rows=rows.filter(r=>used(r.l)); else if(E.fL==="estq") rows=rows.filter(r=>!used(r.l)); else if(E.fL==="sug") rows=rows.filter(r=>sugCount[r.j]);
+    if(selE) rows.sort((a,b)=>b.sc-a.sc);
+    return rows.length ? rows.map(({l,j,sc})=>{ const u=used(l), over=u>l.qty;
+      return `<div class="nai ${E.sel===j?"sel":""} ${u?"on":""}" data-nal="${j}" role="button" tabindex="0">
+        <div class="nait"><span><b class="mono">${esc(l.code)}</b> ${esc(l.name)}</span><b class="tnum naq">${l.qty} ${esc(l.un||"pç")}</b></div>
+        <div class="naic">${(l.alloc||[]).map(a=>{ const o=ORDERS.find(x=>x.id===a.oid); return `<span class="chip enc">→ #${esc(o?.num||"?")} · ${a.qty} pç</span>`; }).join("")}
+          ${over?`<span class="chip bad">${u-l.qty} pç a mais que a nota</span>`: u ? (u<l.qty?`<span class="chip">${l.qty-u} pç estoque</span>`:"") : sugCount[j] ? `<span class="chip sug">${sugCount[j]} sugest${sugCount[j]===1?"ão":"ões"}</span>` : `<span class="chip">estoque</span>`}
+          ${selE ? `<button class="mini nabtn ${sc>=3?"on":""}" data-nabind="${j}">Amarrar aqui</button>` : ""}</div></div>`; }).join("")
+      : `<div class="empty">Nenhum item da nota com esse filtro.</div>`; };
+
+  /* ----- coluna direita: pré-vendas com encomenda ----- */
+  const encRow = (c, why) => { const left=encLeft(c), mine=draftUsed(c.o.id,c.x.i);
+    return `<div class="nae ${E.enc===c.key?"sel":""} ${left<=0?"full":""}" data-nae="${c.key}" role="button" tabindex="0">
+      <div class="naet"><span>${pvTxt(c)}</span>${why?`<span class="chip sug">${why}</span>`:""}</div>
+      <div class="naei">${itTxt(c)}</div>
+      <div class="naic"><span class="chip">encomenda ${c.x.qtyEnc} pç</span>${mine?`<span class="chip enc">${mine} pç nesta nota</span>`:""}${left>0?`<span class="chip need">faltam ${left} pç</span>`:`<span class="chip done">completa</span>`}
+        ${selL ? `<button class="mini nabtn on" data-naadd="${c.key}">Amarrar${left>0?` · ${Math.min(left, Math.max(0,selL.qty-used(selL))) || ""}`:""}</button>` : ""}</div></div>`; };
+  const rightBody = () => { const q=E.qR.trim().toUpperCase();
+    const match = c => !q || (c.o.num+" "+c.o.client+" "+c.x.code+" "+c.x.name).toUpperCase().includes(q);
+    if(selL){ const u=used(selL), has=new Set((selL.alloc||[]).map(a=>a.oid+":"+a.i)), cs=cands(selL).filter(x=>!has.has(x.c.key)), sugKeys=new Set(cs.map(x=>x.c.key));
+      const others=encAll.filter(c=>!has.has(c.key) && !sugKeys.has(c.key) && match(c)).sort((a,b)=>(encLeft(b)>0)-(encLeft(a)>0) || (a.o.createdAt||0)-(b.o.createdAt||0));
+      const sug=cs.filter(x=>match(x.c));
+      return `<div class="nasel"><div class="eyebrow">Item da nota selecionado</div><div class="nait"><span><b class="mono">${esc(selL.code)}</b> ${esc(selL.name)}</span><b class="tnum naq">${selL.qty} ${esc(selL.un||"pç")}</b></div>
+          <div class="nabar"><i style="width:${Math.min(100,Math.round(u*100/Math.max(1,selL.qty)))}%" class="${u>selL.qty?"over":""}"></i></div>
+          <small class="${u>selL.qty?"bad-s":"muted-s"}">${u>selL.qty ? `Amarrado ${u} pç: ${u-selL.qty} a mais do que veio na nota. Diminua alguma quantidade.` : u ? `${u} pç para pré-vendas · ${selL.qty-u} pç para estoque` : "Nada amarrado: tudo vai para o estoque."}</small>
+          ${(selL.alloc||[]).length?`<div class="naal">${selL.alloc.map((a,m)=>{ const o=ORDERS.find(x=>x.id===a.oid), it=o?.items[a.i]; return `<div class="naalr"><span><b class="mono">#${esc(o?.num||"?")}</b> ${esc(o?.client||"")}<small>${esc(it?.code||"")} ${esc(it?.name||"")} · encomenda ${(it?.qtyEnc||0)-(it?.qtyDec||0)} pç</small></span>
+            <span class="naqty"><button class="mini" data-naq="${m}" data-d="-1" aria-label="Menos uma peça">−</button><input class="tinput r" type="number" min="1" data-naqi="${m}" value="${a.qty}" aria-label="Peças para a pré-venda ${esc(o?.num||"")}"><button class="mini" data-naq="${m}" data-d="1" aria-label="Mais uma peça">+</button><button class="lnk" data-narm="${m}">tirar</button></span></div>`; }).join("")}</div>`:""}
+          <button class="lnk" id="naDesel">Fechar este item</button></div>
+        ${sug.length?`<div class="eyebrow nah">Sugestões para este item</div>${sug.map(x=>encRow(x.c, x.sc>=100?"mesmo pedido ao fornecedor":x.sc>=50?"mesmo produto":"descrição parecida")).join("")}`:""}
+        <div class="eyebrow nah">${sug.length?"Outras encomendas em aberto":"Encomendas em aberto"} · ${others.length}</div>
+        ${others.length ? others.slice(0,40).map(c=>encRow(c)).join("") + (others.length>40?`<small class="muted-s">Mostrando 40 de ${others.length}. Use a busca para achar as outras.</small>`:"") : `<div class="empty">${q?"Nenhuma encomenda com essa busca.":"Não há outras encomendas em aberto."}</div>`}`; }
+    const list=encAll.filter(match).sort((a,b)=>(encLeft(b)>0)-(encLeft(a)>0) || (a.o.createdAt||0)-(b.o.createdAt||0));
+    return `${selE?`<div class="nasel"><div class="eyebrow">Encomenda selecionada</div><div>${pvTxt(selE)}</div><div class="naei">${itTxt(selE)}</div><small class="muted-s">Encomenda de ${selE.x.qtyEnc} pç · faltam ${encLeft(selE)}. Agora toque em <b>Amarrar aqui</b> no item da nota (os mais parecidos estão em cima).</small><button class="lnk" id="naDesel">Cancelar</button></div>`
+      : `<div class="nahint">Toque num <b>item da nota</b> para ver as sugestões de pré-venda, ou escolha aqui uma <b>encomenda</b> e depois o item da nota.</div>`}
+      <div class="eyebrow nah">Encomendas em aberto · ${list.length}</div>
+      ${list.length ? list.slice(0,60).map(c=>encRow(c)).join("") + (list.length>60?`<small class="muted-s">Mostrando 60 de ${list.length}. Use a busca.</small>`:"") : `<div class="empty">${q?"Nenhuma encomenda com essa busca.":"Nenhuma pré-venda com encomenda em aberto."}</div>`}`; };
+
+  const ex = NFS[selfId];
+  app.innerHTML = topnav() + `
+    <header class="bar nahdr"><div class="grow"><h1>Amarrar nota fiscal</h1><div class="sub">Relacione os itens da nota com as pré-vendas que estão esperando encomenda. O que não for amarrado vai para o estoque.</div></div>
+      <div class="cpbtns"><button class="btn ghost cpbtn" id="naBack">Voltar</button><button class="btn primary cpbtn" id="naSave">Salvar nota</button></div></header>
+    <section class="card nahead">
       <div class="hnf nff"><label><span>Fornecedor</span><input class="tinput" id="nfForn" value="${esc(N.forn)}"></label><label><span>Nº da NF</span><input class="tinput" id="nfNum" value="${esc(N.num)}"></label><label><span>Volumes (caixas)</span><input class="tinput" id="nfVols" type="number" min="0" value="${N.vols||""}"></label></div>
-      <small class="muted-s">${N.cnpj?"CNPJ "+fmtCnpj(N.cnpj)+" · ":""}${N.emissao?"emitida em "+fmtDate(N.emissao)+" · ":""}${N.chave?"chave "+N.chave.replace(/(\d{4})/g,"$1 ").trim():"sem chave de acesso: o recebimento será pelo nº da NF"}</small>
-      <div class="pplines">${N.lines.map((l,j)=>{ const used=(l.alloc||[]).reduce((s,a)=>s+(+a.qty||0),0);
-        return `<div class="ppline ${used?"on":""}"><div class="nfl"><b class="mono">${esc(l.code)}</b> ${esc(l.name)}<span class="tnum"><b>${l.qty}</b> ${esc(l.un||"pç")}</span></div>
-          ${(l.alloc||[]).map((a,m)=>{ const o=ORDERS.find(x=>x.id===a.oid), it=o?.items[a.i]; return `<div class="pplink"><span>→</span><span class="nfpv"><b class="mono">#${esc(o?.num||"?")}</b> ${esc(o?.client||"")}<small class="muted-s"> · ${esc(it?.code||"")} ${esc(it?.name||"")} · encomenda ${it?.qtyEnc||0} pç${nfQty(it||{})?` · já faturadas ${nfQty(it)}`:""}</small></span><input class="tinput r" type="number" min="1" data-naq="${j}:${m}" value="${a.qty}" aria-label="Peças para esta pré-venda"><button class="lnk" data-narm="${j}:${m}">tirar</button></div>`; }).join("")}
-          <div class="nfadd"><select class="tinput" data-nadd="${j}"><option value="">+ amarrar a uma pré-venda…</option>${encList().filter(c=>!(l.alloc||[]).some(a=>a.oid===c.o.id&&a.i===c.x.i)).map(c=>`<option value="${c.o.id}:${c.x.i}">#${esc(c.o.num)} · ${esc(c.o.client).slice(0,24)} · ${esc(c.x.code)} ${esc(c.x.name).slice(0,30)} · ${c.x.qtyEnc} pç</option>`).join("")}</select></div>
-          ${used>l.qty?`<div class="merr">Amarrado ${used} pç, mais que as ${l.qty} pç da nota.</div>`:used<l.qty?`<small class="muted-s">${l.qty-used} pç para estoque</small>`:""}
-        </div>`; }).join("")}</div>` : ""}
-      <div class="merr">${esc(S.err)}</div>
-      <div class="mact"><button class="btn ghost" id="mNo">Cancelar</button>${N?`<button class="btn primary" id="mOk">Salvar nota</button>`:""}</div></div>`;
-    const g=id=>ov.querySelector("#"+id);
-    g("mNo").onclick=close;
-    g("nfFile").onchange=async e=>{ const f=e.target.files[0]; if(!f) return; S.busy=true; S.err=""; draw();
-      try{ const isXml=/xml$/i.test(f.name) || /xml/.test(f.type); const nf = isXml ? parseNfXml(await f.text()) : await readNfPdf(f);
-        if(!nf.lines.length) throw new Error("vazio");
-        nf.lines.forEach(l=>{ l.sku=skuFor(nf.forn, l.code); l.alloc=autoAlloc(l, nf.forn); }); S.nf=nf;
-      }catch(x){ S.nf=null; S.err = x.message==="vazio" ? "Não encontrei os itens nesta nota. Me mande este arquivo para eu ensinar o sistema a ler." : "Não consegui ler este arquivo como nota fiscal (XML ou PDF da DANFE)."; }
-      S.busy=false; draw(); };
-    if(!N) return;
-    g("nfForn").oninput=e=>N.forn=e.target.value; g("nfNum").oninput=e=>N.num=e.target.value.trim(); g("nfVols").oninput=e=>N.vols=Math.max(0,+e.target.value||0);
-    ov.querySelectorAll("[data-naq]").forEach(i=>i.onchange=()=>{ const [j,m]=i.dataset.naq.split(":").map(Number); N.lines[j].alloc[m].qty=Math.max(0,+i.value||0); setTimeout(draw); });
-    ov.querySelectorAll("[data-narm]").forEach(b=>b.onclick=()=>{ const [j,m]=b.dataset.narm.split(":").map(Number); N.lines[j].alloc.splice(m,1); draw(); });
-    ov.querySelectorAll("[data-nadd]").forEach(s=>s.onchange=()=>{ if(!s.value) return; const l=N.lines[+s.dataset.nadd], [oid,i]=s.value.split(":"), it=ORDERS.find(o=>o.id===oid)?.items[+i];
-      const used=(l.alloc||[]).reduce((t,a)=>t+(+a.qty||0),0); (l.alloc ||= []).push({oid, i:+i, qty:Math.max(1, Math.min(l.qty-used, Math.max(1,(it?.qtyEnc||1)-nfQty(it||{}))))}); draw(); });
-    g("mOk").onclick=()=>{
-      if(!N.num){ S.err="Informe o número da NF."; return draw(); }
-      if(!String(N.forn||"").trim()){ S.err="Informe o fornecedor."; return draw(); }
-      const over=N.lines.find(l=>(l.alloc||[]).reduce((s,a)=>s+(+a.qty||0),0)>l.qty); if(over){ S.err=`O item ${over.code} tem mais peças amarradas do que na nota.`; return draw(); }
-      saveNf(N); close();
-    };
-  };
-  ov.onclick=e=>{ if(e.target===ov) close(); };
-  document.body.appendChild(ov); scanbar.hidden=true; draw();
+      <small class="muted-s">${N.cnpj?"CNPJ "+fmtCnpj(N.cnpj)+" · ":""}${N.emissao?"emitida em "+fmtDate(N.emissao)+" · ":""}${N.chave?"chave lida":"sem chave de acesso: o recebimento será pelo nº da NF"}${ex?.received?" · <b>nota já recebida</b>":""}</small>
+      <div class="nastats"><span><b>${N.lines.length}</b> itens na nota</span><span class="s-on"><b>${nAm}</b> amarrado${nAm===1?"":"s"} · ${links} pré-venda${links===1?"":"s"}</span><span><b>${N.lines.length-nAm}</b> para estoque</span>${nSug?`<span class="s-sug"><b>${nSug}</b> com sugestão para conferir</span>`:""}</div>
+      ${E.fresh && ex?.lines?.length ? `<div class="nawarn">Esta nota já tinha sido importada: a amarração anterior foi mantida. Salvar substitui a que estava gravada.</div>`:""}
+      ${E.auto ? `<div class="nawarn ok">O sistema já amarrou <b>${E.auto}</b> item(ns) pelos pedidos ao fornecedor. Confira no filtro <b>Amarrados</b>.</div>`:""}
+      ${E.err?`<div class="merr">${esc(E.err)}</div>`:""}
+    </section>
+    <div class="seg napanes">${[["itens",`Itens da nota · ${N.lines.length}`],["pvs","Pré-vendas (encomendas)"]].map(([k,t])=>`<button data-napane="${k}" aria-pressed="${E.pane===k}">${t}</button>`).join("")}</div>
+    <div class="nagrid" data-pane="${E.pane}">
+      <section class="card nacol nacl"><div class="nach"><h2>Itens da nota</h2>
+          <input class="tinput" id="naQL" placeholder="Buscar item da nota: código ou descrição" value="${esc(E.qL)}" autocomplete="off">
+          <div class="seg nafil">${[["todos","Todos"],["sug",`Com sugestão${nSug?` · ${nSug}`:""}`],["amar",`Amarrados · ${nAm}`],["estq","Estoque"]].map(([k,t])=>`<button data-nafil="${k}" aria-pressed="${E.fL===k}">${t}</button>`).join("")}</div>
+          ${selE?`<div class="nahint on">Amarrando <b>#${esc(selE.o.num)}</b> · ${esc(selE.x.code)}: toque em <b>Amarrar aqui</b> no item certo.</div>`:""}</div>
+        <div class="nalist" id="naL">${leftRows()}</div></section>
+      <section class="card nacol nacr"><div class="nach"><h2>Pré-vendas com encomenda</h2>
+          <input class="tinput" id="naQR" placeholder="Buscar pré-venda: número, cliente, código ou descrição" value="${esc(E.qR)}" autocomplete="off"></div>
+        <div class="nalist" id="naR">${rightBody()}</div></section>
+    </div>
+    ${E.dirty?`<div class="nadirty"><span>Alterações ainda não salvas</span><button class="btn primary" id="naSave2">Salvar nota</button></div>`:""}`;
+  bindNav();
+  const pane0=E.pane, g=id=>document.getElementById(id), keep=()=>({l:g("naL")?.scrollTop||0, r:g("naR")?.scrollTop||0, y:scrollY});
+  const redraw=(resetR)=>{ const k=keep(); render(); const L=g("naL"), R=g("naR"); if(L) L.scrollTop=k.l; if(R) R.scrollTop=resetR?0:k.r; scrollTo(0,k.y);
+    if(E.pane!==pane0 && matchMedia("(max-width:900px)").matches) app.querySelector(".napanes")?.scrollIntoView({block:"start"}); };
+  const touch=()=>{ E.dirty=true; E.err=""; E.auto=0; };
+  g("nfForn").oninput=e=>{ N.forn=e.target.value; E.dirty=true; }; g("nfNum").oninput=e=>{ N.num=e.target.value.trim(); E.dirty=true; }; g("nfVols").oninput=e=>{ N.vols=Math.max(0,+e.target.value||0); E.dirty=true; };
+  const bindL=()=>{ g("naL").querySelectorAll("[data-nal]").forEach(d=>{ const go=e=>{ if(e.target.closest("[data-nabind]")) return; const j=+d.dataset.nal; E.sel = E.sel===j ? null : j; E.enc=null; if(E.sel!=null) E.pane="pvs"; redraw(true); };
+      d.onclick=go; d.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); go(e); } }; });
+    g("naL").querySelectorAll("[data-nabind]").forEach(b=>b.onclick=()=>{ add(+b.dataset.nabind, selE); }); };
+  const bindR=()=>{ const R=g("naR");
+    R.querySelectorAll("[data-nae]").forEach(d=>{ const go=e=>{ if(e.target.closest("[data-naadd]")) return; if(selL) return; E.enc = E.enc===d.dataset.nae ? null : d.dataset.nae; if(E.enc) E.pane="itens"; redraw(); };
+      d.onclick=go; d.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); go(e); } }; });
+    R.querySelectorAll("[data-naadd]").forEach(b=>b.onclick=()=>add(E.sel, encAll.find(c=>c.key===b.dataset.naadd)));
+    R.querySelectorAll("[data-naq]").forEach(b=>b.onclick=()=>{ const a=selL.alloc[+b.dataset.naq]; a.qty=Math.max(1,(+a.qty||0)+(+b.dataset.d)); touch(); redraw(); });
+    R.querySelectorAll("[data-naqi]").forEach(i=>i.onchange=()=>{ selL.alloc[+i.dataset.naqi].qty=Math.max(1,+i.value||1); touch(); redraw(); });
+    R.querySelectorAll("[data-narm]").forEach(b=>b.onclick=()=>{ selL.alloc.splice(+b.dataset.narm,1); touch(); redraw(); });
+    const ds=g("naDesel"); if(ds) ds.onclick=()=>{ E.sel=null; E.enc=null; E.pane="itens"; redraw(); }; };
+  function add(j, c){ const l=N.lines[j]; if(!l || !c) return;
+    if(l.alloc.some(a=>a.oid===c.o.id && a.i===c.x.i)){ toast("Este item já está amarrado a essa pré-venda"); return; }
+    const free=l.qty-used(l), left=encLeft(c);
+    if(free<=0){ toast(`As ${l.qty} pç deste item já estão amarradas. Diminua outra pré-venda antes.`); return; }
+    const q=Math.max(1, Math.min(free, left>0?left:c.x.qtyEnc)); if(left<=0) setTimeout(()=>toast(`Atenção: a encomenda do #${c.o.num} já estava completa em outra nota`), 50); l.alloc.push({oid:c.o.id, i:c.x.i, qty:q}); touch();
+    toast(`${l.code} → #${c.o.num} · ${q} pç`); E.sel=j; E.enc=null; E.pane="pvs"; redraw(); }
+  bindL(); bindR();
+  const typed=(id, key, list, html, bind)=>{ const el=g(id); el.oninput=()=>{ E[key]=el.value; clearTimeout(el._t); el._t=setTimeout(()=>{ g(list).innerHTML=html(); g(list).scrollTop=0; bind(); },120); }; };
+  typed("naQL","qL","naL",leftRows,bindL); typed("naQR","qR","naR",rightBody,bindR);
+  app.querySelectorAll("[data-nafil]").forEach(b=>b.onclick=()=>{ E.fL=b.dataset.nafil; const k=keep(); render(); scrollTo(0,k.y); });
+  app.querySelectorAll("[data-napane]").forEach(b=>b.onclick=()=>{ E.pane=b.dataset.napane; redraw(); });
+  const save=()=>{
+    if(!N.num){ E.err="Informe o número da NF."; return redraw(); }
+    if(!String(N.forn||"").trim()){ E.err="Informe o fornecedor."; return redraw(); }
+    const over=N.lines.findIndex(l=>used(l)>l.qty); if(over>=0){ E.err=`O item ${N.lines[over].code} tem mais peças amarradas do que na nota.`; E.sel=over; E.enc=null; E.pane="pvs"; return redraw(); }
+    saveNf(N); state.nfEdit=null; state.cTab="notas"; render(); scrollTo(0,0); };
+  g("naSave").onclick=save; if(g("naSave2")) g("naSave2").onclick=save;
+  g("naBack").onclick=async()=>{ if(E.dirty && !(await askModal({title:"Sair sem salvar?", text:"As amarrações feitas nesta tela ainda não foram salvas.", okText:"Sair sem salvar", danger:true}))) return; state.nfEdit=null; render(); };
 }
 function saveNf(N){
   const id=nfId(N), prev=NFS[id], now=Date.now();
