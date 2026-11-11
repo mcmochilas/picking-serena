@@ -492,7 +492,7 @@ details.cpcard summary{display:flex;justify-content:space-between;align-items:ce
 .summary div{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 6px}
 .summary b{display:block;font-family:var(--display);font-size:28px;line-height:1}
 .summary small{color:var(--muted);font-size:12px}
-.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;font-size:14px;z-index:20;max-width:calc(100% - 32px)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;font-size:14px;z-index:20;max-width:calc(100% - 32px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
 .note{font-size:12px;color:var(--muted);margin-top:16px;text-align:center}
 
 /* Scan flow */
@@ -1228,7 +1228,7 @@ setInterval(()=>{ const n=Date.now(); document.querySelectorAll("[data-since]").
 let ORDERS = [], DELETED = [], db = null, col = null, synced = false;
 const writeQ = {};
 function queueWrite(id, fn){
-  writeQ[id] = (writeQ[id]||Promise.resolve()).then(fn).catch(e=>{ console.warn(e); toast(e?.code==="quota_exceeded" ? "Limite de armazenamento atingido" : "Não foi possível salvar. Verifique a conexão."); });
+  writeQ[id] = (writeQ[id]||Promise.resolve()).then(fn).catch(e=>{ console.warn(e); toast(e?.code==="quota_exceeded" ? "Limite de armazenamento atingido" : "Não salvou · sem conexão"); });
   return writeQ[id];
 }
 function saveOrder(o){
@@ -1502,11 +1502,11 @@ function bindDraft(){
   // Administrador: ajustar itens da pré-venda antes de enviar
   const dirty=()=>{ d.adminEdited=true; state.draftErr=""; };
   app.querySelectorAll("[data-dq]").forEach(inp=>inp.onchange=()=>{ const it=d.items[+inp.dataset.dq]; it.qty=Math.max(1,Math.round(+inp.value||1)); it.qtyEnc=Math.min(it.qtyEnc||0,it.qty); dirty(); setTimeout(render); });
-  app.querySelectorAll("[data-ddel]").forEach(b=>b.onclick=()=>{ if(d.items.length<=1){ toast("A pré-venda precisa ter pelo menos um item"); return; } d.items.splice(+b.dataset.ddel,1); dirty(); render(); });
+  app.querySelectorAll("[data-ddel]").forEach(b=>b.onclick=()=>{ if(d.items.length<=1){ toast("Adicione um item"); return; } d.items.splice(+b.dataset.ddel,1); dirty(); render(); });
   const da=document.getElementById("daAdd"); if(da){ const ci=document.getElementById("daCode");
     da.onclick=()=>{ const v=ci.value.trim(), q=Math.max(1,Math.round(+document.getElementById("daQty").value||1)); if(!v){ toast("Informe o SKU do item"); return; }
       const all=Object.values(PRODUCTS), p=PRODUCTS[v] || all.find(x=>hvNorm(x.name)===hvNorm(v)) || all.find(x=>hvNorm(x.name).includes(hvNorm(v)));
-      if(!p){ toast(`Produto ${v} não encontrado. Cadastre em Locais → Produtos e EAN.`); return; }
+      if(!p){ toast(`Produto ${v} não cadastrado`); return; }
       const ex=d.items.find(x=>x.code===p.code); if(ex) ex.qty+=q; else d.items.push({code:p.code, name:p.name, ean:p.ean||"", un:"UN", qty:q, price:0, loc:locFor(p.code), qtyEnc:0, eta:""});
       dirty(); render(); toast(`${p.code} ${ex?"somado":"adicionado"} · ${q} pç`); };
     ci.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); da.click(); } }; }
@@ -1523,7 +1523,7 @@ function sendDraft(){
   if(m==="parcial" && hasEnc && !hasPick) m = "temenc"; // tudo encomenda: Compras decide
   const toCompras = m==="temenc"; // Compras decide se separa o que tem na loja (colmeia) ou aguarda chegar tudo
   const missing = []; // prazo da encomenda: Compras informa na importação do pedido do fornecedor
-  if(missing.length){ missing.forEach(i=>document.getElementById("eta-"+i)?.classList.add("invalid")); state.draftErr=""; toast("Informe a previsão de chegada dos itens sob encomenda."); return; }
+  if(missing.length){ missing.forEach(i=>document.getElementById("eta-"+i)?.classList.add("invalid")); state.draftErr=""; toast("Informe a previsão de chegada"); return; }
   const noLoc = items.filter(it=>it.qty-it.qtyEnc>0 && !it.loc);
   items.forEach(it=>{ const p=PRODUCTS[it.code]; if(!p) saveProduct({code:it.code, name:it.name, ean:it.ean, loc:it.loc?code(it.loc):""}); else if(!p.ean && it.ean && !validateProduct({...p, ean:it.ean})) saveProduct({...p, ean:it.ean}); });
   const prev = ORDERS.find(o=>o.id===d.id);
@@ -1536,7 +1536,7 @@ function sendDraft(){
   res(o);
   state.draft=null; state.draftErr="";
   saveOrder(o);
-  toast(toCompras ? `Pré-venda ${o.num} enviada para Compras decidir a encomenda` : (noLoc.length ? `${noLoc.length} item(ns) sem local · o separador procura no estoque · ` : "") + `Pré-venda ${o.num} enviada para separação · ${MODES[m].t.toLowerCase()}`);
+  toast(toCompras ? `Pré-venda ${o.num} enviada a Compras` : `Pré-venda ${o.num} enviada`);
 }
 
 /* ---- Encomendas: o separador cadastra uma pré-venda e amarra a uma colmeia ---- */
@@ -1601,7 +1601,7 @@ function openHiveNew(){
         ...(sel ? {status:fin, colmeia:sel, storedAt:now} : {status:"aguarda_colmeia", hvNext:fin, colmeia:null}),
         v2:true, items, remessa:1, createdAt:now, createdBy:ME.id||"", canal:"consultiva",
         hiveManual:true, transportadora:carrierFromObs(obs)||"", ...(sl.again?{reenvio:sl.again, reenvioDe:sl.last?.id||""}:{}), ...(f.why==="encomenda" && f.outra ? {aguardaOutraPv:true, outraPv:f.outraNum.trim().replace(/^(PV-|Nº\s*)/i,"")} : {}) });
-      if(sel){ toast(`Pré-venda ${num} guardada na colmeia ${sel.slice(3)} · ${f.why==="retira"?"aguardando o cliente retirar":"aguardando encomenda"}`); close(); return; }
+      if(sel){ toast(`Pré-venda ${num} na colmeia ${sel.slice(3)}`); close(); return; }
       ov.remove(); askHvLoc(id);
     };
   };
@@ -1765,8 +1765,8 @@ function hiveHTML(target, pick){
 function colmeiaSaida(o, how){
   const cm=(o.colmeia||"").slice(3), now=Date.now(), txt = how==="enviado" ? "enviado" : "retirado";
   if((o.remessa||1)!==2 && hasEnc(o) && !encArrived(o)){ // saíram as peças da colmeia; a encomenda continua em Compras (vira envio parcial)
-    patchOrder(o.id,{status:"enc_pendente", colmeia:null, ...(o.mode!=="parcial"?{mode:"parcial", modeOrig:o.mode}:{}), sentAt1:now, saida1:how, saida1By:ME.id||""}); toast(`1º envio do pedido ${o.num} ${txt} · colmeia ${cm} liberada · encomenda segue em Compras`); }
-  else { patchOrder(o.id,{status:"enviado", sentAt:now, saida:how, saidaBy:ME.id||""}); toast(`Pedido ${o.num} ${txt}${cm?` · colmeia ${cm} liberada`:""}`); }
+    patchOrder(o.id,{status:"enc_pendente", colmeia:null, ...(o.mode!=="parcial"?{mode:"parcial", modeOrig:o.mode}:{}), sentAt1:now, saida1:how, saida1By:ME.id||""}); toast(`1º envio do ${o.num} concluído`); }
+  else { patchOrder(o.id,{status:"enviado", sentAt:now, saida:how, saidaBy:ME.id||""}); toast(`Pedido ${o.num} concluído`); }
   rerender();
 }
 /* Saída da colmeia com conferência: bipa a colmeia → vê os itens → confirma que o cliente retirou (ou que foi enviado) */
@@ -1775,7 +1775,7 @@ const canHvOut = () => can("mesa")||can("coleta")||can("estoque")||can("comercia
 const hvOutByQR = () => !(can("mesa")||can("coleta")||can("estoque")) && innerWidth>=700; // no celular, faz direto
 async function askHvOut(oid, how){ const o=ORDERS.find(x=>x.id===oid); if(!o || !o.colmeia) return;
   if(!hvOutByQR() || !window.psHive) return startHvOut(oid, how);
-  let t; try{ t = await window.psHive.create(oid, how); }catch(e){ toast("Não foi possível gerar o QR code: "+(e.message||e)); return; }
+  let t; try{ t = await window.psHive.create(oid, how); }catch(e){ toast("Falha ao gerar o QR code"); return; }
   openPhoneQR(APP_URL + "#cm=" + t, `O pedido <b>#${esc(o.num)}</b> abre no celular para você ir até a colmeia <b>${esc(o.colmeia.slice(3))}</b>, bipar a etiqueta, conferir os itens e confirmar ${how==="enviado"?"o envio":"a retirada"}.
     <br><small class="muted-s">Não precisa entrar no sistema pelo celular. O link serve só para este pedido, uma vez, por 2 horas, e a liberação fica registrada no seu nome.</small>`, ()=>startHvOut(oid, how));
 }
@@ -1790,7 +1790,7 @@ const rcAdapter = table => ({ doc: id => ({ set: d => rcW(table, id, d), update:
 async function askReceb(n){
   if(!n) return;
   if(n.received || !rcByQR()) return openReceb(n);
-  let t; try{ t = await window.psRc.create(n.id); }catch(e){ toast("Não foi possível gerar o QR code: "+(e.message||e)); return; }
+  let t; try{ t = await window.psRc.create(n.id); }catch(e){ toast("Falha ao gerar o QR code"); return; }
   openPhoneQR(APP_URL + "#rc=" + t, `A conferência da <b>NF ${esc(n.num)}</b>${n.forn?` · ${esc(n.forn)}`:""} abre no celular para você contar as caixas bipando a nota e conferir os itens.
     <br><small class="muted-s">Não precisa entrar no sistema pelo celular. O link serve só para esta nota, por 4 horas (dá para parar e retomar), e o recebimento fica registrado no seu nome. O andamento é salvo e aparece aqui no computador.</small>`, ()=>openReceb(n));
 }
@@ -2063,7 +2063,7 @@ function decideAdjOrder(oid){
     const qtyEnc=Math.max(0,(it.qtyEnc||0)-loja); return {...rest, qtyEnc, eta: qtyEnc ? (it.eta||"") : ""}; });
   const anyEnc=items.some(it=>it.qtyEnc>0), needHive = anyEnc && o.mode!=="parcial";
   let moveTo=null, patch={items};
-  if(needHive && !o.colmeia){ moveTo=freeSlot(); if(!moveTo){ toast("Todas as colmeias estão ocupadas. Libere uma colmeia para encaminhar este pedido."); return; } } // a colmeia é gravada quando o separador guardar
+  if(needHive && !o.colmeia){ moveTo=freeSlot(); if(!moveTo){ toast("Colmeias cheias · libere uma"); return; } } // a colmeia é gravada quando o separador guardar
   if(needHive && o.colmeia) patch.mode="aguarda";
   if(needHive && o.colmeia && o.status==="pronto_envio") patch.status="na_colmeia"; // já está na colmeia: agora aguarda a encomenda
   const r=JSON.parse(JSON.stringify(o.res||items.map(()=>({status:"pend",got:0}))));
@@ -2075,7 +2075,7 @@ function decideAdjOrder(oid){
   patch.decAdj={...(o.decAdj||{}), done:true, decidedAt:now, decidedBy:ME.id||""};
   patch.hist=[...(o.hist||[]), {t:now, by:ME.id||"", ev:`Compras decidiu o ajuste · encomendar ${enc} pç${tasks.length?` · separar da loja ${tasks.reduce((s,t)=>s+t.qty,0)} pç`:""}${moveTo?` · colmeia ${moveTo.slice(3)}`:""}`}];
   patchOrder(oid, patch); delete state.dq[oid];
-  toast(`#${o.num}: ${tasks.length?"o separador recebe o ajuste no topo da fila":"itens novos ficam como encomenda"}${moveTo?` · guardar na colmeia ${moveTo.slice(3)}`:""}`);
+  toast(`Ajuste do #${o.num} decidido`);
   rerender();
 }
 function decideCard(o){
@@ -2133,7 +2133,7 @@ function openDecideItems(id){
     g("diAdd").onclick=()=>{ const v=g("diCode").value.trim(), q=Math.max(1,Math.round(+g("diQty").value||1));
       if(!v){ err="Informe o SKU do item."; return draw(); }
       const p=PRODUCTS[v] || prodList.find(x=>hvNorm(x.name)===hvNorm(v)) || prodList.find(x=>hvNorm(x.name).includes(hvNorm(v)));
-      if(!p){ err=`Produto ${v} não encontrado. Cadastre em Locais → Produtos e EAN.`; return draw(); }
+      if(!p){ err=`Produto ${v} não cadastrado`; return draw(); }
       const ex=rows.find(r=>r.code===p.code); if(ex) ex.qty+=q; else rows.push({code:p.code, name:p.name, ean:p.ean||"", un:"UN", price:0, qty:q, qtyEnc:0, eta:"", loc:p.loc||"", old:false});
       err=""; draw(); };
     g("diCode").onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); g("diAdd").click(); } };
@@ -2144,7 +2144,7 @@ function openDecideItems(id){
       const ch=adjChanges(o.items||[], items); if(!ch.length){ close(); return; }
       patchOrder(o.id, {items, res:null, hist:[...(o.hist||[]), {t:Date.now(), by:ME.id||"", ev:"Itens editados pelo administrador em Compras · "+ch.map(adjChangeTxt).join(" · ")}]});
       if(state.dq) delete state.dq[o.id];
-      toast(`Itens do pedido #${o.num} atualizados`); close();
+      toast(`Pedido #${o.num} atualizado`); close();
     };
   };
   ov.onclick=e=>{ if(e.target===ov) close(); };
@@ -2160,7 +2160,7 @@ function decideOrder(oid){
   else patch={mode:"aguarda", status:"aguardando", queuedAt:now}; // a colmeia é a que o separador bipar ao guardar
   patchOrder(oid, {...patch, items, res:null, decidedAt:now, decidedBy:ME.id||""});
   delete state.dq[oid];
-  toast(pl.kind==="encomenda" ? `#${o.num}: encomenda total · aparece em Em aberto para encomendar` : pl.kind==="total" ? `#${o.num} enviado para a separação` : `#${o.num} enviado para a separação · peças da loja vão para a colmeia ${patch.colmeia.slice(3)}`);
+  toast(pl.kind==="encomenda" ? `#${o.num} · encomenda total` : `#${o.num} enviado à separação`);
   rerender();
 }
 function compraCard(o, closed){
@@ -2193,12 +2193,12 @@ function patchItems(oid, fn){
 }
 function setItemArrived(oid, i, on){
   patchItems(oid, items=>{ const it=items[i]; it.compra={...(it.compra||{links:[]}), st: on?"chegou":"", arrivedAt: on?Date.now():null, arrivedBy: on?(ME.id||""):""}; });
-  toast(on?"Item marcado como chegou":"Chegada desfeita");
+  toast(on?"Item chegou":"Chegada desfeita");
 }
 function releaseEnc(oid){
   const o=ORDERS.find(x=>x.id===oid); if(!o || !canRelease(o)) return;
   startFase2(o, null);
-  toast(`Encomenda do pedido ${o.num} recebida · enviada para a separação`); rerender();
+  toast(`Encomenda do ${o.num} liberada`); rerender();
 }
 function unlinkPurchase(oid, i, pid){
   patchItems(oid, items=>{ const it=items[i]; if(it.compra) it.compra.links=(it.compra.links||[]).filter(l=>l.pid!==pid); });
@@ -2334,7 +2334,7 @@ function openPurchaseImport(){
         mode, modeCom:mode, v2:true, items, remessa:1, status: pick ? "aguardando" : "encomenda", createdAt:now, createdBy:ME.id||"", decidedAt:now, decidedBy:ME.id||"",
         canal:"consultiva", fromCompras:true, transportadora: carrierFromObs(p.obs)||"", ...(pick?{queuedAt:now}:{}) };
       saveOrder(o);
-      toast(pick ? `Pré-venda ${p.num} adicionada · peças da loja vão para a separação (colmeia ${slot.slice(3)})` : `Pré-venda ${p.num} adicionada como encomenda total`);
+      toast(`Pré-venda ${p.num} adicionada`);
       S.pv=null; draw(); };
   };
   const lkLabel = k => { const o=ORDERS.find(x=>x.id===k.oid), it=o?.items[k.i]; return o ? `#${o.num} · ${o.client} · ${it?.code||""} ${it?.name||""}` : ""; };
@@ -2371,7 +2371,7 @@ function openPurchaseImport(){
       <div class="mact"><button class="btn ghost" id="mNo">Cancelar</button><button class="btn primary" id="mOk">Salvar pedido do fornecedor</button></div></div>`;
     const g=id=>ov.querySelector("#"+id);
     g("ppForn").oninput=e=>S.forn=e.target.value; g("ppNum").oninput=e=>S.num=e.target.value; g("ppPrev").onchange=e=>{ S.prev=e.target.value; S.err=""; };
-    g("ppForn").onchange=()=>setTimeout(()=>{ let n=0; S.lines.forEach(l=>{ if(!l.sku){ l.sku=skuFor(S.forn,l.code); if(l.sku) n++; } }); if(n){ toast(`${n} item(ns) reconhecido(s) pelo cadastro`); draw(); } });
+    g("ppForn").onchange=()=>setTimeout(()=>{ let n=0; S.lines.forEach(l=>{ if(!l.sku){ l.sku=skuFor(S.forn,l.code); if(l.sku) n++; } }); if(n){ toast(`${n} item(ns) reconhecido(s)`); draw(); } });
     // busca do item da Serena por SKU ou descrição (todas as palavras digitadas)
     const nrm = t => String(t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase();
     const findProd = (q, l) => { const ws=nrm(q).split(/\s+/).filter(Boolean), all=Object.values(PRODUCTS);
@@ -2450,7 +2450,7 @@ function openPurchaseImport(){
       const byOrder={}; lines.forEach(l=>l.links.forEach(k=>(byOrder[k.oid] ||= []).push({...k, ped:l.ped||doc.num, entrega:l.entrega, prev:S.prev, fcode:l.code})));
       Object.entries(byOrder).forEach(([oid,ks])=>patchItems(oid, items=>ks.forEach(k=>{ const it=items[k.i]; if(!it) return; it.compra={...(it.compra||{}), links:[...((it.compra||{}).links||[]), {pid:id, qty:k.qty, ped:k.ped, entrega:k.entrega, prev:k.prev, fcode:k.fcode}]}; })));
       const nl=lines.reduce((s,l)=>s+l.links.length,0);
-      toast(`Pedido do fornecedor salvo · ${nl} vínculo${nl===1?"":"s"} com pré-vendas${nMap?` · ${nMap} item(ns) relacionado(s)`:""}${nNew?` · ${nNew} produto(s) cadastrado(s)`:""}`); close();
+      toast(`Pedido salvo · ${nl} vínculo${nl===1?"":"s"}`); close();
     };
   };
   ov.onclick=e=>{ if(e.target===ov) close(); };
@@ -2502,7 +2502,7 @@ function startHvMove(oid){ state.hvMove={oid}; state.sector="colmeias"; state.vi
 function endHvView(){ state.hvLoc=null; state.hvMove=null; state.view="orders"; state.sector="colmeias"; render(); scrollTo(0,0); }
 function renderHvPlace(){
   const mv=state.view==="hvmove", o=ORDERS.find(x=>x.id===(mv?state.hvMove?.oid:state.hvLoc?.oid));
-  if(!o || (!mv && o.status!=="aguarda_colmeia") || (mv && !o.colmeia)){ if(o && !mv && o.colmeia) toast(`Pedido #${o.num} já está na colmeia ${o.colmeia.slice(3)}`); return endHvView(); }
+  if(!o || (!mv && o.status!=="aguarda_colmeia") || (mv && !o.colmeia)){ if(o && !mv && o.colmeia) toast(`#${o.num} já está na colmeia ${o.colmeia.slice(3)}`); return endHvView(); }
   const n=(o.items||[]).reduce((s,it)=>s+(it.qty||0),0), why=(o.hvNext||o.status)==="pronto_envio" ? "Cliente vai retirar" : "Aguardando encomenda";
   app.innerHTML=`<div class="pickbar"><button class="back" id="back" aria-label="Voltar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
     <div class="grow"><h1>#${esc(o.num)}</h1><div class="sub">${esc(o.client)}</div></div></div>
@@ -2533,7 +2533,7 @@ async function scanHvPlace(v){
   if(!x) return endHvView();
   if(mv) patchOrder(x.id, {colmeia:c, hist:[...(x.hist||[]), {t:now, by:ME.id||"", ev:`Colmeia alterada: ${x.colmeia.slice(3)} → ${c.slice(3)}`}]});
   else patchOrder(x.id, {colmeia:c, status:x.hvNext||"na_colmeia", hvNext:null, storedAt:now, storedBy:ME.id||"", hist:[...(x.hist||[]), {t:now, by:ME.id||"", ev:`Guardado na colmeia ${c.slice(3)} (bipado no celular)`}]});
-  toast(mv ? `Pedido #${x.num} mudou para a colmeia ${c.slice(3)}` : `Pedido #${x.num} guardado na colmeia ${c.slice(3)}`);
+  toast(`#${x.num} na colmeia ${c.slice(3)}`);
   endHvView();
 }
 /* Na aba Colmeias: bipar uma colmeia mostra o pedido que está nela */
@@ -2575,7 +2575,7 @@ function finishUnstore(){
   const c=usCur(); if(!c) return; const {o}=c, now=Date.now();
   patchOrder(o.id, {status:"analise_compras", colmeia:null, res:null, startedAt:null, startedBy:"", pickedAt:null, pickedBy:"", atMesaAt:null, storedAt:null, tray:"", trayStatus:"",
     returnedAt:now, returnedBy:ME.id||"", hist:[...(o.hist||[]), {t:now, by:ME.id||"", ev:`Peças retiradas da colmeia ${(o.colmeia||"").slice(3)} e devolvidas ao estoque`}]});
-  toast(`Pedido #${o.num} reaberto · peças devolvidas ao estoque · colmeia ${(o.colmeia||"").slice(3)} liberada`);
+  toast(`#${o.num} reaberto · colmeia liberada`);
   state.us=null; state.view="orders"; state.cTab="decidir"; render(); scrollTo(0,0);
 }
 const usLoc = it => { const loc=PRODUCTS[it.code]?.loc||""; return loc ? parseLoc(loc)||parseCode(loc) : null; };
@@ -2623,7 +2623,7 @@ function renderUnstore(){
   app.querySelectorAll("[data-usm]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.usm; u.cnt[i]=Math.max(0,(u.cnt[i]||0)-1); render(); });
   app.querySelectorAll("[data-usp]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.usp, x=its.find(y=>y.i===i); u.cnt[i]=Math.min(x.back,(u.cnt[i]||0)+1); render(); });
   const ok=document.getElementById("usOk"); if(ok) ok.onclick=()=>{ u.phase="back"; u.idx=-1; usNext(); };
-  const nl=document.getElementById("usNoLoc"); if(nl) nl.onclick=()=>{ u.done[it.i]=true; toast(`${it.code} devolvido ao estoque`); usNext(); };
+  const nl=document.getElementById("usNoLoc"); if(nl) nl.onclick=()=>{ u.done[it.i]=true; toast(`${it.code} devolvido`); usNext(); };
   setMsg(u.phase==="hive" ? `Bipe a colmeia ${cm}` : u.phase==="check" ? (allOk ? "Peças conferidas. Toque para devolver ao estoque." : `Bipe as peças da colmeia ${cm} · ${got}/${total}`) : L ? `Bipe o endereço ${code(L)}` : "Guarde no estoque e confirme", u.phase==="check"&&allOk?"good":"info");
   focusScan();
 }
@@ -2767,7 +2767,7 @@ function openPvEnc(done){
         v2:true, items, remessa:1, createdAt:now, createdBy:ME.id||"", canal:"consultiva", viaCompras:true, transportadora:carrierFromObs(obs)||"", ...(sl.again?{reenvio:sl.again, reenvioDe:sl.last?.id||""}:{}),
         hist:[{t:now, by:ME.id||"", ev:"Pré-venda cadastrada por Compras na amarração da nota fiscal"}] };
       saveOrder(o); done && done(o);
-      toast(all ? `Pré-venda ${num} cadastrada · encomenda total` : `Pré-venda ${num} cadastrada · a parte do estoque foi para a fila de separação`);
+      toast(`Pré-venda ${num} cadastrada`);
       close(); };
   };
   ov.onclick=e=>{ if(e.target===ov) close(); };
@@ -2886,11 +2886,11 @@ function renderNfEdit(){
     R.querySelectorAll("[data-narm]").forEach(b=>b.onclick=()=>{ selL.alloc.splice(+b.dataset.narm,1); touch(); redraw(); });
     const ds=g("naDesel"); if(ds) ds.onclick=()=>{ E.sel=null; E.enc=null; E.pane="itens"; redraw(); }; };
   function add(j, c){ const l=N.lines[j]; if(!l || !c) return;
-    if(l.alloc.some(a=>a.oid===c.o.id && a.i===c.x.i)){ toast("Este item já está amarrado a essa pré-venda"); return; }
+    if(l.alloc.some(a=>a.oid===c.o.id && a.i===c.x.i)){ toast("Item já amarrado"); return; }
     const free=l.qty-used(l), left=encLeft(c);
-    if(free<=0){ toast(`As ${l.qty} pç deste item já estão amarradas. Diminua outra pré-venda antes.`); return; }
-    const q=Math.max(1, Math.min(free, left>0?left:c.x.qtyEnc)); if(left<=0) setTimeout(()=>toast(`Atenção: a encomenda do #${c.o.num} já estava completa em outra nota`), 50); l.alloc.push({oid:c.o.id, i:c.x.i, qty:q}); touch();
-    toast(`${l.code} → #${c.o.num} · ${q} pç`); E.sel=j; E.enc=null; E.pane="pvs"; redraw(); }
+    if(free<=0){ toast("Item sem peças livres"); return; }
+    const q=Math.max(1, Math.min(free, left>0?left:c.x.qtyEnc)); if(left<=0) setTimeout(()=>toast(`#${c.o.num} já estava completa`), 50); l.alloc.push({oid:c.o.id, i:c.x.i, qty:q}); touch();
+    toast(`Amarrado ao #${c.o.num} · ${q} pç`); E.sel=j; E.enc=null; E.pane="pvs"; redraw(); }
   bindL(); bindR();
   const typed=(id, key, list, html, bind)=>{ const el=g(id); el.oninput=()=>{ E[key]=el.value; resetPage(list); clearTimeout(el._t); el._t=setTimeout(()=>{ g(list).innerHTML=html(); g(list).scrollTop=0; bind(); },120); }; };
   typed("naQL","qL","naL",leftRows,bindL); typed("naQR","qR","naR",rightBody,bindR);
@@ -2921,7 +2921,7 @@ function saveNf(N){
   touched.forEach(oid=>patchItems(oid, items=>{ items.forEach(it=>{ if(it.compra?.nf) it.compra.nf=it.compra.nf.filter(n=>n.id!==id); });
     doc.lines.forEach(l=>l.alloc.filter(a=>a.oid===oid).forEach(a=>{ const it=items[a.i]; if(!it) return; it.compra={...(it.compra||{}), nf:[...((it.compra||{}).nf||[]), {id, num:doc.num, qty:a.qty, key:oid+":"+a.i}]}; })); }));
   const n=doc.lines.reduce((s,l)=>s+l.alloc.length,0);
-  toast(`NF ${doc.num} salva · ${n} amarração(ões) com pré-vendas${doc.received?" · já estava recebida":""}`);
+  toast(`NF ${doc.num} salva · ${n} amarrado(s)`);
   if(doc.received) setTimeout(()=>applyReceipt(id), 300);
 }
 
@@ -2998,7 +2998,7 @@ function renderReceb(){
   if(g("sim")) g("sim").onclick=()=>{ const n=pend[0]; if(n) handleScan(n.chave||n.num); else toast("Nenhuma nota para simular"); };
   if(g("rcMinus")) g("rcMinus").onclick=()=>{ state.rc.vols=Math.max(0,state.rc.vols-1); saveConf(); render(); };
   if(g("rcPlus")) g("rcPlus").onclick=()=>{ state.rc.vols++; saveConf(); render(); };
-  if(g("rcBack")) g("rcBack").onclick=()=>{ const n=NFS[state.rc.id]; if(n && !n.received && (state.rc.vols || Object.keys(state.rc.chk).length)){ saveConf(); toast("Conferência salva · continue quando quiser"); } state.rc=null; render(); };
+  if(g("rcBack")) g("rcBack").onclick=()=>{ const n=NFS[state.rc.id]; if(n && !n.received && (state.rc.vols || Object.keys(state.rc.chk).length)){ saveConf(); toast("Conferência salva"); } state.rc=null; render(); };
   if(g("rcOk")) g("rcOk").onclick=confirmReceb;
   app.querySelectorAll("[data-rcok]").forEach(b=>b.onclick=()=>{ const k=+b.dataset.rcok, q=+(app.querySelector(`[data-rcq="${k}"]`)?.value)||0; state.rc.chk[k]={...(state.rc.chk[k]?.bip?{bip:1}:{}), qty:Math.max(0,q)}; if(state.rc.cur===k) state.rc.cur=null; delete state.rc.flash; saveConf(); render(); if(rcNeedMesa(k)) openRcMesa(k); });
   app.querySelectorAll("[data-rcq]").forEach(rcGuardQty);
@@ -3108,7 +3108,7 @@ function confirmReceb(){
   const div = lines.some(x=>x.qty!==x.exp) || (base.vols && rc.vols!==base.vols);
   const doc = {...base, conf:null, received:{at:now, by:ME.id||"", vols:rc.vols, expected:base.vols||0, lines, alloc, div, mesa:{...(rc.mesa||{})}}};
   NFS[doc.id]=doc; if(nfCol) queueWrite("nf-"+doc.id, ()=>nfCol.doc(doc.id).set(JSON.parse(JSON.stringify(doc))));
-  toast(`NF ${doc.num} recebida · ${rc.vols} caixa(s)${div?" · com divergência registrada":""}${doc.lines?.length?"":" · Compras será avisado para amarrar"}`);
+  toast(`NF ${doc.num} recebida${div?" · com divergência":""}`);
   state.rc=null; applyReceipt(doc.id); render(); scrollTo(0,0);
 }
 
@@ -3309,7 +3309,7 @@ function renderOrders(){
   app.querySelectorAll("[data-qedit]").forEach(b=>b.onclick=()=>openOrderEdit(b.dataset.qedit));
   if(can("coleta")) app.querySelectorAll(".order[data-oid]").forEach(b=>b.onclick=()=>openOrderAsk(b.dataset.oid));
   else app.querySelectorAll(".order[data-oid]").forEach(b=>{ b.style.cursor="default"; b.tabIndex=-1; });
-  app.querySelectorAll("[data-free]").forEach(b=>b.onclick=()=>{ if(!b.dataset.c){ b.dataset.c="1"; b.textContent="Confirmar liberação"; b.classList.add("danger"); return; } const o=ORDERS.find(x=>x.id===b.dataset.free); if(o){ unlinkTray(o); toast(`${spotsTxt(o)} liberada · pedido ${o.num} foi para ${inHive(o)?"Colmeias":"Separados"}`); } });
+  app.querySelectorAll("[data-free]").forEach(b=>b.onclick=()=>{ if(!b.dataset.c){ b.dataset.c="1"; b.textContent="Confirmar liberação"; b.classList.add("danger"); return; } const o=ORDERS.find(x=>x.id===b.dataset.free); if(o){ unlinkTray(o); toast(`${spotsTxt(o)} liberada`); } });
   bindHiveList();
 }
 /* Pedido manual do e-commerce: confirmar antes de começar a separar */
@@ -3323,7 +3323,7 @@ async function openOrderAsk(id){
 }
 function openOrder(id){
   const o=ORDERS.find(x=>x.id===id); if(!o || !ecoOk(o)) return;
-  if(notMine(o)){ toast(`O pedido #${o.num} foi passado para outro separador`); return; }
+  if(notMine(o)){ toast(`#${o.num} passou a outro separador`); return; }
   newIds.delete(id); alertQueue=alertQueue.filter(x=>x!==id); showAlert();
   state.oid=id; state.count=0; state.bigItem=false;
   const r=res(o), pl=pickList(o), k=pl.findIndex(x=>r[x.i].status==="pend");
@@ -3844,7 +3844,7 @@ function lotePending(L=state.lote){ // pedidos do lote ainda por separar (os meu
 function loteNext(){
   const nx=lotePending()[0];
   if(nx){ openOrder(nx.id); return true; }
-  toast(`Lote concluído · ${state.lote?.done||0} pedido(s) separados${state.lote?.skipped?.length?` · ${state.lote.skipped.length} pulado(s), voltaram para a fila`:""}`); state.lote=null; saveLote(); state.view="orders"; render(); return false;
+  toast(`Lote concluído · ${state.lote?.done||0} pedido(s)`); state.lote=null; saveLote(); state.view="orders"; render(); return false;
 }
 function loteBoxHTML(){
   const L=state.lote;
@@ -3876,7 +3876,7 @@ function openLoteModal(){
     ov.querySelectorAll("[data-by]").forEach(b=>b.onclick=()=>{ if(by!==b.dataset.by){ by=b.dataset.by; sel=new Set(); draw(); } });
     ov.querySelectorAll(".loteopt input").forEach(c=>c.onchange=()=>{ c.checked?sel.add(c.value):sel.delete(c.value); draw(); });
     ov.querySelector("#lmNo").onclick=close;
-    ov.querySelector("#lmGo").onclick=()=>{ state.lote={by, vals:[...sel], started:Date.now(), done:0}; saveLote(); ov.remove(); toast(`Lote iniciado · ${[...sel].join(", ")}`); loteNext(); };
+    ov.querySelector("#lmGo").onclick=()=>{ state.lote={by, vals:[...sel], started:Date.now(), done:0}; saveLote(); ov.remove(); toast("Lote iniciado"); loteNext(); };
   };
   ov.onclick=e=>{ if(e.target===ov) close(); };
   draw();
@@ -3892,8 +3892,8 @@ async function refreshQueue(){
     await Promise.race([window.psRefresh(), new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),15000))]);
     synced=true; checkNewOrders();
     const q=ORDERS.filter(o=>(o.status==="aguardando"||o.status==="separando") && pickList(o).length).length;
-    render(); toast(`Fila atualizada · ${q} pedido${q===1?"":"s"} para separar`);
-  }catch(e){ toast("Não foi possível atualizar. Verifique a internet."); render(); }
+    render(); toast(`Fila atualizada · ${q} pedido${q===1?"":"s"}`);
+  }catch(e){ toast("Não atualizou · sem conexão"); render(); }
   finally{ refreshing=false; }
 }
 /* Separação em lote: pular o pedido atual (volta para a fila, sem o separador) e seguir para o próximo do lote */
@@ -3908,7 +3908,7 @@ async function skipLote(id){
     ...(o.tray&&o.trayStatus==="separando"?{tray:"", trayStatus:""}:{}),
     hist:[...(o.hist||[]), {t:Date.now(), by:ME.id||"", ev:"Pulado na separação em lote"+(got?` (${got} pç coletadas devolvidas)`:"")}]});
   L.skipped=[...(L.skipped||[]), o.id]; saveLote();
-  toast(`Pedido #${o.num} pulado · volta para a fila`);
+  toast(`Pedido #${o.num} pulado`);
   loteNext();
 }
 async function restartOrder(id, reopen){
@@ -4070,7 +4070,7 @@ function taskCard(it){
 }
 function renderPick(){
   const c = cur(); if(!c || !c.it){ state.view="orders"; return render(); }
-  if(notMine(c.o) || !ecoOk(c.o)){ toast(`O Administrador passou o pedido #${c.o.num} para outra pessoa`); state.view="orders"; state.oid=null; return render(); }
+  if(notMine(c.o) || !ecoOk(c.o)){ toast(`#${c.o.num} passou a outra pessoa`); state.view="orders"; state.oid=null; return render(); }
   const {o, r, pl, it} = c, l=it.loc, prev = state.idx>0 ? pl[state.idx-1] : null;
   const done = pl.filter(x=>r[x.i].status!=="pend").length;
   app.innerHTML = `
@@ -4163,7 +4163,7 @@ function commit(status){
   const {o, r, pl, it} = cur();
   r[it.i] = {status, got: state.count, ...(state.bigItem && status!=="miss" ? {spot:state.bigItem} : {})};
   patchOrder(o.id, {res:r});
-  toast(status==="ok" ? `${it.loc?code(it.loc):it.code} coletado · ${it.need} pç` : status==="part" ? `Coleta parcial: ${state.count} de ${it.need} pç` : `Falta registrada em ${it.loc?code(it.loc):it.code}`);
+  toast(status==="ok" ? `Item coletado · ${it.need} pç` : status==="part" ? `Coleta parcial · ${state.count} de ${it.need}` : "Falta registrada");
   const next = pl.findIndex((x,k)=>k>state.idx && r[x.i].status==="pend"), any = pl.findIndex(x=>r[x.i].status==="pend");
   const n = next>=0 ? next : any;
   if(n<0){ finishAtMesa(o); scrollTo(0,0); return; } // último item: conclui o picking direto, sem a tela "leve até a mesa"
@@ -4226,17 +4226,17 @@ function rescanMiss(o, k){
 function finishAtMesa(o){
   if(state.lote && loteMatch(o) && !o.loteCounted){ state.lote.done=(state.lote.done||0)+1; o.loteCounted=true; saveLote(); }
   const r=res(o), got=pickList(o).reduce((a,x)=>a+(r[x.i].got||0),0), now=Date.now();
-  if(!got){ patchOrder(o.id, {status:"pronto_envio", remessa:1, pickedAt:now, semPecas:true, res:r, ...(o.tray?{trayStatus:"livre"}:{})}); toast(`Pedido ${o.num} sem peças coletadas · avise o comercial`); state.view="done"; render(); scrollTo(0,0); return; }
+  if(!got){ patchOrder(o.id, {status:"pronto_envio", remessa:1, pickedAt:now, semPecas:true, res:r, ...(o.tray?{trayStatus:"livre"}:{})}); toast(`Pedido ${o.num} sem peças`); state.view="done"; render(); scrollTo(0,0); return; }
   if(toHive(o)){ // o separador escolhe a colmeia: bipa a etiqueta de onde vai guardar
     patchOrder(o.id, {status:"na_mesa", pickedAt:now, atMesaAt:now, pickedBy:ME.id||"", res:r, ...(hasTray(o)?{trayStatus:"mesa"}:{})});
-    toast(`Picking finalizado em ${fmtDur(now-(o.startedAt||now))}`);
+    toast("Separação concluída");
     state.view="store"; render(); scrollTo(0,0); setMsg(o.colmeia ? `Guarde na colmeia ${o.colmeia.slice(3)} (onde o pedido já está) ou bipe outra` : "Bipe a colmeia onde vai guardar o pedido","info"); return;
   }
   if(pickDirect(o)){ patchOrder(o.id, {status:"pronto_envio", remessa:1, pickedAt:now, pickedBy:ME.id||"", conferidoLocal:true, res:r}); state.view="done"; render(); scrollTo(0,0); return; }
   const cmOut = o.fase2 && o.colmeia ? o.colmeia : "";
   patchOrder(o.id, {status:"pronto_envio", remessa: o.fase2 && o.mode==="parcial" ? 2 : 1, pickedAt:now, atMesaAt:now, pickedBy:ME.id||"", receivedBy:ME.id||"", res:r, ...(hasTray(o)?{trayStatus:"mesa"}:{}),
     ...(cmOut ? {colmeia:null, hist:[...(o.hist||[]), {t:now, by:ME.id||"", ev:`Encomenda chegou: peças retiradas da colmeia ${cmOut.slice(3)} e pedido finalizado na mesa`}]} : {})});
-  if(cmOut) toast(`Colmeia ${cmOut.slice(3)} liberada · confira se trouxe as peças que estavam lá`);
+  if(cmOut) toast(`Colmeia ${cmOut.slice(3)} liberada`);
   state.view="done"; render(); scrollTo(0,0);
 }
 function renderTrays(){
@@ -4300,7 +4300,7 @@ function renderDone(){
   else if(o.conferidoLocal) setMsg(o.handedAt ? "Pedido entregue ao vendedor" : "Coloque na sacola e entregue ao vendedor", o.handedAt?"good":"info");
   const ls=document.getElementById("loteStop"); if(ls) ls.onclick=()=>{ state.lote=null; saveLote(); toast("Lote encerrado"); state.view="orders"; render(); };
   const rs=document.getElementById("rescanMiss"); if(rs) rs.onclick=()=>rescanMiss(o);
-  const hs=document.getElementById("handSeller"); if(hs) hs.onclick=()=>{ const now=Date.now(); patchOrder(o.id, {handedAt:now, handedBy:ME.id||"", hist:[...(o.hist||[]), {t:now, by:ME.id||"", ev:`Conferido no local e entregue ao vendedor${o.seller?" "+o.seller:""} (cliente na loja)`}]}); toast(`Pedido #${o.num} entregue ao vendedor`); render(); };
+  const hs=document.getElementById("handSeller"); if(hs) hs.onclick=()=>{ const now=Date.now(); patchOrder(o.id, {handedAt:now, handedBy:ME.id||"", hist:[...(o.hist||[]), {t:now, by:ME.id||"", ev:`Conferido no local e entregue ao vendedor${o.seller?" "+o.seller:""} (cliente na loja)`}]}); toast(`Pedido #${o.num} entregue`); render(); };
   document.getElementById("nextOrder").onclick = ()=>{
     if(state.lote && loteMatch(o)) return loteNext();
     const nx = ORDERS.filter(x=>(x.status==="aguardando"||x.status==="separando") && pickList(x).length).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0))[0];
@@ -4447,7 +4447,7 @@ const isEditable = el => !!el && el!==scanIn && (/^(INPUT|TEXTAREA|SELECT)$/.tes
 scanIn.addEventListener("keydown", e=>{
   if(e.key==="Enter"||e.key==="Tab"){ e.preventDefault(); clearTimeout(autoT);
     const v=scanIn.value, fast = wedgeN>=6 && (performance.now()-wedgeT0)/wedgeN < 35;
-    if(fast && PDA===null) setTimeout(()=>{ setPDA(true, true); toast("Leitor do coletor detectado · modo coletor ligado"); }, 50);
+    if(fast && PDA===null) setTimeout(()=>{ setPDA(true, true); toast("Modo coletor ligado"); }, 50);
     wedgeN=0; inT0=0; scanIn.value="";
     const kb=document.getElementById("kbd"); if(kb.classList.contains("on") && scanMode()==="coletor" && colKb() && colKb()!=="show"){ kb.classList.remove("on"); applyScanMode(true); } // digitou e confirmou: o teclado some de novo
     routeScan(v,"teclas"); return; }
@@ -4497,7 +4497,7 @@ function scanFieldPrep(el){
   const free = !colNoKb() || (KB_FREE && KB_FREE===scanFieldKey(el));
   if(free){ el.setAttribute("virtualkeyboardpolicy","auto"); if(el.dataset.im0) el.setAttribute("inputmode", el.dataset.im0); else el.removeAttribute("inputmode"); return; }
   if(colKb()==="manual") el.setAttribute("virtualkeyboardpolicy","manual"); else el.setAttribute("inputmode","none");
-  if(!kbTip){ kbTip=true; toast("Bipe o código. Para digitar, toque de novo no campo."); }
+  if(!kbTip){ kbTip=true; toast("Toque de novo para digitar"); }
 }
 document.addEventListener("pointerdown", e=>{ const el=e.target.closest?.("[data-scan]"); if(!el){ return; } if(!colNoKb()){ scanFieldPrep(el); return; }
   const key=scanFieldKey(el);
@@ -4604,7 +4604,7 @@ document.getElementById("scanCfg").onclick = ()=>{
   ov.querySelector("#mOk").onclick=()=>{ const v=ov.querySelector("input[name=smode]:checked")?.value||"leitor"; try{ localStorage.setItem(scanModeKey(), v); }catch(e){}
     document.getElementById("kbd").classList.remove("on"); applyScanMode(); close();
     if(v==="coletor"){ if(!PDA) setPDA(true, true); if(v!==cur || !colKb()){ openColTest(); return; } }
-    toast(v==="camera" ? "Leitura pela câmera do celular" : v==="coletor" ? "Leitura pelo coletor" : "Leitura pelo leitor de código"); };
+    toast(v==="camera" ? "Leitura pela câmera" : v==="coletor" ? "Leitura pelo coletor" : "Leitura pelo leitor"); };
 };
 const camFile=document.getElementById("camfile");
 let liveBlocked = false;
@@ -4717,7 +4717,7 @@ function unlinkTray(o){
   const now=Date.now();
   patchOrder(o.id, {trayStatus:"livre", trayFreedAt:now, trayFreedBy:ME.id||"",
     ...(o.status==="lavagem" ? {status: toHive(o) && o.colmeia ? "na_mesa" : "pronto_envio", remessa:o.remessa||1, atMesaAt:o.atMesaAt||now} : {})});
-  feedback(true); toast(`${spotsTxt(o)} desvinculada do pedido ${o.num}`); render();
+  feedback(true); toast(`${spotsTxt(o)} desvinculada`); render();
 }
 function renderTray(){
   const o = ORDERS.find(x=>x.id===state.oid); if(!o){ state.view="orders"; return render(); }
@@ -4744,7 +4744,7 @@ function scanTray(v){
   if(other){ feedback(false); return setMsg(other.trayStatus==="separando" ? `Bandeja ${v} está em uso no pedido ${other.num}. Pegue outra.` : `Bandeja ${v} ainda está vinculada ao pedido ${other.num}. Desvincule antes em Bandejas.`,"bad"); }
   feedback(true);
   patchOrder(o.id, {tray:v, trayStatus:"separando", status:"separando", startedAt:o.startedAt||Date.now(), res:res(o)});
-  toast(`Bandeja ${v} vinculada ao pedido ${o.num}`);
+  toast(`Bandeja ${v} vinculada`);
   const pl=pickList(o), r=res(o), k=pl.findIndex(x=>r[x.i].status==="pend");
   if(k<0) return finishPick(o);
   state.idx=k; state.phase=startPhase(o); state.count=0; state.view="pick"; render(); scrollTo(0,0);
@@ -4753,7 +4753,7 @@ function finishPick(o){
   const r=res(o), got=pickList(o).reduce((a,x)=>a+(r[x.i].got||0),0);
   if(!got){ // nenhuma peça coletada
     patchOrder(o.id, {status:"pronto_envio", remessa:1, pickedAt:Date.now(), semPecas:true, trayStatus:hasTray(o)?"livre":(o.trayStatus||""), res:r});
-    toast(`Pedido ${o.num} sem peças coletadas · avise o comercial`); state.view="orders"; return render();
+    toast(`Pedido ${o.num} sem peças`); state.view="orders"; return render();
   }
   patchOrder(o.id, {status:"lavagem", trayStatus: hasTray(o) ? "lavagem" : "", pickedAt:Date.now(), pickedBy:ME.id||"", res:r});
   state.view="done"; render(); scrollTo(0,0);
@@ -4994,7 +4994,7 @@ async function scanVinc(v){
 }
 async function vincSave(){
   const V=state.vinc, p=PRODUCTS[V.p], lc=V.lc; if(!p||!lc) return render();
-  if(p.loc===lc){ toast(`${p.code} já está no endereço ${lc}`); V.p=null; V.lc=null; return render(); }
+  if(p.loc===lc){ toast(`${p.code} já está em ${lc}`); V.p=null; V.lc=null; return render(); }
   const occ=locBlocker(lc, p.code);
   if(occ){ render();
     const ok=await askModal({title:`Endereço ${lc} já tem produto`, okText:"Trocar",
@@ -5126,7 +5126,7 @@ function bindBlockForm(){
     const pv=blockPreview(f); if(pv.err) return toast(pv.err);
     const id = `R${pv.b.r}-L${pv.b.l}-${pv.b.t}-${pv.b.n1}-${pv.b.n2}-${pv.b.c1}-${pv.b.c2}`; // base/g1/g2 (em cima de) vão junto no bloco
     BLOCKS[id]=pv.b; if(blockCol) queueWrite("b:"+id, ()=>blockCol.doc(id).set(pv.b));
-    state.rua=pv.b.r; state.lado=pv.b.l; toast(`${pv.count} locais criados (${pv.first} … ${pv.last})`); render();
+    state.rua=pv.b.r; state.lado=pv.b.l; toast(`${pv.count} locais criados`); render();
   };
 }
 function bindLocPanel(){
@@ -5139,7 +5139,7 @@ function bindLocPanel(){
   app.querySelectorAll("[data-assign]").forEach(b=>b.onclick=()=>{
     const p=PRODUCTS[b.dataset.assign], prev=locBlocker(lc, p.code);
     if(prev) saveProduct({...prev, loc:""});
-    saveProduct({...p, loc:lc}); state.locQ=""; toast(`${p.code} agora está em ${lc}`);
+    saveProduct({...p, loc:lc}); state.locQ=""; toast(`${p.code} em ${lc}`);
   });
   document.getElementById("printOne").onclick=()=>makePdf(locLabels([lc]), state.locFmt||"loc3", `etiqueta-${lc}.pdf`); // gaveta com vários produtos: uma etiqueta por produto
 }
@@ -5343,9 +5343,9 @@ function bindCsv(){
   const m=document.getElementById("csvModel"); if(m) m.onclick=async ()=>{
     const csv="codigo;descricao;ean;local\r\n18337;ITALY - AURI IL1690 37MM - BROWN;7895887303077;R1-LA-GAV-3.C\r\n19139;ITALY - ZIGRINATO IL1582 20MM - BROWN;;R1-LA-GAV-1.D\r\n";
     try{ downloadsCap ??= window.claude?.use ? await window.claude.use("downloads") : null;
-      if(!downloadsCap) return toast("Download indisponível nesta visualização.");
+      if(!downloadsCap) return toast("Download indisponível");
       await downloadsCap.save({filename:"modelo-produtos.csv", data:"﻿"+csv}); toast("Modelo salvo"); }
-    catch(e){ if(e?.code!=="declined") toast("Não foi possível baixar o modelo."); } };
+    catch(e){ if(e?.code!=="declined") toast("Falha ao baixar o modelo"); } };
   const cc=document.getElementById("csvCancel"); if(cc) cc.onclick=()=>{ state.csv=null; render(); };
   const up=document.getElementById("csvUpd"); if(up) up.onchange=()=>{ state.csv.update=up.checked; state.csv.res=analyzeCsv(state.csv.rows, up.checked); render(); };
   const go=document.getElementById("csvGo"); if(go) go.onclick=()=>importCsv();
@@ -5363,7 +5363,7 @@ async function importCsv(){
       c.done++; const b=document.getElementById("csvGo"); if(b) b.textContent=`Importando ${c.done} de ${list.length}…`; } };
     await Promise.all([worker(),worker(),worker()]);
   }
-  state.csv=null; toast(fail ? `${list.length-fail} produtos importados · ${fail} falharam (tente de novo)` : `${list.length} produtos importados`); render();
+  state.csv=null; toast(fail ? `${list.length-fail} importados · ${fail} falharam` : `${list.length} produtos importados`); render();
 }
 
 /* ---- Etiquetas ---- */
@@ -5457,7 +5457,7 @@ function bindSpotsAdmin(){
   const f=document.getElementById("spotNew"); if(!f) return;
   const k=f.dataset.kind, K=SPOT_KINDS[k];
   f.onsubmit=e=>{ e.preventDefault(); const code=nextSpot(K), desc=document.getElementById("spotDesc").value.trim() || K.def;
-    state.spotSel=code; saveSpots(k, [...K.get(), {code, desc}]); toast(`${spotName(code)} criada · gere o PDF para imprimir a etiqueta`); };
+    state.spotSel=code; saveSpots(k, [...K.get(), {code, desc}]); toast(`${spotName(code)} criada`); };
   app.querySelectorAll("[data-sdesc]").forEach(i=>i.onchange=()=>{ const [kk,c]=i.dataset.sdesc.split("|"); saveSpots(kk, SPOT_KINDS[kk].get().map(m=>m.code===c?{...m, desc:i.value.trim()}:m)); toast("Descrição salva"); });
   app.querySelectorAll("[data-sprint]").forEach(b=>b.onclick=()=>{ state.spotSel = state.spotSel===b.dataset.sprint ? null : b.dataset.sprint; render(); });
   app.querySelectorAll("[data-sdel]").forEach(b=>b.onclick=()=>{ if(!b.dataset.c){ b.dataset.c="1"; b.textContent="Confirmar"; b.classList.add("danger"); return; }
@@ -5517,7 +5517,7 @@ async function makePdf(labels, fmt, filename){
   toast("Gerando PDF…");
   try{
     if(downloadsCap===undefined) downloadsCap = window.claude?.use ? await window.claude.use("downloads") : null;
-    if(!downloadsCap){ toast("Não foi possível baixar o arquivo neste navegador."); return; }
+    if(!downloadsCap){ toast("Falha ao baixar o arquivo"); return; }
     await Promise.all([loadJsPdf(), ensureBarcode()]); const { jsPDF } = window.jspdf;
     const fit = (doc, txt, size, maxW) => { let s=size; doc.setFontSize(s); while(s>6 && doc.getTextWidth(txt)>maxW){ s-=.5; doc.setFontSize(s); } return s; };
     let doc;
@@ -5566,10 +5566,10 @@ async function makePdf(labels, fmt, filename){
         const b=bcPng(l), bh=Math.min(22, 90*b.r); doc.addImage(b.url,"PNG",5,47-bh,90,bh); });
     }
     await downloadsCap.save({filename, data:doc.output("arraybuffer")});
-    toast(`PDF com ${labels.length} etiqueta(s) salvo`);
+    toast(`PDF salvo · ${labels.length} etiqueta(s)`);
   }catch(e){
-    if(e?.code==="declined") return toast("Download cancelado.");
-    console.warn(e); toast(e?.message==="lib" ? "Não foi possível carregar o gerador de PDF. Verifique a conexão." : "Não foi possível gerar o PDF.");
+    if(e?.code==="declined") return toast("Download cancelado");
+    console.warn(e); toast("Falha ao gerar o PDF");
   }
 }
 
@@ -5722,8 +5722,8 @@ function renderUsuarios(){
   app.querySelectorAll("[data-ucfg]").forEach(b=>b.onclick=()=>openUserModal(b.dataset.ucfg));
   app.querySelectorAll("[data-role]").forEach(s=>s.onchange=()=>saveUser(s.dataset.role, {role:s.value, roles:[s.value]}));
   app.querySelectorAll("[data-active]").forEach(c=>c.onchange=()=>saveUser(c.dataset.active, {active:c.checked}));
-  app.querySelectorAll("[data-cons]").forEach(c=>c.onchange=()=>{ saveUser(c.dataset.cons, {consultiva:c.checked}); toast(c.checked?"Liberado para separar Venda Consultiva":"Venda Consultiva bloqueada para esta pessoa"); });
-  app.querySelectorAll("[data-eco]").forEach(c=>c.onchange=()=>{ saveUser(c.dataset.eco, {ecommerce:c.checked}); toast(c.checked?"Liberado para separar e-commerce":"E-commerce bloqueado para esta pessoa"); });
+  app.querySelectorAll("[data-cons]").forEach(c=>c.onchange=()=>{ saveUser(c.dataset.cons, {consultiva:c.checked}); toast(c.checked?"Venda Consultiva liberada":"Venda Consultiva bloqueada"); });
+  app.querySelectorAll("[data-eco]").forEach(c=>c.onchange=()=>{ saveUser(c.dataset.eco, {ecommerce:c.checked}); toast(c.checked?"E-commerce liberado":"E-commerce bloqueado"); });
   app.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{
     if(b.dataset.confirm){ deleteUser(b.dataset.del); return; }
     b.dataset.confirm="1"; b.textContent="Confirmar remoção"; b.classList.add("danger"); setTimeout(()=>{ if(b.isConnected){ delete b.dataset.confirm; b.textContent="Remover"; b.classList.remove("danger"); } },4000);
@@ -5740,8 +5740,8 @@ function renderUsuarios(){
   app.querySelectorAll("[data-pw]").forEach(b=>b.onclick=()=>{ const id=b.dataset.pw, box=b.closest(".pwbox");
     box.innerHTML=`<input class="tin sm" placeholder="nova senha" minlength="6" style="width:120px"><button class="mini">Salvar</button>`;
     const inp=box.querySelector("input"), sv=box.querySelector("button"); inp.focus();
-    const go=async()=>{ if(inp.value.length<6){ toast("A senha precisa ter pelo menos 6 caracteres"); return; } sv.disabled=true;
-      try{ await window.psAdmin.setPassword(id, inp.value); toast("Senha alterada. Passe a nova senha para a pessoa."); render(); }
+    const go=async()=>{ if(inp.value.length<6){ toast("Senha: mínimo 6 caracteres"); return; } sv.disabled=true;
+      try{ await window.psAdmin.setPassword(id, inp.value); toast("Senha alterada"); render(); }
       catch(ex){ toast(ex.message||"Falha ao trocar a senha"); sv.disabled=false; } };
     sv.onclick=go; inp.onkeydown=e=>{ if(e.key==="Enter") go(); };
   });
@@ -5754,14 +5754,14 @@ function renderUsuarios(){
     res.slice(0,8).forEach(p=>{ const b=document.createElement("button"); b.className="match"; const already=USERS[p.id];
       const nm=document.createElement("b"); nm.textContent=p.name; const sm=document.createElement("small"); sm.textContent = already ? `já cadastrado como ${rolesTxt(userRoles(already))}` : p.guest ? "convidado de fora da organização" : "clique para adicionar";
       b.append(nm, sm); b.disabled=!!already || p.isMe&&ME.isOwner;
-      b.onclick=()=>{ const role=document.getElementById("newRole").value; saveUser(p.id, {role, roles:[role], active:true, addedAt:Date.now(), addedBy:ME.id||""}, true); toast(`${p.name} adicionado como ${ROLES[role].t}`); };
+      b.onclick=()=>{ const role=document.getElementById("newRole").value; saveUser(p.id, {role, roles:[role], active:true, addedAt:Date.now(), addedBy:ME.id||""}, true); toast("Usuário adicionado"); };
       hits.appendChild(b); });
   };
   const binCfg=()=>{ const a=String(document.getElementById("cfgBinStk").value||"").split(/[^0-9]+/).map(x=>Math.round(+x)).filter(x=>x>=1&&x<=12).slice(0,6);
-    if(!a.length){ toast("Informe as caixas por prateleira, ex.: 6, 4"); return; }
-    CONFIG={...CONFIG, binStacks:a}; if(cfgDoc) queueWrite("cfg", ()=>cfgDoc.set({useTray:CONFIG.useTray, binStacks:a})); toast(`Estantes: ${a.map((n,i)=>`${i+2}ª prateleira ${n} caixas`).join(" · ")}`); render(); };
+    if(!a.length){ toast("Informe as caixas, ex.: 6, 4"); return; }
+    CONFIG={...CONFIG, binStacks:a}; if(cfgDoc) queueWrite("cfg", ()=>cfgDoc.set({useTray:CONFIG.useTray, binStacks:a})); toast("Estantes atualizadas"); render(); };
   document.getElementById("cfgBinStk").onchange=binCfg;
-  document.getElementById("cfgTray").onchange=e=>{ CONFIG={...CONFIG, useTray:e.target.checked}; if(cfgDoc) queueWrite("cfg", ()=>cfgDoc.set({useTray:CONFIG.useTray, binStacks:binStacks()})); toast(CONFIG.useTray?"Bandeja ligada na separação":"Bandeja desligada na separação"); };
+  document.getElementById("cfgTray").onchange=e=>{ CONFIG={...CONFIG, useTray:e.target.checked}; if(cfgDoc) queueWrite("cfg", ()=>cfgDoc.set({useTray:CONFIG.useTray, binStacks:binStacks()})); toast(CONFIG.useTray?"Bandeja ligada":"Bandeja desligada"); };
   bindMz(); bindTransp();
   document.getElementById("viewAsBtn").onclick=()=>{ const v=document.getElementById("viewAs").value; if(!v) return; state.viewAs=v; state.sector=allowedSectors()[0]||"expedicao"; state.view="orders"; render(); toast(`Simulando: ${ROLES[v].t}`); };
 }
@@ -5800,7 +5800,7 @@ function imgToLogo(file){ return new Promise((ok,ko)=>{ const r=new FileReader()
 function saveTransp(){ if(transpDoc) queueWrite("transp", ()=>transpDoc.set({list:TRANSP})); render(); }
 function bindTransp(){
   app.querySelectorAll("[data-tlogo]").forEach(inp=>inp.onchange=async()=>{ const f=inp.files[0]; if(!f) return;
-    try{ const logo=await imgToLogo(f); TRANSP={...TRANSP, [inp.dataset.tlogo]:{...(TRANSP[inp.dataset.tlogo]||{}), logo}}; saveTransp(); toast("Logotipo salvo"); }catch(e){ toast("Não foi possível ler a imagem"); } });
+    try{ const logo=await imgToLogo(f); TRANSP={...TRANSP, [inp.dataset.tlogo]:{...(TRANSP[inp.dataset.tlogo]||{}), logo}}; saveTransp(); toast("Logotipo salvo"); }catch(e){ toast("Falha ao ler a imagem"); } });
   app.querySelectorAll("[data-tdel]").forEach(b=>b.onclick=()=>{ const t={...TRANSP}; delete t[b.dataset.tdel]; TRANSP=t; saveTransp(); toast("Logotipo removido"); });
 }
 
@@ -5851,10 +5851,10 @@ function bindMz(){
     const ok=await askModal({title:"Apagar e reimportar?", okText:"Apagar e reimportar", danger:true,
       text:"Todos os pedidos do e-commerce no Picking Serena são apagados, inclusive os em separação, e entram de novo só os pedidos feitos nas <b>últimas 24 horas</b>. Daí em diante a importação automática nunca busca nada anterior a esse ponto. Nada muda na Magazord."});
     if(!ok) return; MZ.busy=true; MZ.err=""; render();
-    try{ const r=await window.psMagazord({action:"reset", horas:24}); MZSYNC=r; toast(`${r.removed} apagado(s) · ${r.imported} pedido(s) das últimas 24 h importado(s)`); }catch(e){ MZ.err=e.message||String(e); }
+    try{ const r=await window.psMagazord({action:"reset", horas:24}); MZSYNC=r; toast(`${r.imported} pedido(s) importado(s)`); }catch(e){ MZ.err=e.message||String(e); }
     MZ.busy=false; render(); };
   const sy=document.getElementById("mzSync"); if(sy) sy.onclick=async()=>{ MZ.busy=true; MZ.err=""; render();
-    try{ const r=await window.psMagazord({action:"sync"}); MZSYNC=r; toast(`Importação concluída · ${r.imported} pedido(s) novo(s)`); }catch(e){ MZ.err=e.message||String(e); }
+    try{ const r=await window.psMagazord({action:"sync"}); MZSYNC=r; toast(`${r.imported} pedido(s) importado(s)`); }catch(e){ MZ.err=e.message||String(e); }
     MZ.busy=false; render(); };
 }
 /* Configurações de um usuário (janela aberta pela engrenagem) */
@@ -5883,15 +5883,15 @@ function openUserModal(id){
     ov.querySelectorAll("[data-ucr]").forEach(c=>c.onchange=()=>{ const k=c.dataset.ucr;
       let l = c.checked ? [...ur, k] : ur.filter(x=>x!==k);
       if(c.checked && k==="painel") l=["painel"]; else if(c.checked) l=l.filter(x=>x!=="painel"); // Painel TV só exibe a fila: não combina com outros níveis
-      l=sortRoles(l); if(!l.length){ toast("Mantenha pelo menos um nível de acesso"); draw(); return; }
-      saveUser(id,{role:l[0], roles:l}); toast(`Níveis: ${rolesTxt(l)}`); draw(); });
+      l=sortRoles(l); if(!l.length){ toast("Mantenha um nível de acesso"); draw(); return; }
+      saveUser(id,{role:l[0], roles:l}); toast("Níveis atualizados"); draw(); });
     ov.querySelector("#ucActive").onchange=e=>{ saveUser(id,{active:e.target.checked}); toast(e.target.checked?"Usuário ativado":"Usuário desativado"); draw(); };
-    ov.querySelector("#ucHvMove").onchange=e=>{ saveUser(id,{hivemove:e.target.checked}); toast(e.target.checked?"Liberado para mudar pedidos de colmeia":"Mudar de colmeia bloqueado"); draw(); };
+    ov.querySelector("#ucHvMove").onchange=e=>{ saveUser(id,{hivemove:e.target.checked}); toast(e.target.checked?"Mudar colmeia liberado":"Mudar colmeia bloqueado"); draw(); };
     ov.querySelector("#ucSim").onchange=e=>{ saveUser(id,{sim:e.target.checked}); toast(e.target.checked?"Simulação de bip liberada":"Simulação de bip bloqueada"); draw(); };
-    const c=ov.querySelector("#ucCons"); if(c) c.onchange=()=>{ saveUser(id,{consultiva:c.checked}); toast(c.checked?"Liberado para Venda Consultiva":"Venda Consultiva bloqueada"); };
-    const e2=ov.querySelector("#ucEco"); if(e2) e2.onchange=()=>{ saveUser(id,{ecommerce:e2.checked}); toast(e2.checked?"Liberado para E-commerce":"E-commerce bloqueado"); };
-    const pg=ov.querySelector("#ucPwGo"); if(pg) pg.onclick=async()=>{ const v=ov.querySelector("#ucPw").value; if(v.length<6){ toast("A senha precisa ter pelo menos 6 caracteres"); return; }
-      pg.disabled=true; try{ await window.psAdmin.setPassword(id, v); toast("Senha alterada. Passe a nova senha para a pessoa."); ov.querySelector("#ucPw").value=""; }catch(err){ toast(err.message||"Falha ao trocar a senha"); } pg.disabled=false; };
+    const c=ov.querySelector("#ucCons"); if(c) c.onchange=()=>{ saveUser(id,{consultiva:c.checked}); toast(c.checked?"Venda Consultiva liberada":"Venda Consultiva bloqueada"); };
+    const e2=ov.querySelector("#ucEco"); if(e2) e2.onchange=()=>{ saveUser(id,{ecommerce:e2.checked}); toast(e2.checked?"E-commerce liberado":"E-commerce bloqueado"); };
+    const pg=ov.querySelector("#ucPwGo"); if(pg) pg.onclick=async()=>{ const v=ov.querySelector("#ucPw").value; if(v.length<6){ toast("Senha: mínimo 6 caracteres"); return; }
+      pg.disabled=true; try{ await window.psAdmin.setPassword(id, v); toast("Senha alterada"); ov.querySelector("#ucPw").value=""; }catch(err){ toast(err.message||"Falha ao trocar a senha"); } pg.disabled=false; };
     ov.querySelector("#ucDel").onclick=()=>{ if(!delC){ delC=true; draw(); return; } ov.remove(); deleteUser(id); };
     ov.querySelector("#ucOk").onclick=close;
   };
@@ -6032,7 +6032,7 @@ function checkNewOrders(){
   if(seenOrders===null){ seenOrders = new Set(ORDERS.map(sk)); return; } // carga inicial: sem alerta
   const fresh = open.filter(o=>!seenOrders.has(sk(o)));
   const freshEnc = ORDERS.filter(o=>!isEco(o) && hasEnc(o) && (o.status==="analise_compras" || o.mode==="parcial") && !seenOrders.has(sk(o)) && !(ME.id && o.createdBy===ME.id));
-  if(freshEnc.length && can("compras") && !tv){ toast(freshEnc.length===1 ? `Nova encomenda para Compras: #${freshEnc[0].num} · ${freshEnc[0].status==="analise_compras"?"para decidir":"envio parcial"}` : `${freshEnc.length} novas encomendas para Compras`); if(!can("coleta")) chime(); }
+  if(freshEnc.length && can("compras") && !tv){ toast(freshEnc.length===1 ? `Nova encomenda · #${freshEnc[0].num}` : `${freshEnc.length} novas encomendas`); if(!can("coleta")) chime(); }
   ORDERS.forEach(o=>seenOrders.add(sk(o)));
   if(tv){ if(fresh.length) chime(true); return; }
   const forMe = fresh.filter(o=>!(ME.id && o.createdBy===ME.id));
@@ -6092,25 +6092,25 @@ async function toggleBell(){
   unlockAudio();
   if(b!=="off"){ // desligar tudo
     if(st==="on") try{ await P.disable(); }catch(e){}
-    setSound(false, true); toast("Alerta de novo pedido desligado"); return;
+    setSound(false, true); toast("Alerta desligado"); return;
   }
   setSound(true, true);
   if(st==="off"){
     const btn=document.getElementById("bellBtn"); if(btn) btn.classList.add("busy");
     try{ const r=await P.enable();
-      if(r==="on"){ toast("Alerta ligado · você vai receber uma notificação de teste"); P.test().catch(()=>{}); }
-      else toast(r==="denied" ? "Som ligado. As notificações estão bloqueadas no navegador: libere em Configurações do site." : "Som ligado. Notificação no celular não ativada.");
-    }catch(e){ toast("Som ligado. Não foi possível ativar a notificação: "+(e?.message||e)); }
+      if(r==="on"){ toast("Alerta ligado"); P.test().catch(()=>{}); }
+      else toast("Som ligado · notificação bloqueada");
+    }catch(e){ toast("Som ligado · notificação falhou"); }
     render(); return;
   }
   if(st==="ios-install") await askModal({title:"Notificação no iPhone", okText:"Entendi",
     text:"O som já está ligado. Para receber a notificação com o app fechado, toque em <b>Compartilhar → Adicionar à Tela de Início</b>, abra o Picking Serena pelo ícone e toque no sininho de novo."});
-  else if(st==="denied") toast("Som ligado. As notificações estão bloqueadas no navegador: libere em Configurações do site.");
-  else toast("Som de novo pedido ligado");
+  else if(st==="denied") toast("Som ligado · notificação bloqueada");
+  else toast("Som ligado");
 }
 window.addEventListener("pspush", ()=>rerender());
 window.addEventListener("psopen", e=>{ if(["pick","tray","store","tomesa","hvout","unstore"].includes(state.view)) return; if(/#compras/.test(e.detail||"") && can("compras")){ state.sector="compras"; state.cTab=null; } else { state.sector="expedicao"; state.sepTab="fila"; } state.view="orders"; render(); scrollTo(0,0); });
-function setSound(on, quiet){ SOUND=on; try{ localStorage.setItem("ps-sound", on?"1":"0"); }catch(e){} if(on){ unlockAudio(); chime(); } if(!quiet) toast(on?"Som de alerta ligado":"Som de alerta desligado"); render(); }
+function setSound(on, quiet){ SOUND=on; try{ localStorage.setItem("ps-sound", on?"1":"0"); }catch(e){} if(on){ unlockAudio(); chime(); } if(!quiet) toast(on?"Som ligado":"Som desligado"); render(); }
 
 let tt; function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.hidden=false; clearTimeout(tt); tt=setTimeout(()=>t.hidden=true,2400); }
 let pendingRender=false;
@@ -6140,7 +6140,7 @@ function render(){
   if(state.hoPending && canHvOut()){ const {oid,how}=state.hoPending, o=ORDERS.find(x=>x.id===oid);
     if(o || ORDERS.length){ state.hoPending=null; try{ history.replaceState(null,"",location.pathname+"#colmeias"); }catch(e){}
       if(o && o.colmeia){ state.hvOut={oid, how, step:"hive"}; state.sector="colmeias"; state.view="hvout"; }
-      else toast(o ? `O pedido #${o.num} não está mais na colmeia` : "Pedido não encontrado"); } }
+      else toast(o ? `#${o.num} saiu da colmeia` : "Pedido não encontrado"); } }
   if(state.sector==="expedicao" && state.sepTab==="colmeias"){ state.sector="colmeias"; state.sepTab="fila"; }
   if(!canSector(state.sector) && !(state.view==="hvout" && state.hvOut && canHvOut())){ const al=allowedSectors(); state.sector = al.includes("expedicao") && innerWidth<900 ? "expedicao" : (al.find(x=>x!=="colmeias")||al[0]); state.view="orders"; }
   if(state.sector==="expedicao"){
@@ -6152,7 +6152,7 @@ function render(){
   if(state.view==="hvout" && (state.sector!=="colmeias" || !state.hvOut)) state.view="orders";
   if(state.hvLocPending && ORDERS.length){ const o=ORDERS.find(x=>x.id===state.hvLocPending); state.hvLocPending=null; try{ history.replaceState(null,"",location.pathname+"#colmeias"); }catch(e){}
     if(o && o.status==="aguarda_colmeia" && canHiveStore()){ state.hvLoc={oid:o.id}; state.sector="colmeias"; state.view="hvloc"; }
-    else if(o) toast(o.colmeia ? `Pedido #${o.num} já está na colmeia ${o.colmeia.slice(3)}` : `Pedido #${o.num} não está aguardando colmeia`); }
+    else if(o) toast(o.colmeia ? `#${o.num} já está na colmeia ${o.colmeia.slice(3)}` : `#${o.num} não aguarda colmeia`); }
   if(state.view==="hvloc" && (!state.hvLoc || !canHiveStore())) state.view="orders";
   if(state.view==="hvmove" && (!state.hvMove || !canHiveMove())) state.view="orders";
   if(state.view==="unstore" && (state.sector!=="compras" || !can("devolver") || !state.us)) state.view="orders";
@@ -6171,7 +6171,7 @@ function render(){
   if(state.usPending && can("devolver")){ const o=ORDERS.find(x=>x.id===state.usPending);
     if(o){ state.usPending=null; try{ history.replaceState(null,"",location.pathname+"#compras"); }catch(e){}
       if(o.status==="na_colmeia"){ state.sector="compras"; state.us=newUs(o.id); state.view="unstore"; }
-      else toast(`O pedido #${o.num} não está mais na colmeia`); } }
+      else toast(`#${o.num} saiu da colmeia`); } }
   if(state.sector==="compras") return state.view==="unstore" ? renderUnstore() : renderCompras();
   if(state.sector==="recebimento") return renderReceb();
   if(state.sector==="usuarios") return renderUsuarios();
@@ -6238,7 +6238,7 @@ function renderChamados(){
     if(open) box.querySelector(".chmsgs").innerHTML=chMsgsHTML(C.msgs[id]);
     C.open[id]=open; xpToggle(box, b, open); });
   app.querySelectorAll("[data-chdone]").forEach(c=>c.onchange=async()=>{ const id=c.dataset.chdone, f=(C.features||[]).find(x=>String(x.id)===id); c.disabled=true;
-    try{ await window.psLucas.featureDone(id, c.checked); if(f){ f.done=c.checked; f.done_at=c.checked?new Date().toISOString():null; f.doneByName=c.checked?(ME.name||"você"):""; } toast(c.checked?"Função marcada como criada":"Função voltou para a lista"); render(); }
+    try{ await window.psLucas.featureDone(id, c.checked); if(f){ f.done=c.checked; f.done_at=c.checked?new Date().toISOString():null; f.doneByName=c.checked?(ME.name||"você"):""; } toast(c.checked?"Função marcada":"Função desmarcada"); render(); }
     catch(e){ toast(e.message||"Não foi possível salvar"); c.checked=!c.checked; c.disabled=false; } });
   app.querySelectorAll("[data-chgo]").forEach(b=>b.onclick=()=>{ const id=b.dataset.chgo; C.tab="conv"; C.only=false; C.q=""; C.open[id]=true; const i=(C.threads||[]).findIndex(t=>t.id===id); state.pg ||= {}; state.pg.chamados = i>=0 ? Math.floor(i/20)+1 : 1;
     const go=()=>{ render(); setTimeout(()=>document.getElementById("ch-"+id)?.scrollIntoView({behavior:"smooth",block:"center"}),80); };
@@ -6374,8 +6374,7 @@ function sendAdjust(d){
   }
   state.draft=null; state.draftErr="";
   saveOrder(o);
-  toast((anyDec ? `Ajuste da pré-venda ${o.num} enviado para Compras decidir os itens novos` + (o.adj && o.adj.status==="pendente" ? ` · o separador vai ${adjSummary(o.adj)}` : "")
-    : o.adj && o.adj.status==="pendente" ? `Ajuste da pré-venda ${o.num} enviado · o separador vai ${adjSummary(o.adj)}` : `Pré-venda ${o.num} atualizada${adjCompras&&!adjCompras.ok?" · Compras foi avisado":""}`));
+  toast((anyDec || (o.adj && o.adj.status==="pendente") ? `Ajuste do ${o.num} enviado` : `Pré-venda ${o.num} atualizada`));
 }
 
 /* ---- tela do separador: executar o ajuste ---- */
@@ -6398,7 +6397,7 @@ function finishAdjust(){
     if(put>0){ cur.got=(cur.got||0)+put; q-=put; } cur.status = cur.got>=need ? "ok" : cur.got>0 ? "part" : "miss"; r[i]=cur; }); });
   const mv = o.adj.moveTo ? {colmeia:o.adj.moveTo, mode:"aguarda", status:"na_colmeia", storedAt:now, tray:"", trayStatus:""} : {};
   patchOrder(o.id, {res:r, ...mv, adj:{...o.adj, status:"ok", doneAt:now, doneBy:ME.id||""}, hist:[...(o.hist||[]), {t:now, by:ME.id||"", ev:"Ajuste da pré-venda concluído pela separação · "+adjSummary(o.adj)+(o.adj.moveTo?` · guardado na colmeia ${o.adj.moveTo.slice(3)}`:"")}]});
-  toast(`Ajuste do pedido #${o.num} concluído`); state.aj=null; state.view="orders"; render(); scrollTo(0,0);
+  toast(`Ajuste do #${o.num} concluído`); state.aj=null; state.view="orders"; render(); scrollTo(0,0);
 }
 function renderAdjust(){
   const c=ajCur(); if(!c){ state.aj=null; state.view="orders"; return render(); }
@@ -6457,8 +6456,8 @@ function renderAdjust(){
   if(g("ajFound")) g("ajFound").onclick=()=>ajNext();
   if(g("ajMinus")) g("ajMinus").onclick=()=>{ a.cnt=Math.max(0,a.cnt-1); render(); };
   if(g("ajPlus")) g("ajPlus").onclick=()=>{ a.cnt=Math.min(t.qty,a.cnt+1); render(); };
-  if(g("ajOk")) g("ajOk").onclick=()=>{ if(t.kind==="remove"){ a.step="loc"; render(); } else { a.done[a.idx]=true; toast(`${t.qty} pç de ${t.code} coletadas`); ajNext(); } };
-  if(g("ajNoLoc")) g("ajNoLoc").onclick=()=>{ a.done[a.idx]=true; toast(`${t.code} devolvido ao estoque`); ajNext(); };
+  if(g("ajOk")) g("ajOk").onclick=()=>{ if(t.kind==="remove"){ a.step="loc"; render(); } else { a.done[a.idx]=true; toast(`Item coletado · ${t.qty} pç`); ajNext(); } };
+  if(g("ajNoLoc")) g("ajNoLoc").onclick=()=>{ a.done[a.idx]=true; toast(`${t.code} devolvido`); ajNext(); };
   if(g("ajDone")) g("ajDone").onclick=finishAdjust;
   setMsg(a.phase==="find" ? `Bipe a ${w.k==="colmeia"?"colmeia":"bandeja"} ${w.k==="colmeia"?w.code.slice(3):w.code}` : a.phase==="tasks" ? (a.step==="prod" ? `Bipe ${t.name}` : L ? `Bipe o endereço ${code(L)}` : "Guarde no estoque e confirme") : "Devolva o pedido e conclua", "info");
   focusScan();
@@ -6520,7 +6519,7 @@ function openHiveItems(id){
     g("hiAdd").onclick=()=>{ const v=g("hiCode").value.trim(), q=Math.max(1,Math.round(+g("hiQty").value||1));
       const p=PRODUCTS[v] || prodList.find(x=>hvNorm(x.name)===hvNorm(v)) || prodList.find(x=>hvNorm(x.name).includes(hvNorm(v)));
       if(!v){ err="Informe o SKU do item."; return draw(); }
-      if(!p){ err=`Produto ${v} não encontrado. Cadastre em Locais → Produtos e EAN.`; return draw(); }
+      if(!p){ err=`Produto ${v} não cadastrado`; return draw(); }
       const ex=rows.find(r=>r.code===p.code); if(ex){ ex.qty+=q; if(g("hiEnc").checked) ex.enc+=q; }
       else rows.push({code:p.code, name:p.name, ean:p.ean||"", un:"UN", price:0, qty:q, enc:g("hiEnc").checked?q:0, old:false});
       err=""; draw(); };
@@ -6540,7 +6539,7 @@ function openHiveItems(id){
       if(anyEnc && o.status==="pronto_envio" && !o.fase2){ patch.status="na_colmeia"; patch.mode="aguarda"; }       // voltou a ter encomenda: aguarda na colmeia
       if(!anyEnc && o.status==="na_colmeia"){ patch.status="pronto_envio"; }                                         // nada mais a encomendar: pronto
       if(encCh.length) patch.adjCompras={at:now, by:ME.id||"", changes:encCh, ok:false};
-      patchOrder(o.id, patch); toast(`Itens do pedido #${o.num} atualizados${encCh.length?" · Compras foi avisado":""}`); close();
+      patchOrder(o.id, patch); toast(`Pedido #${o.num} atualizado`); close();
     };
   };
   ov.onclick=e=>{ if(e.target===ov) close(); };
@@ -6658,7 +6657,7 @@ function lucasImg(file){ return new Promise((ok,ko)=>{ const r=new FileReader();
   const g=c.getContext("2d"); g.fillStyle="#fff"; g.fillRect(0,0,c.width,c.height); g.drawImage(img,0,0,c.width,c.height);
   ok({media_type:"image/jpeg", data:c.toDataURL("image/jpeg",0.85).split(",")[1]}); }; img.src=r.result; }; r.readAsDataURL(file); }); }
 async function lucasAttach(files){
-  for(const f of files.slice(0, 3-LUCAS.att.length)){ try{ LUCAS.att.push(await lucasImg(f)); }catch(e){ toast("Não consegui abrir essa imagem"); } }
+  for(const f of files.slice(0, 3-LUCAS.att.length)){ try{ LUCAS.att.push(await lucasImg(f)); }catch(e){ toast("Falha ao abrir a imagem"); } }
   if(files.length > 3) toast("Até 3 prints por mensagem");
   lucasDraw();
 }
@@ -6677,12 +6676,12 @@ async function lucasSend(){
 }
 // áudio: ditado do próprio aparelho (português), a fala vira texto na caixa de mensagem
 function lucasMic(){
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SR){ toast("Este navegador não permite ditado por voz"); return; }
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SR){ toast("Ditado por voz indisponível"); return; }
   if(LUCAS.listening){ lucasStopMic(); return; }
   const inp=document.getElementById("lcIn"), base=inp.value ? inp.value.replace(/\s*$/," ") : "";
   const rec=new SR(); rec.lang="pt-BR"; rec.interimResults=true; rec.continuous=true;
   rec.onresult=e=>{ let t=""; for(let i=0;i<e.results.length;i++) t+=e.results[i][0].transcript; inp.value=base+t; inp.oninput(); };
-  rec.onerror=e=>{ if(e.error==="not-allowed"||e.error==="service-not-allowed") toast("Libere o microfone para o navegador usar o áudio"); lucasStopMic(); };
+  rec.onerror=e=>{ if(e.error==="not-allowed"||e.error==="service-not-allowed") toast("Libere o microfone"); lucasStopMic(); };
   rec.onend=()=>{ LUCAS.listening=false; document.getElementById("lcMic")?.classList.remove("on"); document.getElementById("lcFoot").textContent="O Lucas pode errar. Em caso de dúvida, confirme com o Administrador."; };
   try{ rec.start(); }catch(e){ return; }
   LUCAS.rec=rec; LUCAS.listening=true; document.getElementById("lcMic").classList.add("on");
@@ -6706,7 +6705,7 @@ function bindLucasCfg(){
   if(state.lucasSt===undefined){ state.lucasSt=null; window.psLucas.status().then(r=>{ state.lucasSt=r; if(state.sector==="usuarios") render(); }).catch(e=>{ state.lucasSt={error:e.message}; if(state.sector==="usuarios") render(); }); }
   const sv=document.getElementById("lcSave"); if(!sv) return;
   sv.onclick=async()=>{ const key=document.getElementById("lcKey").value.trim(), model=document.getElementById("lcModel").value; sv.disabled=true; sv.textContent="Salvando…";
-    try{ await window.psLucas.config({ ...(key?{key}:{}), model }); toast(key?"Chave salva · Lucas ativado":"Configuração salva"); state.lucasSt=undefined; LUCAS.st=null; render(); }
+    try{ await window.psLucas.config({ ...(key?{key}:{}), model }); toast("Configuração salva"); state.lucasSt=undefined; LUCAS.st=null; render(); }
     catch(e){ toast(e.message||"Não foi possível salvar"); sv.disabled=false; sv.textContent="Salvar"; } };
 }
 
