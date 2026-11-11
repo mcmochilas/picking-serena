@@ -263,7 +263,11 @@ html.tvmode body{background:var(--bg);color:var(--ink);overflow:hidden}
 .rcboxok{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;padding:8px 12px;border-radius:10px;background:var(--ok-soft);color:var(--ok);font-size:14px}.rcboxok b{font-size:16px}
 .rccur{margin-top:8px;padding:12px;border-radius:12px;border:2px solid var(--route);background:var(--surface);display:grid;gap:6px}.rccur.ok{border-color:var(--ok)}.rccur.div{border-color:var(--bad)}
 .rccn{font-size:16px;font-weight:600;line-height:1.25}.rccq{display:flex;align-items:center;gap:8px;margin:4px 0}.rccq .mini{width:48px;height:48px;font-size:22px;flex:none}.rccq .tinput{width:96px;height:48px;font-size:24px;font-weight:700;text-align:center}.rccq span{color:var(--muted);font-size:13px}
-.rclink .li .ln{white-space:normal;overflow:visible}.rclink .rclp{padding:8px 10px;border-radius:10px;background:var(--bg);margin:6px 0;font-weight:600}.rclink .rcll{max-height:44vh;overflow:auto;margin-top:8px}.rclink .tinput{width:100%;margin-top:8px}.rcl.div{background:var(--bad-soft)}.bad-t{color:var(--bad)}.warn-t{color:var(--accent-ink)}
+.rclink .li .ln{white-space:normal;overflow:visible}.rcmesa{text-align:center}.rcmic{color:var(--accent-ink);display:grid;place-items:center}.rcmesa h2{margin-top:2px}.rcmesa .rclp{text-align:left;padding:8px 10px;border-radius:10px;background:var(--bg);margin:6px 0;font-weight:600}
+.rcmpv{display:grid;gap:4px;margin:6px 0;text-align:left}.rcmpv div{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;border-radius:10px;background:var(--accent-soft);color:var(--ink);font-size:14px}
+.rcmbtns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:8px 0}.rcmbtns .mini{min-height:44px;padding:0 16px;font-size:15px}
+.rcpvtag{font-size:13px;padding:6px 10px;border-radius:8px;background:var(--accent-soft);color:var(--ink)}
+.rclink .rclp{padding:8px 10px;border-radius:10px;background:var(--bg);margin:6px 0;font-weight:600}.rclink .rcll{max-height:44vh;overflow:auto;margin-top:8px}.rclink .tinput{width:100%;margin-top:8px}.rcl.div{background:var(--bad-soft)}.bad-t{color:var(--bad)}.warn-t{color:var(--accent-ink)}
 .rcpv{display:flex;flex-wrap:wrap;gap:4px}
 .cpfoot .btn{flex:none;width:auto;height:42px;padding:0 18px;font-size:15px}
 .phases.ph3{grid-template-columns:repeat(3,minmax(0,1fr))}.phases.ph3 .phase{font-size:12px;padding:8px}
@@ -430,9 +434,9 @@ details.cpcard summary{display:flex;justify-content:space-between;align-items:ce
 .nachr{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}.nalist .pager{margin-top:6px}
 .perows{display:grid;gap:6px;margin:6px 0}.perow{display:grid;grid-template-columns:110px minmax(0,1fr) 80px auto;gap:6px;align-items:center}@media (max-width:600px){.perow{grid-template-columns:1fr 80px auto}.perow [data-pen]{grid-column:1/-1;grid-row:2}}.chip.need{background:var(--accent-soft);color:var(--accent-ink)}
 .nagrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-top:12px;align-items:start}
-.nacol{display:flex;flex-direction:column;gap:0;padding:0;overflow:hidden;position:sticky;top:8px}
+.nacol{display:flex;flex-direction:column;gap:0;padding:0;overflow:hidden}
 .nach{display:grid;gap:8px;padding:14px 14px 10px;border-bottom:1px solid var(--line)}.nach h2{font-size:16px;margin:0}.nach .tinput{width:100%}.nafil{flex-wrap:wrap}
-.nalist{display:flex;flex-direction:column;gap:6px;padding:10px;max-height:calc(100vh - 150px);min-height:240px;overflow:auto}
+.nalist{display:flex;flex-direction:column;gap:6px;padding:10px}
 .nai,.nae{border:1px solid var(--line);border-radius:10px;padding:8px 10px;display:grid;gap:5px;cursor:pointer;background:var(--surface);text-align:left}
 .nai:hover,.nae:hover{border-color:var(--muted)}.nai.on{border-color:var(--accent);background:var(--accent-soft)}
 .nai.sel,.nae.sel{border-color:var(--route);box-shadow:0 0 0 2px var(--route) inset}.nae.full{opacity:.6}
@@ -1108,7 +1112,7 @@ const onHiveTab = () => state.view==="orders" && (state.sector==="colmeias" || (
 const hiveFree = c => HIVE.includes(c) && !ORDERS.some(o=>usesHive(o)&&o.colmeia===c) && !ORDERS.some(o=>o.adj?.status==="pendente" && o.adj.moveTo===c);
 const usesHive = o => o.status!=="enviado" && o.status!=="excluido" && !!o.colmeia && (o.mode==="aguarda" || o.retira);
 // vai para a colmeia: aguarda encomenda, ou o cliente vai retirar depois. "Cliente está na loja" não: é entregue na hora, na mesa
-const toHive = o => o.mode==="aguarda" || (!isEco(o) && (o.fase2 ? (o.retira || o.naLoja) : (o.retira && !o.naLoja))); // encomenda que chegou para cliente retirar: vai para a colmeia
+const toHive = o => o.fase2 ? (!isEco(o) && (o.retira || o.naLoja)) : (o.mode==="aguarda" || (!isEco(o) && o.retira && !o.naLoja)); // encomenda que chegou para cliente retirar: vai para a colmeia
 function normalize(o){ // compatibilidade com pedidos gravados na versão anterior
   if(o.status==="aguardando_envio") o.status="pronto_envio";
   if(o.status==="aguardando_encomenda") o.status="na_colmeia";
@@ -1276,7 +1280,7 @@ function initialSector(){ const h=location.hash.slice(1); if(["comercial","exped
 state.sector = initialSector();
 
 function pickList(o){
-  if(o.fase2) return o.items.map((it,i)=>({...it, i, need: it.qtyEnc||0, loc: null, ean: liveEan(it), recv:true})).filter(x=>x.need>0); // 2ª etapa: peças da encomenda, na área de recebimento
+  if(o.fase2) return o.items.map((it,i)=>({...it, i, need: it.qtyEnc||0, loc: null, ean: liveEan(it), recv:true, recMesa: it.recMesa||"", recMesaFrom: it.recMesaFrom||""})).filter(x=>x.need>0); // 2ª etapa: peças da encomenda, na área de recebimento
   return o.items.map((it,i)=>({...it, i, need: it.qty-(it.qtyEnc||0), loc: liveLoc(it), ean: liveEan(it)})).filter(x=>x.need>0)
     .sort((x,y)=> !x.loc || !y.loc ? (!x.loc) - (!y.loc) : x.loc.r-y.loc.r || x.loc.ci-y.loc.ci || x.loc.l.localeCompare(y.loc.l) || x.loc.n-y.loc.n);
 }
@@ -2922,7 +2926,10 @@ function saveNf(N){
 function applyReceipt(nfIdv){
   const n=NFS[nfIdv]; if(!n || !n.received) return;
   const oids=[...new Set((n.lines||[]).flatMap(l=>(l.alloc||[]).map(a=>a.oid)))];
+  const RM=n.received.mesa||{};
   oids.forEach(oid=>{ const o=ORDERS.find(x=>x.id===oid); if(!o) return;
+    const put=(n.lines||[]).flatMap((l,k)=>RM[k] ? (l.alloc||[]).filter(a=>a.oid===oid).map(a=>[a.i, RM[k]]) : []);
+    if(put.length && !o.fase2) patchItems(oid, items=>put.forEach(([i,m])=>{ if(items[i] && !items[i].recMesaFrom) items[i].recMesa=m; }));
     const all = encItems(o).every(x=>nfRecv(x) >= x.qtyEnc || x.compra?.st==="chegou");
     if(!all) return;
     patchItems(oid, items=>items.forEach(it=>{ if(it.qtyEnc>0) it.compra={...(it.compra||{}), st:"chegou", arrivedAt:n.received.at}; }));
@@ -2962,11 +2969,12 @@ function renderReceb(){
         ${cl ? `<div class="rccur ${cc?(cc.qty!==cl.qty?"div":"ok"):""}"><div class="eyebrow">${cc?"Item já conferido":"Item bipado · confirme a quantidade"}</div>
             <div class="rccn">${cp?`<b class="mono">${esc(cp.code)}</b> ${esc(cp.name)}`:`<b class="mono">${esc(cl.code)}</b> ${esc(cl.name)}`}</div>
             <small class="muted-s">Na nota: <span class="mono">${esc(cl.code)}</span> ${esc(cl.name)} · <b>${cl.qty}</b> pç</small>
+            ${rcPvs(n,cur).length ? `<div class="rcpvtag">Pré-venda ${rcPvs(n,cur).map(x=>"#"+esc(x.o.num)+" · "+x.a.qty+" pç").join(", ")} ${state.rc.mesa?.[cur] ? `· na <b>${esc(mesaName(state.rc.mesa[cur]))}</b> <button class="lnk" id="rcMesaCh">trocar</button>` : `<button class="lnk" id="rcMesaCh">bipar a mesa</button>`}</div>` : ""}
             <div class="rccq"><button class="mini" id="rcCurM" aria-label="Menos uma peça">−</button><input class="tinput r" type="number" min="0" id="rcCurQ" data-enter="rcCurOk" value="${cc?cc.qty:cl.qty}" aria-label="Quantidade que chegou"><button class="mini" id="rcCurP" aria-label="Mais uma peça">+</button><span>de ${cl.qty} pç</span></div>
             <button class="btn primary" id="rcCurOk">OK · chegou</button></div>`
           : `<div class="instr" style="margin-top:8px">${ICON_SCAN}<div>Bipe o <b>código de barras de uma peça</b>. O item aparece aqui para você confirmar a quantidade.</div></div>`}
         <div class="list rclist" style="margin-top:8px">${n.lines.map((l,k)=>{ const c=chk[k], div = c ? c.qty!==l.qty : false, sk=rcSku(n,k), P=PRODUCTS[sk];
-          return `<div class="li usrow rcl ${c?(div?"div":"ok"):""} ${cur===k?"hi":""}" data-rcrow="${k}" style="cursor:default"><span class="ln"><b class="mono">${esc(l.code)}</b> ${esc(l.name)}<small>Nota: <b>${l.qty}</b> pç${(l.alloc||[]).length?" · para "+l.alloc.map(a=>"#"+esc(ORDERS.find(o=>o.id===a.oid)?.num||"?")).join(", "):" · estoque"}${P?` · picking <b>${esc(P.code)}</b>${P.ean?"":" (sem EAN)"}`:" · sem relação no picking"}</small></span>
+          return `<div class="li usrow rcl ${c?(div?"div":"ok"):""} ${cur===k?"hi":""}" data-rcrow="${k}" style="cursor:default"><span class="ln"><b class="mono">${esc(l.code)}</b> ${esc(l.name)}<small>Nota: <b>${l.qty}</b> pç${(l.alloc||[]).length?" · para "+l.alloc.map(a=>"#"+esc(ORDERS.find(o=>o.id===a.oid)?.num||"?")).join(", "):" · estoque"}${P?` · picking <b>${esc(P.code)}</b>${P.ean?"":" (sem EAN)"}`:" · sem relação no picking"}${state.rc.mesa?.[k]?` · <b>${esc(mesaName(state.rc.mesa[k]))}</b>`:""}</small></span>
             <span class="rcq"><input class="tinput r" type="number" min="0" data-rcq="${k}" value="${c?c.qty:l.qty}" aria-label="Quantidade recebida de ${esc(l.code)}"><button class="mini ${c&&!div?"on":""}" data-rcok="${k}">${c ? (div ? "Ajustado" : c.bip ? "✓ Bipado" : "✓ OK") : "OK"}</button></span></div>`; }).join("")}</div>
         <small class="muted-s">Produto sem código de barras: confira e toque em OK na linha. Se a quantidade for diferente, digite o que chegou.</small>`; })()}
       ${pvs(n).length?`<div class="eyebrow" style="margin-top:10px">Pré-vendas atendidas</div><div class="rcpv">${pvs(n).map(o=>`<span class="cplink">#${esc(o.num)} · ${esc(o.client)}</span>`).join("")}</div>`:""}
@@ -2989,10 +2997,11 @@ function renderReceb(){
   if(g("rcPlus")) g("rcPlus").onclick=()=>{ state.rc.vols++; saveConf(); render(); };
   if(g("rcBack")) g("rcBack").onclick=()=>{ const n=NFS[state.rc.id]; if(n && !n.received && (state.rc.vols || Object.keys(state.rc.chk).length)){ saveConf(); toast("Conferência salva · continue quando quiser"); } state.rc=null; render(); };
   if(g("rcOk")) g("rcOk").onclick=confirmReceb;
-  app.querySelectorAll("[data-rcok]").forEach(b=>b.onclick=()=>{ const k=+b.dataset.rcok, q=+(app.querySelector(`[data-rcq="${k}"]`)?.value)||0; state.rc.chk[k]={...(state.rc.chk[k]?.bip?{bip:1}:{}), qty:Math.max(0,q)}; if(state.rc.cur===k) state.rc.cur=null; delete state.rc.flash; saveConf(); render(); });
+  app.querySelectorAll("[data-rcok]").forEach(b=>b.onclick=()=>{ const k=+b.dataset.rcok, q=+(app.querySelector(`[data-rcq="${k}"]`)?.value)||0; state.rc.chk[k]={...(state.rc.chk[k]?.bip?{bip:1}:{}), qty:Math.max(0,q)}; if(state.rc.cur===k) state.rc.cur=null; delete state.rc.flash; saveConf(); render(); if(rcNeedMesa(k)) openRcMesa(k); });
   app.querySelectorAll("[data-rcq]").forEach(rcGuardQty);
   if(g("rcBoxOk")) g("rcBoxOk").onclick=()=>{ state.rc.boxOk=true; delete state.rc.flash; saveConf(); render(); scrollTo(0,0); };
   if(g("rcBoxEdit")) g("rcBoxEdit").onclick=()=>{ state.rc.boxOk=false; delete state.rc.flash; saveConf(); render(); };
+  if(g("rcMesaCh")) g("rcMesaCh").onclick=()=>openRcMesa(state.rc.cur);
   if(g("rcCurQ")){ const qi=g("rcCurQ"), k=state.rc.cur, setQ=v=>{ qi.value=Math.max(0,v); };
     rcGuardQty(qi);
     g("rcCurM").onclick=()=>setQ((+qi.value||0)-1); g("rcCurP").onclick=()=>setQ((+qi.value||0)+1);
@@ -3004,7 +3013,7 @@ function renderReceb(){
   focusScan();
 }
 function openReceb(n){ if(!n) return; const c=!n.received && n.conf; // conferência salva: continua de onde parou
-  state.rc={ id:n.id, vols: n.received ? n.received.vols : (c ? c.vols||0 : 0), chk: c ? JSON.parse(JSON.stringify(c.chk||{})) : {}, boxOk: !!(c && c.boxOk), sku: c ? {...(c.sku||{})} : {} }; render(); scrollTo(0,0); }
+  state.rc={ id:n.id, vols: n.received ? n.received.vols : (c ? c.vols||0 : 0), chk: c ? JSON.parse(JSON.stringify(c.chk||{})) : {}, boxOk: !!(c && c.boxOk), sku: c ? {...(c.sku||{})} : {}, mesa: c ? {...(c.mesa||{})} : {} }; render(); scrollTo(0,0); }
 /* Produto do picking de cada item da nota: o que o conferente relacionou ao bipar, o que Compras relacionou, ou o cadastro (código do fornecedor → SKU) */
 function rcSku(n, k){ const l=(n.lines||[])[k]; if(!l) return ""; const m=state.rc?.sku?.[k] ?? n.conf?.sku?.[k]; return m || l.sku || skuFor(n.forn, l.code) || (PRODUCTS[l.code] ? l.code : ""); }
 const rcNorm = t => String(t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/\bZEN\b|\bPUX\b|\bPUXADOR\b/g," ").replace(/[^A-Z0-9]+/g," ").trim().split(" ").filter(Boolean);
@@ -3027,8 +3036,31 @@ function openRcLink(P){
     ov.querySelector("#rlNo").onclick=close;
     ov.querySelectorAll("[data-rl]").forEach(b=>b.onclick=()=>{ const k=+b.dataset.rl, l=n.lines[k]; rc.sku[k]=P.code; rc.cur=k; delete rc.flash;
       try{ const key=fornKey(n.forn, l.code), cur=PRODUCTS[P.code]; if(!RC_TK && cur && l.code && !(cur.forn||[]).includes(key)) saveProduct({...cur, forn:[...(cur.forn||[]), key]}); }catch(e){}
-      saveConf(); feedback(true); close(); }); };
+      saveConf(); feedback(true); close(); if(rcNeedMesa(k)) openRcMesa(k); }); };
   draw();
+}
+/* Item da nota amarrado a pré-venda: avisa o conferente para deixar as peças separadas numa mesa e bipar a etiqueta da mesa */
+const rcPvs = (n,k) => ((n.lines||[])[k]?.alloc||[]).filter(a=>+a.qty>0).map(a=>({a, o:ORDERS.find(x=>x.id===a.oid)})).filter(x=>x.o);
+function rcNeedMesa(k){ const rc=state.rc, n=rc && NFS[rc.id]; return !!n && !n.received && rcPvs(n,k).length>0 && !rc.mesa?.[k] && rc.mesa?.[k]!==""; }
+function openRcMesa(k, after){
+  const rc=state.rc, n=NFS[rc.id], l=n.lines[k], pvs=rcPvs(n,k), tot=pvs.reduce((t,x)=>t+(+x.a.qty||0),0); let err="";
+  const ov=document.createElement("div"); ov.className="modal"; document.body.appendChild(ov); scanbar.hidden=true;
+  const close=()=>{ SCAN_TEST=null; ov.remove(); render(); after && after(); };
+  const set=v=>{ v=String(v||"").trim().toUpperCase(); if(/^\d{1,3}$/.test(v)) v="MESA-"+v.padStart(3,"0");
+    if(!isMesa(v)){ err = v ? `"${v}" não é uma mesa. Bipe a etiqueta de uma mesa.` : ""; feedback(false); return draw(); }
+    rc.mesa ||= {}; rc.mesa[k]=v; feedback(true); saveConf(); rc.flash=[`${l.code}: ${tot} pç da pré-venda ficam na ${mesaName(v)}.`,"good"]; close(); };
+  const draw=()=>{ ov.innerHTML=`<div class="mbox rcmesa" role="dialog" aria-modal="true" aria-label="Item de pré-venda: deixar na mesa">
+      <div class="rcmic"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></div>
+      <h2>Este item é de pré-venda</h2>
+      <div class="rclp"><b class="mono">${esc(l.code)}</b> ${esc(l.name)}</div>
+      <div class="rcmpv">${pvs.map(x=>`<div><b class="mono">#${esc(x.o.num)}</b> ${esc(x.o.client)}<span class="tnum"><b>${x.a.qty}</b> pç</span></div>`).join("")}</div>
+      <p><b>Separe ${tot} pç</b> e deixe numa <b>mesa</b>. Depois <b>bipe a etiqueta da mesa</b> onde ficaram.${l.qty>tot?` As outras ${l.qty-tot} pç vão para o estoque.`:""}</p>
+      <div class="rcmbtns">${MESAS.map(m=>`<button class="mini" data-rm="${esc(m.code)}">${esc(mesaName(m.code))}</button>`).join("")}</div>
+      <div class="merr">${esc(err)}</div>
+      <div class="mact"><button class="btn ghost" id="rmNo">Agora não</button></div></div>`;
+    ov.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>set(b.dataset.rm));
+    ov.querySelector("#rmNo").onclick=()=>{ rc.mesa ||= {}; rc.mesa[k]=""; saveConf(); close(); }; };
+  SCAN_TEST=v=>set(v); draw();
 }
 function rcGuardQty(i){ let b="", t0=0, v0="", tm; // leitura do coletor com o cursor na quantidade: não entra no número, vai para a conferência
   const flush=()=>{ const fast=b.length>=6 && (performance.now()-t0)/b.length<60, c=b; b=""; if(!fast) return false; i.value=v0; i.blur(); handleScan(c); return true; };
@@ -3037,7 +3069,7 @@ function rcGuardQty(i){ let b="", t0=0, v0="", tm; // leitura do coletor com o c
     if(e.key.length===1){ if(!b){ t0=performance.now(); v0=i.value; } b+=e.key; tm=setTimeout(()=>{ if(b.length>=6 && (performance.now()-150-t0)/b.length<60){ const c=b; b=""; i.value=v0; i.blur(); handleScan(c); } else b=""; },150); } }; }
 // grava o andamento da conferência na própria nota (outra pessoa ou outro aparelho pode continuar)
 function saveConf(){ const rc=state.rc; if(!rc) return; const now=Date.now(), base=NFS[rc.id] || {...rc.tmp, createdAt:now}; if(base.received) return;
-  const doc={...base, conf:{vols:rc.vols, chk:rc.chk, boxOk:!!rc.boxOk, sku:rc.sku||{}, at:now, by:ME.id||""}}; NFS[doc.id]=doc; if(nfCol) queueWrite("nf-"+doc.id, ()=>nfCol.doc(doc.id).set(JSON.parse(JSON.stringify(doc)))); }
+  const doc={...base, conf:{vols:rc.vols, chk:rc.chk, boxOk:!!rc.boxOk, sku:rc.sku||{}, mesa:rc.mesa||{}, at:now, by:ME.id||""}}; NFS[doc.id]=doc; if(nfCol) queueWrite("nf-"+doc.id, ()=>nfCol.doc(doc.id).set(JSON.parse(JSON.stringify(doc)))); }
 /* Conferência: bipar o EAN (ou o código) de um produto da nota marca o item como chegado, com a quantidade da nota; o conferente ajusta se veio diferente */
 function rcLineOf(n, v){ const P=Object.values(PRODUCTS).find(p=>p.ean && p.ean===v) || PRODUCTS[v] || null;
   return (n.lines||[]).findIndex(l=>(l.ean && l.ean===v) || String(l.code||"").toUpperCase()===v || (l.sku && (String(l.sku).toUpperCase()===v || (P && P.code===l.sku))) || (P && P.code===l.code)); }
@@ -3053,7 +3085,8 @@ function scanReceb(v){
         const k=n.lines.findIndex((l,i)=>rcSku(n,i)===P.code);
         if(k<0){ if(n.lines.every((l,i)=>rcSku(n,i) || rc.chk[i])){ feedback(false); rc.flash=[`${P.code} ${P.name} não está nesta nota.`,"bad"]; return render(); }
           feedback(true); return openRcLink(P); }
-        rc.cur=k; feedback(true); rc.flash=[rc.chk[k] ? `${P.code} já estava conferido · ${rc.chk[k].qty} pç` : `${P.code} · na nota ${n.lines[k].qty} pç. Confirme a quantidade.`, "good"]; render(); scrollTo({top:0, behavior:"smooth"}); return; } } }
+        rc.cur=k; feedback(true); rc.flash=[rc.chk[k] ? `${P.code} já estava conferido · ${rc.chk[k].qty} pç` : `${P.code} · na nota ${n.lines[k].qty} pç. Confirme a quantidade.`, "good"]; render(); scrollTo({top:0, behavior:"smooth"});
+        if(rcNeedMesa(k)) openRcMesa(k); return; } } }
   if(state.rc && !state.rc.tmp && NFS[state.rc.id] && (ci ? NFS[state.rc.id].chave===ci.chave : NFS[state.rc.id].num===String(+onlyDigits(v)))){ feedback(true); state.rc.vols++; state.rc.flash=[`${state.rc.vols} caixa(s) contada(s)`,"good"]; saveConf(); render(); return; }
   let found=[];
   if(ci) found=Object.values(NFS).filter(n=>n.chave===ci.chave || (!n.chave && n.num===ci.num && (!n.cnpj || onlyDigits(n.cnpj)===ci.cnpj)));
@@ -3070,7 +3103,7 @@ function confirmReceb(){
   const lines=(base.lines||[]).map((l,k)=>({qty: rc.chk[k] ? rc.chk[k].qty : l.qty, exp:l.qty})), alloc={};
   (base.lines||[]).forEach((l,k)=>{ let left=lines[k].qty; (l.alloc||[]).forEach(a=>{ const q=Math.min(left, +a.qty||0); alloc[a.oid+":"+a.i]=q; left-=q; }); });
   const div = lines.some(x=>x.qty!==x.exp) || (base.vols && rc.vols!==base.vols);
-  const doc = {...base, conf:null, received:{at:now, by:ME.id||"", vols:rc.vols, expected:base.vols||0, lines, alloc, div}};
+  const doc = {...base, conf:null, received:{at:now, by:ME.id||"", vols:rc.vols, expected:base.vols||0, lines, alloc, div, mesa:{...(rc.mesa||{})}}};
   NFS[doc.id]=doc; if(nfCol) queueWrite("nf-"+doc.id, ()=>nfCol.doc(doc.id).set(JSON.parse(JSON.stringify(doc))));
   toast(`NF ${doc.num} recebida · ${rc.vols} caixa(s)${div?" · com divergência registrada":""}${doc.lines?.length?"":" · Compras será avisado para amarrar"}`);
   state.rc=null; applyReceipt(doc.id); render(); scrollTo(0,0);
@@ -3215,7 +3248,7 @@ function renderOrders(){
         const acts = (can("coleta") ? (o.status==="separando"?2:1) : 0) + (hasRole("admin")?1:0);
         return `<div class="ordwrap acts${acts}"><button class="order ${o.mode==="aguarda"||urgKind(o)?"urgent":""} ${o.naLoja?"urg-loja":o.retira?"urg-retira":""} ${isManual(o)?"manual":""}" data-oid="${esc(o.id)}">
           ${urgBar(o)}
-          <div class="row"><span class="num">#${esc(o.num)}${newIds.has(o.id)&&o.status==="aguardando"?` <span class="chip newc">Novo</span>`:""}${isManual(o)?" "+manualTag(o):""}${reenvioTag(o)}</span>${o.status==="separando"?`<span class="chip prog">Em separação</span>`:o.fase2?`<span class="chip done">Encomenda recebida</span>`:isEco(o)?`<span class="chip eco">${esc(o.origem||"Site")}</span>`:`<span class="chip ${MODES[o.mode].c}">${MODES[o.mode].t}</span>`}</div>
+          <div class="row"><span class="num">#${esc(o.num)}${newIds.has(o.id)&&o.status==="aguardando"?` <span class="chip newc">Novo</span>`:""}${isManual(o)?" "+manualTag(o):""}${reenvioTag(o)}</span>${o.status==="separando"?`<span class="chip prog">Em separação</span>`:o.fase2?`${(()=>{ const m=[...new Set((o.items||[]).map(i=>i.recMesa).filter(Boolean))]; return m.length?`<span class="chip enc">${m.map(mesaName).join(", ")}</span>`:""; })()}<span class="chip done">Encomenda recebida</span>`:isEco(o)?`<span class="chip eco">${esc(o.origem||"Site")}</span>`:`<span class="chip ${MODES[o.mode].c}">${MODES[o.mode].t}</span>`}</div>
           ${o.mzCancelado?`<div class="mzcancel">CANCELADO na Magazord · não enviar</div>`:o.mzMudou?`<div class="mzcancel warn">Situação mudou na Magazord: ${esc(o.mzSituacaoDesc||o.mzSituacao)} · confirme antes de enviar</div>`:""}
           <div class="client">${esc(o.client)}</div>
           <div class="meta tnum"><span>${pl.length} ref. · ${pl.reduce((a,x)=>a+x.need,0)} pç</span>${aisles?`<span>Ruas ${aisles}</span>`:""}${semLoc?`<span style="color:var(--bad)">${semLoc} sem local</span>`:""}${o.status==="separando"&&o.startedAt?`<span>Separando há ${since(o.startedAt)}</span>`:`<span>Na fila há ${since(o.createdAt)}</span>`}${o.tray&&o.status==="separando"?`<span>Bandeja ${esc(o.tray)}</span>`:""}${isEco(o)?transpBadge(o.transportadora):`${transpOf(o)?transpBadge(transpOf(o)):""}`+(o.mode==="aguarda"?`<span>Colmeia ${esc(o.colmeia)}</span>`:`<span>Destino: mesa de expedição</span>`)}${enc?`<span>${enc} ref. sob encomenda</span>`:""}${sepOf(o)?`<span class="sepby">Separador: <b>${esc(USERS[sepOf(o)]?.name||USERS[sepOf(o)]?.login||"—")}</b></span>`:""}</div>
@@ -3739,7 +3772,7 @@ function tvColumn(canal, title){
     <h3>Aguardando separação · ${queue.length}${canal==="ecommerce" && queue.length ? (()=>{ const m={}; queue.forEach(o=>{ const v=o.origem||"Site"; m[v]=(m[v]||0)+1; });
       return ` <span class="tvcanais">(${Object.entries(m).sort((a,b)=>b[1]-a[1]).map(([v,n])=>`${esc(v)} ${n}`).join(" - ")})</span>`; })() : ""}</h3>
     <div class="tvlist fit" data-total="${queue.length}">${queue.slice(0,MAXQ).map((o,k)=>`<div class="tvrow ${urgKind(o)?"tvurg"+(naLojaNow(o)?"":" green"):lvl(wait(o))}"><span class="tvpos tnum">${k+1}</span><span class="tvnum">#${esc(o.num)}${urgKind(o)?` <em class="tvurgtag ${naLojaNow(o)?"":"green"}">${urgText(o)}</em>`:""}${now-(o.createdAt||0)<5*60e3?` <em class="tvnew">NOVO</em>`:""}</span>
-        <span class="tvcli">${esc(o.client)}<small>${pickList(o).length} ref. · ${units(o)} pç · ${isEco(o) ? esc((o.origem||"Site")+(o.transportadora?" · "+o.transportadora:"")) : esc(MODES[o.mode]?.t||"")+(transpOf(o)?" · "+esc(transpOf(o)):"")}</small></span>
+        <span class="tvcli">${esc(o.client)}<small>${o.fase2?`<b>Encomenda chegou${(()=>{ const m=[...new Set((o.items||[]).map(i=>i.recMesa).filter(Boolean))]; return m.length?" · buscar na "+m.map(mesaName).join(", "):""; })()}</b> · `:""}${pickList(o).length} ref. · ${units(o)} pç · ${isEco(o) ? esc((o.origem||"Site")+(o.transportadora?" · "+o.transportadora:"")) : esc(MODES[o.mode]?.t||"")+(transpOf(o)?" · "+esc(transpOf(o)):"")}</small></span>
         <span class="tvtime tnum"><span data-since="${o.createdAt}">${fmtDur(wait(o))}</span></span></div>`).join("") || `<div class="tvnone ok">Fila vazia</div>`}
 </div><div class="tvmore" data-more>${queue.length>MAXQ?`+ ${queue.length-MAXQ} pedidos na fila`:""}</div>
     ${done.length?`<div class="tvdone"><h3>Últimos separados</h3><div class="tvlist small">${done.slice(0,MAXF).map(o=>`<div class="tvrow fin"><span class="tvnum">#${esc(o.num)}</span><span class="tvcli">${esc(o.client)}</span><span class="tvtime tnum">${fmtClock(o.pickedAt)}${o.startedAt?` · ${fmtDur(o.pickedAt-o.startedAt).replace(/ \d+s$/,"")}`:""}</span></div>`).join("")}</div></div>`:""}`}
@@ -3971,6 +4004,13 @@ function logLocScan(o, lc){ try{ const e={lc:code(lc), at:Date.now(), by:ME.id||
 const ecoLoc = (o, it) => !!o && isEco(o) && !!it?.loc;
 const curItem = o => { const pl=o?pickList(o):[]; return pl[state.idx]; };
 const startPhase = o => pickDirect(o) ? "prod" : (CONFIG.useTray && o && !hasTray(o)) ? "tray" : ecoLoc(o, curItem(o)) ? "loc" : "prod";
+/* Encomenda recebida que o conferente deixou numa mesa: o separador bipa a mesa (desvincula) antes de bipar a peça */
+function recMesaScan(o, it, v){
+  const mine = o.items.some(x=>x.recMesa===v);
+  if(!mine) return false;
+  patchItems(o.id, items=>items.forEach(x=>{ if(x.recMesa===v){ x.recMesaFrom=v; delete x.recMesa; } }));
+  feedback(true); render(); const m=[`${mesaName(v)} desvinculada. ${state.phase==="tray" ? "Agora bipe a sua bandeja (ou mesa)." : "Bipe a peça."}`,"good"]; setMsg(...m); setTimeout(()=>setMsg(...m), 120); return true;
+}
 const LOCGO = l => `<div class="locgo">Pegue no local <b>${code(l)}</b></div>`;
 const freeTray = o => TRAYS.find(t=>!trayBusy(t, o.id));
 const LOCOK = l => `<div class="locok"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Endereço <b>${code(l)}</b> confirmado</div>`;
@@ -4043,6 +4083,8 @@ function renderPick(){
     ${o.mzCancelado?`<div class="mzcancel big">Pedido CANCELADO na Magazord · pare a separação e devolva as peças</div>`:o.mzMudou?`<div class="mzcancel big warn">A situação deste pedido mudou na Magazord para "${esc(o.mzSituacaoDesc||o.mzSituacao)}" · confirme com o responsável antes de continuar</div>`:""}
     ${urgBar(o,"margin-top:8px")}
     ${o.fase2 && toHive(o) ? `<div class="directbar hivebar">Encomenda chegou · no fim, guarde ${o.colmeia?`na colmeia <b>${esc(o.colmeia.slice(3))}</b>, junto com o que já está lá (ou bipe outra)`:"numa <b>colmeia</b>: você escolhe uma livre ou junta com outra pré-venda"}. O cliente retira lá.</div>` : ""}
+    ${o.fase2 && pl.some(x=>x.recMesa) ? `<div class="directbar">Encomenda que chegou: as peças estão na <b>${[...new Set(pl.map(x=>x.recMesa).filter(Boolean))].map(m=>esc(mesaName(m))).join(", ")}</b>, onde o conferente deixou. Busque lá e <b>bipe a etiqueta da mesa</b> para desvincular.</div>` : ""}
+    ${o.fase2 && !toHive(o) && o.colmeia ? `<div class="directbar hivebar">Este pedido tem peças guardadas na <b>colmeia ${esc(o.colmeia.slice(3))}</b> aguardando a encomenda. Busque lá também e finalize tudo na sua mesa.</div>` : ""}
     ${pickDirect(o) ? `<div class="directbar">Conferência no local: bipe <b>cada peça</b> no endereço, coloque na sacola e entregue direto ao vendedor. Não vai para a mesa.</div>` : ""}
     ${adjPending(o) ? `<div class="adjbar" style="margin-top:8px">PRÉ-VENDA AJUSTADA PELO COMERCIAL · as peças que faltam já estão com a quantidade nova. Depois de terminar, o ajuste (${esc(adjSummary(o.adj))}) aparece no topo da fila.</div>` : ""}
     ${state.lote && loteMatch(o) ? `<div class="lotebadge">Lote · ${esc(state.lote.vals.join(" · "))} · ${lotePending().length} restante(s)</div>` : ""}
@@ -4056,8 +4098,10 @@ function renderPick(){
       ${elevSVG(l)}
     </div>` : `<div class="loc noloc">
       <div class="grow"><div class="eyebrow">Local</div>
-        ${it.recv ? `<div class="loc-code">Área de recebimento</div>
-        <div class="noloc-t">Encomenda que chegou${o.nfRecebida?` na <b>NF ${esc(o.nfRecebida)}</b>`:""}. Pegue a peça <b class="tnum">${esc(it.code)}</b> nas caixas recebidas e bipe normalmente.</div></div>`
+        ${it.recv && it.recMesa ? `<div class="loc-code">${esc(mesaName(it.recMesa))}</div>
+        <div class="noloc-t">Encomenda que chegou${o.nfRecebida?` na <b>NF ${esc(o.nfRecebida)}</b>`:""}. O conferente deixou separada na <b>${esc(mesaName(it.recMesa))}</b>: <b>bipe a etiqueta da mesa</b> para desvincular e depois bipe a peça <b class="tnum">${esc(it.code)}</b>.</div></div>`
+        : it.recv ? `<div class="loc-code">${it.recMesaFrom ? esc(mesaName(it.recMesaFrom))+" · retirada" : "Área de recebimento"}</div>
+        <div class="noloc-t">Encomenda que chegou${o.nfRecebida?` na <b>NF ${esc(o.nfRecebida)}</b>`:""}. ${it.recMesaFrom ? `Peça retirada da ${esc(mesaName(it.recMesaFrom))}: bipe` : `Pegue a peça <b class="tnum">${esc(it.code)}</b> nas caixas recebidas e bipe`} normalmente.</div></div>`
         : `<div class="loc-code">Sem local cadastrado</div>
         <div class="noloc-t">Procure o produto no estoque pelo código <b class="tnum">${esc(it.code)}</b> e bipe a peça normalmente. Depois avise o estoque para cadastrar o local.</div></div>`}
     </div>`}
@@ -4186,7 +4230,10 @@ function finishAtMesa(o){
     state.view="store"; render(); scrollTo(0,0); setMsg(o.colmeia ? `Guarde na colmeia ${o.colmeia.slice(3)} (onde o pedido já está) ou bipe outra` : "Bipe a colmeia onde vai guardar o pedido","info"); return;
   }
   if(pickDirect(o)){ patchOrder(o.id, {status:"pronto_envio", remessa:1, pickedAt:now, pickedBy:ME.id||"", conferidoLocal:true, res:r}); state.view="done"; render(); scrollTo(0,0); return; }
-  patchOrder(o.id, {status:"pronto_envio", remessa: o.fase2 && o.mode==="parcial" ? 2 : 1, pickedAt:now, atMesaAt:now, pickedBy:ME.id||"", receivedBy:ME.id||"", res:r, ...(hasTray(o)?{trayStatus:"mesa"}:{})});
+  const cmOut = o.fase2 && o.colmeia ? o.colmeia : "";
+  patchOrder(o.id, {status:"pronto_envio", remessa: o.fase2 && o.mode==="parcial" ? 2 : 1, pickedAt:now, atMesaAt:now, pickedBy:ME.id||"", receivedBy:ME.id||"", res:r, ...(hasTray(o)?{trayStatus:"mesa"}:{}),
+    ...(cmOut ? {colmeia:null, hist:[...(o.hist||[]), {t:now, by:ME.id||"", ev:`Encomenda chegou: peças retiradas da colmeia ${cmOut.slice(3)} e pedido finalizado na mesa`}]} : {})});
+  if(cmOut) toast(`Colmeia ${cmOut.slice(3)} liberada · confira se trouxe as peças que estavam lá`);
   state.view="done"; render(); scrollTo(0,0);
 }
 function renderTrays(){
@@ -4335,6 +4382,8 @@ function handleScan(raw){
       return setMsg(`Item que estava em falta encontrado. Conte ${pl0[k].need} pç no total e confirme.`,"good"); }
   }
   if(state.phase==="loc" && !it.loc) state.phase = startPhase(o);
+  if(o.fase2 && isMesa(v) && recMesaScan(o, it, v)) return;
+  if(o.fase2 && it.recMesa && (isProd || isTrayCode(v))){ feedback(false); return setMsg(`Esta peça está na ${mesaName(it.recMesa)}, onde o conferente deixou. Bipe primeiro a etiqueta da ${mesaName(it.recMesa)}.`,"bad"); }
   if(state.phase==="loc" && ecoLoc(o,it) && (v===code(it.loc) || isProd)){ // e-commerce: endereço (ou o próprio produto) confirma o item
     if(!isProd) logLocScan(o, it.loc); feedback(true); state.phase="qty"; state.count=it.need; render(); setMsg(`${isProd?"Produto":"Endereço"} confirmado. Pegue ${it.need} pç, coloque na bandeja e confirme.`,"good"); return;
   }
