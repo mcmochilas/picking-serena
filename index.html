@@ -2104,7 +2104,7 @@ function renderCompras(){
   const done = ORDERS.filter(o=>!isEco(o) && hasEnc(o) && encArrived(o) && o.status!=="excluido").sort((a,b)=>(b.arrivedAt||0)-(a.arrivedAt||0)).slice(0,60);
   const allIt = open.flatMap(o=>encItems(o).map(x=>({...x, o}))), falta = allIt.filter(x=>compraSt(x)==="falta"||compraSt(x)==="parcial"), aguard = allIt.filter(x=>["pedido","parcial","faturado","fatparc"].includes(compraSt(x))), late = aguard.filter(x=>prazoInfo(x)?.c==="bad");
   const q = (state.cQ||"").trim().toLowerCase();
-  const match = o => !q || [o.num,o.client,o.seller,...(o.items||[]).map(i=>i.code+" "+i.name)].join(" ").toLowerCase().includes(q);
+  const match = o => !q || fz([o.num,o.client,o.seller,...(o.items||[]).map(i=>i.code+" "+i.name)].join(" "), q);
   const purch = Object.values(PURCHASES).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   let body;
   if(tab==="decidir"){
@@ -2123,7 +2123,7 @@ function renderCompras(){
       : `<div class="empty">${q?"Nada encontrado para essa busca.":"Nenhum item encomendado aguardando chegada."}</div>`;
   } else if(tab==="notas"){
     const nfs=Object.values(NFS).sort((a,b)=>(b.importedAt||b.createdAt||0)-(a.importedAt||a.createdAt||0)), qn=q.toUpperCase();
-    const rows=nfs.filter(n=>!qn || (n.num+" "+n.forn+" "+(n.lines||[]).map(l=>l.code+" "+l.name).join(" ")).toUpperCase().includes(qn)), pgn=pageOf(rows,"cpnf",15);
+    const rows=nfs.filter(n=>!qn || fz(n.num+" "+n.forn+" "+(n.lines||[]).map(l=>l.code+" "+l.name).join(" "), qn)), pgn=pageOf(rows,"cpnf",15);
     body = rows.length ? `${pgn.top}<div class="cpcard"><div class="cptwrap"><table class="cptab cpnf"><thead><tr><th>NF</th><th>Fornecedor</th><th>Importada</th><th class="r">Itens</th><th>Amarração</th><th>Situação</th><th></th></tr></thead><tbody>
       ${pgn.items.map(n=>{ const L=n.lines||[], am=L.filter(l=>(l.alloc||[]).length).length, pv=new Set(L.flatMap(l=>(l.alloc||[]).map(a=>a.oid))).size;
         return `<tr><td><b class="mono">${esc(n.num)}</b></td><td>${esc(n.forn||"—")}</td><td class="tnum">${new Date(n.importedAt||n.createdAt||0).toLocaleDateString("pt-BR")}</td><td class="r tnum">${L.length||"—"}</td>
@@ -2506,7 +2506,7 @@ function openPurchaseImport(){
     const best=all.filter(p=>p.sc>0).sort((a,b)=>b.sc-a.sc), rest=all.filter(p=>!(p.sc>0)).sort((a,b)=>(a.o.createdAt||0)-(b.o.createdAt||0));
     return `<option value="">Escolher pré-venda…</option>${best.filter(p=>p.sc>=100).length?`<optgroup label="Mesmo item (SKU ${esc(l.sku)})">${best.filter(p=>p.sc>=100).map(opt).join("")}</optgroup>`:""}${best.filter(p=>p.sc<100).length?`<optgroup label="Parecidos com este item">${best.filter(p=>p.sc<100).map(opt).join("")}</optgroup>`:""}${rest.length?`<optgroup label="Todas as encomendas em aberto">${rest.map(opt).join("")}</optgroup>`:""}`; };
   const draw=()=>{
-    const q=S.q.trim().toLowerCase(), vis=S.lines.map((l,j)=>({l,j})).filter(({l})=>(!q || (l.code+" "+l.name+" "+(l.ped||"")).toLowerCase().includes(q)) && (!S.onlyLinked || (l.links||[]).length));
+    const q=S.q.trim().toLowerCase(), vis=S.lines.map((l,j)=>({l,j})).filter(({l})=>(!q || fz(l.code+" "+l.name+" "+(l.ped||""), q)) && (!S.onlyLinked || (l.links||[]).length));
     const nLinked=S.lines.filter(l=>(l.links||[]).some(k=>k.oid)).length;
     ov.innerHTML=`<div class="mbox xwide" role="dialog" aria-modal="true" aria-label="Importar pedido do fornecedor"><h2>Importar pedido do fornecedor</h2>
       <p>Envie o PDF do pedido ou do relatório de pedidos em aberto do fornecedor. Depois, nos itens que são encomenda de cliente, escolha a pré-venda. Itens sem vínculo ficam como compra para estoque.</p>
@@ -3025,7 +3025,7 @@ function renderNfEdit(){
   /* ----- coluna esquerda: itens da nota ----- */
   const leftRows = () => { const q=E.qL.trim().toUpperCase();
     let rows=N.lines.map((l,j)=>({l,j, sc: selE ? (l.sku && l.sku===selE.x.code ? 50 : 0) + rcSim(l.name, selE.x.name) : 0}));
-    if(q) rows=rows.filter(r=>(r.l.code+" "+r.l.name+" "+(r.l.sku||"")).toUpperCase().includes(q));
+    if(q) rows=rows.filter(r=>fz(r.l.code+" "+r.l.name+" "+(r.l.sku||""), q));
     if(E.fL==="amar") rows=rows.filter(r=>used(r.l)); else if(E.fL==="estq") rows=rows.filter(r=>!used(r.l)); else if(E.fL==="sug") rows=rows.filter(r=>sugCount[r.j]);
     if(selE) rows.sort((a,b)=>b.sc-a.sc);
     const pg=pageOf(rows, "naL", 20);
@@ -3045,7 +3045,7 @@ function renderNfEdit(){
       <div class="naic"><button type="button" class="chip dest ${destTxt(c.o)?"":"need"}" data-nadest="${c.o.id}" title="Para onde vai quando a encomenda chegar">${destTxt(c.o) || "Destino? definir"}</button><span class="chip">encomenda ${c.x.qtyEnc} pç</span>${mine?`<span class="chip enc">${mine} pç nesta nota</span>`:""}${left>0?`<span class="chip need">faltam ${left} pç</span>`:`<span class="chip done">completa</span>`}
         ${selL ? `<button class="mini nabtn on" data-naadd="${c.key}">Amarrar${left>0?` · ${Math.min(left, Math.max(0,selL.qty-used(selL))) || ""}`:""}</button>` : ""}</div></div>`; };
   const rightBody = () => { const q=E.qR.trim().toUpperCase();
-    const match = c => !q || (c.o.num+" "+c.o.client+" "+c.x.code+" "+c.x.name).toUpperCase().includes(q);
+    const match = c => !q || fz(c.o.num+" "+c.o.client+" "+c.x.code+" "+c.x.name, q);
     if(selL){ const u=used(selL), has=new Set((selL.alloc||[]).map(a=>a.oid+":"+a.i)), cs=cands(selL).filter(x=>!has.has(x.c.key)), sugKeys=new Set(cs.map(x=>x.c.key));
       const others=encAll.filter(c=>!has.has(c.key) && !sugKeys.has(c.key) && match(c)).sort((a,b)=>(encLeft(b)>0)-(encLeft(a)>0) || (a.o.createdAt||0)-(b.o.createdAt||0));
       const sug=cs.filter(x=>match(x.c));
@@ -3272,7 +3272,7 @@ function openRcLink(P){
   const ov=document.createElement("div"); ov.className="modal"; document.body.appendChild(ov); scanbar.hidden=true;
   const close=()=>{ ov.remove(); render(); };
   const draw=()=>{ const free=n.lines.map((l,k)=>({l,k,sc:rcSim(P.name,l.name)})).filter(x=>!rcSku(n,x.k) && !rc.chk[x.k]);
-    const f=q.trim().toUpperCase(), list=(f ? free.filter(x=>(x.l.code+" "+x.l.name).toUpperCase().includes(f)) : free).sort((a,b)=>b.sc-a.sc).slice(0, f?40:8);
+    const f=q.trim().toUpperCase(), list=(f ? free.filter(x=>fz(x.l.code+" "+x.l.name, f)) : free).sort((a,b)=>b.sc-a.sc).slice(0, f?40:8);
     ov.innerHTML=`<div class="mbox rclink" role="dialog" aria-modal="true" aria-label="Relacionar produto ao item da nota"><h2>Qual item da nota é este?</h2>
       <div class="rclp"><b class="mono">${esc(P.code)}</b> ${esc(P.name)}</div>
       <p class="muted-s">Este produto ainda não está relacionado a um item desta nota. Toque no item certo: o sistema guarda e reconhece sozinho nas próximas notas.</p>
@@ -3496,14 +3496,14 @@ function hiveListHTML(hive, pgKey, pgSize){
     ${pend.map(o=>`<div class="hvpendi"><span class="grow"><b class="mono">#${esc(o.num)}</b> ${esc(o.client)}<small>${o.hvNext==="pronto_envio"?"Cliente vai retirar":"Aguardando encomenda"} · salva há ${since(o.createdAt)}</small></span>${canHiveStore()?`<button class="btn primary sm" data-hvloc="${esc(o.id)}">Bipar colmeia</button>`:""}</div>`).join("")}</div>` : ""}
   <div class="hvsearch"><input class="tin" id="hvQ" type="search" placeholder="Pré-venda, cliente, SKU ou produto" value="${esc(state.hvQ||"")}" autocomplete="off"></div>
       ${(()=>{ const q=hvNorm(state.hvQ).trim(), toks=q?q.split(/\s+/):[];
-        const list = toks.length ? hive.filter(o=>toks.every(t=>hvHay(o).includes(t))) : hive;
+        const list = toks.length ? hive.filter(o=>fz(hvHay(o), q)) : hive;
         if(!hive.length) return `<div class="empty">Nenhum pedido nas colmeias.</div>`;
         if(!list.length) return `<div class="empty">Nenhum pedido encontrado para “${esc(state.hvQ)}”.</div>`;
         const pg = pgKey ? pageOf(list, pgKey, pgSize||10) : {items:list, top:"", pager:""};
         return `${pg.top}<div class="list" style="margin-top:0">${pg.items.map(o=>{ const items=o.items||[], enc=items.filter(i=>i.qtyEnc>0);
         const eta=enc.map(i=>i.eta).filter(Boolean).sort()[0];
-        const hitIt = toks.length ? items.map((it,i)=>toks.every(t=>hvNorm([it.code,it.name,it.ean].join(" ")).includes(t))?i:-1).filter(i=>i>=0) : [];
-        const head = hvNorm([o.num,o.client].join(" ")), open = (state.hvExp||[]).includes(o.id) || (hitIt.length>0 && !toks.every(t=>head.includes(t)) && !(state.hvClosed||[]).includes(o.id));
+        const hitIt = toks.length ? items.map((it,i)=>fz([it.code,it.name,it.ean].join(" "), q)?i:-1).filter(i=>i>=0) : [];
+        const head = hvNorm([o.num,o.client].join(" ")), open = (state.hvExp||[]).includes(o.id) || (hitIt.length>0 && !fz(head, q) && !(state.hvClosed||[]).includes(o.id));
         const stale = staleOrders().includes(o);
         return `<div class="li sep hvli ${stale?"stale":""}" style="cursor:default"><span class="lc tnum">${esc((o.colmeia||"—").replace(/^CM-/,""))}</span><span class="ln">#${esc(o.num)} · ${esc(o.client)}${stale?` <button class="chip bad stchip" data-stchk="${esc(o.colmeia)}" title="Conferir se o pedido ainda está na colmeia">Parado há ${staleAge(o)} dias · conferir</button>`:""}<small>${heldPartial(o) ? `<b>Aguardando o restante da encomenda</b> · ${encStoredQty(o)} pç guardada(s) aqui · faltam ${encRestQty(o)} pç` : o.status==="pronto_envio" ? `<b class="ok-t">${o.mode==="aguarda"||o.fase2?"Encomenda chegou · pronto":"Pronto"} para ${o.retira||o.naLoja?"o cliente retirar":"enviar"}</b>${transpOf(o)&&!(o.retira||o.naLoja)?" · "+esc(transpOf(o)):""}` : o.aguardaOutraPv?`<b>Aguardando a pré-venda da encomenda${o.outraPv?" "+esc(o.outraPv):""}</b>`:o.hiveManual && !enc.length?`Cadastrada na colmeia${o.obs?" · "+esc(o.obs):""}`:`${enc.reduce((s,i)=>s+i.qtyEnc,0)} pç sob encomenda${eta?" · chega "+fmtDate(eta):""}`}</small>${items.length?xpBtn(`data-hvexp="${esc(o.id)}"`, open, `Ver itens da pré-venda (${items.length})`, "Ocultar itens"):""}${hasRole("admin")?`<button type="button" class="lnk hvedbtn" data-hved="${esc(o.id)}">Editar itens</button>`:""}</span>
           ${o.status==="na_mesa" && (can("mesa")||can("coleta")) ? `<button class="mini" data-hive="${esc(o.id)}">Guardar</button>`
@@ -3528,6 +3528,19 @@ function bindHiveList(){
 const hiveOrders = () => ORDERS.filter(o=>inHive(o) || (usesHive(o) && o.status==="pronto_envio")).sort((a,b)=>(a.colmeia||"").localeCompare(b.colmeia||""));
 /* Colmeias: busca e itens da pré-venda */
 const hvNorm = t => String(t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+/* Busca por aproximação, usada em todos os buscadores: cada palavra digitada precisa aparecer, em qualquer ordem, sem acento e sem
+   diferença de maiúscula; palavras de 4+ letras aceitam 1 letra trocada/faltando/sobrando (2 a partir de 8). Números só por trecho exato. */
+const fzWords = t => hvNorm(t).split(/[^a-z0-9]+/).filter(Boolean);
+function fzNear(a, b, max){ if(Math.abs(a.length-b.length)>max) return false; let prev=Array.from({length:b.length+1},(_,j)=>j);
+  for(let i=1;i<=a.length;i++){ const cur=[i]; let best=i; for(let j=1;j<=b.length;j++){ cur[j]=Math.min(prev[j]+1, cur[j-1]+1, prev[j-1]+(a[i-1]===b[j-1]?0:1)); if(cur[j]<best) best=cur[j]; } if(best>max) return false; prev=cur; }
+  return prev[b.length]<=max; }
+const fzPh = w => w.replace(/ph/g,"f").replace(/y/g,"i").replace(/k/g,"c").replace(/w/g,"v").replace(/(.)\1+/g,"$1"); // som parecido: fenix = phenix
+function fzTok(t, hay, words){ if(hay.includes(t)) return true; if(t.length<4 || /^\d+$/.test(t)) return false; const max=t.length>=8?2:1, tp=fzPh(t);
+  return words.some(w=>{ const wp=fzPh(w); return wp.includes(tp) || fzNear(wp,tp,max) || (wp.length>tp.length && fzNear(wp.slice(0,tp.length),tp,max)); }); }
+function fz(text, q){ const toks=fzWords(q); if(!toks.length) return true; const hay=hvNorm(text), words=fzWords(text), flat=hay.replace(/[^a-z0-9]/g,"");
+  return toks.every(t=>fzTok(t, hay, words) || flat.includes(t)); }
+/* ordem: resultado com mais palavras exatas primeiro */
+function fzScore(text, q){ const toks=fzWords(q), hay=hvNorm(text), words=fzWords(text); return toks.reduce((s,t)=>s+(words.includes(t)?3:words.some(w=>w.startsWith(t))?2:hay.includes(t)?1:0),0); }
 const hvHay = o => hvNorm([o.num, o.client, (o.colmeia||"").slice(3), ...(o.items||[]).flatMap(it=>[it.code,it.name,it.ean,...(it.compra?.links||[]).map(l=>l.ped)])].join(" "));
 function hvItemHTML(o, it, hit){
   const enc=it.qtyEnc||0, stock=it.qty-enc, parts=[], cm=(o.colmeia||"").slice(3);
@@ -3560,7 +3573,7 @@ function renderOrders(){
   const histAll = [...VIS.filter(inHistory), ...DELETED.filter(ecoOk)].sort((a,b)=>(b.deletedAt||b.pickedAt||0)-(a.deletedAt||a.pickedAt||0));
   // Separados: filtro por canal e busca (número ou cliente)
   const hCanal = eco && cons ? (state.histCanal||"todos") : "todos", hq = hvNorm(state.histQ||"").trim();
-  const hist = histAll.filter(o=> (hCanal==="todos" || (hCanal==="ecommerce") === isEco(o)) && (!hq || hq.split(/\s+/).every(t=>hvNorm([o.num,o.client,o.mzNum||""].join(" ")).includes(t))));
+  const hist = histAll.filter(o=> (hCanal==="todos" || (hCanal==="ecommerce") === isEco(o)) && (!hq || fz([o.num,o.client,o.mzNum||"",o.codigoMarketplace||""].join(" "), hq)));
   const canEditOrd = hasRole("admin");
   const units = queue.reduce((s,o)=>s+pickList(o).reduce((a,x)=>a+x.need,0),0);
   const tabs = [["fila","Separação",queue.length+parked.length],["colmeias","Colmeias · encomenda",hive.length],["historico","Histórico",hist.length]];
@@ -5380,8 +5393,8 @@ function bindCalor(){
 /* ---- Localizar produto: bipe (EAN, código ou etiqueta do endereço) ou digite código/descrição; mostra o endereço no mapa 3D ou 2D ---- */
 function lzMatches(q){ const Q=String(q||"").trim().toUpperCase(); if(!Q) return [];
   const ex=Object.values(PRODUCTS).filter(p=>p.code===Q || (p.ean && p.ean===Q));
-  const rest=Object.values(PRODUCTS).filter(p=>!ex.includes(p) && (p.code.includes(Q) || (p.ean||"").includes(Q) || p.name.toUpperCase().includes(Q)));
-  return [...ex, ...rest.sort((a,b)=>a.code.localeCompare(b.code))].slice(0,40); }
+  const rest=Object.values(PRODUCTS).filter(p=>!ex.includes(p) && fz(p.code+" "+p.name+" "+(p.ean||""), Q));
+  return [...ex, ...rest.sort((a,b)=>fzScore(b.code+" "+b.name,Q)-fzScore(a.code+" "+a.name,Q) || a.code.localeCompare(b.code))].slice(0,40); }
 function lzSugHTML(q){ const ms=lzMatches(q).slice(0,8); // sugestões enquanto digita (escolhe um e some)
   return ms.map((p,i)=>`<button type="button" class="lzopt ${i?"":"hi"}" data-lz="${esc(p.code)}"><b class="mono">${esc(p.code)}</b><span>${esc(p.name)}</span></button>`).join("") || `<div class="lzopt none">Nenhum produto encontrado</div>`; }
 function lzTarget(){ const sel=state.lzSel; if(!sel) return null;
@@ -5568,7 +5581,7 @@ function blockPreview(f){
 }
 function locPanelHTML(){
   const lc = state.selLoc, l=parseLoc(lc), ps=locProducts(lc), p=ps[0], multi=multiLoc(lc), q=(state.locQ||"").trim().toUpperCase();
-  const matches = q ? Object.values(PRODUCTS).filter(x=>x.code.includes(q) || x.name.toUpperCase().includes(q) || (x.ean||"").includes(q)).slice(0,8) : [];
+  const matches = q ? Object.values(PRODUCTS).filter(x=>fz(x.code+" "+x.name+" "+(x.ean||""), q)).sort((a,b)=>fzScore(b.code+" "+b.name,q)-fzScore(a.code+" "+a.name,q)).slice(0,8) : [];
   return `<div class="filters" style="justify-content:space-between"><h2>Local</h2><button class="mini" id="newBlock">+ Criar estrutura</button></div>
     <div class="store-code" style="font-size:30px">${lc}</div>
     <div class="meta"><span>Rua R${l.r}</span><span>Lado ${l.l}</span><span>${LOC_TYPES[l.t]}</span><span>Nível ${l.n}</span><span>Coluna ${l.c}</span></div>
@@ -5625,7 +5638,7 @@ function produtosHTML(){
   const q=(state.prodQ||"").trim().toUpperCase(), f=state.prodF||"todos";
   const all=Object.values(PRODUCTS).sort((a,b)=>a.code.localeCompare(b.code));
   const noEan=all.filter(p=>!p.ean).length, noLoc=all.filter(p=>!p.loc).length;
-  const list=all.filter(p=>(!q || p.code.includes(q) || p.name.toUpperCase().includes(q) || (p.ean||"").includes(q)) && (f==="todos" || (f==="sem-ean"&&!p.ean) || (f==="sem-end"&&!p.loc)));
+  const list=all.filter(p=>(!q || fz(p.code+" "+p.name+" "+(p.ean||""), q)) && (f==="todos" || (f==="sem-ean"&&!p.ean) || (f==="sem-end"&&!p.loc)));
   const pg=pageOf(list, "prod", 50);
   return `<section class="panel" style="margin-top:14px">
     <div class="prodcsv">${csvPanelHTML()}</div>
@@ -5910,7 +5923,7 @@ function labelSet(){
 function genEan(){ const used=new Set(Object.values(PRODUCTS).map(p=>p.ean).filter(Boolean));
   for(let k=0;k<200;k++){ const e=ean13("200"+String(Math.floor(Math.random()*1e9)).padStart(9,"0")); if(!used.has(e)) return e; } return ""; }
 function eanPickHTML(){ const q=(state.lblPq||"").trim().toUpperCase(), sel=state.lblPsel||{}, nSel=Object.keys(sel).length;
-  const res = q ? Object.values(PRODUCTS).filter(p=>!sel[p.code] && (p.code+" "+p.name+" "+(p.ean||"")).toUpperCase().includes(q)).sort((a,b)=>a.code.localeCompare(b.code)).slice(0,30) : [];
+  const res = q ? Object.values(PRODUCTS).filter(p=>!sel[p.code] && fz(p.code+" "+p.name+" "+(p.ean||""), q)).sort((a,b)=>fzScore(b.code+" "+b.name,q)-fzScore(a.code+" "+a.name,q) || a.code.localeCompare(b.code)).slice(0,30) : [];
   const row=(p,inSel)=>{ const st=eanState(p.ean), ok=st.c==="done";
     return `<div class="eprow ${inSel?"on":""}"><label class="chk"><input type="checkbox" data-epsel="${esc(p.code)}" ${inSel?"checked":""}><span><b class="mono">${esc(p.code)}</b> ${esc(p.name)}<small class="mono">${ok?esc(p.ean)+(p.eanInt?" · interno":""):`<span class="${st.c==="bad"?"bad-s":"muted-s"}">${esc(st.t)}</span>`}</small></span></label>
       ${ok?"":`<button class="mini" data-epgen="${esc(p.code)}">Gerar EAN</button>`}${inSel?`<input class="tinput r" type="number" min="1" max="500" data-epq="${esc(p.code)}" value="${sel[p.code]||1}" aria-label="Quantidade de etiquetas de ${esc(p.code)}" title="Etiquetas">`:""}</div>`; };
@@ -6797,7 +6810,7 @@ function chMsgsHTML(list){
 function renderChamados(){
   const C=chState(); if(!C.loaded && !C.loading && !C.err) chLoad();
   const th=C.threads||[], fe=C.features||[], pend=fe.filter(f=>!f.done), done=fe.filter(f=>f.done);
-  const q=hvNorm(C.q).trim(), list=th.filter(t=>(!C.only || (t.tags||[]).includes("nova_funcao")) && (!q || q.split(/\s+/).every(w=>hvNorm([t.title,t.user,t.screen].join(" ")).includes(w))));
+  const q=hvNorm(C.q).trim(), list=th.filter(t=>(!C.only || (t.tags||[]).includes("nova_funcao")) && (!q || fz([t.title,t.user,t.screen].join(" "), q)));
   const pg=pageOf(list, "chamados", 20);
   let body;
   if(C.err) body=`<div class="err">${esc(C.err)}</div>`;
