@@ -6016,8 +6016,9 @@ const unlockAudio = () => { try{ audioCtx ||= new (window.AudioContext||window.w
   const p=audioCtx.resume?.(); if(p && p.then) p.then(()=>{ if(audioCtx.state==="running" && (state.view==="tv" || myRole()==="painel")){ tvVoiceLoad().then(ok=>{ if(ok) tvPlay([["ligado",0]]); else tvSay("Aviso de voz ligado."); }); render(); } }, ()=>{}); }catch(e){} };
 /* qualquer toque/tecla (inclusive o OK do controle da TV) libera o som; não é "once" porque o primeiro toque pode não bastar em alguns navegadores */
 document.addEventListener("pointerdown", unlockAudio); document.addEventListener("keydown", unlockAudio);
-function chime(force){
+function chime(force, keepStale){
   if(!SOUND && !force) return;
+  if(!keepStale){ tvStaleStop(); TV_PRIO_UNTIL=Date.now()+2500; }
   try{ unlockAudio(); const c=audioCtx, t0=c.currentTime;
     [[880,0],[1175,.16],[1568,.32],[880,.9],[1175,1.06],[1568,1.22]].forEach(([f,dt])=>{ const o=c.createOscillator(), g=c.createGain(); o.type="triangle"; o.frequency.value=f;
       g.gain.setValueAtTime(0.0001,t0+dt); g.gain.exponentialRampToValueAtTime(.45,t0+dt+.02); g.gain.exponentialRampToValueAtTime(.0001,t0+dt+.28);
@@ -6066,11 +6067,21 @@ function tvVoiceLoad(){
     .catch(e=>{ console.warn("Voz gravada da TV não carregou; usando a voz do navegador", e); TVV.p=null; return false; });
   return TVV.p;
 }
-function tvPlay(parts){ // [[trecho, pausa depois (s)], ...] em sequência, sem sobrepor um aviso no outro
+function tvPlay(parts, tag){ // [[trecho, pausa depois (s)], ...] em sequência, sem sobrepor um aviso no outro
   const c=audioCtx; let t=Math.max(c.currentTime+.05, TVV.until);
-  parts.forEach(([n,gap])=>{ const b=TVV.buf&&TVV.buf[n]; if(!b) return; const s=c.createBufferSource(); s.buffer=b; s.connect(c.destination); s.start(t); t+=b.duration+(gap||0); });
+  parts.forEach(([n,gap])=>{ const b=TVV.buf&&TVV.buf[n]; if(!b) return; const s=c.createBufferSource(); s.buffer=b; s.connect(c.destination); s.start(t); if(tag==="stale") STALE_SRC.push(s); t+=b.duration+(gap||0); });
   TVV.until=t+.6;
 }
+/* O aviso de pedido parado tem a menor prioridade: para na hora se tocar o sinal de novo pedido ou a voz do Cliente na loja */
+let STALE_SRC=[], STALE_NATIVE=false, TV_PRIO_UNTIL=0;
+function tvStaleStop(){
+  if(STALE_SRC.length){ STALE_SRC.forEach(s=>{ try{ s.stop(); }catch(e){} }); STALE_SRC=[]; try{ TVV.until=audioCtx.currentTime; }catch(e){} }
+  if(STALE_NATIVE){ try{ speechSynthesis.cancel(); }catch(e){} STALE_NATIVE=false; }
+}
+const tvVoiceFree = () => Date.now()>TV_PRIO_UNTIL && (!audioCtx || audioCtx.currentTime>=TVV.until) && !(window.speechSynthesis && speechSynthesis.speaking);
+/* Horário do aviso de pedido parado: segunda a sexta, 08:00–12:00 e 13:30–18:30 */
+const STALE_HOURS=[[8*60,12*60],[13*60+30,18*60+30]];
+function staleTalkTime(d=new Date()){ const wd=d.getDay(); if(wd<1 || wd>5) return false; const m=d.getHours()*60+d.getMinutes(); return STALE_HOURS.some(([a,b])=>m>=a && m<b); }
 /* Número da pré-venda falado em grupos: 37526 → "trinta e sete, quinhentos e vinte e seis"; 38038 → "trinta e oito, zero trinta e oito"; 90001 → "noventa, zero zero um" */
 const NUM_U=["zero","um","dois","três","quatro","cinco","seis","sete","oito","nove","dez","onze","doze","treze","quatorze","quinze","dezesseis","dezessete","dezoito","dezenove"];
 const NUM_D=["","","vinte","trinta","quarenta","cinquenta","sessenta","setenta","oitenta","noventa"];
@@ -6099,6 +6110,7 @@ function pvClips(num){
 /* Aviso falado sempre com a voz gravada do backend (tts/tv). Só se ela não carregar usa a voz do navegador. */
 function tvHasVoice(){ try{ return !!window.speechSynthesis && speechSynthesis.getVoices().length>0; }catch(e){ return false; } }
 async function tvAnnounce(num){
+  tvStaleStop(); TV_PRIO_UNTIL=Date.now()+8000;
   try{ if(audioCtx && audioCtx.state!=="running") await Promise.race([audioCtx.resume(), new Promise(ok=>setTimeout(ok,800))]); }catch(e){}
   const ok = await Promise.race([tvVoiceLoad(), new Promise(r=>setTimeout(()=>r(false),4000))]);
   let via;
@@ -6126,22 +6138,30 @@ function tvAnnounceTick(){
   setTimeout(()=>due.forEach(o=>tvAnnounce(o.num)), 1700); // toque de atenção e depois a voz
 }
 setInterval(tvAnnounceTick, 5000);
-/* Pedido parado na colmeia: a TV fala a cada 5 minutos, um pedido de cada vez, até alguém conferir */
-const STALE_SAID={};
+/* Pedido parado na colmeia: a TV fala a cada 5 minutos, um pedido de cada vez, até alguém conferir.
+   Só no horário de trabalho e nunca por cima do sinal de novo pedido ou da voz do Cliente na loja */
+const STALE_SAID={}; let staleCueAt=0;
 function tvStaleTick(){
   if(!(state.view==="tv" || myRole()==="painel")) return;
   const now=Date.now(), st=staleOrders(), ids=new Set(st.map(o=>o.id)); Object.keys(STALE_SAID).forEach(k=>{ if(!ids.has(k)) delete STALE_SAID[k]; });
-  const due=st.filter(o=>!STALE_SAID[o.id] || now-STALE_SAID[o.id]>=300000); if(!due.length) return;
-  due.forEach(o=>STALE_SAID[o.id]=now);
-  chime(true); due.forEach((o,i)=>setTimeout(()=>tvStaleSay(o), 1700+i*400));
+  if(!st.length || !staleTalkTime() || !tvVoiceFree()) return;
+  // Cliente na loja tem prioridade: se algum está esperando e o aviso dele vence nos próximos segundos, espera
+  const loja=ORDERS.filter(o=>o.status==="aguardando" && naLojaNow(o) && !o.startedBy && pickList(o).length);
+  if(loja.some(o=>!TV_SAID[o.id] || now-TV_SAID[o.id]>=45000)) return;
+  const o=st.find(x=>!STALE_SAID[x.id] || now-STALE_SAID[x.id]>=300000); if(!o) return;
+  STALE_SAID[o.id]=now;
+  const cue = now-staleCueAt>60000; if(cue){ staleCueAt=now; chime(true, true); }
+  TV_PRIO_UNTIL=0; setTimeout(()=>{ if(tvVoiceFree() || cue) tvStaleSay(o); else delete STALE_SAID[o.id]; }, cue?1700:0);
 }
-setInterval(tvStaleTick, 15000);
+setInterval(tvStaleTick, 5000);
 async function tvStaleSay(o){
   const hv=o.colmeia.slice(3), L=hv[0], n=+hv.slice(1)||0, d=staleAge(o);
   try{ if(audioCtx && audioCtx.state!=="running") await Promise.race([audioCtx.resume(), new Promise(ok=>setTimeout(ok,800))]); }catch(e){}
   const ok = await Promise.race([tvVoiceLoad(), new Promise(r=>setTimeout(()=>r(false),4000))]);
-  if(ok && audioCtx && audioCtx.state==="running" && TVV.buf["l"+L]){ tvPlay([["cfpc",.08],["l"+L,.03], ...numClips(n).map(c=>[c,.03]).map((x,i,a)=>i===a.length-1?[x[0],.3]:x), ["maisde",.04], ...numClips(d).map(c=>[c,.04]), [d===1?"diaar":"diasar",0]]); }
-  else tvSay(`Confira o pedido na colmeia ${hv}. Mais de ${d} ${d===1?"dia":"dias"} aguardando retirada ou envio.`);
+  if(Date.now()<TV_PRIO_UNTIL) return; // chegou um aviso mais importante enquanto carregava
+  STALE_SRC=[];
+  if(ok && audioCtx && audioCtx.state==="running" && TVV.buf["l"+L]){ tvPlay([["cfpc",.08],["l"+L,.03], ...numClips(n).map(c=>[c,.03]).map((x,i,a)=>i===a.length-1?[x[0],.3]:x), ["maisde",.04], ...numClips(d).map(c=>[c,.04]), [d===1?"diaar":"diasar",0]], "stale"); }
+  else { tvSay(`Confira o pedido na colmeia ${hv}. Mais de ${d} ${d===1?"dia":"dias"} aguardando retirada ou envio.`); STALE_NATIVE=true; }
   TVV.last={num:o.num, at:Date.now(), via:"colmeia "+hv}; const el=document.getElementById("tvLast"); if(el) el.textContent=tvLastTxt();
 }
 function checkNewOrders(){
