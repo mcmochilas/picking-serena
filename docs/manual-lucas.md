@@ -342,7 +342,7 @@ Aba **Locais**: endereços dos produtos, EAN e etiquetas.
 ## 9b. Pedido parado na colmeia
 Pedido **pronto na colmeia** (aguardando o cliente retirar ou o envio) há mais dias do que o configurado é considerado **parado** (pedido aguardando encomenda não conta).
 - **Configuração** (Administrador → Usuários → Configuração): **Avisar depois de X dias** (padrão 7; 0 desliga). O campo mostra quantos pedidos estão parados agora.
-- **TV**: faixa vermelha "⚠ Conferir colmeia" com a colmeia, o pedido e os dias, e a voz gravada diz "Confira o pedido na colmeia (letra e número). Mais de (dias) dias aguardando retirada ou envio." **A cada 5 minutos**, até alguém conferir.
+- **TV**: faixa vermelha "⚠ Conferir colmeia" com a colmeia, o pedido e os dias, e a voz gravada diz "Confira o pedido na colmeia (letra e número). Mais de (dias) dias aguardando retirada ou envio." **A cada 5 minutos**, até alguém conferir. A voz só fala de **segunda a sexta, 08:00–12:00 e 13:30–18:30** (fora disso só a faixa aparece) e nunca por cima do sinal de novo pedido ou da voz do Cliente na loja: se um deles tocar, o aviso do pedido parado é cortado e volta depois. Vários pedidos parados são falados um de cada vez.
 - **Conferir**: **qualquer pessoa** bipa a etiqueta da colmeia em qualquer tela (inclusive na TV) e abre **Colmeia X · conferir**: **Está aqui** (o aviso para e o prazo recomeça), **Cliente retirou** ou **Foi enviado** (registra a saída esquecida e libera a colmeia). Fica no histórico do pedido.
 - Na lista das colmeias (Comercial e aba Colmeias) o pedido parado mostra a etiqueta vermelha **Parado há X dias · conferir**, que abre a mesma janela.
 
