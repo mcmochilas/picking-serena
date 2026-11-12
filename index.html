@@ -4067,10 +4067,10 @@ const cur = () => { const o=ORDERS.find(x=>x.id===state.oid); if(!o) return null
 const scanCode = it => it.ean || it.code;
 const hasTray = o => !!o.tray && o.trayStatus==="separando";
 /* ---- Pedido parado na colmeia: pronto para retirar/enviar há mais de N dias (Administrador configura) ---- */
-const cfgData = () => ({useTray:CONFIG.useTray, binStacks:binStacks(), staleDays:CONFIG.staleDays??3});
+const cfgData = () => ({useTray:CONFIG.useTray, binStacks:binStacks(), staleDays:CONFIG.staleDays??7});
 const staleRef = o => Math.max(+o.staleOkAt||0, +o.storedAt||0, +o.atMesaAt||0, +o.pickedAt||0) || +o.createdAt || 0;
 const staleAge = o => Math.floor((Date.now()-staleRef(o))/864e5);
-function staleOrders(){ const n=+(CONFIG.staleDays??3); if(!n) return [];
+function staleOrders(){ const n=+(CONFIG.staleDays??7); if(!n) return [];
   return ORDERS.filter(o=>o.status==="pronto_envio" && o.colmeia && staleAge(o)>=n).sort((a,b)=>staleRef(a)-staleRef(b)); }
 const staleIn = hv => staleOrders().filter(o=>o.colmeia===hv);
 /* Qualquer pessoa bipa a colmeia e diz se o pedido ainda está lá */
@@ -4092,7 +4092,7 @@ function openStaleCheck(hv){
       colmeiaSaida(o, b.dataset.how); o.status="enviado"; feedback(true); setTimeout(draw, 50); }); };
   draw(); return true;
 }
-let CONFIG = {requireLoc:false, useTray:true, binStacks:[6,4], staleDays:3}, cfgDoc = null; // configuração da separação
+let CONFIG = {requireLoc:false, useTray:true, binStacks:[6,4], staleDays:7}, cfgDoc = null; // configuração da separação
 /* Venda consultiva · Envio total · Cliente na loja: conferência peça por peça no local, sem bandeja e sem mesa; vai na sacola direto para o vendedor */
 const pickDirect = o => !!o && !isEco(o) && !!o.naLoja && o.mode==="total" && !o.fase2;
 /* E-commerce: o separador bipa a etiqueta do ENDEREÇO (não o produto), confirma a quantidade e leva para a mesa */
@@ -5806,7 +5806,7 @@ function renderUsuarios(){
         <p class="hint">Uma bandeja vinculada não pode ser usada em outro pedido até ser desvinculada.</p>
         <h3>Pedido parado na colmeia</h3>
         <p class="hint">Pedido pronto (aguardando o cliente retirar ou o envio) que está na colmeia há mais tempo que isto aparece na TV com aviso de voz a cada 5 minutos, até alguém bipar a colmeia e confirmar se ele ainda está lá. Use 0 para desligar.</p>
-        <div class="cfgrow"><label>Avisar depois de <input class="tin mono" id="cfgStale" type="number" min="0" max="60" value="${CONFIG.staleDays??3}" style="width:80px"> dias</label><span class="hint">${staleOrders().length} pedido(s) parado(s) agora</span></div>
+        <div class="cfgrow"><label>Avisar depois de <input class="tin mono" id="cfgStale" type="number" min="0" max="60" value="${CONFIG.staleDays??7}" style="width:80px"> dias</label><span class="hint">${staleOrders().length} pedido(s) parado(s) agora</span></div>
         <h3>Estantes (mapa 3D)</h3>
         <p class="hint">Cada <b>nível</b> do endereço é uma caixa bin, contando de baixo para cima. A 1ª prateleira (perto do chão) é de caixas de reposição e não conta. Informe quantas caixas cabem empilhadas em cada prateleira, de baixo para cima, separadas por vírgula. Ex.: <b>6, 4</b> = níveis 1–6 na 2ª prateleira e 7–10 na 3ª.</p>
         <div class="cfgrow"><label>Caixas bin por prateleira <input class="tin mono" id="cfgBinStk" value="${esc(binStacks().join(", "))}" placeholder="6, 4" style="width:120px"></label>
@@ -6837,7 +6837,7 @@ render();
   if(userCap){ const me = await userCap.me(); ME = {id:me.id, name:me.name, isOwner:me.isOwner, avatarUrl:me.avatarUrl}; }
   if(!db){ synced=false; authReady=true; rerender(); return; }
   cfgDoc = db.doc("config/picking");
-  cfgDoc.onSnapshot(snap=>{ const d=snap.exists?snap.data():null; CONFIG = {requireLoc:false, useTray: d?.useTray ?? true, binStacks: Array.isArray(d?.binStacks) && d.binStacks.length ? d.binStacks : (d?.binStack ? Array(d.binShelves||2).fill(d.binStack) : [6,4]), staleDays: d?.staleDays ?? 3}; rerender(); }, ()=>{ cfgDoc=null; });
+  cfgDoc.onSnapshot(snap=>{ const d=snap.exists?snap.data():null; CONFIG = {requireLoc:false, useTray: d?.useTray ?? true, binStacks: Array.isArray(d?.binStacks) && d.binStacks.length ? d.binStacks : (d?.binStack ? Array(d.binShelves||2).fill(d.binStack) : [6,4]), staleDays: d?.staleDays ?? 7}; rerender(); }, ()=>{ cfgDoc=null; });
   db.doc("config/magazord_sync").onSnapshot(snap=>{ MZSYNC = snap.exists ? JSON.parse(JSON.stringify(snap.data())) : null; if(state.sector==="usuarios") rerender(); }, ()=>{});
   transpDoc = db.doc("config/transportadoras");
   transpDoc.onSnapshot(snap=>{ const l=snap.exists?snap.data()?.list:null; TRANSP = l && typeof l==="object" ? JSON.parse(JSON.stringify(l)) : {}; rerender(); }, ()=>{ transpDoc=null; });
