@@ -1802,6 +1802,16 @@ const tkShell = (inner, sub="Saída da colmeia") => `<header class="bar"><div cl
 /* ---- Modo link do celular (#rc=código): conferência de UMA nota fiscal, sem login ---- */
 const RC_TK = window.psRc?.token || null;
 const rcByQR = () => !!window.psRc && innerWidth>=900 && !matchMedia("(pointer: coarse)").matches; // no computador: continua no celular pelo QR
+/* Celular sem login: a nota foi carregada quando o link abriu. Compras pode amarrar pré-vendas depois disso,
+   então antes de confirmar (e a cada 1 min) busca de novo a nota e os pedidos, mantendo a conferência feita no celular */
+async function rcRefresh(){
+  if(!RC_TK || !state.rc) return;
+  try{ const r=await window.psRc.info(RC_TK); if(!r || r.error || !r.nf) return;
+    const id=r.nf.id, cur=NFS[id]; NFS[id]={...r.nf, conf: cur?.conf || r.nf.conf || null};
+    if(r.orders) ORDERS=[...(r.orders||[]).map(normalize), ...(r.hive||[])];
+  }catch(e){}
+}
+setInterval(()=>{ if(RC_TK && state.rc && !document.querySelector(".modal")) rcRefresh().then(()=>{ if(state.rc) render(); }); }, 60000);
 async function rcW(table, id, data){ const r = await window.psRc.write(RC_TK, table, id, data); if(!r || r.error) throw new Error(r?.error || "Falha ao salvar"); }
 const rcAdapter = table => ({ doc: id => ({ set: d => rcW(table, id, d), update: p => rcW(table, id, p) }) });
 async function askReceb(n){
@@ -2969,7 +2979,7 @@ function saveNf(N){
   const id=nfId(N), prev=NFS[id], now=Date.now();
   const doc={ id, chave:N.chave||"", num:N.num, serie:N.serie||"", emissao:N.emissao||"", cnpj:N.cnpj||"", forn:String(N.forn).trim(), vols:N.vols||0,
     lines:N.lines.map(l=>({code:l.code, name:l.name, qty:l.qty, un:l.un||"", ped:l.ped||"", sku:l.sku||"", alloc:(l.alloc||[]).filter(a=>+a.qty>0).map(a=>({oid:a.oid, i:a.i, qty:+a.qty}))})),
-    received: prev?.received || null, createdAt: prev?.createdAt||now, importedAt:now, importedBy:ME.id||"" };
+    received: prev?.received || null, conf: prev?.conf || null, createdAt: prev?.createdAt||now, importedAt:now, importedBy:ME.id||"" };
   // nota já recebida: refaz a divisão do que chegou entre as pré-vendas amarradas agora (o conferido de cada item vai primeiro para as pré-vendas, o resto para estoque)
   if(doc.received){ const R={...doc.received}, same=(R.lines||[]).length===doc.lines.length, alloc={};
     doc.lines.forEach((l,k)=>{ let left = same ? +R.lines[k].qty||0 : l.qty; l.alloc.forEach(a=>{ const q=Math.min(left, +a.qty||0); alloc[a.oid+":"+a.i]=q; left-=q; }); });
@@ -3063,7 +3073,7 @@ function renderReceb(){
   if(g("rcMinus")) g("rcMinus").onclick=()=>{ state.rc.vols=Math.max(0,state.rc.vols-1); saveConf(); render(); };
   if(g("rcPlus")) g("rcPlus").onclick=()=>{ state.rc.vols++; saveConf(); render(); };
   if(g("rcBack")) g("rcBack").onclick=()=>{ const n=NFS[state.rc.id]; if(n && !n.received && (state.rc.vols || Object.keys(state.rc.chk).length)){ saveConf(); toast("Conferência salva"); } state.rc=null; render(); };
-  if(g("rcOk")) g("rcOk").onclick=confirmReceb;
+  if(g("rcOk")) g("rcOk").onclick=async()=>{ if(RC_TK){ const b=g("rcOk"); b.disabled=true; b.textContent="Conferindo a nota…"; await rcRefresh(); } confirmReceb(); };
   app.querySelectorAll("[data-rcok]").forEach(b=>b.onclick=()=>{ const k=+b.dataset.rcok, q=+(app.querySelector(`[data-rcq="${k}"]`)?.value)||0; state.rc.chk[k]={...(state.rc.chk[k]?.bip?{bip:1}:{}), qty:Math.max(0,q)}; if(state.rc.cur===k) state.rc.cur=null; delete state.rc.flash; saveConf(); render(); if(rcNeedMesa(k)) openRcMesa(k); });
   app.querySelectorAll("[data-rcq]").forEach(rcGuardQty);
   if(g("rcBoxOk")) g("rcBoxOk").onclick=()=>{ state.rc.boxOk=true; delete state.rc.flash; saveConf(); render(); scrollTo(0,0); };
@@ -3136,7 +3146,9 @@ function rcGuardQty(i){ let b="", t0=0, v0="", tm; // leitura do coletor com o c
     if(e.key.length===1){ if(!b){ t0=performance.now(); v0=i.value; } b+=e.key; tm=setTimeout(()=>{ if(b.length>=6 && (performance.now()-150-t0)/b.length<60){ const c=b; b=""; i.value=v0; i.blur(); handleScan(c); } else b=""; },150); } }; }
 // grava o andamento da conferência na própria nota (outra pessoa ou outro aparelho pode continuar)
 function saveConf(){ const rc=state.rc; if(!rc) return; const now=Date.now(), base=NFS[rc.id] || {...rc.tmp, createdAt:now}; if(base.received) return;
-  const doc={...base, conf:{vols:rc.vols, chk:rc.chk, boxOk:!!rc.boxOk, sku:rc.sku||{}, mesa:rc.mesa||{}, at:now, by:ME.id||""}}; NFS[doc.id]=doc; if(nfCol) queueWrite("nf-"+doc.id, ()=>nfCol.doc(doc.id).set(JSON.parse(JSON.stringify(doc)))); }
+  const conf={vols:rc.vols, chk:rc.chk, boxOk:!!rc.boxOk, sku:rc.sku||{}, mesa:rc.mesa||{}, at:now, by:ME.id||""}, doc={...base, conf}, isNew=!NFS[rc.id]; NFS[doc.id]=doc;
+  // grava só a conferência: os itens e a amarração que Compras fizer enquanto isso não são apagados
+  if(nfCol) queueWrite("nf-"+doc.id, ()=> isNew ? nfCol.doc(doc.id).set(JSON.parse(JSON.stringify(doc))) : nfCol.doc(doc.id).update(JSON.parse(JSON.stringify({conf})))); }
 /* Conferência: bipar o EAN (ou o código) de um produto da nota marca o item como chegado, com a quantidade da nota; o conferente ajusta se veio diferente */
 function rcLineOf(n, v){ const P=Object.values(PRODUCTS).find(p=>p.ean && p.ean===v) || PRODUCTS[v] || null;
   return (n.lines||[]).findIndex(l=>(l.ean && l.ean===v) || String(l.code||"").toUpperCase()===v || (l.sku && (String(l.sku).toUpperCase()===v || (P && P.code===l.sku))) || (P && P.code===l.code)); }
@@ -3171,7 +3183,8 @@ function confirmReceb(){
   (base.lines||[]).forEach((l,k)=>{ let left=lines[k].qty; (l.alloc||[]).forEach(a=>{ const q=Math.min(left, +a.qty||0); alloc[a.oid+":"+a.i]=q; left-=q; }); });
   const div = lines.some(x=>x.qty!==x.exp) || (base.vols && rc.vols!==base.vols);
   const doc = {...base, conf:null, received:{at:now, by:ME.id||"", vols:rc.vols, expected:base.vols||0, lines, alloc, div, mesa:{...(rc.mesa||{})}}};
-  NFS[doc.id]=doc; if(nfCol) queueWrite("nf-"+doc.id, ()=>nfCol.doc(doc.id).set(JSON.parse(JSON.stringify(doc))));
+  const isNew=!NFS[rc.id]; NFS[doc.id]=doc;
+  if(nfCol) queueWrite("nf-"+doc.id, ()=> isNew ? nfCol.doc(doc.id).set(JSON.parse(JSON.stringify(doc))) : nfCol.doc(doc.id).update(JSON.parse(JSON.stringify({conf:null, received:doc.received}))));
   toast(`NF ${doc.num} recebida${div?" · com divergência":""}`);
   state.rc=null; applyReceipt(doc.id); render(); scrollTo(0,0);
 }
