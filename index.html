@@ -555,7 +555,10 @@ details.cpcard summary{display:flex;justify-content:space-between;align-items:ce
 .hintbox.warnbox{border-color:var(--bad);background:var(--bad-soft);color:var(--ink);margin:10px 0}
 .etq{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;margin-top:14px;align-items:start}
 .etqcfg{display:flex;flex-direction:column;gap:18px}.etqcfg .filters{margin:0}
-.etqmodes{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))!important}
+.etqmodes{grid-template-columns:repeat(auto-fit,minmax(0,1fr))!important;gap:8px!important}
+.etqmodes .mode{padding:9px 11px;gap:0;min-width:0;position:relative}.etqmodes .mode input{position:absolute;opacity:0;pointer-events:none}.etqmodes .mode:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}.etqmodes .mode span{min-width:0}.etqmodes .mode b{font-size:13px;line-height:1.25;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.etqmodes .mode small{font-size:11.5px;line-height:1.35;display:block}
+.etqfmt{padding-top:12px;border-top:1px solid var(--line)}.etqcfg .etqfmt{padding-top:0;border-top:0}
+@media (max-width:560px){.etqmodes{grid-template-columns:1fr!important}}
 .etqout{display:flex;flex-direction:column;gap:12px}
 .etqsum{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding-bottom:12px;border-bottom:1px solid var(--line)}
 .etqsum .totals{display:flex;gap:22px}.etqsum .totals small{display:block;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em}.etqsum .totals b{font-size:28px;line-height:1.1}
@@ -6023,6 +6026,14 @@ function etiquetasHTML(){
   const sumHTML = `<div class="etqsum"><div class="totals"><div><small>Etiquetas</small><b class="tnum">${set.length}</b></div>${fmt==="a4"?`<div><small>Folhas A4</small><b class="tnum">${Math.ceil(set.length/24)}</b></div>`:fmt==="solo"?`<div><small>Folhas A4</small><b class="tnum">${Math.ceil(set.length/(SOLO.cols*SOLO.rows))}</b></div>`:fmt==="loca4"?`<div><small>Folhas A4</small><b class="tnum">${Math.ceil(set.length/10)}</b></div>`:fmt==="loc3"?`<div><small>Etiquetas 10 × 15</small><b class="tnum">${Math.ceil(set.length/3)}</b></div>`:fmt==="ean2"?`<div><small>Linhas no rolo</small><b class="tnum">${Math.ceil(set.length/2)}</b></div>`:""}</div>
         <button class="btn dark" id="genPdf" ${set.length?"":"disabled"}>Gerar PDF para imprimir</button></div>
       <p class="hint">${set.length ? `Imprima em tamanho real (100%), sem "ajustar à página".` : t==="produtos" ? "Marque os produtos à esquerda para imprimir." : "Nada para imprimir com esses filtros."}</p>`;
+  const fmtHTML = `<div class="etqfmt"><h3>Formato</h3><div class="modes etqmodes" style="margin-top:8px">
+        ${solo?`<label class="mode"><input type="radio" name="fmt" value="solo" checked><span><b>Folha A4 · 56 por folha</b><small>5 × 2 cm · recortar e colar</small></span></label>`:isLoc?`<label class="mode"><input type="radio" name="fmt" value="loc3" ${fmt==="loc3"?"checked":""}><span><b>Térmica 10 × 15 cm</b><small>3 endereços por etiqueta</small></span></label>
+        <label class="mode"><input type="radio" name="fmt" value="loca4" ${fmt==="loca4"?"checked":""}><span><b>Folha A4</b><small>10 endereços por folha</small></span></label>`:`
+        ${t==="produtos"?`<label class="mode"><input type="radio" name="fmt" value="ean2" ${fmt==="ean2"?"checked":""}><span><b>Térmica 2 colunas</b><small>40×25 · igual ao Full</small></span></label>`:""}
+        <label class="mode"><input type="radio" name="fmt" value="termica" ${fmt==="termica"?"checked":""}><span><b>Térmica 100×50</b><small>1 por etiqueta · rolo</small></span></label>
+        <label class="mode"><input type="radio" name="fmt" value="a4" ${fmt==="a4"?"checked":""}><span><b>Folha A4 · 3×8</b><small>24 por folha · 70×37</small></span></label>
+        ${t==="mesas"||t==="cestas"?`<label class="mode"><input type="radio" name="fmt" value="placa" ${fmt==="placa"?"checked":""}><span><b>Placa A4</b><small>1 por folha · para fixar</small></span></label>`:""}`}
+      </div></div>`;
   const side = t==="produtos" || t==="mesas" || t==="cestas", nPrev = side ? 6 : isLoc ? 6 : solo ? 12 : 10; // com lista para escolher: prévia ao lado; sem: prévia larga embaixo
   return `<div class="etq ${side?"side":"stack"}">
     <section class="panel etqcfg">
@@ -6033,17 +6044,11 @@ function etiquetasHTML(){
         ${solo?`<label class="chk"><input type="checkbox" id="lblFree" ${state.lblOnlyFree?"checked":""}> Só endereços sem produto</label>`:`<label class="chk"><input type="checkbox" id="lblUsed" ${state.lblOnlyUsed?"checked":""}> Só endereços com produto</label>`}</div>`:""}</div>
       ${t==="mesas"||t==="cestas"?spotsAdminHTML(t):""}
       ${t==="produtos"?eanPickHTML():""}
-      <div><h3>Formato</h3><div class="modes etqmodes" style="margin-top:8px">
-        ${solo?`<label class="mode"><input type="radio" name="fmt" value="solo" checked><span><b>Folha A4 · 56 por folha</b><small>Etiquetas de 5 × 2 cm (4 na largura × 14 na altura) em impressora comum, para recortar e colar de forma provisória.</small></span></label>`:isLoc?`<label class="mode"><input type="radio" name="fmt" value="loc3" ${fmt==="loc3"?"checked":""}><span><b>Térmica 10 × 15 cm · 3 por etiqueta</b><small>Cada etiqueta de 10 × 15 cm sai com 3 endereços de 10 × 5 cm, com linha de corte.</small></span></label>
-        <label class="mode"><input type="radio" name="fmt" value="loca4" ${fmt==="loca4"?"checked":""}><span><b>Folha A4 · 10 por folha</b><small>Endereços de 10 × 5 cm em impressora comum, para recortar.</small></span></label>`:`
-        ${t==="produtos"?`<label class="mode"><input type="radio" name="fmt" value="ean2" ${fmt==="ean2"?"checked":""}><span><b>Térmica 2 colunas · 40 × 25 mm</b><small>Igual à etiqueta do Full: duas etiquetas por linha, impressora térmica de rolo.</small></span></label>`:""}
-        <label class="mode"><input type="radio" name="fmt" value="termica" ${fmt==="termica"?"checked":""}><span><b>Térmica 100 × 50 mm</b><small>Uma etiqueta por página, para impressoras de rolo (Zebra, Argox, Elgin).</small></span></label>
-        <label class="mode"><input type="radio" name="fmt" value="a4" ${fmt==="a4"?"checked":""}><span><b>Folha A4 · 3 × 8</b><small>24 etiquetas de 70 × 37 mm por folha, impressora comum.</small></span></label>
-        ${t==="mesas"||t==="cestas"?`<label class="mode"><input type="radio" name="fmt" value="placa" ${fmt==="placa"?"checked":""}><span><b>Placa A4 deitada</b><small>Uma por folha, letra e código de barras grandes, para fixar no local.</small></span></label>`:""}`}
-      </div></div>
+      ${side?"":fmtHTML}
     </section>
     <aside class="panel etqout">${sumHTML}<h3>Prévia${set.length?` · ${Math.min(nPrev,set.length)} de ${set.length}`:""}</h3>${!set.length?`<div class="etqempty">A prévia aparece aqui.</div>`:""}
       ${solo?`<p class="hint">Cada local: 5 × 2 cm (56 por folha A4: 4 na largura × 14 na altura). O código de barras é o do <b>endereço</b>: use em <b>Vincular produto</b> (bipe o produto e depois esta etiqueta) para amarrar o produto ao local.</p><div class="sologrid">${set.slice(0,nPrev).map(locSoloHTML).join("")}</div>`:isLoc?`<p class="hint">Cada local: 10 × 5 cm (3 por etiqueta de 10 × 15 cm). O código de barras é o do produto (EAN, ou o código interno quando não há EAN), que o separador bipa no local.</p><div class="llgrid">${set.slice(0,side?4:nPrev).map(locLabelHTML).join("")}</div>`:fmt==="ean2"?`<p class="hint">Duas etiquetas de 40 × 25 mm por linha, como a do Full.</p><div class="eangrid" id="eanPrev"></div>`:`<div class="labels">${set.slice(0,nPrev).map(l=>`<div class="label"><div class="lb">${esc(l.big)}</div><div class="lt">${esc(l.small)}</div>${l.sub?`<div class="lt" style="font-weight:400">${esc(l.sub)}</div>`:""}<svg class="bc" data-v="${esc(l.value)}" data-f="${l.fmt}"></svg></div>`).join("")}</div>`}
+      ${side?fmtHTML:""}
     </aside></div>`;
 }
 function bindEtiquetas(){
