@@ -552,6 +552,7 @@ details.cpcard summary{display:flex;justify-content:space-between;align-items:ce
 .tourb{display:flex;justify-content:space-between;align-items:center;margin-top:12px}.tourb span{display:flex;gap:6px}.tourb .mini.on{background:var(--accent);border-color:var(--accent);color:#1A1405}
 @media (prefers-reduced-motion:reduce){.tourhole,.tourtip{transition:none}}
 .bar.nahdr .btn.cpbtn{height:38px;min-height:38px;padding:0 16px;font-size:14px;border-radius:10px}
+.hintbox.warnbox{border-color:var(--bad);background:var(--bad-soft);color:var(--ink);margin:10px 0}
 .pvdest{margin-top:12px;display:flex;flex-direction:column;gap:6px}.pvdest .seg button{flex:1}
 .chip.dest{cursor:pointer;border:1px dashed currentColor}.chip.dest.need{color:var(--bad);background:var(--bad-soft)}
 .pvenc .mact .btn{flex:none;width:auto;min-height:38px;height:38px;padding:0 16px;font-size:14px;border-radius:10px}
@@ -4059,15 +4060,15 @@ const ICON_SKIP = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" s
 const ICON_RESTART = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>`;
 const ICON_TRASH = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>`;
 /* Janela simples de confirmação, com campo de texto opcional (obrigatório quando input.min) */
-function askModal({title, text, okText="Confirmar", danger=false, input=null, tone=""}){
+function askModal({title, text, okText="Confirmar", danger=false, input=null, tone="", cancelText="Cancelar", safeNo=false}){
   return new Promise(resolve=>{
     const ov=document.createElement("div"); ov.className="modal";
     ov.innerHTML=`<div class="mbox ${tone==="bad"?"mbad":""}" role="dialog" aria-modal="true" aria-label="${esc(title)}"><h2>${tone==="bad"?`<span class="mbadic" aria-hidden="true">!</span>`:""}${esc(title)}</h2>${text?`<p>${text}</p>`:""}
       ${input?`<textarea id="mIn" rows="3" placeholder="${esc(input.placeholder||"")}"></textarea><div class="merr" id="mErr"></div>`:""}
-      <div class="mact"><button class="btn ghost" id="mNo">Cancelar</button><button class="btn ${danger?"danger":"primary"}" id="mOk">${esc(okText)}</button></div></div>`;
+      <div class="mact"><button class="btn ${safeNo?"primary":"ghost"}" id="mNo">${esc(cancelText)}</button><button class="btn ${safeNo?"ghost":danger?"danger":"primary"}" id="mOk">${esc(okText)}</button></div></div>`;
     document.body.appendChild(ov); scanbar.hidden=true;
     const done=v=>{ ov.remove(); render(); resolve(v); };
-    const inp=ov.querySelector("#mIn"); (inp||ov.querySelector("#mOk")).focus();
+    const inp=ov.querySelector("#mIn"); (inp||ov.querySelector(safeNo?"#mNo":"#mOk")).focus();
     ov.querySelector("#mNo").onclick=()=>done(null);
     ov.onclick=e=>{ if(e.target===ov) done(null); };
     ov.querySelector("#mOk").onclick=()=>{ if(!input) return done(true); const v=inp.value.trim();
@@ -4109,7 +4110,7 @@ function tvColumn(canal, title){
     <h3>Aguardando separação · ${queue.length}${canal==="ecommerce" && queue.length ? (()=>{ const m={}; queue.forEach(o=>{ const v=o.origem||"Site"; m[v]=(m[v]||0)+1; });
       return ` <span class="tvcanais">(${Object.entries(m).sort((a,b)=>b[1]-a[1]).map(([v,n])=>`${esc(v)} ${n}`).join(" - ")})</span>`; })() : ""}</h3>
     <div class="tvlist fit" data-total="${queue.length}">${queue.slice(0,MAXQ).map((o,k)=>`<div class="tvrow ${urgKind(o)?"tvurg"+(naLojaNow(o)?"":" green"):lvl(wait(o))}"><span class="tvpos tnum">${k+1}</span><span class="tvnum">#${esc(o.num)}${urgKind(o)?` <em class="tvurgtag ${naLojaNow(o)?"":"green"}">${urgText(o)}</em>`:""}${now-(o.createdAt||0)<5*60e3?` <em class="tvnew">NOVO</em>`:""}</span>
-        <span class="tvcli">${esc(o.client)}<small>${o.fase2?`<b>${o.encParcial?"Parte da encomenda chegou · guardar na colmeia":"Encomenda chegou"}${(()=>{ const m=[...new Set((o.items||[]).map(i=>i.recMesa).filter(Boolean))]; return m.length?" · buscar na "+m.map(mesaName).join(", "):""; })()}</b> · `:""}${pickList(o).length} ref. · ${units(o)} pç · ${isEco(o) ? esc((o.origem||"Site")+(o.transportadora?" · "+o.transportadora:"")) : esc(MODES[o.mode]?.t||"")+(transpOf(o)?" · "+esc(transpOf(o)):"")}</small></span>
+        <span class="tvcli">${esc(o.client)}<small>${o.fase2?`<b>${o.encParcial?"Parte da encomenda chegou · guardar na colmeia"+(o.colmeia?" "+o.colmeia.slice(3)+" (junto com as outras peças)":""):"Encomenda chegou"}${(()=>{ const m=[...new Set((o.items||[]).map(i=>i.recMesa).filter(Boolean))]; return m.length?" · buscar na "+m.map(mesaName).join(", "):""; })()}</b> · `:""}${pickList(o).length} ref. · ${units(o)} pç · ${isEco(o) ? esc((o.origem||"Site")+(o.transportadora?" · "+o.transportadora:"")) : esc(MODES[o.mode]?.t||"")+(transpOf(o)?" · "+esc(transpOf(o)):"")}</small></span>
         <span class="tvtime tnum"><span data-since="${o.createdAt}">${fmtDur(wait(o))}</span></span></div>`).join("") || `<div class="tvnone ok">Fila vazia</div>`}
 </div><div class="tvmore" data-more>${queue.length>MAXQ?`+ ${queue.length-MAXQ} pedidos na fila`:""}</div>
     ${done.length?`<div class="tvdone"><h3>Últimos separados</h3><div class="tvlist small">${done.slice(0,MAXF).map(o=>`<div class="tvrow fin"><span class="tvnum">#${esc(o.num)}</span><span class="tvcli">${esc(o.client)}</span><span class="tvtime tnum">${fmtClock(o.pickedAt)}${o.startedAt?` · ${fmtDur(o.pickedAt-o.startedAt).replace(/ \d+s$/,"")}`:""}</span></div>`).join("")}</div></div>`:""}`}
@@ -4611,6 +4612,12 @@ function commit(status){
 }
 
 /* ================== Guardar na colmeia ================== */
+/* peças desta pré-venda que já estão na colmeia antes desta guarda (pronta entrega guardada aguardando a encomenda, ou parte da encomenda) */
+function hivePrev(o){ if(!o.colmeia || !o.fase2) return false;
+  const P=o.encPrev||{}, st=P.status||"";
+  return encStoredQty(o)>0 || (o.encParcial ? ["na_colmeia","pronto_envio"].includes(st) && (P.mode==="aguarda" || st==="na_colmeia") : o.mode==="aguarda" && (o.items||[]).some(it=>it.qty>(it.qtyEnc||0))); }
+function hivePrevTxt(o){ const parts=(o.items||[]).map(it=>{ const stock=Math.max(0,it.qty-(it.qtyEnc||0)), es=+it.encStored||0, n=stock+es; return n>0?`${esc(it.code)} ×${n}`:""; }).filter(Boolean);
+  return parts.length ? ` (${parts.join(", ")})` : ""; }
 function renderStore(){
   const o = ORDERS.find(x=>x.id===state.oid); if(!o){ state.view="orders"; return render(); }
   const r=res(o), pl=pickList(o), got=pl.reduce((s,x)=>s+r[x.i].got,0), need=pl.reduce((s,x)=>s+x.need,0);
@@ -4622,7 +4629,8 @@ function renderStore(){
       <div class="store-code${o.colmeia?"":" sm"}">${o.colmeia ? esc(o.colmeia) : "Bipe a colmeia"}</div>
       <div class="meta tnum"><span>${got} de ${need} peças separadas</span><span>${o.fase2 && o.encParcial ? "Fica aguardando o restante da encomenda" : o.mode==="aguarda" && !o.fase2 ? "Fica aguardando a encomenda" : "Fica aguardando o cliente retirar"}</span></div>
       <div class="hivebig">${hiveHTML(o.colmeia)}</div>
-      <div class="instr">${ICON_SCAN}<div>${o.colmeia ? `O pedido já está na colmeia <b>${esc(o.colmeia.slice(3))}</b>: coloque as peças lá e bipe a etiqueta. Se for guardar em outra, bipe a outra colmeia.` : `Escolha uma colmeia, coloque as peças e <b>bipe a etiqueta da colmeia</b> para finalizar. Pode ser uma que já tem outra pré-venda: elas ficam juntas.`}</div></div>
+      ${hivePrev(o) ? `<div class="hintbox warnbox"><b>Atenção: esta pré-venda já tem peças na colmeia ${esc(o.colmeia.slice(3))}</b>${hivePrevTxt(o)}. Guarde estas peças junto, na mesma colmeia.</div>` : ""}
+      <div class="instr">${ICON_SCAN}<div>${o.colmeia && hivePrev(o) ? `Leve as peças para a colmeia <b>${esc(o.colmeia.slice(3))}</b>, onde já estão as outras peças desta pré-venda, e bipe a etiqueta dela.` : o.colmeia ? `O pedido já está na colmeia <b>${esc(o.colmeia.slice(3))}</b>: coloque as peças lá e bipe a etiqueta. Se for guardar em outra, bipe a outra colmeia.` : `Escolha uma colmeia, coloque as peças e <b>bipe a etiqueta da colmeia</b> para finalizar. Pode ser uma que já tem outra pré-venda: elas ficam juntas.`}</div></div>
       <button class="demo" id="sim">Simular leitura da colmeia (demo)</button>
     </div>`;
   document.getElementById("back").onclick = ()=>{ state.view = state.fromMesa ? "mesa" : "orders"; render(); };
@@ -4823,6 +4831,13 @@ function handleScan(raw){
     if(occ.length && hv!==o.colmeia){ askModal({title:`Colmeia ${hv.slice(3)} já tem pedido`, okText:"Guardar junto",
         text:`A colmeia <b>${esc(hv.slice(3))}</b> já tem a pré-venda <b>${occ.map(x=>esc(x.num)).join(", ")}</b>. Guardar o pedido <b>#${esc(o.num)}</b> junto, na mesma colmeia?`})
       .then(ok=>{ if(!ok){ setMsg("Bipe outra colmeia","info"); return; } const x=ORDERS.find(y=>y.id===o.id); if(!x) return; if(x.colmeia!==hv) patchOrder(x.id,{colmeia:hv}); x.colmeia=hv; setMsg(`Colmeia ${hv.slice(3)} confirmada`,"good"); finishStore(x); });
+      return; }
+    // a pré-venda já tem peças guardadas na colmeia dela: guardar em outra separa o pedido em duas colmeias
+    if(o.colmeia && hv!==o.colmeia && hivePrev(o)){ const old=o.colmeia.slice(3); setMsg(`Esta pré-venda já tem peças na colmeia ${old}`,"bad");
+      askModal({title:`As outras peças estão na colmeia ${old}`, okText:`Mudar tudo para ${hv.slice(3)}`, cancelText:`Guardar na ${old}`, safeNo:true, tone:"bad",
+        text:`A pré-venda <b>#${esc(o.num)}</b> já tem peças guardadas na colmeia <b>${esc(old)}</b>${hivePrevTxt(o)}.<br><br>Guarde estas peças <b>junto, na colmeia ${esc(old)}</b>. Só escolha mudar se for levar <b>também</b> as peças da ${esc(old)} para a <b>${esc(hv.slice(3))}</b>.`})
+      .then(ok=>{ if(!ok){ setMsg(`Bipe a colmeia ${old}`,"info"); return; } const x=ORDERS.find(y=>y.id===o.id); if(!x) return; const now=Date.now();
+        patchOrder(x.id,{colmeia:hv, hist:[...(x.hist||[]), {t:now, by:ME.id||"", ev:`Colmeia alterada na guarda da encomenda: ${old} → ${hv.slice(3)} (peças da ${old} levadas junto)`}]}); x.colmeia=hv; setMsg(`Colmeia ${hv.slice(3)} confirmada · leve também as peças da ${old}`,"good"); finishStore(x); });
       return; }
     if(o.colmeia!==hv){ patchOrder(o.id,{colmeia:hv}); o.colmeia=hv; }
     setMsg(`Colmeia ${hv.slice(3)} confirmada`,"good"); return finishStore(o);
