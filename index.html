@@ -295,6 +295,7 @@ html.tvmode body{background:var(--bg);color:var(--ink);overflow:hidden}
 .mbox.xwide{width:min(860px,100%);max-height:92vh;overflow:auto}
 .bar .btn.cpbtn{flex:none;width:auto;height:44px;padding:0 18px;font-size:15px}
 .cpkpis .kp{font:inherit;color:inherit;text-align:left;cursor:pointer}.cpkpis .kp:hover{border-color:var(--accent)}
+.rcsave{font-size:12px;padding:4px 10px;border-radius:999px;display:inline-block;margin-bottom:8px;background:var(--line);color:var(--muted)}.rcsave.ok{background:var(--ok-soft);color:var(--ok)}.rcsave.warn{background:var(--accent-soft);color:var(--ink);font-weight:600}
 .chip.warn{background:var(--accent-soft);color:var(--accent-ink);padding:3px 8px;font-size:11px;border-radius:99px;font-weight:600}
 .cpbtns{display:flex;gap:8px;flex-wrap:wrap}.bar .btn.ghost.cpbtn{color:var(--ink)}
 .hnf.nff{grid-template-columns:minmax(0,1fr) 140px 140px}@media (max-width:600px){.hnf.nff{grid-template-columns:1fr 1fr}.hnf.nff label:first-child{grid-column:1/-1}}.nfl{display:flex;gap:8px;align-items:baseline;width:100%}.nfl span{margin-left:auto;white-space:nowrap}.nfpv{min-width:0;font-size:13px}.nfadd{width:100%}.nfadd .tinput{font-size:13px}.hvact{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;flex:none}.ok-t{color:var(--ok)}.lucasfab{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:40;display:flex;align-items:center;gap:8px;height:56px;padding:0 18px 0 14px;border-radius:28px;border:0;background:var(--ink);color:var(--surface);font:700 15px system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.25);cursor:pointer;transition:transform .15s ease,box-shadow .15s ease}.lucasfab:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(0,0,0,.3)}.lucasfab svg{color:var(--accent)}@media (max-width:600px){.lucasfab{width:56px;padding:0;justify-content:center}.lucasfab span{display:none}}.lucasbox{position:fixed;right:16px;bottom:16px;z-index:900;width:min(400px,calc(100vw - 32px));height:min(620px,calc(100vh - 32px));display:flex;flex-direction:column;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:18px;box-shadow:0 18px 50px rgba(0,0,0,.3);overflow:hidden;animation:lcIn .22s cubic-bezier(.2,.8,.2,1)}@keyframes lcIn{from{opacity:0;transform:translateY(16px) scale(.98)}to{opacity:1;transform:none}}@media (max-width:600px){.lucasbox{inset:0;width:auto;height:auto;border-radius:0;border:0;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}}.lchead{display:flex;align-items:center;gap:10px;padding:12px 12px 12px 16px;border-bottom:1px solid var(--line)}.lchead b{display:block;font-size:16px}.lchead small{color:var(--muted);font-size:12px}.lcav{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:#1A1405;font-weight:800;font-size:18px;flex:none}.lcic{width:38px;height:38px;border-radius:10px;border:0;background:transparent;color:var(--muted);display:grid;place-items:center;cursor:pointer;flex:none}.lcic:hover{background:var(--bg);color:var(--ink)}.lcmic.on{background:var(--bad,#C0392B);color:#fff;animation:lcPulse 1.2s ease-in-out infinite}@keyframes lcPulse{50%{opacity:.7}}.lcmsgs{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px;background:var(--bg)}.lcm{display:flex;flex-direction:column;max-width:88%;gap:4px}.lcm.u{align-self:flex-end;align-items:flex-end}.lcm.a{align-self:flex-start}.lcb{padding:10px 12px;border-radius:14px;font-size:14px;line-height:1.45;background:var(--surface);border:1px solid var(--line);overflow-wrap:anywhere}.lcm.u .lcb{background:var(--ink);color:var(--surface);border-color:transparent;border-bottom-right-radius:4px}.lcm.a .lcb{border-bottom-left-radius:4px}.lcm.err .lcb{border-color:var(--bad,#C0392B);background:var(--bad-soft,#fde2e2)}.lcb p{margin:0 0 6px}.lcb p:last-child{margin-bottom:0}.lcb ol,.lcb ul{margin:4px 0 6px;padding-left:20px}.lcb li{margin:2px 0}.lcb code{font-family:var(--mono);font-size:12.5px}.lcb .mini{margin-top:8px}.lcimgs{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.lcimgs img{max-width:140px;max-height:110px;border-radius:10px;border:1px solid var(--line);object-fit:cover}.lcnimg{font-size:12px;color:var(--muted)}.lcsug{display:flex;flex-wrap:wrap;gap:6px}.lcchip{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:99px;padding:7px 12px;font:13px system-ui,sans-serif;cursor:pointer;text-align:left}.lcchip:hover{border-color:var(--accent)}.lctyping{display:flex;gap:4px;align-items:center;height:20px}.lctyping i{width:7px;height:7px;border-radius:50%;background:var(--muted);animation:lcDot 1s infinite}.lctyping i:nth-child(2){animation-delay:.15s}.lctyping i:nth-child(3){animation-delay:.3s}@keyframes lcDot{0%,60%,100%{opacity:.3;transform:none}30%{opacity:1;transform:translateY(-3px)}}.lcatt{display:flex;gap:8px;padding:8px 12px 0;flex-wrap:wrap}.lcth{position:relative}.lcth img{width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}.lcth button{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:0;background:var(--ink);color:var(--surface);font-size:13px;line-height:1;cursor:pointer}.lcform{display:flex;align-items:flex-end;gap:4px;padding:10px 10px 6px;border-top:1px solid var(--line)}.lcform textarea{flex:1;resize:none;border:1px solid var(--line);border-radius:12px;padding:9px 12px;font:15px system-ui,sans-serif;background:var(--bg);color:var(--ink);max-height:120px;min-height:38px;box-sizing:border-box}.lcsend{width:40px;height:40px;border-radius:50%;border:0;background:var(--accent);color:#1A1405;display:grid;place-items:center;cursor:pointer;flex:none}.lcsend:disabled{opacity:.5}.lcfoot{font-size:11px;color:var(--muted);text-align:center;padding:0 12px 8px}.lcst{display:inline-block;font-size:13px;font-weight:600;padding:4px 10px;border-radius:99px;background:var(--bad-soft,#fde2e2);color:var(--bad,#c0392b)}.lcst.ok{background:var(--ok-soft);color:var(--ok)}html.has-lucas #app{padding-bottom:84px}html.lucas-open body{overflow:hidden}@media (min-width:601px){html.lucas-open body{overflow:auto}}.pickbar .grow{min-width:0}.pickbar h1{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pickcli{display:flex;align-items:baseline;gap:8px;margin:2px 0 6px;padding:8px 12px;border-radius:10px;background:var(--surface);border:1px solid var(--line)}.pickcli span{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);flex:none}.pickcli b{font-size:16px;line-height:1.25;overflow-wrap:anywhere}.li.hvli{flex-wrap:wrap}.items input.dqty{width:76px!important;min-width:0;padding:5px 8px;display:inline-block}.dadd{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}.dadd #daCode{flex:1 1 260px;width:auto;min-width:200px}.dadd #daQty{flex:0 0 84px;width:84px}.dadd small{flex-basis:100%}.hvedbtn{text-align:left;padding:0}.hvedbtn{display:block;margin-top:4px;font-size:13px;font-weight:600}.mbox.hied{width:min(760px,100%)}.hiedt{border:1px solid var(--line);border-radius:10px;margin:10px 0;overflow:hidden}.hiedh,.hiedr{display:grid;grid-template-columns:minmax(0,1fr) 84px 84px 76px 34px;gap:8px;align-items:center;padding:8px 10px}.hiedh{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;background:var(--bg)}.hiedr{border-top:1px solid var(--line);font-size:13px}.hiedr.allenc{background:var(--accent-soft)}.hiedr .tin{padding:6px 8px;width:100%;box-sizing:border-box}.hiedt .r{text-align:right}.hieadd{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px}.hieadd #hiCode{flex:1;min-width:200px}.hieadd #hiQty{width:80px}.icbtn.sm{width:30px;height:30px;font-size:18px}@media (max-width:600px){.hiedh{display:none}.hiedr{grid-template-columns:1fr 1fr 1fr 34px}.hiedr>span:first-child{grid-column:1/-1}}.hnenc{margin:4px 0 12px;display:flex;flex-direction:column;gap:6px}.hnench{display:flex;justify-content:space-between;align-items:center;gap:8px}.hnench span{font-size:13px;font-weight:600}.hnencl{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:10px;max-height:240px;overflow:auto}.hnenci{display:flex;gap:10px;align-items:center;padding:8px 10px;border-top:1px solid var(--line);font-size:13px}.hnenci:first-child{border-top:0}.hnenci.on{background:var(--accent-soft)}.hnenci small{display:block;color:var(--muted);font-size:12px}.hnenci .encin input[type=number]{width:64px}.adjbar{background:#6D28D9;color:#fff;font-size:12px;font-weight:700;letter-spacing:.04em;padding:6px 10px;border-radius:8px}.adjbar.sm{font-size:11px;padding:4px 8px;margin-top:4px;display:inline-block}.adjbar.ok{background:var(--ok)}.adjord{text-align:left;display:flex;flex-direction:column;gap:6px;border-left:5px solid #6D28D9}.adjbox{border:1px solid #6D28D9;background:color-mix(in srgb,#6D28D9 8%,var(--surface));border-radius:12px;padding:12px 14px;margin:8px 0}.adjbox p{margin:4px 0}.adjbox ul{margin:6px 0;padding-left:18px}.adjbox li.novo{color:var(--ok)}.adjbox li.removido{color:var(--bad,#c0392b)}.adjbox small{color:var(--muted)}.adjbox.blocked{border-color:var(--bad,#c0392b);background:var(--bad-soft,#fde2e2)}.adjwhere{font-size:16px;font-weight:700;padding:10px 12px;border-radius:10px;background:var(--accent-soft);margin:6px 0 10px}.adjsum{font-size:14px}.adjsum ul{margin:4px 0 10px;padding-left:18px}.adjcp{border:1px solid #6D28D9;border-radius:12px;padding:12px 14px;margin:0 0 14px;background:color-mix(in srgb,#6D28D9 6%,var(--surface))}.adjcph{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.adjcph .chip{margin-left:6px}
@@ -1867,7 +1868,7 @@ const rcByQR = () => !!window.psRc && innerWidth>=900 && !matchMedia("(pointer: 
 async function rcRefresh(){
   if(!RC_TK || !state.rc) return;
   try{ const r=await window.psRc.info(RC_TK); if(!r || r.error || !r.nf) return;
-    const id=r.nf.id, cur=NFS[id]; NFS[id]={...r.nf, conf: cur?.conf || r.nf.conf || null};
+    const id=r.nf.id, cur=NFS[id]; NFS[id]={...r.nf, conf: r.nf.received ? null : confMerge(r.nf.conf, cur?.conf) || null}; rcPull(NFS[id]);
     if(r.orders) ORDERS=[...(r.orders||[]).map(normalize), ...(r.hive||[])];
   }catch(e){}
 }
@@ -3087,7 +3088,7 @@ function renderReceb(){
   const pvs = n => [...new Set((n.lines||[]).flatMap(l=>(l.alloc||[]).map(a=>a.oid)))].map(id=>ORDERS.find(o=>o.id===id)).filter(Boolean);
   let body;
   if(state.rc){ const n = sel || state.rc.tmp, exp=n.vols||0, got=state.rc.vols;
-    body = `<div class="product">
+    body = `<div class="product">${!n.received && !state.rc.tmp ? rcSaveHTML(n.id) : ""}
       <div class="eyebrow">${n.received?"Já recebida em "+new Date(n.received.at).toLocaleDateString("pt-BR"):"Conferir e receber"}</div>
       <h2 style="margin:0">NF ${esc(n.num)}</h2><div class="meta"><span>${esc(n.forn||"Fornecedor não identificado")}</span>${n.cnpj?`<span>CNPJ ${fmtCnpj(n.cnpj)}</span>`:""}</div>
       ${state.rc.tmp?`<div class="hintbox">Esta nota ainda não foi importada por Compras. Você pode registrar a chegada mesmo assim; Compras amarra os itens depois.</div>`:""}
@@ -3153,8 +3154,14 @@ function renderReceb(){
   setMsg(state.rc ? ((NFS[state.rc.id]?.lines||[]).length && !NFS[state.rc.id]?.received ? (state.rc.boxOk ? "Bipe um produto da nota" : "Conte as caixas e toque em OK") : "Conte as caixas e confirme") : "Bipe o código de barras da nota fiscal", "info");
   focusScan();
 }
-function openReceb(n){ if(!n) return; const c=!n.received && n.conf; // conferência salva: continua de onde parou
-  state.rc={ id:n.id, vols: n.received ? n.received.vols : (c ? c.vols||0 : 0), chk: c ? JSON.parse(JSON.stringify(c.chk||{})) : {}, boxOk: !!(c && c.boxOk), sku: c ? {...(c.sku||{})} : {}, mesa: c ? {...(c.mesa||{})} : {} }; render(); scrollTo(0,0); }
+function openReceb(n){ if(!n) return; const bk=!n.received && rcBk()[n.id], c=!n.received && (bk?.conf ? confMerge(n.conf, bk.conf) : n.conf); // conferência salva: continua de onde parou (servidor + o que ficou guardado neste aparelho)
+  if(n.received && rcBk()[n.id]) rcBkDone(n.id, Infinity);
+  state.rc={ id:n.id, vols: n.received ? n.received.vols : (c ? c.vols||0 : 0), chk: c ? JSON.parse(JSON.stringify(c.chk||{})) : {}, boxOk: !!(c && c.boxOk), sku: c ? {...(c.sku||{})} : {}, mesa: c ? {...(c.mesa||{})} : {} }; rcSeen(state.rc, n.conf); if(bk?.pend) setTimeout(rcResend, 500); render(); scrollTo(0,0); }
+/* outro aparelho conferiu algo nesta nota: traz para a tela aberta, sem perder o que foi conferido aqui */
+function rcPull(n){ const rc=state.rc; if(!rc || !n || n.id!==rc.id || n.received || !n.conf) return;
+  const mine={vols:rc.vols, volsAt:rc.volsAt||0, chk:rc.chk, boxOk:!!rc.boxOk, sku:rc.sku||{}, mesa:rc.mesa||{}, at:0}, m=confMerge(n.conf, mine);
+  rc.chk=JSON.parse(JSON.stringify(m.chk||{})); rc.sku={...(m.sku||{})}; rc.mesa={...(m.mesa||{})}; if(+(n.conf.volsAt||n.conf.at||0) > +(rc.volsAt||0)){ rc.vols=n.conf.vols||0; rc.boxOk=!!n.conf.boxOk; }
+  rcSeen(rc, {chk:rc.chk, vols:rc.vols, boxOk:rc.boxOk, volsAt:Math.max(+rc.volsAt||0, +(n.conf.volsAt||n.conf.at||0))}); }
 /* Produto do picking de cada item da nota: o que o conferente relacionou ao bipar, o que Compras relacionou, ou o cadastro (código do fornecedor → SKU) */
 function rcSku(n, k){ const l=(n.lines||[])[k]; if(!l) return ""; const m=state.rc?.sku?.[k] ?? n.conf?.sku?.[k]; return m || l.sku || skuFor(n.forn, l.code) || (PRODUCTS[l.code] ? l.code : ""); }
 const rcNorm = t => String(t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/\bZEN\b|\bPUX\b|\bPUXADOR\b/g," ").replace(/[^A-Z0-9]+/g," ").trim().split(" ").filter(Boolean);
@@ -3209,10 +3216,47 @@ function rcGuardQty(i){ let b="", t0=0, v0="", tm; // leitura do coletor com o c
     if(e.key==="Enter"){ e.preventDefault(); if(!flush()){ i.blur(); i.dataset.enter && document.getElementById(i.dataset.enter)?.click(); } return; }
     if(e.key.length===1){ if(!b){ t0=performance.now(); v0=i.value; } b+=e.key; tm=setTimeout(()=>{ if(b.length>=6 && (performance.now()-150-t0)/b.length<60){ const c=b; b=""; i.value=v0; i.blur(); handleScan(c); } else b=""; },150); } }; }
 // grava o andamento da conferência na própria nota (outra pessoa ou outro aparelho pode continuar)
+/* Conferência salva sozinha: cada item conferido leva a hora (at) em que mudou. No servidor (e aqui) a conferência de dois aparelhos
+   é juntada item a item, valendo a alteração mais nova, então um aparelho com a tela antiga não apaga o que o outro conferiu.
+   Uma cópia fica neste aparelho até o servidor confirmar; sem conexão, reenvia sozinho. */
+const rcSig = e => JSON.stringify({...e, at:undefined});
+function confMerge(o, n){
+  if(!n) return o||null; if(!o || typeof o!=="object") return n;
+  const ko = +(o.volsAt||o.at||0), kn = +(n.volsAt||n.at||0), base = ko>kn ? {...n, ...o} : {...o, ...n}, chk={};
+  new Set([...Object.keys(o.chk||{}), ...Object.keys(n.chk||{})]).forEach(k=>{ const a=o.chk?.[k], b=n.chk?.[k]; chk[k] = !b ? a : !a ? b : (+(a.at||0) > +(b.at||0) ? a : b); });
+  return {...base, chk, sku:{...(o.sku||{}), ...(n.sku||{})}, mesa:{...(o.mesa||{}), ...(n.mesa||{})}, at:Math.max(+o.at||0, +n.at||0)};
+}
+function rcSeen(rc, c){ rc._sv = Object.fromEntries(Object.entries(c?.chk||{}).map(([k,e])=>[k, rcSig(e)])); rc._vs = (c?.vols||0)+"|"+!!c?.boxOk; rc.volsAt = c?.volsAt||c?.at||0; }
+const RCBK_KEY="ps-rcbk";
+function rcBk(){ try{ return JSON.parse(localStorage.getItem(RCBK_KEY)||"{}")||{}; }catch(e){ return {}; } }
+function rcBkPut(id, conf){ try{ const b=rcBk(); b[id]={conf, pend:true}; localStorage.setItem(RCBK_KEY, JSON.stringify(b)); }catch(e){} }
+function rcBkDone(id, at){ try{ const b=rcBk(); if(b[id] && +b[id].conf.at<=at){ delete b[id]; localStorage.setItem(RCBK_KEY, JSON.stringify(b)); } }catch(e){} rcSaveSt(id, "ok"); }
+let RC_SAVE={}; function rcSaveSt(id, st){ RC_SAVE[id]={st, t:Date.now()}; const el=document.getElementById("rcSaveSt"); if(el && state.rc?.id===id) el.outerHTML=rcSaveHTML(id); }
+function rcSaveHTML(id){ const s=RC_SAVE[id], pend=!!rcBk()[id];
+  const [cls,txt] = s?.st==="err" || (pend && s?.st!=="sending") ? ["warn","Sem conexão · conferência guardada neste aparelho, enviando de novo…"] : s?.st==="sending" ? ["", "Salvando…"] : ["ok", s ? `Conferência salva · ${new Date(s.t).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}` : "Conferência salva automaticamente"];
+  return `<div id="rcSaveSt" class="rcsave ${cls}">${txt}</div>`; }
+function rcSend(id, conf, isNew, doc){
+  if(!nfCol){ rcSaveSt(id,"err"); return; }
+  rcSaveSt(id,"sending");
+  writeQ["nf-"+id] = (writeQ["nf-"+id]||Promise.resolve()).then(()=> isNew ? nfCol.doc(id).set(JSON.parse(JSON.stringify(doc))) : nfCol.doc(id).update(JSON.parse(JSON.stringify({conf}))))
+    .then(()=>rcBkDone(id, conf.at), e=>{ console.warn(e); rcSaveSt(id,"err"); });
+}
 function saveConf(){ const rc=state.rc; if(!rc) return; const now=Date.now(), base=NFS[rc.id] || {...rc.tmp, createdAt:now}; if(base.received) return;
-  const conf={vols:rc.vols, chk:rc.chk, boxOk:!!rc.boxOk, sku:rc.sku||{}, mesa:rc.mesa||{}, at:now, by:ME.id||""}, doc={...base, conf}, isNew=!NFS[rc.id]; NFS[doc.id]=doc;
+  rc._sv ||= {}; Object.entries(rc.chk).forEach(([k,e])=>{ const sg=rcSig(e); if(rc._sv[k]!==sg){ e.at=now; rc._sv[k]=sg; } });
+  const vs=rc.vols+"|"+!!rc.boxOk; if(rc._vs!==vs){ rc.volsAt=now; rc._vs=vs; }
+  const conf={vols:rc.vols, volsAt:rc.volsAt||now, chk:rc.chk, boxOk:!!rc.boxOk, sku:rc.sku||{}, mesa:rc.mesa||{}, at:now, by:ME.id||""}, isNew=!NFS[rc.id];
+  const doc={...base, conf: isNew ? conf : confMerge(base.conf, conf)}; NFS[doc.id]=doc;
   // grava só a conferência: os itens e a amarração que Compras fizer enquanto isso não são apagados
-  if(nfCol) queueWrite("nf-"+doc.id, ()=> isNew ? nfCol.doc(doc.id).set(JSON.parse(JSON.stringify(doc))) : nfCol.doc(doc.id).update(JSON.parse(JSON.stringify({conf})))); }
+  rcBkPut(doc.id, conf); rcSend(doc.id, conf, isNew, doc); }
+/* reenvia o que ficou guardado no aparelho (sem conexão na hora) */
+function rcResend(){ const b=rcBk(); Object.entries(b).forEach(([id,x])=>{ if(!x?.pend || !x.conf) return; const n=NFS[id];
+  if(n?.received){ rcBkDone(id, Infinity); return; } if(!n && !RC_TK) return; if(RC_SAVE[id]?.st==="sending" && Date.now()-RC_SAVE[id].t<20000) return;
+  rcSend(id, x.conf, false); }); }
+setInterval(()=>{ if(navigator.onLine!==false) rcResend(); }, 20000);
+addEventListener("online", ()=>setTimeout(rcResend, 1500));
+/* saiu da tela ou o aparelho apagou: grava a quantidade que estava sendo digitada */
+const rcFlush=()=>{ const a=document.activeElement; if(state.rc && a?.matches?.("[data-rcq]")) a.dispatchEvent(new Event("change")); };
+addEventListener("pagehide", rcFlush); document.addEventListener("visibilitychange", ()=>{ if(document.hidden) rcFlush(); });
 /* Conferência: bipar o EAN (ou o código) de um produto da nota marca o item como chegado, com a quantidade da nota; o conferente ajusta se veio diferente */
 function rcLineOf(n, v){ const P=Object.values(PRODUCTS).find(p=>p.ean && p.ean===v) || PRODUCTS[v] || null;
   return (n.lines||[]).findIndex(l=>(l.ean && l.ean===v) || String(l.code||"").toUpperCase()===v || (l.sku && (String(l.sku).toUpperCase()===v || (P && P.code===l.sku))) || (P && P.code===l.code)); }
@@ -6977,7 +7021,10 @@ render();
   prodCol = db.collection("products");
   prodCol.onSnapshot(snap=>{ PRODUCTS = Object.fromEntries(snap.docs.map(d=>[d.id, JSON.parse(JSON.stringify(d.data()))])); rerender(); }, e=>{ prodCol=null; });
   nfCol = db.collection("invoices");
-  nfCol.onSnapshot(snap=>{ NFS = Object.fromEntries(snap.docs.map(d=>[d.id, JSON.parse(JSON.stringify(d.data()))])); if(["compras","recebimento"].includes(state.sector)) rerender(); }, e=>{ nfCol=null; });
+  nfCol.onSnapshot(snap=>{ NFS = Object.fromEntries(snap.docs.map(d=>[d.id, JSON.parse(JSON.stringify(d.data()))]));
+    const bk=rcBk(); Object.entries(bk).forEach(([id,x])=>{ if(x?.pend && NFS[id] && !NFS[id].received) NFS[id].conf=confMerge(NFS[id].conf, x.conf); }); // o que ainda não chegou ao servidor continua valendo aqui
+    if(state.rc && NFS[state.rc.id]) rcPull(NFS[state.rc.id]);
+    if(["compras","recebimento"].includes(state.sector)) rerender(); }, e=>{ console.warn(e); /* continua gravando; a lista volta no próximo "Atualizar" */ });
   purchCol = db.collection("purchases");
   purchCol.onSnapshot(snap=>{ PURCHASES = Object.fromEntries(snap.docs.map(d=>[d.id, JSON.parse(JSON.stringify(d.data()))])); if(state.sector==="compras") rerender(); }, e=>{ purchCol=null; });
   col = db.collection("orders");
