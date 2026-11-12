@@ -1006,7 +1006,20 @@ body.pda .keyhint{display:block}
 .li.hrow{align-items:center;gap:10px}
 .li.hrow.htlwrap{flex-wrap:wrap}.htlwrap .hmain{min-width:0}
 .htlbtn{flex:none;width:34px;height:34px}.htlbtn .xpchev{width:18px;height:18px;transition:transform .3s cubic-bezier(.2,.8,.2,1)}.htlbtn[aria-expanded="true"] .xpchev{transform:rotate(180deg)}
-.htlbox{flex-basis:100%;width:100%}.htlbox:not(.xopen){display:none}
+.htlbox{flex-basis:100%;width:100%}
+.bipit{margin:8px 0 4px;padding-top:10px;border-top:1px dashed var(--line);display:flex;flex-direction:column;gap:2px}
+.bipt{display:flex;justify-content:space-between;gap:8px;font-size:13px;margin-bottom:4px}.bipt span{color:var(--muted)}
+.bipr{display:grid;grid-template-columns:auto 1fr auto 52px;gap:4px 10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px}
+.bipr:last-child{border-bottom:0}.bipr .mono{font-weight:700}
+.bipn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.bipn small{display:block;color:var(--muted);font-size:11.5px;white-space:normal}
+.bipw{text-align:right;font-variant-numeric:tabular-nums;line-height:1.15}.bipw small{display:block;color:var(--muted);font-size:11px}.bipw i{color:var(--muted);font-style:normal}
+.bipst{font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.bipst.s-ok{background:var(--ok-soft);color:var(--ok)}
+.bipst.s-part,.bipst.s-enc{background:color-mix(in srgb,#d4a017 18%,transparent);color:#9a6b00}
+.bipst.s-miss{background:var(--bad-soft);color:var(--bad)}
+.bipst.s-pend{background:var(--line);color:var(--muted)}
+@media (prefers-color-scheme:dark){.bipst.s-part,.bipst.s-enc{color:#E8B84A}}
+@media (max-width:560px){.bipr{grid-template-columns:auto 1fr auto}.bipr .bipn{grid-column:1/-1;grid-row:2}.bipw{grid-column:3;grid-row:1}.bipr .bipst{grid-column:2;justify-self:end}}.htlbox:not(.xopen){display:none}
 .htl{list-style:none;margin:8px 0 2px;padding:12px 0 0 4px;border-top:1px dashed var(--line)}
 .htl li{position:relative;display:flex;gap:12px;padding:0 0 14px 0}
 .htl li:not(:last-child)::before{content:"";position:absolute;left:5px;top:14px;bottom:0;width:2px;background:var(--line)}
@@ -3532,6 +3545,25 @@ function timelineHTML(o){
   const dt=t=>new Date(t).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
   return `<ol class="htl">${ev.map(e=>`<li class="${e.k?"k-"+e.k:""}"><span class="htld" aria-hidden="true"></span><div><time datetime="${new Date(e.t).toISOString()}">${dt(e.t)}</time><span class="htlt">${esc(e.txt)}</span>${uname(e.by)?`<small>por ${esc(uname(e.by))}</small>`:""}</div></li>`).join("")}</ol>`;
 }
+/* Itens bipados do pedido: o que foi coletado, quanto, onde, quando e por quem (fica no histórico) */
+function bipItemsHTML(o){
+  const items=o.items||[]; if(!items.length) return "";
+  const r=o.res||[], ls=o.locScans||[], uname=id=>id && (USERS[id]?.name||USERS[id]?.login) || "";
+  const hm=t=>new Date(t).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}), full=t=>new Date(t).toLocaleString("pt-BR");
+  let refs=0, refOk=0, pcs=0, pcsOk=0;
+  const rows=items.map((it,i)=>{ const x=r[i]||{}, enc=+it.qtyEnc||0, need=Math.max(0,(+it.qty||0)-enc);
+    if(o.fase2 && !need) return "";
+    const st = !need ? "enc" : x.status||"pend"; if(need){ refs++; pcs+=need; pcsOk+=Math.min(need,+x.got||0); if(st==="ok") refOk++; }
+    const loc=x.lc || (()=>{ try{ const l=liveLoc(it); return l?code(l):""; }catch(e){ return ""; } })();
+    const lh=loc ? ls.filter(e=>e && e.lc===loc).sort((a,b)=>a.at-b.at)[0] : null;
+    const t=x.at || (st!=="pend" && st!=="enc" ? lh?.at : 0), who=x.by || lh?.by || (st!=="pend"&&st!=="enc" ? o.pickedBy : "");
+    const chip = st==="enc" ? `<span class="bipst s-enc">Encomenda</span>` : st==="ok" ? `<span class="bipst s-ok">✓ ${x.got||need}/${need}</span>` : st==="part" ? `<span class="bipst s-part">${x.got||0}/${need}</span>` : st==="miss" ? `<span class="bipst s-miss">Falta 0/${need}</span>` : `<span class="bipst s-pend">0/${need}</span>`;
+    const det=[loc ? (lh && x.how!=="local" ? `${loc} bipado` : loc) : (st==="enc"?"":"sem endereço"),
+      x.how==="peca" ? `${x.bips||x.got} bip(s), peça por peça` : x.how==="conta" ? "produto bipado + contagem" : x.how==="local" ? "endereço bipado + contagem" : x.how==="manual" && st!=="miss" ? "confirmado sem bipar o produto" : "",
+      x.spot ? `na ${spotName(x.spot)}` : "", enc && need ? `${enc} pç encomenda` : ""].filter(Boolean).join(" · ");
+    return `<div class="bipr s-${st}"><span class="mono">${esc(it.code)}</span><span class="bipn">${esc(it.name||"")}${det?`<small>${esc(det)}</small>`:""}</span>${chip}<span class="bipw">${t?`<time datetime="${new Date(t).toISOString()}" title="${esc(full(t))}">${hm(t)}</time>`:"<i>—</i>"}${who?`<small>${esc(uname(who).split(" ")[0])}</small>`:""}</span></div>`; }).join("");
+  return `<div class="bipit"><div class="bipt"><b>Itens bipados</b><span class="tnum">${refOk}/${refs} ref. · ${pcsOk}/${pcs} pç</span></div>${rows}</div>`;
+}
 const xpBtn = (attr, open, tOpen, tClose) => `<button class="lnk xpbtn" ${attr} aria-expanded="${open}" data-t1="${esc(tOpen)}" data-t0="${esc(tClose)}">${ICON_CHEV}<span>${esc(open?tClose:tOpen)}</span></button>`;
 function xpToggle(box, btn, open){
   if(btn){ btn.setAttribute("aria-expanded", open); const sp=btn.querySelector("span"); if(sp) sp.textContent = open ? btn.dataset.t0 : btn.dataset.t1; }
@@ -3691,8 +3723,8 @@ function renderOrders(){
           <div class="hcli">${esc(o.client)}</div>
           <small>${o.status==="excluido"?`Excluído ${fmtClock(o.deletedAt)} · motivo: ${esc(o.deleteReason||"")}`:fmtClock(o.pickedAt)}${pk!=null?" · picking "+fmtDur(pk).replace(/ \d+s$/,""):""}${o.tray||bigOnMesa(o)?" · "+esc(spotsTxt(o)):""}</small></div>
           <span class="chip ${st.c} ${fin?"okc":""}" title="${esc(st.t)}">${fin?"OK":esc(st.t.split(" · ")[0])}</span>${canEditOrd && o.status!=="excluido" ? `<button class="mini hedit" data-oedit="${esc(o.id)}" title="Editar pedido">Editar</button>`:""}
-          <button type="button" class="icbtn sm htlbtn" data-htl="${esc(o.id)}" aria-expanded="${hop}" aria-label="${hop?"Esconder":"Ver"} histórico do pedido ${esc(o.num)}" title="Histórico">${ICON_CHEV}</button>
-          <div class="htlbox${hop?" xopen":""}">${hop?timelineHTML(o):""}</div></div>`; }).join("")}</div>${pgH.pager}` : `<div class="empty">${histAll.length?"Nenhum pedido encontrado com este filtro.":"Nenhum pedido separado ainda."}</div>`}
+          <button type="button" class="icbtn sm htlbtn" data-htl="${esc(o.id)}" aria-expanded="${hop}" aria-label="${hop?"Esconder":"Ver"} itens e histórico do pedido ${esc(o.num)}" title="Itens bipados e histórico">${ICON_CHEV}</button>
+          <div class="htlbox${hop?" xopen":""}">${hop?bipItemsHTML(o)+timelineHTML(o):""}</div></div>`; }).join("")}</div>${pgH.pager}` : `<div class="empty">${histAll.length?"Nenhum pedido encontrado com este filtro.":"Nenhum pedido separado ainda."}</div>`}
     </div>`;
   }
   app.innerHTML = topnav() + `
@@ -3709,7 +3741,7 @@ function renderOrders(){
   const hqi=document.getElementById("histQ"); if(hqi) hqi.oninput=()=>{ state.histQ=hqi.value; resetPage("hist"); const pos=hqi.selectionStart; render(); const n=document.getElementById("histQ"); if(n){ n.focus(); try{ n.setSelectionRange(pos,pos); }catch(e){} } };
   app.querySelectorAll("[data-oedit]").forEach(b=>b.onclick=()=>openOrderEdit(b.dataset.oedit));
   app.querySelectorAll("[data-htl]").forEach(b=>b.onclick=()=>{ const id=b.dataset.htl, row=b.closest(".htlwrap"), box=row.querySelector(".htlbox"), open=b.getAttribute("aria-expanded")!=="true";
-    const o=[...ORDERS,...DELETED].find(x=>x.id===id); if(open && o) box.innerHTML=timelineHTML(o);
+    const o=[...ORDERS,...DELETED].find(x=>x.id===id); if(open && o) box.innerHTML=bipItemsHTML(o)+timelineHTML(o);
     state.histOpen = open ? [...new Set([...(state.histOpen||[]), id])] : (state.histOpen||[]).filter(x=>x!==id);
     b.setAttribute("aria-label", (open?"Esconder":"Ver")+" histórico do pedido "+(o?.num||""));
     xpToggle(box, b, open); });
@@ -3737,7 +3769,7 @@ function openOrder(id){
   const o=ORDERS.find(x=>x.id===id); if(!o || !ecoOk(o)) return;
   if(notMine(o)){ toast(`#${o.num} passou a outro separador`); return; }
   newIds.delete(id); alertQueue=alertQueue.filter(x=>x!==id); showAlert();
-  state.oid=id; state.count=0; state.bigItem=false;
+  state.oid=id; state.count=0; state.bigItem=false; state.bipN=0; state.bipT0=0; state.bipLoc=0;
   const r=res(o), pl=pickList(o), k=pl.findIndex(x=>r[x.i].status==="pend");
   state.idx=Math.max(0,k); state.phase=startPhase(o);
   if(k<0){ finishAtMesa(o); scrollTo(0,0); return; }
@@ -4520,7 +4552,7 @@ let CONFIG = {requireLoc:false, useTray:true, binStacks:[6,4], staleDays:7}, cfg
 const pickDirect = o => !!o && !isEco(o) && !!o.naLoja && o.mode==="total" && !o.fase2;
 /* E-commerce: o separador bipa a etiqueta do ENDEREÇO (não o produto), confirma a quantidade e leva para a mesa */
 /* Mapa de calor: cada vez que o separador bipa a etiqueta do endereço certo fica gravado no pedido (locScans: endereço, hora, quem) */
-function logLocScan(o, lc){ try{ const e={lc:code(lc), at:Date.now(), by:ME.id||""}; const x=ORDERS.find(y=>y.id===o.id)||o; const l=[...(x.locScans||[]), e].slice(-400); x.locScans=l; patchOrder(o.id,{locScans:l}); }catch(err){} }
+function logLocScan(o, lc){ if(state.view==="pick") state.bipLoc=1; try{ const e={lc:code(lc), at:Date.now(), by:ME.id||""}; const x=ORDERS.find(y=>y.id===o.id)||o; const l=[...(x.locScans||[]), e].slice(-400); x.locScans=l; patchOrder(o.id,{locScans:l}); }catch(err){} }
 const ecoLoc = (o, it) => !!o && isEco(o) && !!it?.loc;
 const curItem = o => { const pl=o?pickList(o):[]; return pl[state.idx]; };
 const startPhase = o => pickDirect(o) ? "prod" : (CONFIG.useTray && o && !hasTray(o)) ? "tray" : ecoLoc(o, curItem(o)) ? "loc" : "prod";
@@ -4670,7 +4702,7 @@ function trayStepHTML(o, pl, r){
     ${CESTAS.length?`<div class="spotline">Para juntar vários pedidos, bipe uma cesta (${CESTAS.map(m=>spotName(m.code)).join(", ")}).</div>`:""}
   </div>`;
 }
-function goItem(k){ state.bigItem=false; state.idx=k; state.phase=startPhase(ORDERS.find(x=>x.id===state.oid)); state.count=0; render(); scrollTo({top:0,behavior:"smooth"}); }
+function goItem(k){ state.bigItem=false; state.bipN=0; state.bipT0=0; state.bipLoc=0; state.idx=k; state.phase=startPhase(ORDERS.find(x=>x.id===state.oid)); state.count=0; render(); scrollTo({top:0,behavior:"smooth"}); }
 function updateCount(){
   const {it} = cur(); srLive();
   const c=document.getElementById("cnt"), b=document.getElementById("cbar"), u=document.getElementById("undo"), m=document.getElementById("miss");
@@ -4679,7 +4711,9 @@ function updateCount(){
 }
 function commit(status){
   const {o, r, pl, it} = cur();
-  r[it.i] = {status, got: state.count, ...(state.bigItem && status!=="miss" ? {spot:state.bigItem} : {})};
+  r[it.i] = {status, got: state.count, ...(state.bigItem && status!=="miss" ? {spot:state.bigItem} : {}),
+    at:Date.now(), by:ME.id||"", ...(it.loc?{lc:code(it.loc)}:{}), how: state.phase==="unit"?"peca":state.bipN?"conta":state.bipLoc?"local":"manual", ...(state.bipN?{bips:state.bipN, t0:state.bipT0}:{})};
+  state.bipN=0; state.bipT0=0; state.bipLoc=0;
   patchOrder(o.id, {res:r});
   toast(status==="ok" ? `Item coletado · ${it.need} pç` : status==="part" ? `Coleta parcial · ${state.count} de ${it.need}` : "Falta registrada");
   const next = pl.findIndex((x,k)=>k>state.idx && r[x.i].status==="pend"), any = pl.findIndex(x=>r[x.i].status==="pend");
@@ -4961,6 +4995,7 @@ function handleScan(raw){
     if(isMesaCode(o.tray)){ feedback(true); return setMsg(`Este pedido já está todo na ${mesaName(o.tray)}. Bipe o produto.`,"info"); }
     feedback(true); state.bigItem=v; render(); setMsg(`Este item vai na ${mesaName(v)}. `+(state.phase==="qty"?"Conte e confirme.":"Bipe o produto."),"good"); return;
   }
+  if(isProd && state.phase!=="qty"){ state.bipN=(state.bipN||0)+1; if(!state.bipT0) state.bipT0=Date.now(); }
   if(isProd && pickDirect(o)){ // conferência peça por peça
     if(state.phase!=="unit"){ state.phase="unit"; state.count=0; }
     state.count=Math.min(it.need, state.count+1); feedback(true);
@@ -7077,7 +7112,7 @@ function gOrderModal(o){
   ov.innerHTML=`<div class="mbox gmodal" role="dialog" aria-modal="true" aria-label="Pedido ${esc(o.num)}"><h2>#${esc(o.num)} · ${esc(o.client||"")}</h2>
     <p><span class="chip ${st.c||""}">${esc(st.t)}</span> ${isEco(o)?"E-commerce":"Pré-venda"}${o.seller?` · ${esc(o.seller)}`:""}${o.colmeia?` · colmeia ${esc(o.colmeia.slice(3))}`:""}</p>
     <div class="glist">${(o.items||[]).map((it,i)=>`<div class="gitem"><b class="mono">${esc(it.code)}</b><span>${esc(it.name||"")}</span><small class="tnum">${it.qty} pç${it.qtyEnc?` · enc ${it.qtyEnc}`:""}${r[i]?.status && r[i].status!=="pend"?` · separado ${r[i].got||0}`:""}${PRODUCTS[it.code]?.loc?` · ${esc(PRODUCTS[it.code].loc)}`:" · sem endereço"}</small></div>`).join("")}</div>
-    <div class="eyebrow" style="margin-top:12px">Linha do tempo</div>${timelineHTML(o)}
+    ${bipItemsHTML(o)}<div class="eyebrow" style="margin-top:12px">Linha do tempo</div>${timelineHTML(o)}
     <div class="mact"><button class="btn primary" id="gmClose">Fechar</button></div></div>`;
   const close=()=>ov.remove(); ov.onclick=e=>{ if(e.target===ov) close(); }; document.body.appendChild(ov); ov.querySelector("#gmClose").onclick=close; ov.querySelector("#gmClose").focus(); fillNames(ov);
 }
