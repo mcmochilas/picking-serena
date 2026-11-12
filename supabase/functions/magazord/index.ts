@@ -94,14 +94,17 @@ function mapOrder(d: any, idx: { byEan: Map<string, any>; byId: Map<string, any>
   for (const r of rastreios) for (const it of (r.pedidoItem || [])) {
     if (!it || typeof it !== "object") continue;
     const sku = String(it.produtoDerivacaoCodigo || ""), ean = eanNorm(it.ean);
-    // produto do Picking Serena: pelo EAN (sem o zero da frente) ou pelo início do código (13088-001-U -> 13088)
-    const p = (ean && idx.byEan.get(ean)) || idx.byId.get(sku) || idx.byId.get(sku.split("-")[0]);
+    // produto do Picking Serena: primeiro pelo código do SKU vendido (13088-001-U -> 13088); o EAN do site só entra quando o código
+    // não existe no Picking. O cadastro do site às vezes repete o EAN de outra variação (ex.: 10863 escovado com o EAN do 10248 gold).
+    const pSku = idx.byId.get(sku) || idx.byId.get(sku.split("-")[0]), pEan = ean ? idx.byEan.get(ean) : undefined;
+    const p = pSku || pEan;
+    const eanOutro = pSku && pEan && pEan.id !== pSku.id ? pEan.id : "";
     const code = p ? p.id : (sku || ean || String(it.id));
     const q = Number(it.quantidade) || 0;
     const cur = items.get(code);
     if (cur) { cur.qty += q; continue; }
-    items.set(code, { code, name: p?.data?.name || [it.produtoNome, it.produtoDerivacaoNome].filter(Boolean).join(" · "), ean: p?.data?.ean || ean,
-      un: "UN", qty: q, price: Number(it.valorUnitario) || 0, loc: p?.data?.loc || "", qtyEnc: 0, eta: "", sku, ...(p ? {} : { semCadastro: true }) });
+    items.set(code, { code, name: p?.data?.name || [it.produtoNome, it.produtoDerivacaoNome].filter(Boolean).join(" · "), ean: p?.data?.ean || (eanOutro ? "" : ean), // EAN do site que é de outro produto não vale para bipar
+      un: "UN", qty: q, price: Number(it.valorUnitario) || 0, loc: p?.data?.loc || "", qtyEnc: 0, eta: "", sku, ...(p ? {} : { semCadastro: true }), ...(eanOutro ? { eanSiteDe: eanOutro } : {}) });
   }
   return {
     id: "MZ-" + d.id, num: String(d.codigo || d.id), mzId: d.id, codigoMarketplace: d.codigoMarketplace || "",
