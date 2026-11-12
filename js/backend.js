@@ -52,6 +52,11 @@
 
   const refreshers = new Set();
   window.psRefresh = async () => { await Promise.all([...refreshers].map(f => f())); };
+  /* vídeos do painel do showroom (bucket público "showroom"; só o administrador envia ou apaga) */
+  window.psStorage = {
+    async upload(path, file){ const { error } = await sb.storage.from("showroom").upload(path, file, { contentType:file.type || "video/mp4", upsert:false, cacheControl:"86400" }); if(error) throw new Error(error.message || "Falha no envio"); return sb.storage.from("showroom").getPublicUrl(path).data.publicUrl; },
+    async remove(path){ const { error } = await sb.storage.from("showroom").remove([path]); if(error) throw new Error(error.message || "Falha ao apagar"); }
+  };
   async function fetchAll(t, cols="id,data"){
     let out = [], from = 0;
     for(;;){

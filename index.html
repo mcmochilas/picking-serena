@@ -86,6 +86,48 @@ img{max-width:100%}
 .lg-ok{background:var(--ok-soft,#DDF2E8);color:var(--ok,#1D845A);border-radius:10px;padding:10px 12px;font-weight:600;font-size:14px}
 .lg-hint{margin:0;font-size:13px;color:var(--muted,#5A6978)}
 .me .logout{color:var(--route,#2A5BC8)}
+/* ---- Painel do showroom ---- */
+html.srmode,html.srmode body{background:#0b1016;overflow:hidden}
+html.srmode .scanbar,html.srmode #alertbar{display:none!important}
+#app.sr{max-width:none;padding:0;margin:0}
+#srRoot{position:fixed;inset:0;background:#0b1016;color:#f4f6f8;font-family:var(--body);display:flex;flex-direction:column}
+#srVid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000;display:none}
+#srRoot.video #srVid{display:block}
+#srIdle{display:none;margin:auto;text-align:center}
+#srRoot.idle #srIdle{display:block}
+.srbrand{font-family:var(--display);font-size:clamp(48px,7vw,120px);font-weight:800;letter-spacing:-.02em}
+.srbrand span{color:var(--accent,#f0a500)}
+#srIdle small{display:block;font-size:clamp(18px,2vw,32px);color:#9aa7b4;letter-spacing:.3em;text-transform:uppercase;margin-top:8px}
+#srBoard{display:none;flex:1;padding:clamp(16px,2.5vw,40px);gap:clamp(14px,2vw,28px);flex-direction:column;overflow:hidden}
+#srRoot.busy #srBoard{display:flex}
+.srcols{display:grid;grid-template-columns:1.25fr 1fr;gap:clamp(14px,2vw,28px);flex:1;min-height:0}
+.srcol{display:flex;flex-direction:column;gap:clamp(10px,1.2vw,18px);min-height:0;overflow:hidden}
+.srcol h2{margin:0;font-family:var(--display);font-size:clamp(22px,2.4vw,42px);font-weight:800;display:flex;align-items:center;gap:14px}
+.srcol h2 span{font-size:.6em;background:#1d2733;color:#c8d2dc;border-radius:999px;padding:2px 14px}
+.srcol.doing h2{color:#7cc4ff}.srcol.wait h2{color:#ffd166}
+.srcard{background:#151d27;border:2px solid #222d3a;border-radius:18px;padding:clamp(12px,1.4vw,22px) clamp(16px,1.8vw,28px)}
+.srcard.doing{border-color:#2d5b85}
+.srtop{display:flex;justify-content:space-between;gap:12px;align-items:baseline;font-size:clamp(15px,1.3vw,22px);color:#9aa7b4}
+.srnum{font-family:var(--mono);font-weight:700;color:#f4f6f8}
+.srseller b{color:#f4f6f8}
+.srcli{font-size:clamp(24px,2.6vw,46px);font-weight:800;line-height:1.1;margin:4px 0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.srbar{height:clamp(16px,1.6vw,28px);background:#0b1016;border-radius:999px;overflow:hidden;border:1px solid #2a3542}
+.srbar i{display:block;height:100%;background:linear-gradient(90deg,#2f8fe0,#4fd1a5);border-radius:999px;transition:width .8s ease}
+.srmeta{display:flex;gap:14px;align-items:baseline;flex-wrap:wrap;margin-top:8px;font-size:clamp(15px,1.3vw,22px);color:#9aa7b4}
+.srmeta b{color:#f4f6f8;font-size:1.25em;white-space:nowrap}
+.srcard.wait .srmeta b{color:#ffd166}
+.srempty{color:#6b7886;font-size:clamp(16px,1.4vw,24px);padding:18px 4px}
+.srready{background:#123d2a;border:3px solid #3ddc84;border-radius:22px;padding:clamp(12px,1.4vw,22px);animation:srpulse 1.6s ease-in-out infinite}
+.srreadyh{font-family:var(--display);font-weight:800;font-size:clamp(24px,2.6vw,46px);color:#7dffb4;margin-bottom:10px}
+.srreadyl{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,720px),1fr));gap:12px}
+.srcard.ready{background:#0f2e20;border-color:#2c8f5a}.srcard.ready .srmeta b{color:#7dffb4}
+@keyframes srpulse{0%,100%{box-shadow:0 0 0 0 rgba(61,220,132,.0)}50%{box-shadow:0 0 0 14px rgba(61,220,132,.18)}}
+#srBar{position:absolute;right:16px;bottom:14px;display:flex;gap:10px;align-items:center;z-index:2}
+#srClock{font-size:clamp(18px,1.6vw,28px);background:rgba(11,16,22,.7);padding:4px 14px;border-radius:999px}
+.srvlist{display:flex;flex-direction:column;gap:6px;margin:8px 0}.srvrow{display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:6px 10px}.srvrow span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.srvrow small{color:var(--muted);margin-left:8px}
+.srsound{background:rgba(11,16,22,.75);color:#f4f6f8;border:1px solid #2a3542;border-radius:999px;padding:6px 14px;font-size:15px;cursor:pointer}
+@media (max-width:900px){.srcols{grid-template-columns:1fr}}
+@media (prefers-reduced-motion: reduce){.srready{animation:none}.srbar i{transition:none}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
 <script src="/js/config.js"></script>
@@ -1341,11 +1383,17 @@ document.addEventListener("click", e => {
 });
 const state = { canal:(()=>{ try{ return localStorage.getItem("ps-canal")||"consultiva"; }catch(e){ return "consultiva"; } })(), sector:null, view:"orders", oid:null, idx:0, phase:"loc", count:0, draft:null, draftErr:"", parsing:false, etab:"enderecos", rua:1, lado:"A", selLoc:null, mesaLast:null };
 if(location.hash==="#tv") state.view="tv";
+/* painel do showroom (monitor da loja) */
+let IS_SHOWROOM = location.hash==="#showroom";
+let SRCFG = {videos:[], readyMin:10}, srDoc=null;
+const SR = {ready:new Set(), boot:Date.now(), vidIdx:-1, order:[], soundOk:false};
+const SR_LIVE={k:"", t:0, tm:null};
 // link do QR code "devolver ao estoque": abre o processo no celular depois do login
 const usFromHash = () => { const m=location.hash.match(/^#devolver-(.+)$/); if(m){ state.usPending=decodeURIComponent(m[1]); state.sector="compras"; } };
 (()=>{ const m=location.hash.match(/^#hvloc=(.+)$/); if(m) state.hvLocPending=decodeURIComponent(m[1]); })();
 const hoFromHash = () => { const m=location.hash.match(/^#colmeia-(retirou|enviado)-(.+)$/); if(m){ state.hoPending={how:m[1], oid:decodeURIComponent(m[2])}; state.sector="colmeias"; } };
 usFromHash(); hoFromHash(); window.addEventListener("hashchange", ()=>{ usFromHash(); hoFromHash(); if(state.usPending || state.hoPending) render(); });
+window.addEventListener("hashchange", ()=>{ const on=location.hash==="#showroom"; if(on===IS_SHOWROOM) return; IS_SHOWROOM=on; SR.boot=Date.now(); if(!on){ const r=document.getElementById("srRoot"); if(r){ r.querySelector("video")?.pause(); r.remove(); } } render(); });
 window.addEventListener("hashchange", ()=>{ if(location.hash==="#tv"){ state.view="tv"; render(); } else if(state.view==="tv"){ state.view="orders"; render(); } });
 function initialSector(){ const h=location.hash.slice(1); if(["comercial","expedicao","colmeias","compras","recebimento","estoque","chamados","usuarios"].includes(h)) return h; return innerWidth>=900 ? "comercial" : "expedicao"; }
 state.sector = initialSector();
@@ -4030,6 +4078,70 @@ function tvColumn(canal, title){
     ${done.length?`<div class="tvdone"><h3>Últimos separados</h3><div class="tvlist small">${done.slice(0,MAXF).map(o=>`<div class="tvrow fin"><span class="tvnum">#${esc(o.num)}</span><span class="tvcli">${esc(o.client)}</span><span class="tvtime tnum">${fmtClock(o.pickedAt)}${o.startedAt?` · ${fmtDur(o.pickedAt-o.startedAt).replace(/ \d+s$/,"")}`:""}</span></div>`).join("")}</div></div>`:""}`}
   </section>`;
 }
+/* ================== Painel do showroom (#showroom) ==================
+   Monitor na loja: mostra a separação dos pedidos de CLIENTE NA LOJA (aguardando → em separação com barra de progresso → pronto).
+   Sem pedidos, passa os vídeos de propaganda que o administrador envia. Quando um pedido fica pronto, toca uma campainha. */
+const srOrders = () => ORDERS.filter(o=>o.naLoja && !isEco(o) && o.status!=="excluido" && !o.deletedAt);
+function srProg(o){ const pl=pickList(o), r=res(o); let need=0, got=0;
+  pl.forEach(x=>{ need+=x.need; let g=+r[x.i]?.got||0; if((r[x.i]?.status||"pend")==="pend" && o.live && +o.live.i===x.i) g=Math.max(g, +o.live.n||0); got+=Math.min(x.need, g); });
+  return {need, got, pct: need ? Math.round(got/need*100) : 0}; }
+function srLists(){ const now=Date.now(), mins=Math.max(1, +SRCFG.readyMin||10)*60000, L=srOrders();
+  const wait=L.filter(o=>o.status==="aguardando" && pickList(o).length).sort((a,b)=>(a.queuedAt||a.createdAt||0)-(b.queuedAt||b.createdAt||0));
+  const doing=L.filter(o=>o.status==="separando").sort((a,b)=>(a.startedAt||0)-(b.startedAt||0));
+  const ready=L.filter(o=>o.pickedAt && ["na_mesa","lavagem","pronto_envio"].includes(o.status) && now-o.pickedAt < mins).sort((a,b)=>b.pickedAt-a.pickedAt);
+  return {wait, doing, ready}; }
+/* campainha (ding-dong), tocada duas vezes */
+function srBell(){ try{ unlockAudio(); const c=audioCtx; if(!c) return; const t0=c.currentTime+.05;
+  [[0,659.3],[.55,523.3],[1.7,659.3],[2.25,523.3]].forEach(([dt,f])=>{ [1,2.76,5.4].forEach((h,j)=>{ const o=c.createOscillator(), g=c.createGain(); o.type="sine"; o.frequency.value=f*h;
+    const a=[.5,.16,.06][j]; g.gain.setValueAtTime(.0001,t0+dt); g.gain.exponentialRampToValueAtTime(a,t0+dt+.01); g.gain.exponentialRampToValueAtTime(.0001,t0+dt+1.6-j*.4);
+    o.connect(g); g.connect(c.destination); o.start(t0+dt); o.stop(t0+dt+1.7); }); }); }catch(e){} }
+function srCheckReady(ready){ let ring=false;
+  ready.forEach(o=>{ const k=o.id+":"+o.pickedAt; if(SR.ready.has(k)) return; SR.ready.add(k); if(o.pickedAt > SR.boot-60000) ring=true; });
+  if(ring) srBell(); }
+function srShuffle(){ const v=(SRCFG.videos||[]).map((x,i)=>i); for(let i=v.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [v[i],v[j]]=[v[j],v[i]]; } SR.order=v; SR.vidIdx=-1; }
+function srNextVideo(){ const vid=document.getElementById("srVid"), V=SRCFG.videos||[]; if(!vid || !V.length) return;
+  if(!SR.order.length || SR.order.some(i=>!V[i]) || SR.vidIdx>=SR.order.length-1) srShuffle();
+  const prev = SR.order[SR.vidIdx]; SR.vidIdx++; if(SR.order.length>1 && SR.order[SR.vidIdx]===prev && SR.vidIdx===0){ SR.order.push(SR.order.shift()); }
+  const v=V[SR.order[SR.vidIdx]]; vid.muted = !(audioCtx && audioCtx.state==="running"); vid.src=v.url; vid.play().catch(()=>{ vid.muted=true; vid.play().catch(()=>{}); }); }
+function srCard(o, kind, pos){ const p=kind==="doing" ? srProg(o) : null, t=Date.now()-(o.queuedAt||o.createdAt||Date.now());
+  return `<div class="srcard ${kind}">
+    <div class="srtop"><span class="srnum">#${esc(o.num)}</span>${o.seller?`<span class="srseller">Vendedor(a) <b>${esc(o.seller)}</b></span>`:""}</div>
+    <div class="srcli">${esc(o.client||"Cliente")}</div>
+    ${kind==="doing" ? `<div class="srbar"><i style="width:${p.pct}%"></i></div><div class="srmeta"><b>${p.pct}%</b><span>${p.got} de ${p.need} peças separadas${o.startedBy?` · <span data-uid="${esc(o.startedBy)}" data-fallback="separador"></span>`:""}</span></div>`
+      : kind==="wait" ? `<div class="srmeta"><b>${pos}º na fila</b><span>aguardando há ${Math.max(1,Math.round(t/60000))} min</span></div>`
+      : `<div class="srmeta"><b>✓ Pronto</b><span>buscar na expedição · ${new Date(o.pickedAt).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</span></div>`}
+  </div>`; }
+function renderShowroom(){
+  document.documentElement.classList.add("srmode"); app.classList.add("sr"); app.classList.remove("tv","picking","wide");
+  if(!document.getElementById("srRoot")){
+    app.innerHTML = `<div id="srRoot"><video id="srVid" playsinline autoplay muted></video>
+      <div id="srIdle"><div class="srbrand">Picking <span>Serena</span></div><small>Showroom</small></div>
+      <div id="srBoard"></div>
+      <div id="srBar"><b class="tnum" id="srClock"></b>${audioCtx && audioCtx.state==="running" ? "" : `<button class="srsound" id="srSound">🔇 Toque para ativar o som</button>`}<button class="srsound" id="srFull" title="Tela cheia">⛶</button><button class="srsound" id="srExit" title="Sair do painel">✕</button></div></div>`;
+    const vid=document.getElementById("srVid"); vid.onended=srNextVideo; vid.onerror=()=>setTimeout(srNextVideo, 1500);
+    document.getElementById("srExit").onclick=()=>{ location.hash=""; };
+    document.getElementById("srFull").onclick=()=>{ try{ document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); }catch(e){} };
+    const sb=document.getElementById("srSound"); if(sb) sb.onclick=()=>{ unlockAudio(); setTimeout(()=>{ if(audioCtx?.state==="running"){ sb.remove(); const v=document.getElementById("srVid"); if(v) v.muted=false; srBell(); } }, 300); };
+  }
+  const {wait, doing, ready}=srLists(); srCheckReady(ready);
+  const busy = wait.length || doing.length || ready.length, vid=document.getElementById("srVid"), V=SRCFG.videos||[];
+  document.getElementById("srRoot").className = busy ? "busy" : V.length ? "video" : "idle";
+  if(busy){ if(vid && !vid.paused) vid.pause();
+    const col=(t, arr, kind, empty)=>`<section class="srcol ${kind}"><h2>${t}<span>${arr.length}</span></h2>${arr.length ? arr.map((o,i)=>srCard(o,kind,i+1)).join("") : `<div class="srempty">${empty}</div>`}</section>`;
+    document.getElementById("srBoard").innerHTML = `
+      ${ready.length ? `<div class="srready"><div class="srreadyh">🔔 Pedido pronto · vendedor(a), busque na expedição</div><div class="srreadyl">${ready.map(o=>srCard(o,"ready")).join("")}</div></div>` : ""}
+      <div class="srcols">${col("Pedidos em separação", doing, "doing", "Nenhum pedido sendo separado agora")}${col("Aguardando separação", wait, "wait", "Nenhum pedido na fila")}</div>`;
+    fillNames(document.getElementById("srBoard"));
+  } else { document.getElementById("srBoard").innerHTML="";
+    if(V.length && vid){ if(!vid.src || vid.ended || !V.some(v=>v.url===vid.src)) srNextVideo(); else if(vid.paused) vid.play().catch(()=>{ vid.muted=true; vid.play().catch(()=>{}); }); } }
+  const ck=document.getElementById("srClock"); if(ck) ck.textContent=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+}
+setInterval(()=>{ if(IS_SHOWROOM && authReady && myRole()) renderShowroom(); }, 15000);
+/* separador bipando: manda o andamento do item (no máximo a cada 1,5 s) para a barra do painel */
+function srLive(){ try{ if(state.view!=="pick" || IS_SHOWROOM) return; const c=cur(); if(!c || !c.it || !c.o?.naLoja) return;
+  const k=c.o.id+":"+c.it.i+":"+state.count; if(k===SR_LIVE.k) return; SR_LIVE.k=k;
+  const send=()=>{ SR_LIVE.t=Date.now(); SR_LIVE.tm=null; const c2=cur(); if(!c2 || !c2.it) return; if(!(state.count>0) && !c2.o.live) return; patchOrder(c2.o.id, {live:{i:c2.it.i, n:state.count, at:Date.now()}}); };
+  clearTimeout(SR_LIVE.tm); const w=1500-(Date.now()-SR_LIVE.t); if(w<=0) send(); else SR_LIVE.tm=setTimeout(send, w); }catch(e){} }
 function renderTV(){
   app.classList.add("tv"); document.documentElement.classList.add("tvmode");
   const d=new Date(), painel=myRole()==="painel";
@@ -4431,7 +4543,7 @@ function trayStepHTML(o, pl, r){
 }
 function goItem(k){ state.bigItem=false; state.idx=k; state.phase=startPhase(ORDERS.find(x=>x.id===state.oid)); state.count=0; render(); scrollTo({top:0,behavior:"smooth"}); }
 function updateCount(){
-  const {it} = cur();
+  const {it} = cur(); srLive();
   const c=document.getElementById("cnt"), b=document.getElementById("cbar"), u=document.getElementById("undo"), m=document.getElementById("miss");
   if(c) c.textContent=state.count; if(b) b.style.width=(state.count/it.need*100)+"%";
   if(u) u.disabled=!state.count; if(m) m.textContent=`Encerrar com ${state.count} (falta)`;
@@ -6002,6 +6114,12 @@ function renderUsuarios(){
         <h3>Pedido parado na colmeia</h3>
         <p class="hint">Pedido pronto (aguardando o cliente retirar ou o envio) que está na colmeia há mais tempo que isto aparece na TV com aviso de voz a cada 5 minutos, até alguém bipar a colmeia e confirmar se ele ainda está lá. Use 0 para desligar.</p>
         <div class="cfgrow"><label>Avisar depois de <input class="tin mono" id="cfgStale" type="number" min="0" max="60" value="${CONFIG.staleDays??7}" style="width:80px"> dias</label><span class="hint">${staleOrders().length} pedido(s) parado(s) agora</span></div>
+        <h3>Painel do showroom</h3>
+        <p class="hint">Monitor da loja: mostra os pedidos de <b>cliente na loja</b> aguardando e em separação, com a barra de progresso conforme o separador bipa. Quando o pedido fica pronto, toca uma campainha para o vendedor buscar na expedição. Sem pedidos, passa os vídeos abaixo em ordem aleatória. Abra <a href="/#showroom" target="_blank" rel="noopener"><b>/#showroom</b></a> (ou <a href="#showroom">ver aqui</a>) no monitor (entre com um usuário Painel TV) e toque na tela uma vez para liberar o som.</p>
+        <div class="cfgrow"><label>Mostrar o pedido pronto por <input class="tin mono" id="cfgSrReady" type="number" min="1" max="60" value="${SRCFG.readyMin||10}" style="width:80px"> min</label></div>
+        <div class="srvlist">${(SRCFG.videos||[]).length ? SRCFG.videos.map((v,i)=>`<div class="srvrow"><span>🎬 ${esc(v.name)}<small>${v.size?(v.size/1048576).toFixed(1)+" MB · ":""}${v.at?new Date(v.at).toLocaleDateString("pt-BR"):""}</small></span><a class="mini" href="${esc(v.url)}" target="_blank" rel="noopener">Ver</a><button class="mini" data-srdel="${i}">Remover</button></div>`).join("") : `<p class="hint">Nenhum vídeo ainda.</p>`}</div>
+        <label class="btn" style="margin-top:6px;display:inline-flex;cursor:pointer">+ Adicionar vídeo<input type="file" id="cfgSrUp" accept="video/mp4,video/webm,video/quicktime" multiple hidden></label>
+        <p class="hint">MP4 (H.264) ou WebM, até 50 MB cada. Prefira vídeos em 1920×1080.</p>
         <h3>Estantes (mapa 3D)</h3>
         <p class="hint">Cada <b>nível</b> do endereço é uma caixa bin, contando de baixo para cima. A 1ª prateleira (perto do chão) é de caixas de reposição e não conta. Informe quantas caixas cabem empilhadas em cada prateleira, de baixo para cima, separadas por vírgula. Ex.: <b>6, 4</b> = níveis 1–6 na 2ª prateleira e 7–10 na 3ª.</p>
         <div class="cfgrow"><label>Caixas bin por prateleira <input class="tin mono" id="cfgBinStk" value="${esc(binStacks().join(", "))}" placeholder="6, 4" style="width:120px"></label>
@@ -6056,6 +6174,17 @@ function renderUsuarios(){
     if(!a.length){ toast("Informe as caixas, ex.: 6, 4"); return; }
     CONFIG={...CONFIG, binStacks:a}; if(cfgDoc) queueWrite("cfg", ()=>cfgDoc.set(cfgData())); toast("Estantes atualizadas"); render(); };
   document.getElementById("cfgBinStk").onchange=binCfg;
+  const srSave=()=>{ if(srDoc) queueWrite("cfg-sr", ()=>srDoc.set(JSON.parse(JSON.stringify(SRCFG)))); };
+  document.getElementById("cfgSrReady").onchange=e=>{ SRCFG={...SRCFG, readyMin:Math.max(1,Math.min(60,Math.round(+e.target.value||10)))}; srSave(); toast(`Pronto fica ${SRCFG.readyMin} min no painel`); };
+  document.querySelectorAll("[data-srdel]").forEach(b=>b.onclick=async()=>{ const i=+b.dataset.srdel, v=SRCFG.videos[i]; if(!v) return; if(!b.dataset.ok){ b.dataset.ok=1; b.textContent="Toque de novo para remover"; b.classList.add("danger"); setTimeout(()=>{ if(b.isConnected){ delete b.dataset.ok; b.textContent="Remover"; b.classList.remove("danger"); } }, 4000); return; }
+    SRCFG={...SRCFG, videos:SRCFG.videos.filter((x,j)=>j!==i)}; srSave(); render(); try{ if(v.path) await window.psStorage?.remove(v.path); }catch(e){} toast("Vídeo removido"); });
+  document.getElementById("cfgSrUp").onchange=async e=>{ const files=[...e.target.files]; e.target.value=""; if(!files.length) return;
+    if(!window.psStorage){ toast("Envio de vídeo indisponível"); return; }
+    for(const f of files){ if(f.size>50*1048576){ toast(`${f.name}: maior que 50 MB`); continue; }
+      toast(`Enviando ${f.name}…`);
+      try{ const path=Date.now()+"-"+f.name.normalize("NFD").replace(/[^\w.-]+/g,"_").slice(-80), url=await window.psStorage.upload(path, f);
+        SRCFG={...SRCFG, videos:[...(SRCFG.videos||[]), {path, url, name:f.name, size:f.size, at:Date.now()}]}; srSave(); toast(`${f.name} adicionado`); render(); }
+      catch(err){ toast(`Falha ao enviar ${f.name}`); console.warn(err); } } };
   document.getElementById("cfgStale").onchange=e=>{ const d=Math.max(0,Math.min(60,Math.round(+e.target.value||0))); CONFIG={...CONFIG, staleDays:d}; if(cfgDoc) queueWrite("cfg", ()=>cfgDoc.set(cfgData())); toast(d?`Aviso após ${d} dia${d===1?"":"s"}`:"Aviso desligado"); render(); };
   document.getElementById("cfgTray").onchange=e=>{ CONFIG={...CONFIG, useTray:e.target.checked}; if(cfgDoc) queueWrite("cfg", ()=>cfgDoc.set(cfgData())); toast(CONFIG.useTray?"Bandeja ligada":"Bandeja desligada"); };
   bindMz(); bindTransp();
@@ -6208,7 +6337,7 @@ function deleteUser(id){ delete USERS[id]; if(usersCol) queueWrite("u:"+id, ()=>
 let seenOrders = null, newIds = new Set(), alertQueue = [];
 let SOUND = true; try{ SOUND = localStorage.getItem("ps-sound")!=="0"; }catch(e){}
 const unlockAudio = () => { try{ audioCtx ||= new (window.AudioContext||window.webkitAudioContext)(); if(audioCtx.state==="running") return;
-  const p=audioCtx.resume?.(); if(p && p.then) p.then(()=>{ if(audioCtx.state==="running" && (state.view==="tv" || myRole()==="painel")){ tvVoiceLoad().then(ok=>{ if(ok) tvPlay([["ligado",0]]); else tvSay("Aviso de voz ligado."); }); render(); } }, ()=>{}); }catch(e){} };
+  const p=audioCtx.resume?.(); if(p && p.then) p.then(()=>{ if(audioCtx.state==="running" && !IS_SHOWROOM && (state.view==="tv" || myRole()==="painel")){ tvVoiceLoad().then(ok=>{ if(ok) tvPlay([["ligado",0]]); else tvSay("Aviso de voz ligado."); }); render(); } }, ()=>{}); }catch(e){} };
 /* qualquer toque/tecla (inclusive o OK do controle da TV) libera o som; não é "once" porque o primeiro toque pode não bastar em alguns navegadores */
 document.addEventListener("pointerdown", unlockAudio); document.addEventListener("keydown", unlockAudio);
 function chime(force, keepStale){
@@ -6318,7 +6447,7 @@ async function tvAnnounce(num){
 const tvLastTxt = () => TVV.last ? `Último aviso de voz: #${TVV.last.num} às ${new Date(TVV.last.at).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})} · ${TVV.last.via}` : "";
 let tvLastSync=Date.now(), tvAudioSeen="";
 function tvAnnounceTick(){
-  if(!(state.view==="tv" || myRole()==="painel")) return;
+  if(IS_SHOWROOM || !(state.view==="tv" || myRole()==="painel")) return;
   /* o navegador da TV pode suspender o som depois de um tempo: tenta religar e mostra a faixa vermelha se não conseguir */
   try{ if(audioCtx && audioCtx.state!=="running") audioCtx.resume().catch(()=>{}); }catch(e){}
   const as=audioCtx?audioCtx.state:"none"; if(as!==tvAudioSeen){ const was=tvAudioSeen; tvAudioSeen=as; if(was) render(); }
@@ -6337,7 +6466,7 @@ setInterval(tvAnnounceTick, 5000);
    Só no horário de trabalho e nunca por cima do sinal de novo pedido ou da voz do Cliente na loja */
 const STALE_SAID={}; let staleCueAt=0;
 function tvStaleTick(){
-  if(!(state.view==="tv" || myRole()==="painel")) return;
+  if(IS_SHOWROOM || !(state.view==="tv" || myRole()==="painel")) return;
   const now=Date.now(), st=staleOrders(), ids=new Set(st.map(o=>o.id)); Object.keys(STALE_SAID).forEach(k=>{ if(!ids.has(k)) delete STALE_SAID[k]; });
   if(!st.length || !staleTalkTime() || !tvVoiceFree()) return;
   // Cliente na loja tem prioridade: se algum está esperando e o aviso dele vence nos próximos segundos, espera
@@ -6360,6 +6489,7 @@ async function tvStaleSay(o){
   TVV.last={num:o.num, at:Date.now(), via:"colmeia "+hv}; const el=document.getElementById("tvLast"); if(el) el.textContent=tvLastTxt();
 }
 function checkNewOrders(){
+  if(IS_SHOWROOM){ seenOrders=new Set(); return; } // o painel do showroom tem a própria campainha (pedido pronto)
   const tv = state.view==="tv" || myRole()==="painel"; // painel da TV: todos os canais, só som (sem janela de aviso)
   const open = ORDERS.filter(o=>o.status==="aguardando" && pickList(o).length && (tv || ecoOk(o)));
   const sk = o => o.id+":"+(o.createdAt||0)+":"+(o.queuedAt||0);
@@ -6462,13 +6592,16 @@ function rerender(){
 app.addEventListener("focusout", ()=>{ if(pendingRender) setTimeout(()=>{ const ae=document.activeElement; if(pendingRender && !(ae && /INPUT|SELECT/.test(ae.tagName) && app.contains(ae))){ pendingRender=false; render(); } }, 250); });
 function render(){
   try{ applyScanMode(); }catch(e){}
+  if(state.view==="pick") setTimeout(srLive, 0);
   document.documentElement.classList.toggle("can-sim", !!(ME.id && USERS[ME.id]?.sim)); // Administrador libera a simulação de bip por usuário
   pendingRender=false;
   if(HV_TK) return renderTk();
   if(RC_TK) return renderRcTk();
-  keepAwake(state.view==="tv" || (state.sector==="expedicao" && ["pick","tray","tomesa","store","mesa","trays"].includes(state.view)));
+  keepAwake(IS_SHOWROOM || state.view==="tv" || (state.sector==="expedicao" && ["pick","tray","tomesa","store","mesa","trays"].includes(state.view)));
   if(!authReady){ scanbar.hidden=true; return renderLoading(); }
   if(!myRole()){ scanbar.hidden=true; app.classList.remove("picking"); return renderNoAccess(); }
+  if(IS_SHOWROOM){ scanbar.hidden=true; return renderShowroom(); }
+  document.documentElement.classList.remove("srmode"); app.classList.remove("sr");
   if(state.view==="tv" || myRole()==="painel"){ scanbar.hidden=true; app.classList.remove("picking","wide"); return renderTV(); }
   app.classList.remove("tv"); document.documentElement.classList.remove("tvmode");
   if(state.hoPending && canHvOut()){ const {oid,how}=state.hoPending, o=ORDERS.find(x=>x.id===oid);
@@ -6888,7 +7021,7 @@ const lucasKey = () => "ps-lucas-" + (ME.id || "local");
 function lucasLoad(){ if(LUCAS.loaded===lucasKey()) return; LUCAS.loaded=lucasKey(); LUCAS.msgs=[]; LUCAS.thread=null;
   try{ const v=JSON.parse(localStorage.getItem(lucasKey())||"null"); if(v && Array.isArray(v.msgs) && Date.now()-(v.at||0) < 12*3600e3){ LUCAS.msgs=v.msgs; LUCAS.thread=v.thread||null; } }catch(e){} }
 function lucasSave(){ try{ localStorage.setItem(lucasKey(), JSON.stringify({at:Date.now(), thread:LUCAS.thread, msgs:LUCAS.msgs.slice(-30).map(m=>({role:m.role, text:m.text, nimg:(m.images||[]).length||m.nimg||0, err:m.err||false}))})); }catch(e){} }
-const lucasVisible = () => !!window.psLucas && authReady && !!myRole() && !hasRole("painel") && state.view!=="tv" && location.hash!=="#tv" && !document.documentElement.classList.contains("tvmode") && !HV_TK && !RC_TK; // nunca no Painel TV
+const lucasVisible = () => !!window.psLucas && authReady && !!myRole() && !hasRole("painel") && state.view!=="tv" && location.hash!=="#tv" && !IS_SHOWROOM && !document.documentElement.classList.contains("tvmode") && !HV_TK && !RC_TK; // nunca no Painel TV
 const SECTOR_T = {comercial:"Comercial", expedicao:"Separação", colmeias:"Colmeias", compras:"Compras", recebimento:"Recebimento", estoque:"Locais", usuarios:"Usuários"};
 const VIEW_T = {orders:"", pick:"separando um pedido", tray:"bipar bandeja", mesa:"mesa de expedição", store:"guardar na colmeia", done:"pedido separado", tomesa:"levar à mesa", trays:"bandejas", unstore:"devolver peças da colmeia ao estoque", hvout:"saída da colmeia", labels:"etiquetas"};
 function lucasScreen(){ const sec = SECTOR_T[state.sector]||state.sector||""; const sub = state.sector==="expedicao" && state.view==="orders" ? ({fila:"fila de separação", historico:"Separados"})[state.sepTab||"fila"] : (VIEW_T[state.view] ?? state.view);
@@ -7054,6 +7187,8 @@ render();
   cfgDoc = db.doc("config/picking");
   cfgDoc.onSnapshot(snap=>{ const d=snap.exists?snap.data():null; CONFIG = {requireLoc:false, useTray: d?.useTray ?? true, binStacks: Array.isArray(d?.binStacks) && d.binStacks.length ? d.binStacks : (d?.binStack ? Array(d.binShelves||2).fill(d.binStack) : [6,4]), staleDays: d?.staleDays ?? 7}; rerender(); }, ()=>{ cfgDoc=null; });
   db.doc("config/magazord_sync").onSnapshot(snap=>{ MZSYNC = snap.exists ? JSON.parse(JSON.stringify(snap.data())) : null; if(state.sector==="usuarios") rerender(); }, ()=>{});
+  srDoc = db.doc("config/showroom");
+  srDoc.onSnapshot(snap=>{ const d=snap.exists?snap.data():null; SRCFG={videos: Array.isArray(d?.videos) ? JSON.parse(JSON.stringify(d.videos)) : [], readyMin: +d?.readyMin || 10}; if(IS_SHOWROOM || state.sector==="usuarios") rerender(); }, ()=>{});
   transpDoc = db.doc("config/transportadoras");
   transpDoc.onSnapshot(snap=>{ const l=snap.exists?snap.data()?.list:null; TRANSP = l && typeof l==="object" ? JSON.parse(JSON.stringify(l)) : {}; rerender(); }, ()=>{ transpDoc=null; });
   mesasDoc = db.doc("config/mesas");

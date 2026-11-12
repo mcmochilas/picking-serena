@@ -223,6 +223,8 @@ document.documentElement.classList.add("ps-test"); // no teste os botões "Simul
   };
   window.claude = (HV_TOKEN || RC_TOKEN) ? { async use(){ return null; } } : { async use(name){ return name === "db" ? db : name === "user" ? user : name === "downloads" ? downloads : null; } };
   window.psRefresh = async () => { Object.keys(DB).forEach(emit); };
+  /* teste: o vídeo fica só nesta aba (não vai para nenhum servidor) */
+  window.psStorage = { async upload(path, file){ return URL.createObjectURL(file); }, async remove(){ } };
   /* Lucas no ambiente de teste: respostas simuladas (o de verdade usa a API no servidor) */
   window.psLucas = {
     async status(){ return { configured: !!DB.lucasOn || true, model: DB.lucasModel || "claude-sonnet-5-5", kbUpdated: new Date().toISOString(), models:["claude-sonnet-5-5","claude-haiku-5-5","claude-opus-5-5"] }; },
