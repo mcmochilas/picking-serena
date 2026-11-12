@@ -553,11 +553,25 @@ details.cpcard summary{display:flex;justify-content:space-between;align-items:ce
 @media (prefers-reduced-motion:reduce){.tourhole,.tourtip{transition:none}}
 .bar.nahdr .btn.cpbtn{height:38px;min-height:38px;padding:0 16px;font-size:14px;border-radius:10px}
 .hintbox.warnbox{border-color:var(--bad);background:var(--bad-soft);color:var(--ink);margin:10px 0}
-.eppick{display:flex;flex-direction:column;gap:6px}.eplist{display:flex;flex-direction:column;gap:4px;max-height:340px;overflow:auto}
+.etq{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;margin-top:14px;align-items:start}
+.etqcfg{display:flex;flex-direction:column;gap:18px}.etqcfg .filters{margin:0}
+.etqmodes{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))!important}
+.etqout{display:flex;flex-direction:column;gap:12px}
+.etqsum{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.etqsum .totals{display:flex;gap:22px}.etqsum .totals small{display:block;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em}.etqsum .totals b{font-size:28px;line-height:1.1}
+.etqout .hint{margin:0}
+.etqempty{border:1px dashed var(--line);border-radius:12px;padding:40px 16px;text-align:center;color:var(--muted)}
+.etqout .labels,.etqout .llgrid,.etqout .sologrid{margin-top:0}
+@media (min-width:1100px){.etq.side{grid-template-columns:minmax(0,1.3fr) minmax(400px,1fr)}.etq.side .etqout{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}}
+.etq.stack .etqcfg{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:18px;align-items:start}
+.etq.stack .llgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,380px),1fr));gap:12px}
+.etq.side .labels{grid-template-columns:1fr}
+.epall{display:flex;gap:18px;flex-wrap:wrap}
+.eppick{display:flex;flex-direction:column;gap:6px}.eplist{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:6px;max-height:360px;overflow:auto}
 .eprow{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:10px;padding:6px 10px}.eprow.on{border-color:var(--accent);background:var(--accent-soft)}
 .eprow .chk{flex:1;min-width:0;display:flex;gap:8px;align-items:flex-start}.eprow .chk span{min-width:0}.eprow small{display:block}.eprow input[type=number]{width:70px}
 .epact{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px}
-.eangrid{display:flex;flex-direction:column;gap:10px}.eangrid img{width:100%;max-width:520px;border:1px dashed var(--line);border-radius:6px;background:#fff;image-rendering:pixelated}
+.eangrid{display:flex;flex-direction:column;gap:10px}.eangrid img{width:100%;border:1px dashed var(--line);border-radius:6px;background:#fff;image-rendering:pixelated}
 .pvdest{margin-top:12px;display:flex;flex-direction:column;gap:6px}.pvdest .seg button{flex:1}
 .chip.dest{cursor:pointer;border:1px dashed currentColor}.chip.dest.need{color:var(--bad);background:var(--bad-soft)}
 .pvenc .mact .btn{flex:none;width:auto;min-height:38px;height:38px;padding:0 16px;font-size:14px;border-radius:10px}
@@ -5913,6 +5927,7 @@ function labelSet(){
   if(t==="produtos" && Object.keys(state.lblPsel||{}).length) return Object.entries(state.lblPsel).flatMap(([code,q])=>{ const p=PRODUCTS[code]; if(!p) return [];
     const e=p.ean && eanState(p.ean).c==="done"; const l={value:e?p.ean:p.code, big:p.code, small:p.name, sub:e?"":"sem EAN · código interno", fmt:e?(p.ean.length===8?"EAN8":"EAN13"):"CODE128", code:p.code, name:p.name};
     return Array.from({length:Math.max(1,Math.min(500,+q||1))},()=>l); });
+  if(t==="produtos" && !state.lblAllP) return [];
   if(t==="produtos") return Object.values(PRODUCTS).sort((a,b)=>a.code.localeCompare(b.code)).filter(p=>state.lblOnlyNoEan ? !p.ean : true)
     .map(p=>{ const e=p.ean && eanState(p.ean).c==="done"; return {value:e?p.ean:p.code, big:p.code, small:p.name, sub:e?"":"sem EAN · código interno", fmt:e?(p.ean.length===8?"EAN8":"EAN13"):"CODE128"}; });
   const rua=state.lblRua||"todas", lado=state.lblLado||"todos", only=state.lblOnlyUsed, ty=state.lblLocType||"todos", solo=t==="locsolo", free=state.lblOnlyFree;
@@ -5934,9 +5949,9 @@ function eanPickHTML(){ const q=(state.lblPq||"").trim().toUpperCase(), sel=stat
       <div class="epact">${noEan?`<button class="btn" id="epGenAll">Gerar EAN para ${noEan} sem EAN</button>`:""}<button class="lnk" id="epClear">Limpar seleção</button></div>` : ""}
     ${q ? `<div class="eyebrow" style="margin-top:6px">Resultado da busca</div><div class="eplist">${res.length ? res.map(p=>row(p, false)).join("") : `<small class="muted-s">Nenhum outro produto com essa busca.</small>`}</div>` : ""}
     ${nSel ? ""
-      : `<small class="muted-s">Busque e marque os produtos. Sem seleção, o PDF sai com todos os produtos${state.lblOnlyNoEan?" sem EAN":""}.</small>
-         <label class="chk"><input type="checkbox" id="lblNoEan" ${state.lblOnlyNoEan?"checked":""}> Só produtos sem EAN (etiqueta com código interno)</label>`}
-    <p class="hint">O EAN gerado começa com <b>200</b> (faixa da GS1 para uso interno) e fica salvo no cadastro do produto. Serve para bipar no estoque; não use para vender em marketplace.</p></div>`; }
+      : `<div class="epall"><label class="chk"><input type="checkbox" id="lblAllP" ${state.lblAllP?"checked":""}> Imprimir todos os produtos (${Object.keys(PRODUCTS).length})</label>
+         ${state.lblAllP?`<label class="chk"><input type="checkbox" id="lblNoEan" ${state.lblOnlyNoEan?"checked":""}> Só os sem EAN (etiqueta com código interno)</label>`:""}</div>`}
+    <p class="hint">EAN gerado começa com <b>200</b> (uso interno, GS1) e fica salvo no produto. Serve para bipar no estoque; não use para vender em marketplace.</p></div>`; }
 function bindEanPick(){
   const q=document.getElementById("lblPq"); if(q) q.oninput=()=>{ state.lblPq=q.value; const pos=q.selectionStart; render(); const n=document.getElementById("lblPq"); if(n){ n.focus(); n.setSelectionRange(pos,pos); } };
   app.querySelectorAll("[data-epsel]").forEach(c=>c.onchange=()=>{ const s={...(state.lblPsel||{})}; c.checked ? s[c.dataset.epsel]=1 : delete s[c.dataset.epsel]; state.lblPsel=s; render(); });
@@ -5945,6 +5960,7 @@ function bindEanPick(){
   app.querySelectorAll("[data-epgen]").forEach(b=>b.onclick=()=>{ const c=b.dataset.epgen; if(gen([c])){ state.lblPsel={...(state.lblPsel||{}), [c]:state.lblPsel?.[c]||1}; toast(`EAN gerado · ${c}`); render(); } });
   const ga=document.getElementById("epGenAll"); if(ga) ga.onclick=()=>{ const n=gen(Object.keys(state.lblPsel||{})); toast(`${n} EAN gerado(s)`); render(); };
   const cl=document.getElementById("epClear"); if(cl) cl.onclick=()=>{ state.lblPsel={}; render(); };
+  const ap=document.getElementById("lblAllP"); if(ap) ap.onchange=()=>{ state.lblAllP=ap.checked; render(); };
 }
 /* etiqueta 40 × 24,9 mm, duas por linha (página 80 × 24,9 mm, igual à do Full), desenhada a 8 pontos/mm */
 const EW=640, EH=199, EFONT="Arial, Helvetica, 'Liberation Sans', sans-serif";
@@ -6004,16 +6020,20 @@ function etiquetasHTML(){
   if(t==="produtos" && !state.lblFmtP) state.lblFmtP="ean2";
   if(t!=="produtos" && state.lblFmt==="ean2") state.lblFmt="termica";
   const fmt=solo?"solo":isLoc?(state.locFmt||"loc3"):t==="produtos"?state.lblFmtP:(state.lblFmt||"termica"), set=labelSet();
-  return `<div class="cgrid">
-    <section class="panel">
-      <div><h3>O que imprimir</h3><div class="seg" style="margin-top:8px;flex-wrap:wrap">${[["enderecos","Endereços"],["locsolo","Só endereço"],["produtos","Produtos"],["bandejas","Bandejas"],["mesas","Mesas"],["cestas","Cestas"],["colmeias","Colmeias"]].map(([k,v])=>`<button data-lt="${k}" aria-pressed="${t===k}">${v}</button>`).join("")}</div></div>
-      ${isLoc||solo?`<div class="filters"><label class="eyebrow">Rua <select id="lblRua" class="tin" style="width:auto">${["todas",...ruas().map(String)].map(a=>`<option value="${a}" ${String(state.lblRua||"todas")===a?"selected":""}>${a==="todas"?"Todas":"R"+a}</option>`).join("")}</select></label>
+  const sumHTML = `<div class="etqsum"><div class="totals"><div><small>Etiquetas</small><b class="tnum">${set.length}</b></div>${fmt==="a4"?`<div><small>Folhas A4</small><b class="tnum">${Math.ceil(set.length/24)}</b></div>`:fmt==="solo"?`<div><small>Folhas A4</small><b class="tnum">${Math.ceil(set.length/(SOLO.cols*SOLO.rows))}</b></div>`:fmt==="loca4"?`<div><small>Folhas A4</small><b class="tnum">${Math.ceil(set.length/10)}</b></div>`:fmt==="loc3"?`<div><small>Etiquetas 10 × 15</small><b class="tnum">${Math.ceil(set.length/3)}</b></div>`:fmt==="ean2"?`<div><small>Linhas no rolo</small><b class="tnum">${Math.ceil(set.length/2)}</b></div>`:""}</div>
+        <button class="btn dark" id="genPdf" ${set.length?"":"disabled"}>Gerar PDF para imprimir</button></div>
+      <p class="hint">${set.length ? `Imprima em tamanho real (100%), sem "ajustar à página".` : t==="produtos" ? "Marque os produtos à esquerda para imprimir." : "Nada para imprimir com esses filtros."}</p>`;
+  const side = t==="produtos" || t==="mesas" || t==="cestas", nPrev = side ? 6 : isLoc ? 6 : solo ? 12 : 10; // com lista para escolher: prévia ao lado; sem: prévia larga embaixo
+  return `<div class="etq ${side?"side":"stack"}">
+    <section class="panel etqcfg">
+      <div><h3>O que imprimir</h3><div class="seg" style="margin-top:8px;flex-wrap:wrap">${[["enderecos","Endereços"],["locsolo","Só endereço"],["produtos","Produtos"],["bandejas","Bandejas"],["mesas","Mesas"],["cestas","Cestas"],["colmeias","Colmeias"]].map(([k,v])=>`<button data-lt="${k}" aria-pressed="${t===k}">${v}</button>`).join("")}</div>
+      ${isLoc||solo?`<div class="filters" style="margin-top:14px"><label class="eyebrow">Rua <select id="lblRua" class="tin" style="width:auto">${["todas",...ruas().map(String)].map(a=>`<option value="${a}" ${String(state.lblRua||"todas")===a?"selected":""}>${a==="todas"?"Todas":"R"+a}</option>`).join("")}</select></label>
         <label class="eyebrow">Lado <select id="lblLado" class="tin" style="width:auto">${["todos","A","B"].map(a=>`<option value="${a}" ${(state.lblLado||"todos")===a?"selected":""}>${a==="todos"?"Ambos":a}</option>`).join("")}</select></label>
         <label class="eyebrow">Tipo <select id="lblLocType" class="tin" style="width:auto">${[["todos","Todos"],...Object.entries(LOC_TYPES).map(([k,t])=>[k,`${k} · ${t}`])].map(([k,t])=>`<option value="${k}" ${(state.lblLocType||"todos")===k?"selected":""}>${t}</option>`).join("")}</select></label>
-        ${solo?`<label class="chk"><input type="checkbox" id="lblFree" ${state.lblOnlyFree?"checked":""}> Só endereços sem produto</label>`:`<label class="chk"><input type="checkbox" id="lblUsed" ${state.lblOnlyUsed?"checked":""}> Só endereços com produto</label>`}</div>`:""}
+        ${solo?`<label class="chk"><input type="checkbox" id="lblFree" ${state.lblOnlyFree?"checked":""}> Só endereços sem produto</label>`:`<label class="chk"><input type="checkbox" id="lblUsed" ${state.lblOnlyUsed?"checked":""}> Só endereços com produto</label>`}</div>`:""}</div>
       ${t==="mesas"||t==="cestas"?spotsAdminHTML(t):""}
       ${t==="produtos"?eanPickHTML():""}
-      <div><h3>Formato</h3><div class="modes" style="margin-top:8px;grid-template-columns:1fr 1fr">
+      <div><h3>Formato</h3><div class="modes etqmodes" style="margin-top:8px">
         ${solo?`<label class="mode"><input type="radio" name="fmt" value="solo" checked><span><b>Folha A4 · 56 por folha</b><small>Etiquetas de 5 × 2 cm (4 na largura × 14 na altura) em impressora comum, para recortar e colar de forma provisória.</small></span></label>`:isLoc?`<label class="mode"><input type="radio" name="fmt" value="loc3" ${fmt==="loc3"?"checked":""}><span><b>Térmica 10 × 15 cm · 3 por etiqueta</b><small>Cada etiqueta de 10 × 15 cm sai com 3 endereços de 10 × 5 cm, com linha de corte.</small></span></label>
         <label class="mode"><input type="radio" name="fmt" value="loca4" ${fmt==="loca4"?"checked":""}><span><b>Folha A4 · 10 por folha</b><small>Endereços de 10 × 5 cm em impressora comum, para recortar.</small></span></label>`:`
         ${t==="produtos"?`<label class="mode"><input type="radio" name="fmt" value="ean2" ${fmt==="ean2"?"checked":""}><span><b>Térmica 2 colunas · 40 × 25 mm</b><small>Igual à etiqueta do Full: duas etiquetas por linha, impressora térmica de rolo.</small></span></label>`:""}
@@ -6021,12 +6041,9 @@ function etiquetasHTML(){
         <label class="mode"><input type="radio" name="fmt" value="a4" ${fmt==="a4"?"checked":""}><span><b>Folha A4 · 3 × 8</b><small>24 etiquetas de 70 × 37 mm por folha, impressora comum.</small></span></label>
         ${t==="mesas"||t==="cestas"?`<label class="mode"><input type="radio" name="fmt" value="placa" ${fmt==="placa"?"checked":""}><span><b>Placa A4 deitada</b><small>Uma por folha, letra e código de barras grandes, para fixar no local.</small></span></label>`:""}`}
       </div></div>
-      <div class="sumbar"><div class="totals"><div><small>Etiquetas</small><b class="tnum">${set.length}</b></div>${fmt==="a4"?`<div><small>Folhas A4</small><b class="tnum">${Math.ceil(set.length/24)}</b></div>`:fmt==="solo"?`<div><small>Folhas A4</small><b class="tnum">${Math.ceil(set.length/(SOLO.cols*SOLO.rows))}</b></div>`:fmt==="loca4"?`<div><small>Folhas A4</small><b class="tnum">${Math.ceil(set.length/10)}</b></div>`:fmt==="loc3"?`<div><small>Etiquetas 10 × 15</small><b class="tnum">${Math.ceil(set.length/3)}</b></div>`:""}</div>
-        <button class="btn dark" id="genPdf" ${set.length?"":"disabled"}>Gerar PDF para imprimir</button></div>
-      <p class="hint">O PDF é baixado para o seu computador. Abra e imprima em tamanho real (100%), sem "ajustar à página".</p>
     </section>
-    <aside class="panel"><h3>Prévia · ${Math.min(6,set.length)} de ${set.length}</h3>
-      ${solo?`<p class="hint">Cada local: 5 × 2 cm (56 por folha A4: 4 na largura × 14 na altura). O código de barras é o do <b>endereço</b>: use em <b>Vincular produto</b> (bipe o produto e depois esta etiqueta) para amarrar o produto ao local.</p><div class="sologrid">${set.slice(0,6).map(locSoloHTML).join("")}</div>`:isLoc?`<p class="hint">Cada local: 10 × 5 cm (3 por etiqueta de 10 × 15 cm). O código de barras é o do produto (EAN, ou o código interno quando não há EAN), que o separador bipa no local.</p><div class="llgrid">${set.slice(0,4).map(locLabelHTML).join("")}</div>`:fmt==="ean2"?`<p class="hint">Duas etiquetas de 40 × 25 mm por linha, como a do Full. Imprima em tamanho real (100%).</p><div class="eangrid" id="eanPrev"></div>`:`<div class="labels" style="grid-template-columns:1fr">${set.slice(0,6).map(l=>`<div class="label"><div class="lb">${esc(l.big)}</div><div class="lt">${esc(l.small)}</div>${l.sub?`<div class="lt" style="font-weight:400">${esc(l.sub)}</div>`:""}<svg class="bc" data-v="${esc(l.value)}" data-f="${l.fmt}"></svg></div>`).join("")}</div>`}
+    <aside class="panel etqout">${sumHTML}<h3>Prévia${set.length?` · ${Math.min(nPrev,set.length)} de ${set.length}`:""}</h3>${!set.length?`<div class="etqempty">A prévia aparece aqui.</div>`:""}
+      ${solo?`<p class="hint">Cada local: 5 × 2 cm (56 por folha A4: 4 na largura × 14 na altura). O código de barras é o do <b>endereço</b>: use em <b>Vincular produto</b> (bipe o produto e depois esta etiqueta) para amarrar o produto ao local.</p><div class="sologrid">${set.slice(0,nPrev).map(locSoloHTML).join("")}</div>`:isLoc?`<p class="hint">Cada local: 10 × 5 cm (3 por etiqueta de 10 × 15 cm). O código de barras é o do produto (EAN, ou o código interno quando não há EAN), que o separador bipa no local.</p><div class="llgrid">${set.slice(0,side?4:nPrev).map(locLabelHTML).join("")}</div>`:fmt==="ean2"?`<p class="hint">Duas etiquetas de 40 × 25 mm por linha, como a do Full.</p><div class="eangrid" id="eanPrev"></div>`:`<div class="labels">${set.slice(0,nPrev).map(l=>`<div class="label"><div class="lb">${esc(l.big)}</div><div class="lt">${esc(l.small)}</div>${l.sub?`<div class="lt" style="font-weight:400">${esc(l.sub)}</div>`:""}<svg class="bc" data-v="${esc(l.value)}" data-f="${l.fmt}"></svg></div>`).join("")}</div>`}
     </aside></div>`;
 }
 function bindEtiquetas(){
