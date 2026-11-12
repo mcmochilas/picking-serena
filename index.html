@@ -1908,7 +1908,7 @@ function asideHTML(){
         ${can("compras") && (o.status==="na_colmeia"||o.status==="encomenda"||o.status==="enc_pendente"||(o.status==="pronto_envio"&&o.mode==="parcial"&&o.remessa!==2&&enc.length))?`<div><button class="mini" data-arrived="${esc(o.id)}">Encomenda chegou</button></div>`:""}
         ${o.status==="pronto_envio"&&o.mode==="encomenda"?`<div><button class="mini" data-sent="${esc(o.id)}">Enviado · finalizar</button></div>`:""}
       </div>`;}).join("") : `<div class="empty">Nenhum pedido na expedição. Importe uma pré-venda para começar.</div>`}</div>${pg.pager}</div>
-    <div class="excol exhive"><div class="exhh"><div><h3>Colmeias</h3><small class="muted-s">Encomendas e pedidos aguardando retirada</small></div><button class="mini" id="hiveNewC">+ Novo pedido na colmeia</button></div>${hiveHTML(null)}${(()=>{ const hv=hiveOrders(); return `<div class="eyebrow" style="margin-top:12px">Pedidos nas colmeias · ${hv.length}</div>${hiveListHTML(hv)}`; })()}</div></div>`;
+    <div class="excol exhive"><div class="exhh"><div><h3>Colmeias</h3><small class="muted-s">Encomendas e pedidos aguardando retirada</small></div><button class="mini" id="hiveNewC">+ Novo pedido na colmeia</button></div>${hiveHTML(null)}${(()=>{ const hv=hiveOrders(); return `<div class="eyebrow" style="margin-top:12px">Pedidos nas colmeias · ${hv.length}</div>${hiveListHTML(hv, "cmhive", 10)}`; })()}</div></div>`;
 }
 function bindAside(){
   app.querySelectorAll("[data-arrived]").forEach(b=>b.onclick=()=>{
@@ -3221,7 +3221,7 @@ function xpToggle(box, btn, open){
   box.style.transition = "height .3s cubic-bezier(.2,.8,.2,1)"; box.style.height = h1+"px";
   clearTimeout(box._xp); box._xp = setTimeout(()=>{ box.style.height=""; box.style.overflow=""; box.style.transition=""; box.classList.remove("xanim"); }, 320);
 }
-function hiveListHTML(hive){
+function hiveListHTML(hive, pgKey, pgSize){
   const pend=hvPendList();
   return `${pend.length ? `<div class="hvpend"><div class="eyebrow">Aguardando colmeia · ${pend.length}</div><small class="muted-s">Pré-vendas salvas que ainda não foram bipadas numa colmeia.</small>
     ${pend.map(o=>`<div class="hvpendi"><span class="grow"><b class="mono">#${esc(o.num)}</b> ${esc(o.client)}<small>${o.hvNext==="pronto_envio"?"Cliente vai retirar":"Aguardando encomenda"} · salva há ${since(o.createdAt)}</small></span>${canHiveStore()?`<button class="btn primary sm" data-hvloc="${esc(o.id)}">Bipar colmeia</button>`:""}</div>`).join("")}</div>` : ""}
@@ -3230,7 +3230,8 @@ function hiveListHTML(hive){
         const list = toks.length ? hive.filter(o=>toks.every(t=>hvHay(o).includes(t))) : hive;
         if(!hive.length) return `<div class="empty">Nenhum pedido nas colmeias.</div>`;
         if(!list.length) return `<div class="empty">Nenhum pedido encontrado para “${esc(state.hvQ)}”.</div>`;
-        return `<div class="list" style="margin-top:0">${list.map(o=>{ const items=o.items||[], enc=items.filter(i=>i.qtyEnc>0);
+        const pg = pgKey ? pageOf(list, pgKey, pgSize||10) : {items:list, top:"", pager:""};
+        return `${pg.top}<div class="list" style="margin-top:0">${pg.items.map(o=>{ const items=o.items||[], enc=items.filter(i=>i.qtyEnc>0);
         const eta=enc.map(i=>i.eta).filter(Boolean).sort()[0];
         const hitIt = toks.length ? items.map((it,i)=>toks.every(t=>hvNorm([it.code,it.name,it.ean].join(" ")).includes(t))?i:-1).filter(i=>i>=0) : [];
         const head = hvNorm([o.num,o.client].join(" ")), open = (state.hvExp||[]).includes(o.id) || (hitIt.length>0 && !toks.every(t=>head.includes(t)) && !(state.hvClosed||[]).includes(o.id));
@@ -3238,7 +3239,7 @@ function hiveListHTML(hive){
           ${o.status==="na_mesa" && (can("mesa")||can("coleta")) ? `<button class="mini" data-hive="${esc(o.id)}">Guardar</button>`
           : (o.status==="pronto_envio" || o.status==="na_colmeia") && canHvOut() ? `<span class="hvact">${o.status==="na_colmeia"?`<span class="chip enc">Aguardando encomenda</span>`:""}<button class="mini" data-hsai="${esc(o.id)}:retirou" data-pend="${hasEnc(o)&&!encArrived(o)?1:""}">Cliente irá retirar</button><button class="mini" data-hsai="${esc(o.id)}:enviado" data-pend="${hasEnc(o)&&!encArrived(o)?1:""}">Enviar</button></span>`
           : `<span class="chip enc">${o.status==="pronto_envio"?"Pronto":"Aguardando encomenda"}</span>`}
-          ${items.length ? `<div class="xpbox hvbox${open?" xopen":""}"><div class="hvitems">${items.map((it,i)=>hvItemHTML(o,it,hitIt.includes(i))).join("")}</div></div>` : ""}</div>`; }).join("")}</div>`; })()}`;
+          ${items.length ? `<div class="xpbox hvbox${open?" xopen":""}"><div class="hvitems">${items.map((it,i)=>hvItemHTML(o,it,hitIt.includes(i))).join("")}</div></div>` : ""}</div>`; }).join("")}</div>${pg.pager}`; })()}`;
 }
 // liga a busca, os cards expansíveis e os botões da lista de colmeias (aba Colmeias e lateral do Comercial)
 function bindHiveList(){
@@ -3246,7 +3247,7 @@ function bindHiveList(){
   app.querySelectorAll("[data-hved]").forEach(b=>b.onclick=()=>openHiveItems(b.dataset.hved));
   const redraw = ()=>{ const a=state.sector==="comercial" && document.getElementById("aside"); if(a){ a.innerHTML=asideHTML(); bindAside(); } else render(); };
   app.querySelectorAll("[data-hive]").forEach(b=>b.onclick=()=>{ state.oid=b.dataset.hive; state.fromMesa=false; state.sector="expedicao"; state.view="store"; render(); scrollTo(0,0); });
-  const hq=document.getElementById("hvQ"); if(hq) hq.oninput=()=>{ state.hvQ=hq.value; state.hvClosed=[]; const pos=hq.selectionStart; redraw(); const n=document.getElementById("hvQ"); if(n){ n.focus(); try{ n.setSelectionRange(pos,pos); }catch(e){} } };
+  const hq=document.getElementById("hvQ"); if(hq) hq.oninput=()=>{ state.hvQ=hq.value; state.hvClosed=[]; resetPage("cmhive"); const pos=hq.selectionStart; redraw(); const n=document.getElementById("hvQ"); if(n){ n.focus(); try{ n.setSelectionRange(pos,pos); }catch(e){} } };
   app.querySelectorAll("[data-hvexp]").forEach(b=>b.onclick=()=>{ const id=b.dataset.hvexp, ex=state.hvExp||[], open=b.getAttribute("aria-expanded")!=="true";
     state.hvExp = open ? [...ex, id] : ex.filter(x=>x!==id);
     state.hvClosed = open ? (state.hvClosed||[]).filter(x=>x!==id) : [...(state.hvClosed||[]), id]; // fechar mesmo quando aberto pela busca
