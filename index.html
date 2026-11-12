@@ -5,6 +5,57 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <title>Picking Serena</title>
 <meta name="theme-color" content="#0F151C">
+<!-- Central de Apps: captura de erros. Cole no <head> do app, antes dos outros scripts. -->
+<script>
+(function () {
+  var CFG = { url: "https://dtrfujxhfcyefbipkcwz.supabase.co", key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0cmZ1anhoZmN5ZWZiaXBrY3d6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2MTU0NjAsImV4cCI6MjEwODE5MTQ2MH0.CzEvs54wtP8LDec8yDHOIIg1oUSu5gTb3Wcfh4j9djY", app: "picking-serena", release: "" };
+  var sent = 0, last = {}, MAX = 25;
+  var sid = Math.random().toString(36).slice(2, 10);
+  var origFetch = window.fetch ? window.fetch.bind(window) : null;
+  function send(kind, message, stack, source, extra) {
+    try {
+      message = String(message || "Erro desconhecido").slice(0, 3900);
+      var k = kind + "|" + message, now = Date.now();
+      if (sent >= MAX || (last[k] && now - last[k] < 10000)) return;
+      last[k] = now; sent++;
+      if (!origFetch) return;
+      origFetch(CFG.url + "/rest/v1/app_errors", {
+        method: "POST", keepalive: true,
+        headers: { apikey: CFG.key, Authorization: "Bearer " + CFG.key, "Content-Type": "application/json", Prefer: "return=minimal" },
+        body: JSON.stringify({ app: CFG.app, kind: kind, message: message, stack: stack ? String(stack).slice(0, 15000) : null,
+          source: source || null, url: location.href.slice(0, 1000), user_agent: navigator.userAgent.slice(0, 500),
+          release: CFG.release || null, session_id: sid, extra: extra || null })
+      }).catch(function () {});
+    } catch (_) {}
+  }
+  window.addEventListener("error", function (e) {
+    if (e && e.target && e.target !== window && (e.target.src || e.target.href)) {
+      send("resource", "Falha ao carregar " + (e.target.src || e.target.href), null, e.target.tagName);
+      return;
+    }
+    send("error", e.message, e.error && e.error.stack, (e.filename || "") + ":" + (e.lineno || 0) + ":" + (e.colno || 0));
+  }, true);
+  window.addEventListener("unhandledrejection", function (e) {
+    var r = e.reason || {};
+    send("promise", r.message || String(r), r.stack, null);
+  });
+  if (origFetch) {
+    window.fetch = function (input, init) {
+      var u = typeof input === "string" ? input : (input && input.url) || "";
+      return origFetch(input, init).then(function (res) {
+        if (res.status >= 500 && u.indexOf("/rest/v1/app_errors") < 0)
+          send("http", "HTTP " + res.status + " em " + u.split("?")[0], null, (init && init.method) || "GET", { status: res.status });
+        return res;
+      }, function (err) {
+        if (u.indexOf("/rest/v1/app_errors") < 0) send("network", "Falha de rede em " + u.split("?")[0] + ": " + (err && err.message), err && err.stack, null);
+        throw err;
+      });
+    };
+  }
+  // Para usar em try/catch ou num ErrorBoundary do React: window.CentralErros.capture(erro, { tela: "checkout" })
+  window.CentralErros = { capture: function (err, extra) { send("manual", (err && err.message) || String(err), err && err.stack, null, extra); } };
+})();
+</script>
 <script>try{var t=localStorage.getItem("ps-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}</script>
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">

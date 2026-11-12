@@ -18,6 +18,8 @@ def cut(pattern, repl="", count=1):
 
 cut(r'<script src="https://cdn\.jsdelivr\.net/npm/@supabase/[^"]+"></script>\s*<script src="/js/config\.js"></script>\s*<script src="/js/backend\.js"></script>',
     lambda m: "<script>\n" + tb + "\n</script>")
+# a versão de teste não manda erros para a Central de Apps
+cut(r'<!-- Central de Apps: captura de erros\..*?</script>\s*')
 cut(r'<link rel="manifest"[^>]*>\s*')
 cut(r'<link rel="icon"[^>]*>\s*')
 cut(r'<link rel="apple-touch-icon"[^>]*>\s*')
