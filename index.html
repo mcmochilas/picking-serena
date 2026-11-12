@@ -1389,7 +1389,8 @@ let prodCol = null;
 function saveProduct(p){
   const fc = p.forn ?? PRODUCTS[p.code]?.forn; // códigos do produto nos fornecedores ("ZEN|ZP5854.00019")
   const ei = p.eanInt ?? (PRODUCTS[p.code]?.ean===p.ean ? PRODUCTS[p.code]?.eanInt : undefined); // EAN gerado aqui (prefixo 200, uso interno)
-  const clean = {code:p.code, name:p.name, ean:p.ean||"", loc:p.loc||"", ...(fc&&fc.length?{forn:fc}:{}), ...(ei && p.ean?{eanInt:true}:{})};
+  const ea = p.eanAnt ?? PRODUCTS[p.code]?.eanAnt; // EANs anteriores (troca por "Novo EAN")
+  const clean = {code:p.code, name:p.name, ean:p.ean||"", loc:p.loc||"", ...(fc&&fc.length?{forn:fc}:{}), ...(ei && p.ean?{eanInt:true}:{}), ...(ea&&ea.length?{eanAnt:ea}:{})};
   PRODUCTS[p.code] = clean;
   if(prodCol) queueWrite("p:"+p.code, ()=>prodCol.doc(p.code).set(clean));
   rerender();
@@ -2808,7 +2809,7 @@ function scanUnstore(v){
     if(hv===o.colmeia){ feedback(true); u.phase="check"; render(); return setMsg(`Colmeia ${hv.slice(3)} confirmada. Bipe as peças que estão nela.`,"good"); }
     feedback(false); return setMsg(isHiveCode(hv) ? `Colmeia errada: ${hv.slice(3)}. As peças estão na ${o.colmeia.slice(3)}.` : `Bipe a etiqueta da colmeia ${o.colmeia.slice(3)}.`,"bad"); }
   if(u.phase==="check"){
-    const x=its.find(x=>((!!x.ean && v===x.ean) || v===x.code) && (u.cnt[x.i]||0)<x.back) || its.find(x=>(!!x.ean && v===x.ean) || v===x.code);
+    const x=its.find(x=>(isItem(x,v)) && (u.cnt[x.i]||0)<x.back) || its.find(x=>isItem(x,v));
     if(!x){ feedback(false); return setMsg(`Código ${v} não é de nenhuma peça deste pedido.`,"bad"); }
     if((u.cnt[x.i]||0)>=x.back){ feedback(false); return setMsg(`${x.code}: já foram bipadas as ${x.back} pç.`,"info"); }
     feedback(true); u.cnt[x.i]=(u.cnt[x.i]||0)+1; render();
@@ -3544,6 +3545,8 @@ function bindHiveList(){
 }
 const hiveOrders = () => ORDERS.filter(o=>inHive(o) || (usesHive(o) && o.status==="pronto_envio")).sort((a,b)=>(a.colmeia||"").localeCompare(b.colmeia||""));
 /* Colmeias: busca e itens da pré-venda */
+/* a peça bipada é deste item: EAN gravado no pedido, EAN atual do cadastro (pode ter sido trocado por "Novo EAN") ou o código */
+const isItem = (x, v) => !!v && ((!!x.ean && v===x.ean) || v===x.code || (!!PRODUCTS[x.code]?.ean && v===PRODUCTS[x.code].ean));
 const hvNorm = t => String(t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 /* Busca por aproximação, usada em todos os buscadores: cada palavra digitada precisa aparecer, em qualquer ordem, sem acento e sem
    diferença de maiúscula; palavras de 4+ letras aceitam 1 letra trocada/faltando/sobrando (2 a partir de 8). Números só por trecho exato. */
@@ -4855,7 +4858,7 @@ function handleScan(raw){
   if(state.view==="adjust") return scanAdjust(v);
   if(state.sector==="recebimento") return scanReceb(String(raw||"").trim());
   if(state.view==="done"){ const o=ORDERS.find(x=>x.id===state.oid);
-    if(o && canRescan(o)){ const r0=res(o), pl0=pickList(o), k=pl0.findIndex(x=>(r0[x.i].status==="miss"||r0[x.i].status==="part") && ((!!x.ean && v===x.ean) || v===x.code));
+    if(o && canRescan(o)){ const r0=res(o), pl0=pickList(o), k=pl0.findIndex(x=>(r0[x.i].status==="miss"||r0[x.i].status==="part") && (isItem(x,v)));
       if(k>=0){ rescanMiss(o, k); if(pickDirect(o)){ state.phase="unit"; state.count=Math.min(pl0[k].need,(r0[pl0[k].i].got||0)+1); if(state.count>=pl0[k].need){ commit("ok"); feedback(true); return; } render(); feedback(true); return setMsg(`${state.count} de ${pl0[k].need} pç bipadas. Bipe as demais.`,"good"); } if(state.phase!=="tray"){ state.phase="qty"; state.count=pl0[k].need; render(); } feedback(true); return setMsg(state.phase==="tray" ? "Item em falta encontrado. Bipe a bandeja e depois a peça." : `Item que estava em falta encontrado. Conte ${pl0[k].need} pç no total e confirme.`,"good"); } }
     if(o?.tray && o.trayStatus==="mesa") return scanUnlink(v, o.id); return; }
   if(state.view==="store"){
@@ -4880,9 +4883,9 @@ function handleScan(raw){
   }
   if(state.view!=="pick") return;
   const c = cur(); if(!c) return; const {o, it} = c;
-  const isLoc = LOC_RE.test(v), isProd = (!!it.ean && v===it.ean) || v===it.code;
+  const isLoc = LOC_RE.test(v), isProd = isItem(it,v);
   if(!isProd && !isLoc && state.phase!=="tray"){ // achou um item que tinha ficado em falta: volta para ele
-    const r0=res(o), pl0=pickList(o), k=pl0.findIndex((x,j)=>j!==state.idx && (r0[x.i].status==="miss"||r0[x.i].status==="part") && ((!!x.ean && v===x.ean) || v===x.code));
+    const r0=res(o), pl0=pickList(o), k=pl0.findIndex((x,j)=>j!==state.idx && (r0[x.i].status==="miss"||r0[x.i].status==="part") && (isItem(x,v)));
     if(k>=0 && pickDirect(o)){ feedback(true); state.idx=k; state.phase="unit"; state.count=Math.min(pl0[k].need,(r0[pl0[k].i].got||0)+1); if(state.count>=pl0[k].need){ commit("ok"); return; } render(); scrollTo({top:0,behavior:"smooth"});
       return setMsg(`Item em falta encontrado: ${state.count} de ${pl0[k].need} pç bipadas. Bipe as demais.`,"good"); }
     if(k>=0){ feedback(true); state.bigItem=false; state.idx=k; state.phase="qty"; state.count=pl0[k].need; render(); scrollTo({top:0,behavior:"smooth"});
@@ -4933,8 +4936,8 @@ function handleScan(raw){
   }
   feedback(false);
   if(isLoc) return setMsg(`Você já está em ${code(it.loc)}. Agora bipe a peça.`,"bad");
-  const enc = o.items.find(x=>(x.ean===v||x.code===v) && x.qtyEnc>=x.qty);
-  const other = o.items.find(x=>x.ean===v||x.code===v);
+  const enc = o.items.find(x=>isItem(x,v) && x.qtyEnc>=x.qty);
+  const other = o.items.find(x=>isItem(x,v));
   setMsg(enc ? `${enc.name} é sob encomenda. Não separar.` : other ? `Produto de outro item: ${other.name}. Este item ${it.loc?"está em "+code(it.loc):"é o "+it.code}.` : `Código ${v} não é deste produto.`, "bad");
 }
 let wedgeT0=0, wedgeN=0, autoT, inT0=0;
@@ -5943,23 +5946,29 @@ function genEan(){ const used=new Set(Object.values(PRODUCTS).map(p=>p.ean).filt
 function eanPickHTML(){ const q=(state.lblPq||"").trim().toUpperCase(), sel=state.lblPsel||{}, nSel=Object.keys(sel).length;
   const res = q ? Object.values(PRODUCTS).filter(p=>!sel[p.code] && fz(p.code+" "+p.name+" "+(p.ean||""), q)).sort((a,b)=>fzScore(b.code+" "+b.name,q)-fzScore(a.code+" "+a.name,q) || a.code.localeCompare(b.code)).slice(0,30) : [];
   const row=(p,inSel)=>{ const st=eanState(p.ean), ok=st.c==="done";
-    return `<div class="eprow ${inSel?"on":""}"><label class="chk"><input type="checkbox" data-epsel="${esc(p.code)}" ${inSel?"checked":""}><span><b class="mono">${esc(p.code)}</b> ${esc(p.name)}<small class="mono">${ok?esc(p.ean)+(p.eanInt?" · interno":""):`<span class="${st.c==="bad"?"bad-s":"muted-s"}">${esc(st.t)}</span>`}</small></span></label>
-      ${ok?"":`<button class="mini" data-epgen="${esc(p.code)}">Gerar EAN</button>`}${inSel?`<input class="tinput r" type="number" min="1" max="500" data-epq="${esc(p.code)}" value="${sel[p.code]||1}" aria-label="Quantidade de etiquetas de ${esc(p.code)}" title="Etiquetas">`:""}</div>`; };
+    return `<div class="eprow ${inSel?"on":""}"><label class="chk"><input type="checkbox" data-epsel="${esc(p.code)}" ${inSel?"checked":""}><span><b class="mono">${esc(p.code)}</b> ${esc(p.name)}<small class="mono">${ok?esc(p.ean)+(p.eanInt?" · interno":"")+(p.eanAnt?.length?` · antes ${esc(p.eanAnt[p.eanAnt.length-1].ean)}`:""):`<span class="${st.c==="bad"?"bad-s":"muted-s"}">${esc(st.t)}</span>`}</small></span></label>
+      ${ok?`<button class="mini ghost" data-epnew="${esc(p.code)}" title="Troca o EAN atual por um novo EAN interno">Novo EAN</button>`:`<button class="mini" data-epgen="${esc(p.code)}">Gerar EAN</button>`}${inSel?`<input class="tinput r" type="number" min="1" max="500" data-epq="${esc(p.code)}" value="${sel[p.code]||1}" aria-label="Quantidade de etiquetas de ${esc(p.code)}" title="Etiquetas">`:""}</div>`; };
   const selRows=Object.keys(sel).map(c=>PRODUCTS[c]).filter(Boolean), noEan=selRows.filter(p=>eanState(p.ean).c!=="done").length;
   return `<div class="eppick"><h3>Produtos</h3>
     <input class="tin" id="lblPq" placeholder="Buscar produto: código, nome ou EAN" value="${esc(state.lblPq||"")}" autocomplete="off">
     ${nSel ? `<div class="eyebrow" style="margin-top:6px">Selecionados · ${nSel}</div><div class="eplist">${selRows.map(p=>row(p,true)).join("")}</div>
-      <div class="epact">${noEan?`<button class="btn" id="epGenAll">Gerar EAN para ${noEan} sem EAN</button>`:""}<button class="lnk" id="epClear">Limpar seleção</button></div>` : ""}
+      <div class="epact">${noEan?`<button class="btn" id="epGenAll">Gerar EAN para ${noEan} sem EAN</button>`:""}${selRows.length-noEan>0?`<button class="mini ghost" id="epNewAll">Novo EAN para ${selRows.length-noEan} com EAN</button>`:""}<button class="lnk" id="epClear">Limpar seleção</button></div>` : ""}
     ${q ? `<div class="eyebrow" style="margin-top:6px">Resultado da busca</div><div class="eplist">${res.length ? res.map(p=>row(p, false)).join("") : `<small class="muted-s">Nenhum outro produto com essa busca.</small>`}</div>` : ""}
     ${nSel ? ""
       : `<div class="epall"><label class="chk"><input type="checkbox" id="lblAllP" ${state.lblAllP?"checked":""}> Imprimir todos os produtos (${Object.keys(PRODUCTS).length})</label>
          ${state.lblAllP?`<label class="chk"><input type="checkbox" id="lblNoEan" ${state.lblOnlyNoEan?"checked":""}> Só os sem EAN (etiqueta com código interno)</label>`:""}</div>`}
-    <p class="hint">EAN gerado começa com <b>200</b> (uso interno, GS1) e fica salvo no produto. Serve para bipar no estoque; não use para vender em marketplace.</p></div>`; }
+    <p class="hint">EAN gerado começa com <b>200</b> (uso interno, GS1) e fica salvo no produto. <b>Novo EAN</b> troca o atual (o anterior fica anotado): imprima e cole as etiquetas novas; o código antigo só vale para pedidos que já estavam na fila. Não use para vender em marketplace.</p></div>`; }
 function bindEanPick(){
   const q=document.getElementById("lblPq"); if(q) q.oninput=()=>{ state.lblPq=q.value; const pos=q.selectionStart; render(); const n=document.getElementById("lblPq"); if(n){ n.focus(); n.setSelectionRange(pos,pos); } };
   app.querySelectorAll("[data-epsel]").forEach(c=>c.onchange=()=>{ const s={...(state.lblPsel||{})}; c.checked ? s[c.dataset.epsel]=1 : delete s[c.dataset.epsel]; state.lblPsel=s; render(); });
   app.querySelectorAll("[data-epq]").forEach(i=>i.onchange=()=>{ state.lblPsel={...state.lblPsel, [i.dataset.epq]:Math.max(1,Math.min(500,Math.round(+i.value||1)))}; render(); });
   const gen=codes=>{ let n=0; codes.forEach(c=>{ const p=PRODUCTS[c]; if(!p || eanState(p.ean).c==="done") return; const e=genEan(); if(!e) return; saveProduct({...p, ean:e, eanInt:true}); n++; }); return n; };
+  // troca o EAN atual por um novo (o anterior fica guardado no produto); pede confirmação tocando de novo
+  const renew=codes=>{ let n=0; codes.forEach(c=>{ const p=PRODUCTS[c]; if(!p || eanState(p.ean).c!=="done") return; const e=genEan(); if(!e) return;
+    saveProduct({...p, ean:e, eanInt:true, eanAnt:[...(p.eanAnt||[]), {ean:p.ean, at:Date.now(), by:ME.id||""}].slice(-5)}); n++; }); return n; };
+  const twoTap=(b,label,fn)=>{ if(!b.dataset.ok){ b.dataset.ok=1; b.textContent=label; b.classList.add("danger"); setTimeout(()=>{ if(b.isConnected) render(); }, 4000); return; } fn(); };
+  app.querySelectorAll("[data-epnew]").forEach(b=>b.onclick=()=>twoTap(b,"Trocar EAN?",()=>{ if(renew([b.dataset.epnew])){ toast(`Novo EAN · ${b.dataset.epnew}`); render(); } }));
+  const na=document.getElementById("epNewAll"); if(na) na.onclick=()=>twoTap(na,"Toque de novo para trocar",()=>{ const n=renew(Object.keys(state.lblPsel||{})); toast(`${n} EAN trocado(s)`); render(); });
   app.querySelectorAll("[data-epgen]").forEach(b=>b.onclick=()=>{ const c=b.dataset.epgen; if(gen([c])){ state.lblPsel={...(state.lblPsel||{}), [c]:state.lblPsel?.[c]||1}; toast(`EAN gerado · ${c}`); render(); } });
   const ga=document.getElementById("epGenAll"); if(ga) ga.onclick=()=>{ const n=gen(Object.keys(state.lblPsel||{})); toast(`${n} EAN gerado(s)`); render(); };
   const cl=document.getElementById("epClear"); if(cl) cl.onclick=()=>{ state.lblPsel={}; render(); };
