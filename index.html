@@ -94,45 +94,45 @@ html.srmode .scanbar,html.srmode #alertbar{display:none!important}
 #app.sr{max-width:none;padding:0;margin:0}
 #srRoot{position:fixed;inset:0;background:var(--sr-bg);color:var(--sr-ink);font-family:var(--sr-body);display:flex;flex-direction:column}
 .srhead{background:var(--sr-petrol-d);color:#F7F4EF;border-bottom:4px solid var(--sr-gold);padding:clamp(10px,1.2vw,18px) clamp(18px,2.6vw,44px);display:flex;align-items:center;gap:clamp(14px,1.6vw,26px)}
-.srhead img{height:clamp(40px,4.4vw,78px);width:auto;display:block}
+.srhead img{height:clamp(48px,5.4vw,100px);width:auto;display:block}
 .srhead .srttl{border-left:1px solid #3C6E86;padding-left:clamp(14px,1.6vw,26px);display:flex;flex-direction:column;gap:2px}
-.srhead .srttl b{font-family:var(--sr-display);font-weight:700;font-size:clamp(20px,2vw,36px);letter-spacing:-.01em}
-.srhead .srttl small{font-family:var(--sr-display);font-weight:700;font-size:clamp(11px,.85vw,15px);letter-spacing:.28em;text-transform:uppercase;color:var(--sr-gold)}
+.srhead .srttl b{font-family:var(--sr-display);font-weight:700;font-size:clamp(26px,2.8vw,52px);letter-spacing:-.01em}
+.srhead .srttl small{font-family:var(--sr-display);font-weight:700;font-size:clamp(13px,1.1vw,20px);letter-spacing:.28em;text-transform:uppercase;color:var(--sr-gold)}
 .srhead .sp{flex:1}
-.srclock{text-align:right;line-height:1.1}.srclock b{font-family:var(--sr-display);font-weight:700;font-size:clamp(26px,2.8vw,50px);font-variant-numeric:tabular-nums}
-.srclock small{display:block;color:#B7CAD4;font-size:clamp(12px,1vw,18px)}
+.srclock{text-align:right;line-height:1.1}.srclock b{font-family:var(--sr-display);font-weight:700;font-size:clamp(34px,3.8vw,72px);font-variant-numeric:tabular-nums}
+.srclock small{display:block;color:#B7CAD4;font-size:clamp(15px,1.35vw,26px)}
 #srVid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000;display:none;z-index:3}
 #srRoot.video #srVid{display:block}
 #srIdle{display:none;position:absolute;inset:0;z-index:3;background:var(--sr-petrol-d);flex-direction:column;align-items:center;justify-content:center;gap:18px}
 #srRoot.idle #srIdle{display:flex}
-#srIdle img{width:min(46vw,760px);height:auto}
-#srIdle small{font-family:var(--sr-display);font-weight:700;font-size:clamp(14px,1.4vw,24px);letter-spacing:.32em;text-transform:uppercase;color:var(--sr-gold)}
+#srIdle img{width:min(56vw,980px);height:auto}
+#srIdle small{font-family:var(--sr-display);font-weight:700;font-size:clamp(18px,2vw,36px);letter-spacing:.32em;text-transform:uppercase;color:var(--sr-gold)}
 #srBoard{flex:1;min-height:0;overflow:hidden;padding:clamp(16px,2vw,36px) clamp(18px,2.6vw,44px);display:flex;flex-direction:column;gap:clamp(16px,1.8vw,30px)}
 .srsec{display:flex;flex-direction:column;gap:clamp(8px,.8vw,14px)}
-.srsec h2{margin:0;font-family:var(--sr-display);font-weight:700;font-size:clamp(14px,1.15vw,20px);letter-spacing:.2em;text-transform:uppercase;color:var(--sr-accent);display:flex;align-items:center;gap:12px}
+.srsec h2{margin:0;font-family:var(--sr-display);font-weight:700;font-size:clamp(18px,1.7vw,32px);letter-spacing:.2em;text-transform:uppercase;color:var(--sr-accent);display:flex;align-items:center;gap:12px}
 .srsec h2 span{font-family:var(--sr-body);letter-spacing:0;font-size:.95em;font-weight:700;background:var(--sr-accent-soft);color:var(--sr-accent);border-radius:999px;padding:2px 12px}
-.srcard{background:var(--sr-surface);border-radius:18px;padding:clamp(10px,1vw,18px) clamp(16px,1.8vw,30px);display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:8px clamp(18px,2.4vw,40px);align-items:center;border-left:6px solid var(--sr-line)}
+.srcard{background:var(--sr-surface);border-radius:22px;padding:clamp(12px,1.2vw,24px) clamp(18px,2vw,36px);display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:8px clamp(18px,2.4vw,40px);align-items:center;border-left:10px solid var(--sr-line)}
 .srcard.doing{border-left-color:var(--sr-accent)}.srcard.wait{border-left-color:var(--sr-line)}.srcard.ready{border-left-color:var(--sr-ok)}
 .srwho{min-width:0}
-.srtop{font-size:clamp(14px,1.15vw,21px);color:var(--sr-muted);display:flex;gap:12px;flex-wrap:wrap;align-items:baseline}
+.srtop{font-size:clamp(17px,1.65vw,32px);color:var(--sr-muted);display:flex;gap:12px;flex-wrap:wrap;align-items:baseline}
 .srnum{font-family:var(--sr-mono);font-weight:500;color:var(--sr-ink2)}
 .srseller b{color:var(--sr-ink);font-weight:700}
-.srcli{font-family:var(--sr-display);font-weight:700;font-size:clamp(22px,2.3vw,42px);letter-spacing:-.015em;line-height:1.12;color:var(--sr-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.srcli{font-family:var(--sr-display);font-weight:700;font-size:clamp(30px,3.6vw,68px);letter-spacing:-.015em;line-height:1.08;color:var(--sr-ink);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}
 .srst{min-width:0;display:flex;flex-direction:column;gap:8px}
 .srcard.wait .srst,.srcard.ready .srst{flex-direction:row;align-items:center;gap:16px;flex-wrap:wrap}.srcard.wait .srtag,.srcard.ready .srtag{align-self:center}
-.srbar{height:clamp(14px,1.3vw,24px);background:var(--sr-line2);border-radius:999px;overflow:hidden}
+.srbar{height:clamp(20px,2vw,38px);background:var(--sr-line2);border-radius:999px;overflow:hidden}
 .srbar i{display:block;height:100%;background:linear-gradient(90deg,var(--sr-accent),#C99A4E);border-radius:999px;transition:width .8s ease}
-.srmeta{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;font-size:clamp(14px,1.15vw,21px);color:var(--sr-muted)}
+.srmeta{display:flex;gap:14px;align-items:baseline;flex-wrap:wrap;font-size:clamp(17px,1.65vw,32px);color:var(--sr-muted)}
 .srmeta b{font-family:var(--sr-display);font-weight:700;font-size:1.35em;color:var(--sr-ink);white-space:nowrap}
-.srtag{font-family:var(--sr-display);font-weight:700;font-size:clamp(14px,1.2vw,22px);padding:6px 16px;border-radius:999px;white-space:nowrap;align-self:flex-start}
+.srtag{font-family:var(--sr-display);font-weight:700;font-size:clamp(18px,1.8vw,34px);padding:.25em .8em;border-radius:999px;white-space:nowrap;align-self:flex-start}
 .srtag.wait{background:var(--sr-accent-soft);color:var(--sr-accent)}
 .srtag.ready{background:var(--sr-ok-soft);color:var(--sr-ok)}
 .srsec.ready{background:var(--sr-petrol-d);border-radius:22px;padding:clamp(12px,1.3vw,22px);border-top:4px solid var(--sr-gold);animation:srpulse 1.6s ease-in-out infinite}
-.srsec.ready h2{color:var(--sr-gold);font-size:clamp(18px,1.7vw,30px);letter-spacing:.08em}
+.srsec.ready h2{color:var(--sr-gold);font-size:clamp(22px,2.3vw,44px);letter-spacing:.08em}
 .srsec.ready h2 span{background:var(--sr-gold);color:var(--sr-ink)}
 @keyframes srpulse{0%,100%{box-shadow:0 0 0 0 rgba(255,209,149,0)}50%{box-shadow:0 0 0 12px rgba(255,209,149,.35)}}
-.srempty{color:var(--sr-muted);font-size:clamp(15px,1.2vw,21px);padding:4px 2px}
-.srmore{color:var(--sr-muted);font-size:clamp(14px,1.1vw,20px);font-weight:600;padding:2px 4px}
+.srempty{color:var(--sr-muted);font-size:clamp(18px,1.7vw,32px);padding:4px 2px}
+.srmore{color:var(--sr-muted);font-size:clamp(18px,1.7vw,32px);font-weight:600;padding:2px 4px}
 #srBar{position:absolute;right:14px;bottom:12px;display:flex;gap:8px;align-items:center;z-index:5;opacity:.35;transition:opacity .2s}
 #srBar:hover,#srBar:focus-within{opacity:1}
 .srsound{background:var(--sr-petrol-d);color:#F7F4EF;border:1px solid #3C6E86;border-radius:999px;padding:6px 14px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--sr-body)}
@@ -4123,7 +4123,7 @@ function srCard(o, kind, pos){ const p=kind==="doing" ? srProg(o) : null, t=Date
   return `<div class="srcard ${kind}">
     <div class="srwho"><div class="srtop"><span class="srnum">Pré-venda #${esc(o.num)}</span>${o.seller?`<span class="srseller">Vendedor(a) <b>${esc(o.seller)}</b></span>`:""}</div>
       <div class="srcli">${esc(o.client||"Cliente")}</div></div>
-    <div class="srst">${kind==="doing" ? `<div class="srbar"><i style="width:${p.pct}%"></i></div><div class="srmeta"><b>${p.pct}%</b><span>${p.got} de ${p.need} peças separadas${o.startedBy?` · <span data-uid="${esc(o.startedBy)}" data-fallback="separador"></span>`:""}</span></div>`
+    <div class="srst">${kind==="doing" ? `<div class="srbar"><i style="width:${p.pct}%"></i></div><div class="srmeta"><b>${p.pct}%</b><span>${p.got} de ${p.need} peças${o.startedBy?` · <span data-uid="${esc(o.startedBy)}" data-fallback="separador"></span>`:""}</span></div>`
       : kind==="wait" ? `<span class="srtag wait">${pos}º na fila</span><div class="srmeta"><span>aguardando há ${Math.max(1,Math.round(t/60000))} min</span></div>`
       : `<span class="srtag ready">✓ Pronto às ${new Date(o.pickedAt).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</span><div class="srmeta"><span>Buscar na expedição</span></div>`}</div>
   </div>`; }
