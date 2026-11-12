@@ -180,6 +180,7 @@ Tudo fica registrado no histórico do pedido.
 ### 4.5 Separados
 Aba **Separados**: histórico dos pedidos separados (e os excluídos do dia), com transportadora, cliente, horário, tempo de picking e situação.
 - Filtro **Todos · Venda Consultiva · E-commerce** e busca por número do pedido ou cliente.
+- **Itens bipados** (abre junto com o histórico, na seta do card; também no detalhe do pedido em Gestão): cada item do pedido com SKU, nome, situação (✓ coletado, parcial ex. 1/2, falta, encomenda), endereço de onde saiu, como foi confirmado (endereço bipado + contagem, produto bipado + contagem, peça por peça ou sem bipar o produto), hora e quem separou. No topo, o resumo (ex.: 2/2 ref. · 2/2 pç). Pedidos separados antes de 12/11/2026 não têm o "como foi confirmado"; a hora e o separador vêm do bip do endereço, quando houver.
 - **Histórico (seta no canto direito do card)**: abre o card e mostra a linha do tempo do pedido, com data, hora e quem fez: entrada (integrado, importado da Magazord ou cadastrado na colmeia), decisão de Compras, início/reinício/conclusão da separação (com tempo de picking), mesa, colmeia, chegada da encomenda, ajustes e edições, pedido pulado no lote, envio/retirada ou exclusão (com motivo). Cores: azul = entrada, verde = etapa concluída, roxo = ajuste/edição, vermelho = exclusão. Pedidos antigos podem ter menos registros.
 - **Editar** (só Administrador): altera canal (com confirmação do tipo de envio), separador, tipo de envio, retirada, transportadora, situação (onde está no fluxo), bandeja/mesa, colmeia e observação. Tudo fica registrado no histórico do pedido. Voltar a situação para "Aguardando separação" recoloca o pedido na fila e avisa os separadores.
 
@@ -376,7 +377,7 @@ Primeiro item do menu, só para o Administrador. O botão mostra um número **ve
   - Atenção: fila com mais de 2 h; pedido na mesa há mais de 2 h; colmeia parada; nota recebida com divergência; conferência de nota parada há mais de 4 h; encomenda sem nota amarrada há mais de 7 dias; pré-venda de Compras sem destino; faltas na separação (7 dias); produto da fila sem endereço; e-commerce com cadastro diferente do site.
   - Informativos: nota há mais de 7 dias sem recebimento; separação reiniciada (7 dias); produto sem EAN; erros técnicos nas últimas 24 h.
 - **Equipe**: por pessoa (hoje, 7 ou 30 dias): pedidos, peças, tempo médio, peças por hora, bipagens de endereço (mostra se o separador confirma o local antes de pegar), faltas, reinícios, notas conferidas, ajustes de nota e total de ações.
-- **Atividade**: tudo o que foi feito no sistema, do mais recente para o mais antigo (pré-vendas, e-commerce, separação, mesa, colmeia, envio, recebimento, ajustes). Filtros por período, pessoa e área, e busca por pedido, cliente ou ação.
+- **Atividade**: tudo o que foi feito no sistema, do mais recente para o mais antigo (pré-vendas, e-commerce, separação, mesa, colmeia, envio, recebimento, ajustes). Filtros por período, pessoa e área, e busca por pedido, cliente ou ação. Texto longo termina em "…": toque no texto para abrir por inteiro (toque de novo fecha); toque no resto da linha para abrir o pedido. O nome da pessoa aparece sem o "@…" do e-mail.
 - **Erros do sistema**: falhas técnicas registradas pelos aparelhos, agrupadas por tipo, com quantas vezes e em qual aparelho (coletor, Android, iPhone, computador).
 
 ---
