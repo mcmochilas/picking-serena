@@ -368,6 +368,19 @@ No celular (tela estreita), o menu de setores fica num botão **☰** no canto s
 
 ---
 
+## 9c. Gestão (Administrador)
+Primeiro item do menu, só para o Administrador. O botão mostra um número **vermelho** (há alerta crítico) ou **amarelo** (há pontos de atenção). Cinco abas:
+- **Hoje**: pedidos que entraram (e-commerce e pré-vendas), separados, peças, tempo médio de separação, espera média na fila, fila atual (com o mais antigo) e alertas; gráfico de separados por hora; "Agora na operação" (em separação, na mesa, prontos para envio, colmeias ocupadas, notas recebidas); quem está separando o quê, há quanto tempo e quantos itens já pegou.
+- **Alertas**: 18 conferências automáticas. Toque num alerta para ver a lista de pedidos/notas/produtos e abrir o detalhe com a linha do tempo.
+  - Críticos: separação parada (mais de 45 min sem bipar); pedido do e-commerce cancelado ou alterado na Magazord durante a separação; clientes diferentes na mesma colmeia; EAN repetido em produtos diferentes.
+  - Atenção: fila com mais de 2 h; pedido na mesa há mais de 2 h; pronto e não enviado há mais de 1 dia; colmeia parada; nota recebida com divergência; conferência de nota parada há mais de 4 h; encomenda sem nota amarrada há mais de 7 dias; pré-venda de Compras sem destino; faltas na separação (7 dias); produto da fila sem endereço; e-commerce com cadastro diferente do site.
+  - Informativos: nota há mais de 7 dias sem recebimento; separação reiniciada (7 dias); produto sem EAN; erros técnicos nas últimas 24 h.
+- **Equipe**: por pessoa (hoje, 7 ou 30 dias): pedidos, peças, tempo médio, peças por hora, bipagens de endereço (mostra se o separador confirma o local antes de pegar), faltas, reinícios, notas conferidas, ajustes de nota e total de ações.
+- **Atividade**: tudo o que foi feito no sistema, do mais recente para o mais antigo (pré-vendas, e-commerce, separação, mesa, colmeia, envio, recebimento, ajustes). Filtros por período, pessoa e área, e busca por pedido, cliente ou ação.
+- **Erros do sistema**: falhas técnicas registradas pelos aparelhos, agrupadas por tipo, com quantas vezes e em qual aparelho (coletor, Android, iPhone, computador).
+
+---
+
 ## 10. Usuários (Administrador)
 - **Pessoas com acesso**: lista com níveis (etiquetas), canais (Venda Consultiva / E-commerce) e situação.
 - **⚙ Configurar usuário**: marcar um ou mais **níveis de acesso**, ativar/desativar, canais que separa, **trocar senha**, **remover acesso**. Painel TV não combina com outros níveis.
