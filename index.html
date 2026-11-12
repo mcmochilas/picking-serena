@@ -432,6 +432,10 @@ details.cpcard summary{display:flex;justify-content:space-between;align-items:ce
 .nahead{display:grid;gap:8px}.nastats{display:flex;gap:8px 16px;flex-wrap:wrap;font-size:13px;color:var(--muted)}.nastats b{font-size:17px;color:var(--ink);font-family:var(--display)}.nastats .s-on b{color:var(--accent-ink)}.nastats .s-sug b{color:var(--route)}
 .nawarn{padding:8px 12px;border-radius:10px;background:var(--bad-soft);color:var(--bad);font-size:13px}.nawarn.ok{background:var(--ok-soft);color:var(--ok)}
 .seg.napanes{display:none;margin:12px 0 0}
+.tvstale{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;margin:0 0 10px;padding:10px 16px;border-radius:12px;background:var(--bad);color:#fff;font-size:1.05em;animation:stpulse 2s ease-in-out infinite}.tvstale span{background:rgba(0,0,0,.18);padding:3px 10px;border-radius:8px}.tvstale small{margin-left:auto;opacity:.9}
+@keyframes stpulse{50%{filter:brightness(1.15)}}@media (prefers-reduced-motion:reduce){.tvstale{animation:none}}
+.hvli.stale{box-shadow:inset 3px 0 0 var(--bad)}.stchip{border:0;cursor:pointer;margin-left:6px;vertical-align:1px;font:inherit;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:99px}
+.staleo{display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:10px;background:var(--bg);margin:8px 0}.staleo small{display:block;color:var(--muted)}.stbtns{display:flex;gap:6px;flex-wrap:wrap}.stbtns .btn{width:auto;flex:1 1 auto;min-height:38px;white-space:nowrap;padding:0 14px}
 .tour{position:fixed;inset:0;z-index:2147483000}
 .tourhole{position:fixed;border-radius:12px;box-shadow:0 0 0 9999px rgba(8,12,18,.62);outline:3px solid var(--accent);transition:all .25s ease;pointer-events:none}
 .tourtip{position:fixed;background:var(--surface);color:var(--ink);border-radius:14px;padding:14px 16px;box-shadow:0 12px 32px rgba(0,0,0,.35);transition:top .25s ease,left .25s ease}
@@ -3235,7 +3239,8 @@ function hiveListHTML(hive, pgKey, pgSize){
         const eta=enc.map(i=>i.eta).filter(Boolean).sort()[0];
         const hitIt = toks.length ? items.map((it,i)=>toks.every(t=>hvNorm([it.code,it.name,it.ean].join(" ")).includes(t))?i:-1).filter(i=>i>=0) : [];
         const head = hvNorm([o.num,o.client].join(" ")), open = (state.hvExp||[]).includes(o.id) || (hitIt.length>0 && !toks.every(t=>head.includes(t)) && !(state.hvClosed||[]).includes(o.id));
-        return `<div class="li sep hvli" style="cursor:default"><span class="lc tnum">${esc((o.colmeia||"—").replace(/^CM-/,""))}</span><span class="ln">#${esc(o.num)} · ${esc(o.client)}<small>${o.status==="pronto_envio" ? `<b class="ok-t">${o.mode==="aguarda"||o.fase2?"Encomenda chegou · pronto":"Pronto"} para ${o.retira||o.naLoja?"o cliente retirar":"enviar"}</b>${transpOf(o)&&!(o.retira||o.naLoja)?" · "+esc(transpOf(o)):""}` : o.aguardaOutraPv?`<b>Aguardando a pré-venda da encomenda${o.outraPv?" "+esc(o.outraPv):""}</b>`:o.hiveManual && !enc.length?`Cadastrada na colmeia${o.obs?" · "+esc(o.obs):""}`:`${enc.reduce((s,i)=>s+i.qtyEnc,0)} pç sob encomenda${eta?" · chega "+fmtDate(eta):""}`}</small>${items.length?xpBtn(`data-hvexp="${esc(o.id)}"`, open, `Ver itens da pré-venda (${items.length})`, "Ocultar itens"):""}${hasRole("admin")?`<button type="button" class="lnk hvedbtn" data-hved="${esc(o.id)}">Editar itens</button>`:""}</span>
+        const stale = staleOrders().includes(o);
+        return `<div class="li sep hvli ${stale?"stale":""}" style="cursor:default"><span class="lc tnum">${esc((o.colmeia||"—").replace(/^CM-/,""))}</span><span class="ln">#${esc(o.num)} · ${esc(o.client)}${stale?` <button class="chip bad stchip" data-stchk="${esc(o.colmeia)}" title="Conferir se o pedido ainda está na colmeia">Parado há ${staleAge(o)} dias · conferir</button>`:""}<small>${o.status==="pronto_envio" ? `<b class="ok-t">${o.mode==="aguarda"||o.fase2?"Encomenda chegou · pronto":"Pronto"} para ${o.retira||o.naLoja?"o cliente retirar":"enviar"}</b>${transpOf(o)&&!(o.retira||o.naLoja)?" · "+esc(transpOf(o)):""}` : o.aguardaOutraPv?`<b>Aguardando a pré-venda da encomenda${o.outraPv?" "+esc(o.outraPv):""}</b>`:o.hiveManual && !enc.length?`Cadastrada na colmeia${o.obs?" · "+esc(o.obs):""}`:`${enc.reduce((s,i)=>s+i.qtyEnc,0)} pç sob encomenda${eta?" · chega "+fmtDate(eta):""}`}</small>${items.length?xpBtn(`data-hvexp="${esc(o.id)}"`, open, `Ver itens da pré-venda (${items.length})`, "Ocultar itens"):""}${hasRole("admin")?`<button type="button" class="lnk hvedbtn" data-hved="${esc(o.id)}">Editar itens</button>`:""}</span>
           ${o.status==="na_mesa" && (can("mesa")||can("coleta")) ? `<button class="mini" data-hive="${esc(o.id)}">Guardar</button>`
           : (o.status==="pronto_envio" || o.status==="na_colmeia") && canHvOut() ? `<span class="hvact">${o.status==="na_colmeia"?`<span class="chip enc">Aguardando encomenda</span>`:""}<button class="mini" data-hsai="${esc(o.id)}:retirou" data-pend="${hasEnc(o)&&!encArrived(o)?1:""}">Cliente irá retirar</button><button class="mini" data-hsai="${esc(o.id)}:enviado" data-pend="${hasEnc(o)&&!encArrived(o)?1:""}">Enviar</button></span>`
           : `<span class="chip enc">${o.status==="pronto_envio"?"Pronto":"Aguardando encomenda"}</span>`}
@@ -3247,6 +3252,7 @@ function bindHiveList(){
   app.querySelectorAll("[data-hved]").forEach(b=>b.onclick=()=>openHiveItems(b.dataset.hved));
   const redraw = ()=>{ const a=state.sector==="comercial" && document.getElementById("aside"); if(a){ a.innerHTML=asideHTML(); bindAside(); } else render(); };
   app.querySelectorAll("[data-hive]").forEach(b=>b.onclick=()=>{ state.oid=b.dataset.hive; state.fromMesa=false; state.sector="expedicao"; state.view="store"; render(); scrollTo(0,0); });
+  app.querySelectorAll("[data-stchk]").forEach(b=>b.onclick=()=>openStaleCheck(b.dataset.stchk));
   const hq=document.getElementById("hvQ"); if(hq) hq.oninput=()=>{ state.hvQ=hq.value; state.hvClosed=[]; resetPage("cmhive"); const pos=hq.selectionStart; redraw(); const n=document.getElementById("hvQ"); if(n){ n.focus(); try{ n.setSelectionRange(pos,pos); }catch(e){} } };
   app.querySelectorAll("[data-hvexp]").forEach(b=>b.onclick=()=>{ const id=b.dataset.hvexp, ex=state.hvExp||[], open=b.getAttribute("aria-expanded")!=="true";
     state.hvExp = open ? [...ex, id] : ex.filter(x=>x!==id);
@@ -3855,6 +3861,7 @@ function renderTV(){
         ${painel?`<button class="refbtn" onclick="psLogout&&psLogout()">Sair</button>`:`<a class="refbtn" href="/#expedicao" id="tvExit">Voltar ao sistema</a>`}</div>
     </header>
     ${!synced?`<div class="banner">Sem conexão com o banco de dados. Os dados podem estar desatualizados.</div>`:""}
+    ${(()=>{ const st=staleOrders(); return st.length ? `<div class="tvstale"><b>⚠ Conferir colmeia</b>${st.slice(0,8).map(o=>`<span><b class="mono">${esc(o.colmeia.slice(3))}</b> #${esc(o.num)} · ${staleAge(o)} dias</span>`).join("")}${st.length>8?`<span>+${st.length-8}</span>`:""}<small>Bipe a colmeia em qualquer tela e confirme</small></div>` : ""; })()}
     <div class="tvgrid">${TV_CANAIS.map(([c,t])=>tvColumn(c,t)).join("")}</div>
     ${audioCtx && audioCtx.state==="running" ? "" : `<div class="tvunlock" id="tvUnlock"><b>🔇 Toque na tela (ou aperte OK no controle) para ligar o som</b><small>Sem isso a TV não toca o aviso de novo pedido nem a voz de “Cliente aguarda na loja”. O navegador exige um toque cada vez que a página abre.</small></div>`}`;
   tvVoiceLoad();
@@ -4059,7 +4066,33 @@ const ICON_SCAN = `<svg width="30" height="30" viewBox="0 0 24 24" fill="none" s
 const cur = () => { const o=ORDERS.find(x=>x.id===state.oid); if(!o) return null; const pl=pickList(o); return {o, r:res(o), pl, it:pl[state.idx]}; };
 const scanCode = it => it.ean || it.code;
 const hasTray = o => !!o.tray && o.trayStatus==="separando";
-let CONFIG = {requireLoc:false, useTray:true, binStacks:[6,4]}, cfgDoc = null; // configuração da separação
+/* ---- Pedido parado na colmeia: pronto para retirar/enviar há mais de N dias (Administrador configura) ---- */
+const cfgData = () => ({useTray:CONFIG.useTray, binStacks:binStacks(), staleDays:CONFIG.staleDays??3});
+const staleRef = o => Math.max(+o.staleOkAt||0, +o.storedAt||0, +o.atMesaAt||0, +o.pickedAt||0) || +o.createdAt || 0;
+const staleAge = o => Math.floor((Date.now()-staleRef(o))/864e5);
+function staleOrders(){ const n=+(CONFIG.staleDays??3); if(!n) return [];
+  return ORDERS.filter(o=>o.status==="pronto_envio" && o.colmeia && staleAge(o)>=n).sort((a,b)=>staleRef(a)-staleRef(b)); }
+const staleIn = hv => staleOrders().filter(o=>o.colmeia===hv);
+/* Qualquer pessoa bipa a colmeia e diz se o pedido ainda está lá */
+function openStaleCheck(hv){
+  const list=staleIn(hv); if(!list.length) return false;
+  const ov=document.createElement("div"); ov.className="modal"; document.body.appendChild(ov); scanbar.hidden=true;
+  const close=()=>{ ov.remove(); render(); };
+  const draw=()=>{ const L=staleIn(hv); if(!L.length){ close(); return; }
+    ov.innerHTML=`<div class="mbox stalebox" role="dialog" aria-modal="true" aria-label="Conferir colmeia ${esc(hv.slice(3))}"><h2>Colmeia ${esc(hv.slice(3))} · conferir</h2>
+      <p>O sistema diz que ${L.length===1?"este pedido está":"estes pedidos estão"} aqui há muitos dias. Olhe na colmeia e confirme.</p>
+      ${L.map(o=>`<div class="staleo"><div><b class="mono">#${esc(o.num)}</b> ${esc(o.client)}<small>${o.retira||o.naLoja?"Cliente vai retirar":"Aguardando envio"} · há ${staleAge(o)} dia${staleAge(o)===1?"":"s"} na colmeia</small></div>
+        <div class="stbtns"><button class="btn primary sm" data-stok="${esc(o.id)}">Está aqui</button><button class="btn ghost sm" data-stout="${esc(o.id)}" data-how="retirou">Cliente retirou</button><button class="btn ghost sm" data-stout="${esc(o.id)}" data-how="enviado">Foi enviado</button></div></div>`).join("")}
+      <div class="mact"><button class="btn ghost" id="stNo">Fechar</button></div></div>`;
+    ov.querySelector("#stNo").onclick=close;
+    ov.querySelectorAll("[data-stok]").forEach(b=>b.onclick=()=>{ const o=ORDERS.find(x=>x.id===b.dataset.stok); if(!o) return; const now=Date.now();
+      patchOrder(o.id,{staleOkAt:now, hist:[...(o.hist||[]), {t:now, by:ME.id||"", ev:`Conferido: continua na colmeia ${hv.slice(3)}`}]}); o.staleOkAt=now; feedback(true); toast(`#${o.num} conferido`); draw(); });
+    ov.querySelectorAll("[data-stout]").forEach(b=>b.onclick=()=>{ const o=ORDERS.find(x=>x.id===b.dataset.stout); if(!o) return; const now=Date.now();
+      patchOrder(o.id,{hist:[...(o.hist||[]), {t:now, by:ME.id||"", ev:`Conferência da colmeia ${hv.slice(3)}: pedido não estava mais lá (${b.dataset.how==="enviado"?"foi enviado":"cliente retirou"}) · saída registrada depois`}]});
+      colmeiaSaida(o, b.dataset.how); o.status="enviado"; feedback(true); setTimeout(draw, 50); }); };
+  draw(); return true;
+}
+let CONFIG = {requireLoc:false, useTray:true, binStacks:[6,4], staleDays:3}, cfgDoc = null; // configuração da separação
 /* Venda consultiva · Envio total · Cliente na loja: conferência peça por peça no local, sem bandeja e sem mesa; vai na sacola direto para o vendedor */
 const pickDirect = o => !!o && !isEco(o) && !!o.naLoja && o.mode==="total" && !o.fase2;
 /* E-commerce: o separador bipa a etiqueta do ENDEREÇO (não o produto), confirma a quantidade e leva para a mesa */
@@ -4408,6 +4441,7 @@ function handleScan(raw){
     if(/^\d{1,3}$/.test(v)){ const c=cur(); if(c){ state.count=Math.min(c.it.need, +v); const q=document.getElementById("q"); if(q) q.value=state.count; if(ok){ ok.textContent=`Confirmar ${state.count} pç`; ok.click(); } } return; }
   }
   if(!v || busy) return;
+  { const hv=hiveCode(v); if(isHiveCode(hv) && !["store","hvloc","hvmove","hvout","unstore"].includes(state.view) && !(state.view==="pick") && staleIn(hv).length){ feedback(true); openStaleCheck(hv); return; } }
   if(state.view==="tray") return scanTray(v);
   if(state.view==="mesa") return scanMesa(v);
   if(state.view==="trays") return scanUnlink(v);
@@ -4497,7 +4531,9 @@ function handleScan(raw){
 let wedgeT0=0, wedgeN=0, autoT, inT0=0;
 /* Para onde vai um código lido: o teste do coletor (se estiver aberto) ou a tela atual */
 let SCAN_TEST=null;
-function routeScan(v, via){ if(SCAN_TEST){ SCAN_TEST(String(v||"").trim(), via); return; } if(scanActive()) return handleScan(v); scanToField(v); }
+function routeScan(v, via){ if(SCAN_TEST){ SCAN_TEST(String(v||"").trim(), via); return; } if(scanActive()) return handleScan(v);
+  { const hv=hiveCode(String(v||"").trim().toUpperCase()); if(isHiveCode(hv) && staleIn(hv).length && !document.querySelector(".modal")){ feedback(true); openStaleCheck(hv); return; } }
+  scanToField(v); }
 /* Telas sem a barra de leitura (Produtos e EAN, janela do produto…): o código bipado sem nenhum campo selecionado cai no campo de bipe da tela */
 const scanDefault = () => window.LUCAS_OPEN ? null : [...document.querySelectorAll("[data-scan-default]")].filter(e=>e.offsetParent!==null && (!document.querySelector(".modal") || e.closest(".modal"))).pop() || null;
 function scanToField(v){ v=String(v||"").trim(); const el=scanDefault(); if(!el || !v) return false;
@@ -4531,7 +4567,7 @@ let buf="", bufT, bufT0=0;
 document.addEventListener("keydown", e=>{
   if(e.target===scanIn || isEditable(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
   const main = scanActive() || !!SCAN_TEST;           // tela de separação (ou teste do leitor): tudo que chega é leitura
-  if(!main && !scanDefault()) return;
+  if(!main && !scanDefault() && !staleOrders().length) return;
   const fastBuf = () => buf.length>=4 && (performance.now()-bufT0)/buf.length < 60;
   if(e.key==="Enter"||e.key==="Tab"){
     if(!main && !fastBuf()){ buf=""; return; }          // fora da separação só interfere quando veio uma leitura (teclas rápidas)
@@ -5768,6 +5804,9 @@ function renderUsuarios(){
         <p class="hint">O separador vê o local, bipa o código do produto na etiqueta do local e conta a quantidade na mão.</p>
         <label class="chk"><input type="checkbox" id="cfgTray" ${CONFIG.useTray?"checked":""}> Usar bandeja (bipar no 1º item e desvincular na mesa depois da conferência)</label>
         <p class="hint">Uma bandeja vinculada não pode ser usada em outro pedido até ser desvinculada.</p>
+        <h3>Pedido parado na colmeia</h3>
+        <p class="hint">Pedido pronto (aguardando o cliente retirar ou o envio) que está na colmeia há mais tempo que isto aparece na TV com aviso de voz a cada 5 minutos, até alguém bipar a colmeia e confirmar se ele ainda está lá. Use 0 para desligar.</p>
+        <div class="cfgrow"><label>Avisar depois de <input class="tin mono" id="cfgStale" type="number" min="0" max="60" value="${CONFIG.staleDays??3}" style="width:80px"> dias</label><span class="hint">${staleOrders().length} pedido(s) parado(s) agora</span></div>
         <h3>Estantes (mapa 3D)</h3>
         <p class="hint">Cada <b>nível</b> do endereço é uma caixa bin, contando de baixo para cima. A 1ª prateleira (perto do chão) é de caixas de reposição e não conta. Informe quantas caixas cabem empilhadas em cada prateleira, de baixo para cima, separadas por vírgula. Ex.: <b>6, 4</b> = níveis 1–6 na 2ª prateleira e 7–10 na 3ª.</p>
         <div class="cfgrow"><label>Caixas bin por prateleira <input class="tin mono" id="cfgBinStk" value="${esc(binStacks().join(", "))}" placeholder="6, 4" style="width:120px"></label>
@@ -5820,9 +5859,10 @@ function renderUsuarios(){
   };
   const binCfg=()=>{ const a=String(document.getElementById("cfgBinStk").value||"").split(/[^0-9]+/).map(x=>Math.round(+x)).filter(x=>x>=1&&x<=12).slice(0,6);
     if(!a.length){ toast("Informe as caixas, ex.: 6, 4"); return; }
-    CONFIG={...CONFIG, binStacks:a}; if(cfgDoc) queueWrite("cfg", ()=>cfgDoc.set({useTray:CONFIG.useTray, binStacks:a})); toast("Estantes atualizadas"); render(); };
+    CONFIG={...CONFIG, binStacks:a}; if(cfgDoc) queueWrite("cfg", ()=>cfgDoc.set(cfgData())); toast("Estantes atualizadas"); render(); };
   document.getElementById("cfgBinStk").onchange=binCfg;
-  document.getElementById("cfgTray").onchange=e=>{ CONFIG={...CONFIG, useTray:e.target.checked}; if(cfgDoc) queueWrite("cfg", ()=>cfgDoc.set({useTray:CONFIG.useTray, binStacks:binStacks()})); toast(CONFIG.useTray?"Bandeja ligada":"Bandeja desligada"); };
+  document.getElementById("cfgStale").onchange=e=>{ const d=Math.max(0,Math.min(60,Math.round(+e.target.value||0))); CONFIG={...CONFIG, staleDays:d}; if(cfgDoc) queueWrite("cfg", ()=>cfgDoc.set(cfgData())); toast(d?`Aviso após ${d} dia${d===1?"":"s"}`:"Aviso desligado"); render(); };
+  document.getElementById("cfgTray").onchange=e=>{ CONFIG={...CONFIG, useTray:e.target.checked}; if(cfgDoc) queueWrite("cfg", ()=>cfgDoc.set(cfgData())); toast(CONFIG.useTray?"Bandeja ligada":"Bandeja desligada"); };
   bindMz(); bindTransp();
   document.getElementById("viewAsBtn").onclick=()=>{ const v=document.getElementById("viewAs").value; if(!v) return; state.viewAs=v; state.sector=allowedSectors()[0]||"expedicao"; state.view="orders"; render(); toast(`Simulando: ${ROLES[v].t}`); };
 }
@@ -6017,7 +6057,7 @@ function tvVoiceLoad(){
   if(TVV.buf) return Promise.resolve(true);
   if(TVV.p) return TVV.p;
   try{ audioCtx ||= new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return Promise.resolve(false); }
-  const names=["atencao","aguarda","ligado","pv","cem", ...Array.from({length:10},(_,i)=>"d"+i), ...Array.from({length:10},(_,i)=>"t"+(10+i)),
+  const names=["atencao","aguarda","ligado","pv","cem","cfpc","maisde","diasar","diaar", ..."ABCDEFGHIJK".split("").map(c=>"l"+c), ...Array.from({length:10},(_,i)=>"d"+i), ...Array.from({length:10},(_,i)=>"t"+(10+i)),
     ...[2,3,4,5,6,7,8,9].flatMap(i=>["x"+i,"x"+i+"e"]), "h1e", ...[2,3,4,5,6,7,8,9].flatMap(i=>["h"+i,"h"+i+"e"])];
   TVV.p = Promise.all(names.map(n=>fetch(TV_TTS+n+(TV_TTS_V[n]?"_v"+TV_TTS_V[n]:"")+".mp3").then(r=>{ if(!r.ok) throw new Error(n); return r.arrayBuffer(); })
       .then(a=>new Promise((ok,ko)=>audioCtx.decodeAudioData(a,ok,ko))).then(b=>[n,tvTrim(b)])));
@@ -6086,6 +6126,24 @@ function tvAnnounceTick(){
   setTimeout(()=>due.forEach(o=>tvAnnounce(o.num)), 1700); // toque de atenção e depois a voz
 }
 setInterval(tvAnnounceTick, 5000);
+/* Pedido parado na colmeia: a TV fala a cada 5 minutos, um pedido de cada vez, até alguém conferir */
+const STALE_SAID={};
+function tvStaleTick(){
+  if(!(state.view==="tv" || myRole()==="painel")) return;
+  const now=Date.now(), st=staleOrders(), ids=new Set(st.map(o=>o.id)); Object.keys(STALE_SAID).forEach(k=>{ if(!ids.has(k)) delete STALE_SAID[k]; });
+  const due=st.filter(o=>!STALE_SAID[o.id] || now-STALE_SAID[o.id]>=300000); if(!due.length) return;
+  due.forEach(o=>STALE_SAID[o.id]=now);
+  chime(true); due.forEach((o,i)=>setTimeout(()=>tvStaleSay(o), 1700+i*400));
+}
+setInterval(tvStaleTick, 15000);
+async function tvStaleSay(o){
+  const hv=o.colmeia.slice(3), L=hv[0], n=+hv.slice(1)||0, d=staleAge(o);
+  try{ if(audioCtx && audioCtx.state!=="running") await Promise.race([audioCtx.resume(), new Promise(ok=>setTimeout(ok,800))]); }catch(e){}
+  const ok = await Promise.race([tvVoiceLoad(), new Promise(r=>setTimeout(()=>r(false),4000))]);
+  if(ok && audioCtx && audioCtx.state==="running" && TVV.buf["l"+L]){ tvPlay([["cfpc",.08],["l"+L,.03], ...numClips(n).map(c=>[c,.03]).map((x,i,a)=>i===a.length-1?[x[0],.3]:x), ["maisde",.04], ...numClips(d).map(c=>[c,.04]), [d===1?"diaar":"diasar",0]]); }
+  else tvSay(`Confira o pedido na colmeia ${hv}. Mais de ${d} ${d===1?"dia":"dias"} aguardando retirada ou envio.`);
+  TVV.last={num:o.num, at:Date.now(), via:"colmeia "+hv}; const el=document.getElementById("tvLast"); if(el) el.textContent=tvLastTxt();
+}
 function checkNewOrders(){
   const tv = state.view==="tv" || myRole()==="painel"; // painel da TV: todos os canais, só som (sem janela de aviso)
   const open = ORDERS.filter(o=>o.status==="aguardando" && pickList(o).length && (tv || ecoOk(o)));
@@ -6779,7 +6837,7 @@ render();
   if(userCap){ const me = await userCap.me(); ME = {id:me.id, name:me.name, isOwner:me.isOwner, avatarUrl:me.avatarUrl}; }
   if(!db){ synced=false; authReady=true; rerender(); return; }
   cfgDoc = db.doc("config/picking");
-  cfgDoc.onSnapshot(snap=>{ const d=snap.exists?snap.data():null; CONFIG = {requireLoc:false, useTray: d?.useTray ?? true, binStacks: Array.isArray(d?.binStacks) && d.binStacks.length ? d.binStacks : (d?.binStack ? Array(d.binShelves||2).fill(d.binStack) : [6,4])}; rerender(); }, ()=>{ cfgDoc=null; });
+  cfgDoc.onSnapshot(snap=>{ const d=snap.exists?snap.data():null; CONFIG = {requireLoc:false, useTray: d?.useTray ?? true, binStacks: Array.isArray(d?.binStacks) && d.binStacks.length ? d.binStacks : (d?.binStack ? Array(d.binShelves||2).fill(d.binStack) : [6,4]), staleDays: d?.staleDays ?? 3}; rerender(); }, ()=>{ cfgDoc=null; });
   db.doc("config/magazord_sync").onSnapshot(snap=>{ MZSYNC = snap.exists ? JSON.parse(JSON.stringify(snap.data())) : null; if(state.sector==="usuarios") rerender(); }, ()=>{});
   transpDoc = db.doc("config/transportadoras");
   transpDoc.onSnapshot(snap=>{ const l=snap.exists?snap.data()?.list:null; TRANSP = l && typeof l==="object" ? JSON.parse(JSON.stringify(l)) : {}; rerender(); }, ()=>{ transpDoc=null; });
