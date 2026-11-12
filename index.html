@@ -553,6 +553,11 @@ details.cpcard summary{display:flex;justify-content:space-between;align-items:ce
 @media (prefers-reduced-motion:reduce){.tourhole,.tourtip{transition:none}}
 .bar.nahdr .btn.cpbtn{height:38px;min-height:38px;padding:0 16px;font-size:14px;border-radius:10px}
 .hintbox.warnbox{border-color:var(--bad);background:var(--bad-soft);color:var(--ink);margin:10px 0}
+.eppick{display:flex;flex-direction:column;gap:6px}.eplist{display:flex;flex-direction:column;gap:4px;max-height:340px;overflow:auto}
+.eprow{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:10px;padding:6px 10px}.eprow.on{border-color:var(--accent);background:var(--accent-soft)}
+.eprow .chk{flex:1;min-width:0;display:flex;gap:8px;align-items:flex-start}.eprow .chk span{min-width:0}.eprow small{display:block}.eprow input[type=number]{width:70px}
+.epact{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px}
+.eangrid{display:flex;flex-direction:column;gap:10px}.eangrid img{width:100%;max-width:520px;border:1px dashed var(--line);border-radius:6px;background:#fff;image-rendering:pixelated}
 .pvdest{margin-top:12px;display:flex;flex-direction:column;gap:6px}.pvdest .seg button{flex:1}
 .chip.dest{cursor:pointer;border:1px dashed currentColor}.chip.dest.need{color:var(--bad);background:var(--bad-soft)}
 .pvenc .mact .btn{flex:none;width:auto;min-height:38px;height:38px;padding:0 16px;font-size:14px;border-radius:10px}
@@ -1366,7 +1371,8 @@ function saveOrder(o){
 let prodCol = null;
 function saveProduct(p){
   const fc = p.forn ?? PRODUCTS[p.code]?.forn; // códigos do produto nos fornecedores ("ZEN|ZP5854.00019")
-  const clean = {code:p.code, name:p.name, ean:p.ean||"", loc:p.loc||"", ...(fc&&fc.length?{forn:fc}:{})};
+  const ei = p.eanInt ?? (PRODUCTS[p.code]?.ean===p.ean ? PRODUCTS[p.code]?.eanInt : undefined); // EAN gerado aqui (prefixo 200, uso interno)
+  const clean = {code:p.code, name:p.name, ean:p.ean||"", loc:p.loc||"", ...(fc&&fc.length?{forn:fc}:{}), ...(ei && p.ean?{eanInt:true}:{})};
   PRODUCTS[p.code] = clean;
   if(prodCol) queueWrite("p:"+p.code, ()=>prodCol.doc(p.code).set(clean));
   rerender();
@@ -5891,12 +5897,58 @@ function labelSet(){
   if(t==="bandejas") return TRAYS.map(v=>({value:v, big:v, small:"Bandeja de separação", sub:"", fmt:"CODE128"}));
   if(t==="mesas"||t==="cestas"){ const K=SPOT_KINDS[t]; return K.get().filter(m=>!state.spotSel || state.spotSel===m.code).map(m=>({value:m.code, big:spotName(m.code).toUpperCase(), small:m.desc||K.def, sub:"", fmt:"CODE128"})); }
   if(t==="colmeias") return HIVE.map(v=>({value:v, big:v.slice(3), small:"Colmeia de encomenda", sub:v, fmt:"CODE128"}));
+  if(t==="produtos" && Object.keys(state.lblPsel||{}).length) return Object.entries(state.lblPsel).flatMap(([code,q])=>{ const p=PRODUCTS[code]; if(!p) return [];
+    const e=p.ean && eanState(p.ean).c==="done"; const l={value:e?p.ean:p.code, big:p.code, small:p.name, sub:e?"":"sem EAN · código interno", fmt:e?(p.ean.length===8?"EAN8":"EAN13"):"CODE128", code:p.code, name:p.name};
+    return Array.from({length:Math.max(1,Math.min(500,+q||1))},()=>l); });
   if(t==="produtos") return Object.values(PRODUCTS).sort((a,b)=>a.code.localeCompare(b.code)).filter(p=>state.lblOnlyNoEan ? !p.ean : true)
     .map(p=>{ const e=p.ean && eanState(p.ean).c==="done"; return {value:e?p.ean:p.code, big:p.code, small:p.name, sub:e?"":"sem EAN · código interno", fmt:e?(p.ean.length===8?"EAN8":"EAN13"):"CODE128"}; });
   const rua=state.lblRua||"todas", lado=state.lblLado||"todos", only=state.lblOnlyUsed, ty=state.lblLocType||"todos", solo=t==="locsolo", free=state.lblOnlyFree;
   const list=allLocs().filter(lc=>{ const x=parseCode(lc); return (rua==="todas"||String(x.r)===rua) && (lado==="todos"||x.l===lado) && (ty==="todos" || x.t===ty) && (solo ? (!free || !locProduct(lc)) : (!only || locProduct(lc))); });
   return solo ? list.map(locSoloData) : locLabels(list);
 }
+/* ---- EAN de produtos: gerar EAN interno (prefixo 200, reservado pela GS1 para uso interno) e imprimir 2 por linha ---- */
+function genEan(){ const used=new Set(Object.values(PRODUCTS).map(p=>p.ean).filter(Boolean));
+  for(let k=0;k<200;k++){ const e=ean13("200"+String(Math.floor(Math.random()*1e9)).padStart(9,"0")); if(!used.has(e)) return e; } return ""; }
+function eanPickHTML(){ const q=(state.lblPq||"").trim().toUpperCase(), sel=state.lblPsel||{}, nSel=Object.keys(sel).length;
+  const res = q ? Object.values(PRODUCTS).filter(p=>!sel[p.code] && (p.code+" "+p.name+" "+(p.ean||"")).toUpperCase().includes(q)).sort((a,b)=>a.code.localeCompare(b.code)).slice(0,30) : [];
+  const row=(p,inSel)=>{ const st=eanState(p.ean), ok=st.c==="done";
+    return `<div class="eprow ${inSel?"on":""}"><label class="chk"><input type="checkbox" data-epsel="${esc(p.code)}" ${inSel?"checked":""}><span><b class="mono">${esc(p.code)}</b> ${esc(p.name)}<small class="mono">${ok?esc(p.ean)+(p.eanInt?" · interno":""):`<span class="${st.c==="bad"?"bad-s":"muted-s"}">${esc(st.t)}</span>`}</small></span></label>
+      ${ok?"":`<button class="mini" data-epgen="${esc(p.code)}">Gerar EAN</button>`}${inSel?`<input class="tinput r" type="number" min="1" max="500" data-epq="${esc(p.code)}" value="${sel[p.code]||1}" aria-label="Quantidade de etiquetas de ${esc(p.code)}" title="Etiquetas">`:""}</div>`; };
+  const selRows=Object.keys(sel).map(c=>PRODUCTS[c]).filter(Boolean), noEan=selRows.filter(p=>eanState(p.ean).c!=="done").length;
+  return `<div class="eppick"><h3>Produtos</h3>
+    <input class="tin" id="lblPq" placeholder="Buscar produto: código, nome ou EAN" value="${esc(state.lblPq||"")}" autocomplete="off">
+    ${nSel ? `<div class="eyebrow" style="margin-top:6px">Selecionados · ${nSel}</div><div class="eplist">${selRows.map(p=>row(p,true)).join("")}</div>
+      <div class="epact">${noEan?`<button class="btn" id="epGenAll">Gerar EAN para ${noEan} sem EAN</button>`:""}<button class="lnk" id="epClear">Limpar seleção</button></div>` : ""}
+    ${q ? `<div class="eyebrow" style="margin-top:6px">Resultado da busca</div><div class="eplist">${res.length ? res.map(p=>row(p, false)).join("") : `<small class="muted-s">Nenhum outro produto com essa busca.</small>`}</div>` : ""}
+    ${nSel ? ""
+      : `<small class="muted-s">Busque e marque os produtos. Sem seleção, o PDF sai com todos os produtos${state.lblOnlyNoEan?" sem EAN":""}.</small>
+         <label class="chk"><input type="checkbox" id="lblNoEan" ${state.lblOnlyNoEan?"checked":""}> Só produtos sem EAN (etiqueta com código interno)</label>`}
+    <p class="hint">O EAN gerado começa com <b>200</b> (faixa da GS1 para uso interno) e fica salvo no cadastro do produto. Serve para bipar no estoque; não use para vender em marketplace.</p></div>`; }
+function bindEanPick(){
+  const q=document.getElementById("lblPq"); if(q) q.oninput=()=>{ state.lblPq=q.value; const pos=q.selectionStart; render(); const n=document.getElementById("lblPq"); if(n){ n.focus(); n.setSelectionRange(pos,pos); } };
+  app.querySelectorAll("[data-epsel]").forEach(c=>c.onchange=()=>{ const s={...(state.lblPsel||{})}; c.checked ? s[c.dataset.epsel]=1 : delete s[c.dataset.epsel]; state.lblPsel=s; render(); });
+  app.querySelectorAll("[data-epq]").forEach(i=>i.onchange=()=>{ state.lblPsel={...state.lblPsel, [i.dataset.epq]:Math.max(1,Math.min(500,Math.round(+i.value||1)))}; render(); });
+  const gen=codes=>{ let n=0; codes.forEach(c=>{ const p=PRODUCTS[c]; if(!p || eanState(p.ean).c==="done") return; const e=genEan(); if(!e) return; saveProduct({...p, ean:e, eanInt:true}); n++; }); return n; };
+  app.querySelectorAll("[data-epgen]").forEach(b=>b.onclick=()=>{ const c=b.dataset.epgen; if(gen([c])){ state.lblPsel={...(state.lblPsel||{}), [c]:state.lblPsel?.[c]||1}; toast(`EAN gerado · ${c}`); render(); } });
+  const ga=document.getElementById("epGenAll"); if(ga) ga.onclick=()=>{ const n=gen(Object.keys(state.lblPsel||{})); toast(`${n} EAN gerado(s)`); render(); };
+  const cl=document.getElementById("epClear"); if(cl) cl.onclick=()=>{ state.lblPsel={}; render(); };
+}
+/* etiqueta 40 × 24,9 mm, duas por linha (página 80 × 24,9 mm, igual à do Full), desenhada a 8 pontos/mm */
+const EW=640, EH=199, EFONT="Arial, Helvetica, 'Liberation Sans', sans-serif";
+function eText(ctx,txt,x,y,h,sx,align){ ctx.save(); ctx.font=`bold ${h}px ${EFONT}`; const w=ctx.measureText(txt).width*sx; ctx.translate(align==="c"?x-w/2:x,y); ctx.scale(sx,1); ctx.textBaseline="top"; ctx.fillText(txt,0,0); ctx.restore(); }
+function eWrap(ctx,txt,h,sx,maxW,maxL){ ctx.save(); ctx.font=`bold ${h}px ${EFONT}`; const w=t=>ctx.measureText(t).width*sx, out=[]; let cur="";
+  for(const word of String(txt||"").split(/\s+/)){ const t=cur?cur+" "+word:word; if(w(t)<=maxW||!cur) cur=t; else { out.push(cur); cur=word; } } if(cur) out.push(cur); ctx.restore();
+  if(out.length>maxL){ out.length=maxL; out[maxL-1]=out[maxL-1].replace(/.{0,2}$/,"…"); } return out; }
+function eLabel(ctx,l,ox){ ctx.fillStyle="#000"; const o={};
+  try{ JsBarcode(o, l.value, {format:l.fmt||"CODE128", flat:true}); }catch(e){ return; }
+  const bits=(o.encodings||[]).map(e=>e.data).join(""), mod=Math.max(1,Math.min(3,Math.floor(290/bits.length))), bw=bits.length*mod, x0=ox+Math.round((320-bw)/2);
+  for(let i=0;i<bits.length;i++) if(bits[i]==="1") ctx.fillRect(x0+i*mod,14,mod,58);
+  eText(ctx, l.value, ox+160, 76, 22, 0.95, "c");
+  eWrap(ctx, l.name||l.small||"", 17, 0.8, 296, 2).forEach((t,i)=>eText(ctx, t, ox+12, 106+i*20, 17, 0.8));
+  eText(ctx, "Cód. "+(l.code||l.big||""), ox+12, 168, 18, 0.85);
+}
+function eanPage(pair){ const c=document.createElement("canvas"); c.width=EW; c.height=EH; const ctx=c.getContext("2d"); ctx.fillStyle="#fff"; ctx.fillRect(0,0,EW,EH);
+  eLabel(ctx,pair[0],0); if(pair[1]) eLabel(ctx,pair[1],320); return c; }
 /* Cadastro de mesas e cestas (Locais → Etiquetas) */
 const SPOT_KINDS = {
   mesas:  {pre:"MESA",  nome:"Mesa",  art:"a", get:()=>MESAS,  set:l=>MESAS=l,  def:"Itens grandes / sem bandeja", min:1,
@@ -5936,7 +5988,9 @@ function bindSpotsAdmin(){
 function etiquetasHTML(){
   const t=state.lblType||"enderecos", isLoc=t==="enderecos", solo=t==="locsolo";
   if(t!=="mesas" && t!=="cestas" && state.lblFmt==="placa") state.lblFmt="termica";
-  const fmt=solo?"solo":isLoc?(state.locFmt||"loc3"):(state.lblFmt||"termica"), set=labelSet();
+  if(t==="produtos" && !state.lblFmtP) state.lblFmtP="ean2";
+  if(t!=="produtos" && state.lblFmt==="ean2") state.lblFmt="termica";
+  const fmt=solo?"solo":isLoc?(state.locFmt||"loc3"):t==="produtos"?state.lblFmtP:(state.lblFmt||"termica"), set=labelSet();
   return `<div class="cgrid">
     <section class="panel">
       <div><h3>O que imprimir</h3><div class="seg" style="margin-top:8px;flex-wrap:wrap">${[["enderecos","Endereços"],["locsolo","Só endereço"],["produtos","Produtos"],["bandejas","Bandejas"],["mesas","Mesas"],["cestas","Cestas"],["colmeias","Colmeias"]].map(([k,v])=>`<button data-lt="${k}" aria-pressed="${t===k}">${v}</button>`).join("")}</div></div>
@@ -5945,10 +5999,11 @@ function etiquetasHTML(){
         <label class="eyebrow">Tipo <select id="lblLocType" class="tin" style="width:auto">${[["todos","Todos"],...Object.entries(LOC_TYPES).map(([k,t])=>[k,`${k} · ${t}`])].map(([k,t])=>`<option value="${k}" ${(state.lblLocType||"todos")===k?"selected":""}>${t}</option>`).join("")}</select></label>
         ${solo?`<label class="chk"><input type="checkbox" id="lblFree" ${state.lblOnlyFree?"checked":""}> Só endereços sem produto</label>`:`<label class="chk"><input type="checkbox" id="lblUsed" ${state.lblOnlyUsed?"checked":""}> Só endereços com produto</label>`}</div>`:""}
       ${t==="mesas"||t==="cestas"?spotsAdminHTML(t):""}
-      ${t==="produtos"?`<div class="filters"><label class="chk"><input type="checkbox" id="lblNoEan" ${state.lblOnlyNoEan?"checked":""}> Só produtos sem EAN (etiqueta com código interno)</label></div>`:""}
+      ${t==="produtos"?eanPickHTML():""}
       <div><h3>Formato</h3><div class="modes" style="margin-top:8px;grid-template-columns:1fr 1fr">
         ${solo?`<label class="mode"><input type="radio" name="fmt" value="solo" checked><span><b>Folha A4 · 56 por folha</b><small>Etiquetas de 5 × 2 cm (4 na largura × 14 na altura) em impressora comum, para recortar e colar de forma provisória.</small></span></label>`:isLoc?`<label class="mode"><input type="radio" name="fmt" value="loc3" ${fmt==="loc3"?"checked":""}><span><b>Térmica 10 × 15 cm · 3 por etiqueta</b><small>Cada etiqueta de 10 × 15 cm sai com 3 endereços de 10 × 5 cm, com linha de corte.</small></span></label>
         <label class="mode"><input type="radio" name="fmt" value="loca4" ${fmt==="loca4"?"checked":""}><span><b>Folha A4 · 10 por folha</b><small>Endereços de 10 × 5 cm em impressora comum, para recortar.</small></span></label>`:`
+        ${t==="produtos"?`<label class="mode"><input type="radio" name="fmt" value="ean2" ${fmt==="ean2"?"checked":""}><span><b>Térmica 2 colunas · 40 × 25 mm</b><small>Igual à etiqueta do Full: duas etiquetas por linha, impressora térmica de rolo.</small></span></label>`:""}
         <label class="mode"><input type="radio" name="fmt" value="termica" ${fmt==="termica"?"checked":""}><span><b>Térmica 100 × 50 mm</b><small>Uma etiqueta por página, para impressoras de rolo (Zebra, Argox, Elgin).</small></span></label>
         <label class="mode"><input type="radio" name="fmt" value="a4" ${fmt==="a4"?"checked":""}><span><b>Folha A4 · 3 × 8</b><small>24 etiquetas de 70 × 37 mm por folha, impressora comum.</small></span></label>
         ${t==="mesas"||t==="cestas"?`<label class="mode"><input type="radio" name="fmt" value="placa" ${fmt==="placa"?"checked":""}><span><b>Placa A4 deitada</b><small>Uma por folha, letra e código de barras grandes, para fixar no local.</small></span></label>`:""}`}
@@ -5958,7 +6013,7 @@ function etiquetasHTML(){
       <p class="hint">O PDF é baixado para o seu computador. Abra e imprima em tamanho real (100%), sem "ajustar à página".</p>
     </section>
     <aside class="panel"><h3>Prévia · ${Math.min(6,set.length)} de ${set.length}</h3>
-      ${solo?`<p class="hint">Cada local: 5 × 2 cm (56 por folha A4: 4 na largura × 14 na altura). O código de barras é o do <b>endereço</b>: use em <b>Vincular produto</b> (bipe o produto e depois esta etiqueta) para amarrar o produto ao local.</p><div class="sologrid">${set.slice(0,6).map(locSoloHTML).join("")}</div>`:isLoc?`<p class="hint">Cada local: 10 × 5 cm (3 por etiqueta de 10 × 15 cm). O código de barras é o do produto (EAN, ou o código interno quando não há EAN), que o separador bipa no local.</p><div class="llgrid">${set.slice(0,4).map(locLabelHTML).join("")}</div>`:`<div class="labels" style="grid-template-columns:1fr">${set.slice(0,6).map(l=>`<div class="label"><div class="lb">${esc(l.big)}</div><div class="lt">${esc(l.small)}</div>${l.sub?`<div class="lt" style="font-weight:400">${esc(l.sub)}</div>`:""}<svg class="bc" data-v="${esc(l.value)}" data-f="${l.fmt}"></svg></div>`).join("")}</div>`}
+      ${solo?`<p class="hint">Cada local: 5 × 2 cm (56 por folha A4: 4 na largura × 14 na altura). O código de barras é o do <b>endereço</b>: use em <b>Vincular produto</b> (bipe o produto e depois esta etiqueta) para amarrar o produto ao local.</p><div class="sologrid">${set.slice(0,6).map(locSoloHTML).join("")}</div>`:isLoc?`<p class="hint">Cada local: 10 × 5 cm (3 por etiqueta de 10 × 15 cm). O código de barras é o do produto (EAN, ou o código interno quando não há EAN), que o separador bipa no local.</p><div class="llgrid">${set.slice(0,4).map(locLabelHTML).join("")}</div>`:fmt==="ean2"?`<p class="hint">Duas etiquetas de 40 × 25 mm por linha, como a do Full. Imprima em tamanho real (100%).</p><div class="eangrid" id="eanPrev"></div>`:`<div class="labels" style="grid-template-columns:1fr">${set.slice(0,6).map(l=>`<div class="label"><div class="lb">${esc(l.big)}</div><div class="lt">${esc(l.small)}</div>${l.sub?`<div class="lt" style="font-weight:400">${esc(l.sub)}</div>`:""}<svg class="bc" data-v="${esc(l.value)}" data-f="${l.fmt}"></svg></div>`).join("")}</div>`}
     </aside></div>`;
 }
 function bindEtiquetas(){
@@ -5971,8 +6026,10 @@ function bindEtiquetas(){
   const lt=document.getElementById("lblLocType"); if(lt) lt.onchange=()=>{ state.lblLocType=lt.value; render(); };
   const ne=document.getElementById("lblNoEan"); if(ne) ne.onchange=()=>{ state.lblOnlyNoEan=ne.checked; render(); };
   bindSpotsAdmin();
-  app.querySelectorAll("input[name=fmt]").forEach(x=>x.onchange=()=>{ if((state.lblType||"enderecos")==="enderecos") state.locFmt=x.value; else state.lblFmt=x.value; render(); });
-  document.getElementById("genPdf").onclick=()=>{ const t=state.lblType||"enderecos", isLoc=t==="enderecos"; makePdf(labelSet(), t==="locsolo"?"solo":isLoc?(state.locFmt||"loc3"):(state.lblFmt||"termica"), `etiquetas-${t}.pdf`); };
+  app.querySelectorAll("input[name=fmt]").forEach(x=>x.onchange=()=>{ const t=state.lblType||"enderecos"; if(t==="enderecos") state.locFmt=x.value; else if(t==="produtos") state.lblFmtP=x.value; else state.lblFmt=x.value; render(); });
+  bindEanPick();
+  const ep=document.getElementById("eanPrev"); if(ep){ const set=labelSet().slice(0,6); ensureBarcode().then(()=>{ for(let i=0;i<set.length;i+=2){ const im=new Image(); im.src=eanPage([set[i],set[i+1]]).toDataURL("image/png"); im.alt="Prévia da etiqueta"; ep.appendChild(im); } }, ()=>{}); }
+  document.getElementById("genPdf").onclick=()=>{ const t=state.lblType||"enderecos", isLoc=t==="enderecos"; makePdf(labelSet(), t==="locsolo"?"solo":isLoc?(state.locFmt||"loc3"):t==="produtos"?state.lblFmtP:(state.lblFmt||"termica"), `etiquetas-${t}.pdf`); };
 }
 function drawBarcodes(root){ if(!root) return; if(!window.JsBarcode){ ensureBarcode().then(()=>drawBarcodes(root), ()=>{}); return; }
   root.querySelectorAll("svg.bc-loc").forEach(s=>{ try{ JsBarcode(s, s.dataset.v, {format:s.dataset.f||"CODE128", height:60, width:2, margin:0, displayValue:false, background:"#FFFFFF", lineColor:"#000000"}); s.setAttribute("preserveAspectRatio","none"); }catch(e){} }); root.querySelectorAll("svg.bc").forEach(s=>{ try{ JsBarcode(s, s.dataset.v, {format:s.dataset.f, height:50, width:2, margin:4, fontSize:13, displayValue:/^EAN/.test(s.dataset.f), background:"#FFFFFF", lineColor:"#000000"}); }catch(e){} }); }
@@ -5986,12 +6043,14 @@ async function makePdf(labels, fmt, filename){
   if(!labels.length) return;
   toast("Gerando PDF…");
   try{
-    if(downloadsCap===undefined) downloadsCap = window.claude?.use ? await window.claude.use("downloads") : null;
-    if(!downloadsCap){ toast("Falha ao baixar o arquivo"); return; }
+    if(downloadsCap===undefined) downloadsCap = window.claude?.use ? await window.claude.use("downloads").catch(()=>null) : null;
     await Promise.all([loadJsPdf(), ensureBarcode()]); const { jsPDF } = window.jspdf;
     const fit = (doc, txt, size, maxW) => { let s=size; doc.setFontSize(s); while(s>6 && doc.getTextWidth(txt)>maxW){ s-=.5; doc.setFontSize(s); } return s; };
     let doc;
-    if(fmt==="solo"){ // 4 × 14 etiquetas de 50 × 20 mm, centralizadas na A4, com linhas de corte
+    if(fmt==="ean2"){ // 2 por linha: página 80 × 24,9 mm, como a do Full
+      doc = new jsPDF({orientation:"landscape", unit:"pt", format:[226.64,70.58]});
+      for(let i=0;i<labels.length;i+=2){ if(i) doc.addPage([226.64,70.58],"landscape"); doc.addImage(eanPage([labels[i],labels[i+1]]).toDataURL("image/png"),"PNG",0,0,226.64,70.58,undefined,"FAST"); }
+    } else if(fmt==="solo"){ // 4 × 14 etiquetas de 50 × 20 mm, centralizadas na A4, com linhas de corte
       doc = new jsPDF({unit:"mm", format:"a4"}); const per=SOLO.cols*SOLO.rows, x0=(210-SOLO.cols*SOLO.w)/2, y0=(297-SOLO.rows*SOLO.h)/2;
       labels.forEach((l,i)=>{ if(i && i%per===0) doc.addPage();
         const k=i%per, x=x0+(k%SOLO.cols)*SOLO.w, y=y0+Math.floor(k/SOLO.cols)*SOLO.h;
@@ -6035,7 +6094,7 @@ async function makePdf(labels, fmt, filename){
         if(l.sub){ fit(doc,l.sub,8,90); doc.text(l.sub, 5, 21); }
         const b=bcPng(l), bh=Math.min(22, 90*b.r); doc.addImage(b.url,"PNG",5,47-bh,90,bh); });
     }
-    await downloadsCap.save({filename, data:doc.output("arraybuffer")});
+    if(downloadsCap) await downloadsCap.save({filename, data:doc.output("arraybuffer")}); else doc.save(filename);
     toast(`PDF salvo · ${labels.length} etiqueta(s)`);
   }catch(e){
     if(e?.code==="declined") return toast("Download cancelado");
