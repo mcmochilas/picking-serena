@@ -119,9 +119,11 @@ img{max-width:100%}
 .gtablewrap{overflow-x:auto}.gtable{width:100%;border-collapse:collapse;font-size:14px}.gtable th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
 .gtable td{padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap}.gtable td small{color:var(--muted)}.bad-t{color:var(--bad);font-weight:700}.warn-t{color:var(--accent);font-weight:700}
 .gfeed{display:flex;flex-direction:column}.gev{display:grid;grid-template-columns:96px minmax(0,1.4fr) minmax(0,1fr) 150px;gap:4px 12px;align-items:center;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:9px 4px;color:inherit;font:inherit;cursor:pointer}
-.gev:hover{background:var(--bg)}.gev time{color:var(--muted);font-size:12.5px}.gevr{color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.gev small{color:var(--muted);text-align:right}
+.gev:hover{background:var(--bg)}.gev time{color:var(--muted);font-size:12.5px}.gevr{color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.gev small{color:var(--muted);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.gev>*{min-width:0}.gevt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.gevt.cut{cursor:zoom-in}
+.gev.xo .gevt{grid-column:2/4;white-space:normal;overflow:visible;cursor:zoom-out}.gev.xo .gevr{grid-column:2/4;grid-row:2}.gev.xo time{grid-row:1/3;align-self:start}.gev.xo small{grid-row:1/3;align-self:start}
 .gev.k-warn .gevt{color:var(--accent)}.gev.k-ok .gevt{color:var(--ok)}
-@media (max-width:800px){.gev{grid-template-columns:1fr}.gev small{text-align:left}}
+@media (max-width:800px){.gev{grid-template-columns:1fr}.gev small{text-align:left}.gev.xo .gevt,.gev.xo .gevr{grid-column:1}.gev.xo .gevr{grid-row:auto}.gev.xo time,.gev.xo small{grid-row:auto}}
 .gerr{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:10px 12px}.gerrm{min-width:0}.gerrm b{display:block;font-family:var(--mono);font-size:13px;word-break:break-word}.gerrm small{color:var(--muted)}
 .gmodal{max-width:760px}.gmodal .glist{max-height:260px;overflow:auto}.gitem{display:grid;grid-template-columns:80px minmax(0,1fr);gap:2px 10px;border-bottom:1px solid var(--line);padding:6px 0}.gitem small{grid-column:2;color:var(--muted)}
 /* ---- Painel do showroom: identidade Serena Puxadores (petróleo + areia + dourado), a mesma do Envio Full e da Consulta de Preço ---- */
@@ -6921,6 +6923,7 @@ const G = {err:null, errAt:0, errLoading:false, errFail:""};
 const gDay0 = () => { const x=new Date(); x.setHours(0,0,0,0); return x.getTime(); };
 const gSince = d => d<=1 ? gDay0() : Date.now()-d*G_D;
 const gAgo = t => t ? fmtDur(Date.now()-t).replace(/ \d+s$/,"").replace(/ 0min$/,"") : "—";
+const gShort = id => { const n=gName(id); return /@/.test(n) ? n.split("@")[0] : n; };
 const gName = id => id ? (USERS[id]?.name || USERS[id]?.login || "Usuário") : "—";
 const gPieces = o => (o.res||[]).reduce((t,r)=>t+(+r?.got||0),0);
 const gActive = o => !["enviado","excluido"].includes(o.status);
@@ -6943,9 +6946,6 @@ function gAlerts(){
       .map(o=>row(o, `${isEco(o)?"E-commerce":"Consultiva"} · na fila há ${gAgo(o.queuedAt||o.createdAt)}${o.naLoja?" · cliente na loja":""}`, o.queuedAt||o.createdAt)));
   add("mesa","warn","Parado na mesa","Separado e deixado na mesa há mais de 2 horas sem finalizar (embalar ou guardar na colmeia).",
     act.filter(o=>o.status==="na_mesa" && now-(o.atMesaAt||o.pickedAt||now)>2*G_H).map(o=>row(o, `${o.tray||"mesa"} · há ${gAgo(o.atMesaAt||o.pickedAt)}`, o.atMesaAt||o.pickedAt)));
-  add("envio","warn","Pronto e não enviado","Pedido de envio pronto há mais de 1 dia sem registro de saída.",
-    act.filter(o=>o.status==="pronto_envio" && !o.colmeia && !o.naLoja && !o.retira && !o.sentAt && now-(o.pickedAt||o.storedAt||now)>G_D)
-      .map(o=>row(o, `${o.transportadora||(isEco(o)?"E-commerce":"Envio")} · pronto há ${gAgo(o.pickedAt||o.storedAt)}`, o.pickedAt)));
   // colmeias
   try{ add("colmeia_parada","warn","Colmeia parada",`Pedido pronto na colmeia há ${CONFIG.staleDays||7} dias ou mais esperando retirada ou envio.`,
     (CONFIG.staleDays ? staleOrders() : []).map(o=>row(o, `Colmeia ${o.colmeia.slice(3)} · ${staleAge(o)} dias`, o.storedAt))); }catch(e){}
@@ -7037,7 +7037,7 @@ function gHoje(){
   const tms=sep.map(o=>o.pickedAt-(o.startedAt||0)).filter(x=>x>0 && x<4*G_H), wait=sep.map(o=>(o.startedAt||0)-(o.queuedAt||o.createdAt||0)).filter(x=>x>0 && x<3*G_D);
   const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
   const fila=O.filter(o=>o.status==="aguardando" && pickList(o).length), doing=O.filter(o=>o.status==="separando"), mesa=O.filter(o=>o.status==="na_mesa");
-  const pronto=O.filter(o=>o.status==="pronto_envio" && !o.colmeia && !o.naLoja && !o.retira && !o.sentAt);
+  const pronto=O.filter(o=>o.status==="pronto_envio" && !o.colmeia && (o.pickedAt||o.atMesaAt||0)>=gDay0());
   const hiveN=O.filter(gHoldsHive).length, nfR=Object.values(NFS||{}).filter(n=>(n.received?.at||0)>=d0);
   const alerts=gAlerts(), crit=alerts.filter(a=>a.sev==="crit").reduce((t,a)=>t+a.rows.length,0), warn=alerts.filter(a=>a.sev==="warn").reduce((t,a)=>t+a.rows.length,0);
   const oldest=fila.reduce((m,o)=>Math.min(m,o.queuedAt||o.createdAt||now), now);
@@ -7057,7 +7057,7 @@ function gHoje(){
         <div class="gbars" role="img" aria-label="Pedidos separados por hora hoje">${hours.map(x=>`<div class="gbar ${x.h===curH?"now":""}"><span class="tnum">${x.n||""}</span><i style="height:${Math.round(x.n/mx*100)}%"></i><small>${x.h}h</small></div>`).join("")}</div>
         <p class="hint">${sep.length?`${eco} e-commerce e ${sep.length-eco} pré-vendas separados hoje.`:"Nenhum pedido separado hoje ainda."}</p></section>
       <section class="panel"><h3>Agora na operação</h3>
-        <div class="gnow">${gKpi("Em separação", doing.length)}${gKpi("Na mesa", mesa.length, "", mesa.some(o=>now-(o.atMesaAt||now)>2*G_H)?"warn":"")}${gKpi("Prontos p/ envio", pronto.length)}${gKpi("Colmeias ocupadas", `${hiveN}/${HIVE.length}`)}${gKpi("Notas recebidas hoje", nfR.length, nfR.filter(n=>n.received.div).length?`${nfR.filter(n=>n.received.div).length} com divergência`:"")}</div>
+        <div class="gnow">${gKpi("Em separação", doing.length)}${gKpi("Na mesa", mesa.length, "", mesa.some(o=>now-(o.atMesaAt||now)>2*G_H)?"warn":"")}${gKpi("Finalizados hoje", pronto.length)}${gKpi("Colmeias ocupadas", `${hiveN}/${HIVE.length}`)}${gKpi("Notas recebidas hoje", nfR.length, nfR.filter(n=>n.received.div).length?`${nfR.filter(n=>n.received.div).length} com divergência`:"")}</div>
         <div class="eyebrow" style="margin-top:12px">Quem está separando</div>
         <div class="glist">${doing.length ? doing.sort((a,b)=>(a.startedAt||0)-(b.startedAt||0)).map(o=>{ const r=res(o), pl=pickList(o), done=pl.filter(x=>r[x.i]?.status&&r[x.i].status!=="pend").length;
           return `<button class="grow2" data-gopen="o:${esc(o.id)}"><b>${esc(gName(o.startedBy))}</b><span>${esc(gRef(o))}</span><small class="tnum">${done}/${pl.length} itens · há ${gAgo(o.startedAt)}</small></button>`; }).join("") : `<small class="muted-s">Ninguém separando agora.</small>`}</div></section>
@@ -7066,7 +7066,7 @@ function gHoje(){
 }
 function gAlertas(){
   const A=gAlerts(), sevT={crit:"Crítico",warn:"Atenção",info:"Informativo"};
-  if(!A.length) return `<section class="panel"><div class="gok">Tudo em dia. Nenhuma das 18 conferências encontrou problema.</div></section>`;
+  if(!A.length) return `<section class="panel"><div class="gok">Tudo em dia. Nenhuma das 17 conferências encontrou problema.</div></section>`;
   return `<p class="hint" style="margin:0 0 10px">${A.length} conferência(s) com pendência. O sistema confere sozinho: fila, separação, mesa, colmeias, envio, recebimento, compras, cadastro e erros técnicos.</p>
     <div class="galerts">${A.map(a=>{ const open=state.gAl===a.id;
       return `<section class="panel galert s-${a.sev} ${open?"open":""}"><button class="galh" data-gal="${a.id}" aria-expanded="${open}"><span class="gsev s-${a.sev}">${sevT[a.sev]}</span><b>${esc(a.title)}</b><span class="gcount tnum">${a.rows.length}</span><span class="gchev" aria-hidden="true">${open?"▴":"▾"}</span></button>
@@ -7092,7 +7092,7 @@ function gAtividade(){
       <select class="tin" id="gWho" aria-label="Pessoa"><option value="">Todas as pessoas</option>${people.map(id=>`<option value="${esc(id)}" ${who===id?"selected":""}>${esc(gName(id))}</option>`).join("")}</select>
       <select class="tin" id="gArea" aria-label="Área"><option value="">Todas as áreas</option>${["Pré-venda","E-commerce","Recebimento"].map(a=>`<option ${area===a?"selected":""}>${a}</option>`).join("")}</select>
       <input class="tin" id="gQ" type="search" placeholder="Buscar: pedido, cliente, ação" value="${esc(state.gQ||"")}" autocomplete="off"></div></div>
-    ${pg.items.length ? `<div class="gfeed">${pg.items.map(e=>`<button class="gev ${e.k?"k-"+e.k:""}" data-gopen="${e.open.k}:${esc(e.open.id)}"><time class="tnum">${dt(e.t)}</time><span class="gevt">${esc(e.txt)}</span><span class="gevr">${esc(e.ref)}</span><small>${e.by?esc(gName(e.by)):"sistema"}</small></button>`).join("")}</div>${pg.pager}` : `<p class="hint">Nenhum registro com esses filtros.</p>`}</section>`;
+    ${pg.items.length ? `<div class="gfeed">${pg.items.map(e=>`<button class="gev ${e.k?"k-"+e.k:""}" data-gopen="${e.open.k}:${esc(e.open.id)}"><time class="tnum">${dt(e.t)}</time><span class="gevt" title="${esc(e.txt)}">${esc(e.txt)}</span><span class="gevr" title="${esc(e.ref)}">${esc(e.ref)}</span><small title="${e.by?esc(gName(e.by)):"sistema"}">${e.by?esc(gShort(e.by)):"sistema"}</small></button>`).join("")}</div>${pg.pager}` : `<p class="hint">Nenhum registro com esses filtros.</p>`}</section>`;
 }
 function gErros(){
   gLoadErrors(false);
@@ -7111,7 +7111,6 @@ function gOrderModal(o){
   const ov=document.createElement("div"); ov.className="modal"; const st=statusInfo(o), r=res(o);
   ov.innerHTML=`<div class="mbox gmodal" role="dialog" aria-modal="true" aria-label="Pedido ${esc(o.num)}"><h2>#${esc(o.num)} · ${esc(o.client||"")}</h2>
     <p><span class="chip ${st.c||""}">${esc(st.t)}</span> ${isEco(o)?"E-commerce":"Pré-venda"}${o.seller?` · ${esc(o.seller)}`:""}${o.colmeia?` · colmeia ${esc(o.colmeia.slice(3))}`:""}</p>
-    <div class="glist">${(o.items||[]).map((it,i)=>`<div class="gitem"><b class="mono">${esc(it.code)}</b><span>${esc(it.name||"")}</span><small class="tnum">${it.qty} pç${it.qtyEnc?` · enc ${it.qtyEnc}`:""}${r[i]?.status && r[i].status!=="pend"?` · separado ${r[i].got||0}`:""}${PRODUCTS[it.code]?.loc?` · ${esc(PRODUCTS[it.code].loc)}`:" · sem endereço"}</small></div>`).join("")}</div>
     ${bipItemsHTML(o)}<div class="eyebrow" style="margin-top:12px">Linha do tempo</div>${timelineHTML(o)}
     <div class="mact"><button class="btn primary" id="gmClose">Fechar</button></div></div>`;
   const close=()=>ov.remove(); ov.onclick=e=>{ if(e.target===ov) close(); }; document.body.appendChild(ov); ov.querySelector("#gmClose").onclick=close; ov.querySelector("#gmClose").focus(); fillNames(ov);
@@ -7134,6 +7133,9 @@ function renderGestao(){
   app.querySelectorAll("[data-gtab]").forEach(b=>b.onclick=()=>{ state.gTab=b.dataset.gtab; if(b.dataset.gal) state.gAl=b.dataset.gal; render(); scrollTo(0,0); });
   app.querySelectorAll(".galh[data-gal]").forEach(b=>b.onclick=()=>{ state.gAl = state.gAl===b.dataset.gal ? "" : b.dataset.gal; render(); });
   app.querySelectorAll("[data-gopen]").forEach(b=>b.onclick=()=>{ const [k,...r]=b.dataset.gopen.split(":"); gOpen(k, r.join(":")); });
+  // Atividade: texto longo termina em "…"; tocar no texto abre por cima da coluna ao lado (tocar de novo fecha)
+  app.querySelectorAll(".gev .gevt").forEach(t=>{ if(t.scrollWidth>t.clientWidth+1) t.classList.add("cut");
+    t.onclick=e=>{ const row=t.closest(".gev"); if(!t.classList.contains("cut") && !row.classList.contains("xo")) return; e.stopPropagation(); row.classList.toggle("xo"); }; });
   app.querySelectorAll("[data-gdays]").forEach(b=>b.onclick=()=>{ state.gDays=+b.dataset.gdays; state.pg && (state.pg.gact=1); render(); });
   const w=document.getElementById("gWho"); if(w) w.onchange=()=>{ state.gWho=w.value; state.pg && (state.pg.gact=1); render(); };
   const a=document.getElementById("gArea"); if(a) a.onchange=()=>{ state.gArea=a.value; state.pg && (state.pg.gact=1); render(); };
