@@ -3057,9 +3057,9 @@ function saveNf(N){
 }
 
 // ---- recebimento: aplica a chegada às pré-vendas ----
-function applyReceipt(nfIdv){
+function applyReceipt(nfIdv, only){
   const n=NFS[nfIdv]; if(!n || !n.received) return;
-  const oids=[...new Set((n.lines||[]).flatMap(l=>(l.alloc||[]).map(a=>a.oid)))];
+  const oids=[...new Set((n.lines||[]).flatMap(l=>(l.alloc||[]).map(a=>a.oid)))].filter(id=>!only || only.includes(id));
   const RM=n.received.mesa||{};
   oids.forEach(oid=>{ const o=ORDERS.find(x=>x.id===oid); if(!o) return;
     const put=(n.lines||[]).flatMap((l,k)=>RM[k] ? (l.alloc||[]).filter(a=>a.oid===oid).map(a=>[a.i, RM[k]]) : []);
@@ -3098,7 +3098,8 @@ function renderReceb(){
         if(boxStep) return `<div class="rcstep"><b>1</b> Conte as caixas</div>${counter}
           <button class="btn primary" id="rcBoxOk" ${got?"":"disabled"}>${got ? `OK · ${got} caixa${got===1?"":"s"} conferida${got===1?"":"s"}` : "Conte as caixas"}</button>
           <small class="muted-s">Bipe a nota a cada caixa ou use o +. Depois do OK você bipa os produtos (${n.lines.length} ite${n.lines.length===1?"m":"ns"} na nota).</small>`;
-        if(!two) return (n.received ? "" : counter) + (hasL ? (()=>{ return `<div class="eyebrow" style="margin-top:12px">Itens da nota</div>
+        if(n.received && state.rc.adj) return rcAdjHTML(n);
+        if(!two) return (n.received ? rcAdjHead(n) : counter) + (hasL ? (()=>{ return `<div class="eyebrow" style="margin-top:12px">Itens da nota</div>
           <div class="list rclist" style="margin-top:6px">${n.lines.map((l,k)=>{ const R=n.received?.lines?.[k], div=R ? R.qty!==l.qty : false;
             return `<div class="li usrow rcl ${R?(div?"div":"ok"):""}" style="cursor:default"><span class="ln"><b class="mono">${esc(l.code)}</b> ${esc(l.name)}<small>Nota: <b>${l.qty}</b> pç${R?` · recebido <b>${R.qty}</b>`:""}</small></span>${div?`<span class="chip bad">Divergência</span>`:`<span class="chip done">OK</span>`}</div>`; }).join("")}</div>`; })() : "");
         const done=n.lines.filter((l,k)=>chk[k]).length, cur=state.rc.cur, cl=cur!=null ? n.lines[cur] : null, cp=cl ? PRODUCTS[rcSku(n,cur)] : null, cc=cl ? chk[cur] : null;
@@ -3137,6 +3138,13 @@ function renderReceb(){
   if(g("sim")) g("sim").onclick=()=>{ const n=pend[0]; if(n) handleScan(n.chave||n.num); else toast("Nenhuma nota para simular"); };
   if(g("rcMinus")) g("rcMinus").onclick=()=>{ state.rc.vols=Math.max(0,state.rc.vols-1); saveConf(); render(); };
   if(g("rcPlus")) g("rcPlus").onclick=()=>{ state.rc.vols++; saveConf(); render(); };
+  if(g("rcAdjGo")) g("rcAdjGo").onclick=()=>{ const n=NFS[state.rc.id]; state.rc.adj={vols:n.received.vols||0, q:Object.fromEntries((n.received.lines||[]).map((R,k)=>[k, R.qty])), only:(n.received.lines||[]).some(R=>R.qty!==R.exp)}; render(); scrollTo(0,0); };
+  if(g("rcAdjCancel")) g("rcAdjCancel").onclick=()=>{ delete state.rc.adj; render(); };
+  if(g("rcAdjOnly")) g("rcAdjOnly").onchange=e=>{ state.rc.adj.only=e.target.checked; render(); };
+  if(g("rcAdjVols")) g("rcAdjVols").onchange=e=>{ state.rc.adj.vols=Math.max(0,+e.target.value||0); };
+  app.querySelectorAll("[data-adjq]").forEach(i=>i.oninput=()=>{ state.rc.adj.q[+i.dataset.adjq]=Math.max(0,+i.value||0); const row=i.closest(".rcl"), l=NFS[state.rc.id].lines[+i.dataset.adjq]; if(row){ row.classList.toggle("div", (+i.value||0)!==l.qty); row.classList.toggle("ok", (+i.value||0)===l.qty); } });
+  app.querySelectorAll("[data-adjeq]").forEach(b=>b.onclick=()=>{ const k=+b.dataset.adjeq; state.rc.adj.q[k]=NFS[state.rc.id].lines[k].qty; render(); });
+  if(g("rcAdjSave")) g("rcAdjSave").onclick=saveRecAdj;
   if(g("rcBack")) g("rcBack").onclick=()=>{ const n=NFS[state.rc.id]; if(n && !n.received && (state.rc.vols || Object.keys(state.rc.chk).length)){ saveConf(); toast("Conferência salva"); } state.rc=null; render(); };
   if(g("rcOk")) g("rcOk").onclick=async()=>{ if(RC_TK){ const b=g("rcOk"); b.disabled=true; b.textContent="Conferindo a nota…"; await rcRefresh(); } confirmReceb(); };
   app.querySelectorAll("[data-rcok]").forEach(b=>b.onclick=()=>{ const k=+b.dataset.rcok, q=+(app.querySelector(`[data-rcq="${k}"]`)?.value)||0; state.rc.chk[k]={...(state.rc.chk[k]?.bip?{bip:1}:{}), qty:Math.max(0,q)}; if(state.rc.cur===k) state.rc.cur=null; delete state.rc.flash; saveConf(); render(); if(rcNeedMesa(k)) openRcMesa(k); });
@@ -3282,6 +3290,43 @@ function scanReceb(v){
   if(found.length>1){ feedback(false); return setMsg(`Há ${found.length} notas com o número ${found[0].num}. Toque na nota certa na lista ou bipe o código de barras.`,"bad"); }
   if(ci){ feedback(true); state.rc={ id:"NF-"+ci.chave, vols:0, chk:{}, tmp:{ id:"NF-"+ci.chave, chave:ci.chave, num:ci.num, serie:ci.serie, cnpj:ci.cnpj, forn:"", vols:0, lines:[] } }; render(); return setMsg(`NF ${ci.num} ainda não importada · registre a chegada`,"info"); }
   feedback(false); setMsg(`Nota ${v} não encontrada. Bipe o código de barras da DANFE ou peça para Compras importar a nota.`,"bad");
+}
+/* Administrador e Compras corrigem o recebido de uma nota já recebida (ex.: item que chegou mas não foi bipado) */
+const canRecAdj = () => hasRole("admin","compras");
+function rcAdjHead(n){ const R=n.received||{}, nd=(R.lines||[]).filter(x=>x.qty!==x.exp).length, last=(R.adj||[]).slice(-1)[0];
+  return `${nd ? `<div class="hintbox">Recebida com <b>${nd} divergência${nd===1?"":"s"}</b>${R.vols!==R.expected && R.expected ? ` · ${R.vols} de ${R.expected} caixas` : ""}.</div>` : ""}
+    ${last ? `<small class="muted-s">Ajustado manualmente ${(R.adj||[]).length>1?(R.adj.length+" vezes · última "):""}em ${new Date(last.at).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})} por <span data-uid="${esc(last.by)}"></span></small>` : ""}
+    ${canRecAdj() && !RC_TK ? `<button class="btn" id="rcAdjGo" style="margin-top:8px">Ajustar recebido${nd?" · corrigir divergências":""}</button>` : ""}`; }
+function rcAdjHTML(n){ const A=state.rc.adj, R=n.received;
+  const ks=(n.lines||[]).map((l,k)=>k).filter(k=>!A.only || (R.lines?.[k]?.qty!==n.lines[k].qty) || A.q[k]!==R.lines?.[k]?.qty);
+  return `<div class="rcstep"><b>✎</b> Ajustar o recebido</div>
+    <small class="muted-s">Corrija a quantidade que de fato chegou. Fica registrado quem ajustou, quando e o que mudou. Se aumentar o que chegou de uma pré-venda, ela é liberada para a separação.</small>
+    <div class="uscount" style="margin-top:8px"><span>Caixas recebidas</span><input class="tinput r" type="number" min="0" id="rcAdjVols" value="${A.vols}" style="width:80px"><span>${R.expected?`de ${R.expected}`:""}</span></div>
+    <label class="chk" style="margin-top:8px;display:flex;gap:6px;align-items:center"><input type="checkbox" id="rcAdjOnly" ${A.only?"checked":""}> Mostrar só os itens com divergência</label>
+    <div class="list rclist" style="margin-top:6px">${ks.length ? ks.map(k=>{ const l=n.lines[k], q=A.q[k], was=R.lines?.[k]?.qty, d=q!==l.qty;
+      return `<div class="li usrow rcl ${d?"div":"ok"}" style="cursor:default"><span class="ln"><b class="mono">${esc(l.code)}</b> ${esc(l.name)}<small>Nota: <b>${l.qty}</b> pç · recebido antes: <b>${was}</b>${(l.alloc||[]).length?" · para "+l.alloc.map(a=>"#"+esc(ORDERS.find(o=>o.id===a.oid)?.num||"?")).join(", "):""}</small></span>
+        <span class="rcq"><input class="tinput r" type="number" min="0" data-adjq="${k}" value="${q}" aria-label="Quantidade recebida de ${esc(l.code)}">${d?`<button class="mini" data-adjeq="${k}">= nota</button>`:""}</span></div>`; }).join("") : `<div class="li" style="cursor:default"><small class="muted-s">Nenhum item com divergência.</small></div>`}</div>
+    <button class="btn primary" id="rcAdjSave" style="margin-top:10px">Salvar ajuste</button>
+    <button class="mini" id="rcAdjCancel" style="margin-top:8px">Cancelar</button>`; }
+function saveRecAdj(){
+  const A=state.rc?.adj, n=A && NFS[state.rc.id]; if(!n?.received) return;
+  app.querySelectorAll("[data-adjq]").forEach(i=>{ A.q[+i.dataset.adjq]=Math.max(0,+i.value||0); });
+  const vi=document.getElementById("rcAdjVols"); if(vi) A.vols=Math.max(0,+vi.value||0);
+  const R=n.received, now=Date.now(), ch=[];
+  const lines=(n.lines||[]).map((l,k)=>{ const old=R.lines?.[k]?.qty ?? l.qty, q=A.q[k] ?? old; if(q!==old) ch.push({k, code:l.code, de:old, para:q}); return {qty:q, exp:l.qty}; });
+  if(!ch.length && A.vols===R.vols){ toast("Nada mudou"); delete state.rc.adj; return render(); }
+  const alloc={}; (n.lines||[]).forEach((l,k)=>{ let left=lines[k].qty; (l.alloc||[]).forEach(a=>{ const q=Math.min(left, +a.qty||0); alloc[a.oid+":"+a.i]=q; left-=q; }); });
+  const div = lines.some(x=>x.qty!==x.exp) || (R.expected && A.vols!==R.expected);
+  const adj={at:now, by:ME.id||"", ch, ...(A.vols!==R.vols?{vols:[R.vols,A.vols]}:{})};
+  const received={...R, vols:A.vols, lines, alloc, div, adj:[...(R.adj||[]), adj]};
+  NFS[n.id]={...n, received};
+  if(nfCol) queueWrite("nf-"+n.id, ()=>nfCol.doc(n.id).update(JSON.parse(JSON.stringify({received}))));
+  // pré-vendas cuja parte recebida mudou ganham um registro no histórico
+  const oids=[...new Set(ch.flatMap(c=>(n.lines[c.k].alloc||[]).map(a=>a.oid)))];
+  oids.forEach(oid=>{ const o=ORDERS.find(x=>x.id===oid); if(!o) return; const t=ch.filter(c=>(n.lines[c.k].alloc||[]).some(a=>a.oid===oid)).map(c=>`${c.code} ${c.de}→${c.para}`).join(", ");
+    patchOrder(oid, {hist:[...(o.hist||[]), {t:now, by:ME.id||"", ev:`Recebimento da NF ${n.num} ajustado: ${t}`}]}); });
+  delete state.rc.adj; if(oids.length) applyReceipt(n.id, oids);
+  toast(`NF ${n.num} ajustada${div?" · ainda com divergência":" · sem divergência"}`); render(); scrollTo(0,0);
 }
 function confirmReceb(){
   const rc=state.rc; if(!rc) return; const now=Date.now();
