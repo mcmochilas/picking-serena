@@ -552,6 +552,8 @@ details.cpcard summary{display:flex;justify-content:space-between;align-items:ce
 .tourb{display:flex;justify-content:space-between;align-items:center;margin-top:12px}.tourb span{display:flex;gap:6px}.tourb .mini.on{background:var(--accent);border-color:var(--accent);color:#1A1405}
 @media (prefers-reduced-motion:reduce){.tourhole,.tourtip{transition:none}}
 .bar.nahdr .btn.cpbtn{height:38px;min-height:38px;padding:0 16px;font-size:14px;border-radius:10px}
+.pvdest{margin-top:12px;display:flex;flex-direction:column;gap:6px}.pvdest .seg button{flex:1}
+.chip.dest{cursor:pointer;border:1px dashed currentColor}.chip.dest.need{color:var(--bad);background:var(--bad-soft)}
 .pvenc .mact .btn{flex:none;width:auto;min-height:38px;height:38px;padding:0 16px;font-size:14px;border-radius:10px}
 .nacl{background:color-mix(in srgb,var(--route) 9%,var(--surface));border-color:color-mix(in srgb,var(--route) 35%,var(--line))}.nacl .nach{border-bottom-color:color-mix(in srgb,var(--route) 25%,var(--line))}
 .natag{justify-self:start;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:6px}.natag.nf{background:var(--route);color:#fff}.natag.pv{background:var(--accent);color:var(--ink)}
@@ -2861,8 +2863,18 @@ function openNfImport(){
   inp.click();
 }
 /* Compras cadastra uma pré-venda que está esperando encomenda e ainda não está no sistema: pelo PDF ou digitando */
+/* para onde vai a pré-venda quando a encomenda chega: colmeia (cliente retira) ou envio */
+const destTxt = o => o.naLoja ? "→ cliente na loja" : o.retira ? "→ colmeia · retira" : (o.destDef || !o.viaCompras) ? "→ envio" : "";
+function openPvDest(o){
+  const ov=document.createElement("div"); ov.className="modal"; const close=()=>{ ov.remove(); render(); };
+  ov.innerHTML=`<div class="mbox" role="dialog" aria-modal="true" aria-label="Destino da pré-venda"><h2>Pré-venda #${esc(o.num)}</h2><p>${esc(o.client||"")}<br>Quando a encomenda chegar, o pedido vai para…</p>
+    <div class="mact" style="flex-direction:column;gap:8px"><button class="btn ${o.retira?"primary":""}" id="pdR">Colmeia · cliente retira na loja</button><button class="btn ${!o.retira&&destTxt(o)?"primary":""}" id="pdE">Envio ao cliente</button><button class="btn ghost" id="pdN">Cancelar</button></div></div>`;
+  const set=ret=>{ const now=Date.now(); patchOrder(o.id, {retira:ret, ...(ret?{}:{naLoja:false}), destDef:true, hist:[...(o.hist||[]), {t:now, by:ME.id||"", ev:`Destino definido: ${ret?"colmeia (cliente retira)":"envio"}`}]}); toast(`#${o.num} · ${ret?"vai para a colmeia":"vai para envio"}`); close(); };
+  ov.querySelector("#pdR").onclick=()=>set(true); ov.querySelector("#pdE").onclick=()=>set(false); ov.querySelector("#pdN").onclick=close;
+  ov.onclick=e=>{ if(e.target===ov) close(); }; document.body.appendChild(ov);
+}
 function openPvEnc(done){
-  const f={num:"", cli:"", obs:"", rows:[{code:"", name:"", qty:"", enc:""}]}; let p=null, err="", busy=false, tab="pdf";
+  const f={num:"", cli:"", obs:"", rows:[{code:"", name:"", qty:"", enc:""}], dest:"", junto:""}; let p=null, err="", busy=false, tab="pdf";
   const ov=document.createElement("div"); ov.className="modal";
   const close=()=>{ ov.remove(); render(); };
   const draw=()=>{
@@ -2879,11 +2891,19 @@ function openPvEnc(done){
           <div class="perows">${f.rows.map((r,i)=>`<div class="perow"><input class="tinput mono" data-pec="${i}" placeholder="Código" value="${esc(r.code)}" autocomplete="off" aria-label="Código do item ${i+1}"><input class="tinput" data-pen="${i}" placeholder="Descrição" value="${esc(r.name)}" aria-label="Descrição do item ${i+1}"><input class="tinput r" type="number" min="1" data-peq="${i}" placeholder="Qtd" value="${esc(r.qty)}" aria-label="Quantidade do item ${i+1}">${f.rows.length>1?`<button class="lnk" data-perm="${i}" aria-label="Tirar o item ${i+1}">tirar</button>`:"<span></span>"}</div>`).join("")}</div>
           <button type="button" class="mini" id="peAdd">+ Adicionar item</button>
           <small class="muted-s">Digite o código do produto do picking: a descrição preenche sozinha. A quantidade é a que está em encomenda.</small></div>` : ""}
+      ${tab==="man" || p ? (()=>{ const part = tab==="pdf" && p && p.items.some((it,i)=>(f.rows[i]?.enc||0)<it.qty);
+        return `<div class="pvdest"><div class="hnench"><span>Quando a encomenda chegar, o pedido vai para…</span></div>
+          <div class="seg" role="group" aria-label="Destino da pré-venda"><button type="button" data-pdest="retira" aria-pressed="${f.dest==="retira"}">Colmeia · cliente retira na loja</button><button type="button" data-pdest="envio" aria-pressed="${f.dest==="envio"}">Envio ao cliente</button></div>
+          <small class="muted-s">${f.dest==="retira" ? "O separador guarda na colmeia e o pedido fica pronto para o cliente buscar." : f.dest==="envio" ? "O separador finaliza na mesa de expedição para enviar." : "Escolha o destino para o separador saber o que fazer quando a mercadoria chegar."}</small>
+          ${f.dest==="envio" && part ? `<div class="seg" role="group" aria-label="Como enviar" style="margin-top:8px"><button type="button" data-pjunto="junto" aria-pressed="${f.junto==="junto"}">Enviar tudo junto</button><button type="button" data-pjunto="parcial" aria-pressed="${f.junto==="parcial"}">Enviar o que tem agora e o resto depois</button></div>
+            <small class="muted-s">${f.junto==="junto" ? "Os itens do estoque ficam na colmeia esperando a encomenda; depois sai tudo em um envio." : f.junto==="parcial" ? "Os itens do estoque são separados e enviados agora; a encomenda vai num 2º envio." : "Esta pré-venda tem itens do estoque: escolha se envia tudo junto ou em duas vezes."}</small>` : ""}</div>`; })() : ""}
       <div class="merr">${esc(err)}</div>
       <div class="mact"><button class="btn ghost" id="mNo">Cancelar</button>${tab==="man"||p?`<button class="btn primary" id="mOk">Salvar pré-venda</button>`:""}</div></div>`;
     const g=id=>ov.querySelector("#"+id);
     ov.querySelectorAll("[data-pt]").forEach(b=>b.onclick=()=>{ tab=b.dataset.pt; err=""; if(tab==="man" && p){ p=null; f.rows=[{code:"",name:"",qty:"",enc:""}]; } draw(); });
     g("mNo").onclick=close;
+    ov.querySelectorAll("[data-pdest]").forEach(b=>b.onclick=()=>{ f.dest=b.dataset.pdest; err=""; draw(); });
+    ov.querySelectorAll("[data-pjunto]").forEach(b=>b.onclick=()=>{ f.junto=b.dataset.pjunto; err=""; draw(); });
     if(g("peFile")) g("peFile").onchange=async e=>{ const file=e.target.files[0]; if(!file) return; busy=true; err=""; draw();
       try{ p=await readPresalePdf(file); f.num=p.num||""; f.cli=p.client||""; f.obs=p.obs||""; f.rows=p.items.map(it=>({enc:it.qty})); }catch(x){ p=null; err="Não reconheci este PDF como uma pré-venda, orçamento ou condicional. Use Digitar."; }
       busy=false; draw(); };
@@ -2908,15 +2928,18 @@ function openPvEnc(done){
         if(!rows.length){ err="Adicione pelo menos um item."; return draw(); }
         const bad=rows.find(r=>!r.code || !(+r.qty>0)); if(bad){ err="Cada item precisa de código e quantidade."; return draw(); }
         items=rows.map(r=>{ const P=PRODUCTS[r.code], q=Math.round(+r.qty); return {code:r.code, name:(r.name||P?.name||r.code).trim().toUpperCase(), ean:P?.ean||"", un:"PC", qty:q, price:0, loc:"", qtyEnc:q, eta:""}; }); }
+      const allE=items.every(it=>it.qtyEnc>=it.qty);
+      if(!f.dest){ err="Escolha para onde vai o pedido quando a encomenda chegar: colmeia (cliente retira) ou envio."; return draw(); }
+      if(f.dest==="envio" && !allE && !f.junto){ err="Escolha se envia tudo junto ou o que tem agora e o resto depois."; return draw(); }
       const sl=pvSlot({num, docType: tab==="pdf" ? p.docType : ""}), ex=sl.prev && sl.prev.status!=="excluido" ? sl.prev : null;
       if(ex){ err=`A pré-venda ${num} já está no sistema (${statusInfo(ex).t}). Procure por ela na busca.`; return draw(); }
       const now=Date.now(), obs=f.obs.trim(), all=items.every(it=>it.qtyEnc>=it.qty);
       const o={ id:sl.id, num, docType: tab==="pdf" ? p.docType||"" : "", date:p?.date||"", time:p?.time||"", clientCode:p?.clientCode||"", client:cli, city:p?.city||"", seller:p?.seller||"", obs, total:p?.total||0,
-        ...(all ? {mode:"encomenda", status:"encomenda"} : {mode:"aguarda", status:"aguardando"}), colmeia:null,
+        ...(all ? {mode:"encomenda", status:"encomenda"} : f.dest==="envio" && f.junto==="parcial" ? {mode:"parcial", status:"aguardando"} : {mode:"aguarda", status:"aguardando"}), colmeia:null, retira: f.dest==="retira", destDef:true,
         v2:true, items, remessa:1, createdAt:now, createdBy:ME.id||"", canal:"consultiva", viaCompras:true, transportadora:carrierFromObs(obs)||"", ...(sl.again?{reenvio:sl.again, reenvioDe:sl.last?.id||""}:{}),
-        hist:[{t:now, by:ME.id||"", ev:"Pré-venda cadastrada por Compras na amarração da nota fiscal"}] };
+        hist:[{t:now, by:ME.id||"", ev:`Pré-venda cadastrada por Compras na amarração da nota fiscal · destino: ${f.dest==="retira"?"colmeia (cliente retira)":"envio"+(all?"":f.junto==="parcial"?" (o que tem agora e o resto depois)":" (tudo junto)")}`}] };
       saveOrder(o); done && done(o);
-      toast(`Pré-venda ${num} cadastrada`);
+      toast(all ? `Pré-venda ${num} cadastrada · aguarda a encomenda` : `Pré-venda ${num} cadastrada · itens do estoque na fila`);
       close(); };
   };
   ov.onclick=e=>{ if(e.target===ov) close(); };
@@ -3012,7 +3035,7 @@ function renderNfEdit(){
     return `<div class="nae ${E.enc===c.key?"sel":""} ${left<=0?"full":""}" data-nae="${c.key}" role="button" tabindex="0">
       <div class="naet"><span>${pvTxt2(c)}</span>${why?`<span class="chip sug">${why}</span>`:""}</div>
       <div class="naei">${itTxt(c)}</div>
-      <div class="naic"><span class="chip">encomenda ${c.x.qtyEnc} pç</span>${mine?`<span class="chip enc">${mine} pç nesta nota</span>`:""}${left>0?`<span class="chip need">faltam ${left} pç</span>`:`<span class="chip done">completa</span>`}
+      <div class="naic"><button type="button" class="chip dest ${destTxt(c.o)?"":"need"}" data-nadest="${c.o.id}" title="Para onde vai quando a encomenda chegar">${destTxt(c.o) || "Destino? definir"}</button><span class="chip">encomenda ${c.x.qtyEnc} pç</span>${mine?`<span class="chip enc">${mine} pç nesta nota</span>`:""}${left>0?`<span class="chip need">faltam ${left} pç</span>`:`<span class="chip done">completa</span>`}
         ${selL ? `<button class="mini nabtn on" data-naadd="${c.key}">Amarrar${left>0?` · ${Math.min(left, Math.max(0,selL.qty-used(selL))) || ""}`:""}</button>` : ""}</div></div>`; };
   const rightBody = () => { const q=E.qR.trim().toUpperCase();
     const match = c => !q || (c.o.num+" "+c.o.client+" "+c.x.code+" "+c.x.name).toUpperCase().includes(q);
@@ -3094,6 +3117,7 @@ function renderNfEdit(){
     saveNf(N); state.nfEdit=null; state.cTab="notas"; render(); scrollTo(0,0); };
   g("naSave").onclick=save; if(g("naSave2")) g("naSave2").onclick=save;
   g("naTour").onclick=()=>nfTour();
+  app.querySelectorAll("[data-nadest]").forEach(b=>b.onclick=e=>{ e.stopPropagation(); const o=ORDERS.find(x=>x.id===b.dataset.nadest); if(o) openPvDest(o); });
   g("naNewPv").onclick=()=>openPvEnc(o=>{ E.qR=o.num; E.enc=null; resetPage("naR"); if(!selL) E.pane="pvs"; });
   g("naBack").onclick=async()=>{ if(E.dirty && !(await askModal({title:"Sair sem salvar?", text:"As amarrações feitas nesta tela ainda não foram salvas.", okText:"Sair sem salvar", danger:true}))) return; state.nfEdit=null; render(); };
 }
