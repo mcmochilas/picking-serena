@@ -52,6 +52,10 @@
 
   const refreshers = new Set();
   window.psRefresh = async () => { await Promise.all([...refreshers].map(f => f())); };
+  /* erros técnicos capturados nos aparelhos (tabela app_errors; só o administrador lê) */
+  window.psErrors = async (dias = 7) => { const since = new Date(Date.now() - dias * 864e5).toISOString();
+    const { data, error } = await sb.from("app_errors").select("created_at,kind,message,source,url,user_agent,session_id").eq("app", "picking-serena").gte("created_at", since).order("created_at", { ascending: false }).limit(500);
+    if(error) throw new Error(error.message); return data || []; };
   /* vídeos do painel do showroom (bucket público "showroom"; só o administrador envia ou apaga) */
   window.psStorage = {
     async upload(path, file){ const { error } = await sb.storage.from("showroom").upload(path, file, { contentType:file.type || "video/mp4", upsert:false, cacheControl:"86400" }); if(error) throw new Error(error.message || "Falha no envio"); return sb.storage.from("showroom").getPublicUrl(path).data.publicUrl; },

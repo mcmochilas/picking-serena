@@ -86,6 +86,44 @@ img{max-width:100%}
 .lg-ok{background:var(--ok-soft,#DDF2E8);color:var(--ok,#1D845A);border-radius:10px;padding:10px 12px;font-weight:600;font-size:14px}
 .lg-hint{margin:0;font-size:13px;color:var(--muted,#5A6978)}
 .me .logout{color:var(--route,#2A5BC8)}
+/* ---- Gestão ---- */
+.gtabs{margin:4px 0 14px;flex-wrap:wrap}.gbadge{display:inline-block;min-width:20px;padding:0 6px;border-radius:999px;font-size:11px;line-height:18px;text-align:center;margin-left:4px}
+.gbadge.s-crit{background:var(--bad);color:#fff}.gbadge.s-warn{background:var(--accent);color:var(--ink)}
+.gbody{display:flex;flex-direction:column;gap:16px}.gupd small{color:var(--muted)}
+.gkpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.gk{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.gk small{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.06em}.gk b{font-size:28px;line-height:1.1}.gk span{color:var(--muted);font-size:12.5px}
+.gk.bad{border-color:var(--bad)}.gk.bad b{color:var(--bad)}.gk.warn{border-color:var(--accent)}.gk.ok b{color:var(--ok)}
+.ggrid{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}@media (min-width:1000px){.ggrid{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr)}}
+.gnow{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}.gnow .gk b{font-size:22px}
+.gbars{display:flex;align-items:flex-end;gap:6px;height:180px;padding-top:18px}
+.gbar{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:4px;min-width:0}
+.gbar i{display:block;width:100%;max-width:34px;background:var(--accent);border-radius:6px 6px 2px 2px;min-height:2px}.gbar.now i{background:var(--ink)}
+.gbar span{font-size:12px;font-weight:700}.gbar small{font-size:11px;color:var(--muted)}
+.glist{display:flex;flex-direction:column;gap:6px}
+.grow2{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1.6fr) auto;gap:4px 12px;align-items:center;text-align:left;width:100%;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 12px;color:inherit;font:inherit;cursor:pointer}
+.grow2:hover{border-color:var(--ink)}.grow2 b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.grow2 span{color:var(--muted);font-size:13px;min-width:0}.grow2 small{color:var(--muted);font-size:12px;white-space:nowrap}
+@media (max-width:700px){.grow2{grid-template-columns:1fr}.grow2 small{white-space:normal}}
+.gsum{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
+.gsumi{display:flex;gap:10px;align-items:center;text-align:left;background:var(--bg);border:1px solid var(--line);border-left:5px solid var(--line);border-radius:10px;padding:10px 12px;color:inherit;font:inherit;cursor:pointer}
+.gsumi b{font-size:22px}.gsumi.s-crit{border-left-color:var(--bad)}.gsumi.s-warn{border-left-color:var(--accent)}.gsumi.s-info{border-left-color:var(--muted)}
+.galerts{display:flex;flex-direction:column;gap:8px}.panel.galert{padding:0;overflow:hidden;border-left:5px solid var(--line)}.galert.s-crit{border-left-color:var(--bad)}.galert.s-warn{border-left-color:var(--accent)}
+.galert>.hint,.galert>.glist{margin:0 16px 14px}
+.galh{display:flex;align-items:center;gap:12px;width:100%;background:none;border:0;color:inherit;font:inherit;padding:14px 16px;cursor:pointer;text-align:left}.galh b{flex:1}
+.gsev{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.gsev.s-crit{background:var(--bad-soft);color:var(--bad)}.gsev.s-warn{background:var(--accent-soft);color:var(--ink)}.gsev.s-info{background:var(--line);color:var(--muted)}
+.gcount{font-weight:800;font-size:18px}.gchev{color:var(--muted)}
+.gok{padding:18px;border:1px dashed var(--line);border-radius:12px;color:var(--ok);font-weight:600;text-align:center}
+.gbarh{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px}.gbarh h3{margin:0}
+.gfilt{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.gfilt .tin{width:auto;min-width:160px}
+.gtablewrap{overflow-x:auto}.gtable{width:100%;border-collapse:collapse;font-size:14px}.gtable th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.gtable td{padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap}.gtable td small{color:var(--muted)}.bad-t{color:var(--bad);font-weight:700}.warn-t{color:var(--accent);font-weight:700}
+.gfeed{display:flex;flex-direction:column}.gev{display:grid;grid-template-columns:96px minmax(0,1.4fr) minmax(0,1fr) 150px;gap:4px 12px;align-items:center;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:9px 4px;color:inherit;font:inherit;cursor:pointer}
+.gev:hover{background:var(--bg)}.gev time{color:var(--muted);font-size:12.5px}.gevr{color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.gev small{color:var(--muted);text-align:right}
+.gev.k-warn .gevt{color:var(--accent)}.gev.k-ok .gevt{color:var(--ok)}
+@media (max-width:800px){.gev{grid-template-columns:1fr}.gev small{text-align:left}}
+.gerr{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:10px 12px}.gerrm{min-width:0}.gerrm b{display:block;font-family:var(--mono);font-size:13px;word-break:break-word}.gerrm small{color:var(--muted)}
+.gmodal{max-width:760px}.gmodal .glist{max-height:260px;overflow:auto}.gitem{display:grid;grid-template-columns:80px minmax(0,1fr);gap:2px 10px;border-bottom:1px solid var(--line);padding:6px 0}.gitem small{grid-column:2;color:var(--muted)}
 /* ---- Painel do showroom: identidade Serena Puxadores (petróleo + areia + dourado), a mesma do Envio Full e da Consulta de Preço ---- */
 html.srmode{--sr-bg:#F5F2ED;--sr-surface:#FFFFFF;--sr-ink:#143F54;--sr-ink2:#3C4E58;--sr-muted:#5B6970;--sr-line:#E4DED3;--sr-line2:#F0EBE3;--sr-petrol:#164C64;--sr-petrol-d:#0F3A4E;--sr-accent:#8A6526;--sr-accent-soft:#FBF0DF;--sr-gold:#FFD195;--sr-ok:#16658A;--sr-ok-soft:#E3EEF3;
   --sr-display:"Montserrat",system-ui,sans-serif;--sr-body:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;--sr-mono:"JetBrains Mono",ui-monospace,Menlo,monospace}
@@ -1435,7 +1473,7 @@ const hoFromHash = () => { const m=location.hash.match(/^#colmeia-(retirou|envia
 usFromHash(); hoFromHash(); window.addEventListener("hashchange", ()=>{ usFromHash(); hoFromHash(); if(state.usPending || state.hoPending) render(); });
 window.addEventListener("hashchange", ()=>{ const on=location.hash==="#showroom"; if(on===IS_SHOWROOM) return; IS_SHOWROOM=on; SR.boot=Date.now(); if(!on){ const r=document.getElementById("srRoot"); if(r){ r.querySelector("video")?.pause(); r.remove(); } } render(); });
 window.addEventListener("hashchange", ()=>{ if(location.hash==="#tv"){ state.view="tv"; render(); } else if(state.view==="tv"){ state.view="orders"; render(); } });
-function initialSector(){ const h=location.hash.slice(1); if(["comercial","expedicao","colmeias","compras","recebimento","estoque","chamados","usuarios"].includes(h)) return h; return innerWidth>=900 ? "comercial" : "expedicao"; }
+function initialSector(){ const h=location.hash.slice(1); if(["gestao","comercial","expedicao","colmeias","compras","recebimento","estoque","chamados","usuarios"].includes(h)) return h; return innerWidth>=900 ? "comercial" : "expedicao"; }
 state.sector = initialSector();
 
 /* Encomenda guardada aos poucos: peças da encomenda já na colmeia (encStored) e o que ainda falta chegar */
@@ -1457,7 +1495,7 @@ function res(o){ if(!o.res || o.res.length!==o.items.length) o.res = o.items.map
 
 /* ================== Navegação ================== */
 function topnav(){
-  const names = {chamados:"Chamados", comercial:"Comercial", expedicao:"Separação", colmeias:"Colmeias", compras:"Compras", recebimento:"Recebimento", estoque:"Locais", usuarios:"Usuários"};
+  const names = {gestao:"Gestão", chamados:"Chamados", comercial:"Comercial", expedicao:"Separação", colmeias:"Colmeias", compras:"Compras", recebimento:"Recebimento", estoque:"Locais", usuarios:"Usuários"};
   return `<nav class="topnav" aria-label="Setores">
     <button class="navburger ${state.navOpen?"x":""}" id="navBurger" aria-label="Menu" aria-expanded="${!!state.navOpen}" aria-controls="navDrawer"><i></i><i></i><i></i></button>
     <div class="brand">Picking <span>Serena</span></div>
@@ -1466,7 +1504,7 @@ function topnav(){
     <div class="navdrawer ${state.navOpen?"open":""}" id="navDrawer"><div class="dhead">Menu</div>
     <div class="seg mainnav" role="group">${allowedSectors().flatMap(k=> k==="expedicao"
       ? [["fila","Separação"],["historico","Separados"]].map(([t,n])=>`<button data-sec="expedicao" data-tab="${t}" aria-pressed="${state.sector==="expedicao" && (state.sepTab||"fila")===t}">${n}</button>`)
-      : [`<button data-sec="${k}" aria-pressed="${state.sector===k}">${names[k]}</button>`]).join("")}</div>
+      : [`<button data-sec="${k}" aria-pressed="${state.sector===k}">${names[k]}${k==="gestao" && gAlertCount().n ? ` <span class="gbadge s-${gAlertCount().c?"crit":"warn"}">${gAlertCount().n}</span>`:""}</button>`]).join("")}</div>
     ${userChip()}</div>
   </nav>${state.viewAs?`<div class="viewas"><span>Simulando o nível ${ROLES[state.viewAs].t}. Os dados são reais.</span><button class="mini" id="exitViewAs">Voltar ao meu acesso</button></div>`:""}`;
 }
@@ -6169,7 +6207,7 @@ const ROLES = {
   painel:    {t:"Painel TV",     d:"Só exibe o painel da fila de separação na TV", p:[]},
   conferente:{t:"Conferente",    d:"Recebe as bandejas na mesa de expedição e guarda nas colmeias", p:["mesa"]},
 };
-const SECTOR_PERM = { chamados:["usuarios"], comercial:["comercial"], expedicao:["coleta","mesa"], colmeias:["coleta","mesa","compras","estoque","colmeia"], /* o Comercial vê as colmeias na lateral da própria tela */ compras:["compras"], recebimento:["receber"], estoque:["estoque"], usuarios:["usuarios"] };
+const SECTOR_PERM = { gestao:["usuarios"], chamados:["usuarios"], comercial:["comercial"], expedicao:["coleta","mesa"], colmeias:["coleta","mesa","compras","estoque","colmeia"], /* o Comercial vê as colmeias na lateral da própria tela */ compras:["compras"], recebimento:["receber"], estoque:["estoque"], usuarios:["usuarios"] };
 let USERS = {}, usersCol = null, userCap = null, ME = {id:null, name:"", isOwner:false, avatarUrl:""}, authReady = !window.claude?.use;
 
 /* Um usuário pode ter mais de um nível: "role" é o principal (o mais alto) e "roles" traz todos */
@@ -6207,7 +6245,7 @@ const ecoOk = o => isEco(o) ? canEco() : canCons();
 const sepOf = o => o.status==="separando" && o.startedBy ? o.startedBy : (o.assignTo||"");
 const notMine = o => !!o.assignTo && o.assignTo!==ME.id && !hasRole("admin","supervisor");
 // Colmeias fica ao lado de Separação; para quem não separa, vem depois do setor principal (e nunca é a tela inicial)
-function allowedSectors(){ const sep=canSector("expedicao"); return (sep ? ["comercial","expedicao","colmeias","compras","recebimento","estoque","chamados","usuarios"] : ["comercial","compras","recebimento","estoque","colmeias","chamados","usuarios"]).filter(canSector); }
+function allowedSectors(){ const sep=canSector("expedicao"); return (sep ? ["gestao","comercial","expedicao","colmeias","compras","recebimento","estoque","chamados","usuarios"] : ["gestao","comercial","compras","recebimento","estoque","colmeias","chamados","usuarios"]).filter(canSector); }
 
 // Nomes e fotos: guardamos só o id; o nome é resolvido na hora de mostrar
 async function fillNames(root){
@@ -6811,6 +6849,7 @@ function render(){
   if(state.sector==="compras") return state.view==="unstore" ? renderUnstore() : renderCompras();
   if(state.sector==="recebimento") return renderReceb();
   if(state.sector==="usuarios") return renderUsuarios();
+  if(state.sector==="gestao") return renderGestao();
   if(state.sector==="chamados") return window.psLucas ? renderChamados() : (state.sector="usuarios", renderUsuarios());
   if(state.view==="hvout") return renderHvOut();
   if(state.view==="hvloc" || state.view==="hvmove") return renderHvPlace();
@@ -6838,6 +6877,235 @@ function chMsgsHTML(list){
   return list.map(m=>`<div class="lcm u"><div class="lcb">${esc(m.question||"(só print)").replace(/\n/g,"<br>")}${m.images?`<div class="lcnimg">${m.images} print(s) anexado(s)</div>`:""}</div><small class="chts">${chDate(m.at)}${m.screen?" · "+esc(m.screen):""}</small></div>
     <div class="lcm a"><div class="lcb">${lucasMd(m.answer||"")}</div></div>`).join("");
 }
+/* ================== Gestão (Administrador): visão do gerente da operação ==================
+   Hoje (números do dia e quem está fazendo o quê), Alertas (conferência automática de processos e erros de operação),
+   Equipe (produtividade por pessoa), Atividade (tudo o que foi feito, com filtro) e Erros do sistema (falhas técnicas nos aparelhos). */
+const G_TABS=[["hoje","Hoje"],["alertas","Alertas"],["equipe","Equipe"],["atividade","Atividade"],["erros","Erros do sistema"]];
+const G_H=36e5, G_D=864e5;
+const G = {err:null, errAt:0, errLoading:false, errFail:""};
+const gDay0 = () => { const x=new Date(); x.setHours(0,0,0,0); return x.getTime(); };
+const gSince = d => d<=1 ? gDay0() : Date.now()-d*G_D;
+const gAgo = t => t ? fmtDur(Date.now()-t).replace(/ \d+s$/,"").replace(/ 0min$/,"") : "—";
+const gName = id => id ? (USERS[id]?.name || USERS[id]?.login || "Usuário") : "—";
+const gPieces = o => (o.res||[]).reduce((t,r)=>t+(+r?.got||0),0);
+const gActive = o => !["enviado","excluido"].includes(o.status);
+const gRef = o => `#${o.num} · ${o.client||"Cliente"}`;
+const gHoldsHive = o => usesHive(o); // mesma regra do mapa das colmeias
+
+/* ---- Alertas: cada regra devolve as linhas que precisam de atenção ---- */
+function gAlerts(){
+  const now=Date.now(), A=[], add=(id,sev,title,hint,rows)=>{ if(rows.length) A.push({id,sev,title,hint,rows}); };
+  const O=ORDERS.filter(o=>o.status!=="excluido" && !o.deletedAt), act=O.filter(gActive);
+  const row=(o,sub,t)=>({txt:gRef(o), sub, t, open:{k:"o",id:o.id}});
+  // separação
+  add("sep_parada","crit","Separação parada","Pedido em separação há mais de 45 min sem bipagem. Veja se o separador travou ou abandonou o pedido.",
+    act.filter(o=>o.status==="separando" && o.startedAt).map(o=>({o, last:Math.max(+o.startedAt||0, +o.live?.at||0, ...(o.locScans||[]).map(e=>+e.at||0))}))
+      .filter(x=>now-x.last>45*6e4).sort((a,b)=>a.last-b.last).map(x=>row(x.o, `${gName(x.o.startedBy)} · sem bipar há ${gAgo(x.last)}`, x.last)));
+  add("mz_mudou","crit","E-commerce cancelado ou alterado","O pedido mudou de situação na Magazord depois de entrar na separação. Confirme antes de enviar.",
+    act.filter(o=>isEco(o) && (o.mzCancelado||o.mzMudou)).map(o=>row(o, o.mzCancelado?"Cancelado na Magazord":`Situação na Magazord: ${o.mzSituacaoDesc||o.mzSituacao}`, o.importedAt)));
+  add("fila","warn","Fila atrasada","Pedido aguardando separação há mais de 2 horas.",
+    act.filter(o=>o.status==="aguardando" && pickList(o).length && now-(o.queuedAt||o.createdAt||now)>2*G_H).sort((a,b)=>(a.queuedAt||a.createdAt)-(b.queuedAt||b.createdAt))
+      .map(o=>row(o, `${isEco(o)?"E-commerce":"Consultiva"} · na fila há ${gAgo(o.queuedAt||o.createdAt)}${o.naLoja?" · cliente na loja":""}`, o.queuedAt||o.createdAt)));
+  add("mesa","warn","Parado na mesa","Separado e deixado na mesa há mais de 2 horas sem finalizar (embalar ou guardar na colmeia).",
+    act.filter(o=>o.status==="na_mesa" && now-(o.atMesaAt||o.pickedAt||now)>2*G_H).map(o=>row(o, `${o.tray||"mesa"} · há ${gAgo(o.atMesaAt||o.pickedAt)}`, o.atMesaAt||o.pickedAt)));
+  add("envio","warn","Pronto e não enviado","Pedido de envio pronto há mais de 1 dia sem registro de saída.",
+    act.filter(o=>o.status==="pronto_envio" && !o.colmeia && !o.naLoja && !o.retira && !o.sentAt && now-(o.pickedAt||o.storedAt||now)>G_D)
+      .map(o=>row(o, `${o.transportadora||(isEco(o)?"E-commerce":"Envio")} · pronto há ${gAgo(o.pickedAt||o.storedAt)}`, o.pickedAt)));
+  // colmeias
+  try{ add("colmeia_parada","warn","Colmeia parada",`Pedido pronto na colmeia há ${CONFIG.staleDays||7} dias ou mais esperando retirada ou envio.`,
+    (CONFIG.staleDays ? staleOrders() : []).map(o=>row(o, `Colmeia ${o.colmeia.slice(3)} · ${staleAge(o)} dias`, o.storedAt))); }catch(e){}
+  const byHive={}; O.filter(gHoldsHive).forEach(o=>(byHive[o.colmeia] ||= []).push(o));
+  const cli=o=>hvNorm(o.client||"").trim();
+  add("colmeia_dupla","crit","Clientes diferentes na mesma colmeia","Pré-vendas de clientes diferentes estão na mesma colmeia. Confira fisicamente e mova uma delas.",
+    Object.entries(byHive).filter(([,l])=>new Set(l.map(cli)).size>1).flatMap(([h,l])=>l.map(o=>row(o, `Colmeia ${h.slice(3)} · junto com ${l.filter(x=>x!==o).map(x=>"#"+x.num).join(", ")}`, o.storedAt))));
+  // recebimento e compras
+  const NF=Object.values(NFS||{});
+  add("nf_div","warn","Nota recebida com divergência","Conferência fechada com diferença entre a nota e o que chegou. Ajuste o recebido ou cobre o fornecedor.",
+    NF.filter(n=>n.received?.div).sort((a,b)=>(b.received.at||0)-(a.received.at||0)).map(n=>{ const R=n.received, d=(R.lines||[]).filter(x=>x.qty!==x.exp).length;
+      return {txt:`NF ${n.num} · ${n.forn||"Fornecedor"}`, sub:[d?`${d} item(ns) com diferença`:"", R.expected && R.vols!==R.expected?`${R.vols} de ${R.expected} caixas`:"", R.adj?.length?"já ajustada":""].filter(Boolean).join(" · ")||"divergência", t:R.at, open:{k:"nf",id:n.id}}; }));
+  add("nf_conf","warn","Conferência de nota parada","Conferência começada e não finalizada há mais de 4 horas.",
+    NF.filter(n=>!n.received && n.conf?.at && now-n.conf.at>4*G_H).map(n=>({txt:`NF ${n.num} · ${n.forn||""}`, sub:`${Object.keys(n.conf.chk||{}).length} de ${(n.lines||[]).length} itens conferidos · parada há ${gAgo(n.conf.at)}${n.conf.by?" · "+gName(n.conf.by):""}`, t:n.conf.at, open:{k:"nf",id:n.id}})));
+  add("nf_old","info","Nota importada e não recebida","Nota no sistema há mais de 7 dias sem recebimento. Confirme se a mercadoria chegou.",
+    NF.filter(n=>!n.received && (n.createdAt||n.importedAt) && now-(n.createdAt||n.importedAt)>7*G_D).map(n=>({txt:`NF ${n.num} · ${n.forn||""}`, sub:`importada há ${gAgo(n.createdAt||n.importedAt)}`, t:n.createdAt||n.importedAt, open:{k:"nf",id:n.id}})));
+  const allocd=new Set(NF.flatMap(n=>(n.lines||[]).flatMap(l=>(l.alloc||[]).map(a=>a.oid))));
+  add("enc_sem_nf","warn","Encomenda sem nota amarrada","Pré-venda com encomenda há mais de 7 dias sem nenhuma nota fiscal amarrada. Cobre o fornecedor ou amarre a nota.",
+    O.filter(o=>encOpen(o) && !allocd.has(o.id) && now-(o.decidedAt||o.createdAt||now)>7*G_D).sort((a,b)=>(a.decidedAt||a.createdAt)-(b.decidedAt||b.createdAt))
+      .map(o=>row(o, `${encItems(o).map(it=>it.code+" ×"+it.qtyEnc).slice(0,3).join(", ")} · há ${gAgo(o.decidedAt||o.createdAt)}`, o.decidedAt||o.createdAt)));
+  add("pv_destino","warn","Pré-venda sem destino","Cadastrada por Compras sem dizer se vai para a colmeia ou para envio.",
+    act.filter(o=>o.viaCompras && !destTxt(o)).map(o=>row(o, "Destino? definir na amarração", o.createdAt)));
+  // qualidade da separação
+  const w7=now-7*G_D;
+  add("faltas","warn","Faltas na separação (7 dias)","Itens que o separador marcou como falta. Confira o estoque e o endereço desses produtos.",
+    O.filter(o=>(o.pickedAt||0)>=w7).flatMap(o=>{ const r=o.res||[]; return (o.items||[]).map((it,i)=>({it,r:r[i]})).filter(x=>x.r && (x.r.status==="miss"||x.r.status==="part"))
+      .map(x=>row(o, `${x.it.code} · faltou ${Math.max(0,(x.it.qty-(x.it.qtyEnc||0))-(+x.r.got||0))} de ${x.it.qty-(x.it.qtyEnc||0)} · ${gName(o.pickedBy)}`, o.pickedAt)); }).sort((a,b)=>b.t-a.t));
+  add("reinicio","info","Separação reiniciada (7 dias)","Pedidos em que a separação foi zerada e recomeçada.",
+    O.flatMap(o=>(o.restarts||[]).filter(r=>(r.at||0)>=w7).map(r=>row(o, `${gName(r.by)}${r.done?` · ${r.done} item(ns) voltaram a zero`:""}`, r.at))).sort((a,b)=>b.t-a.t));
+  // cadastro
+  const pend=act.filter(o=>["aguardando","separando"].includes(o.status)), prodUse={};
+  pend.forEach(o=>pickList(o).forEach(x=>{ const it=o.items[x.i]; (prodUse[it.code] ||= {it, n:0, o:[]}).n++; prodUse[it.code].o.push("#"+o.num); }));
+  const pr=Object.values(prodUse);
+  add("sem_local","warn","Produto da fila sem endereço","O separador vai procurar no estoque. Cadastre o endereço em Locais.",
+    pr.filter(x=>!(PRODUCTS[x.it.code]?.loc)).map(x=>({txt:`${x.it.code} · ${x.it.name||PRODUCTS[x.it.code]?.name||""}`, sub:`em ${x.n} pedido(s): ${x.o.slice(0,4).join(", ")}`, open:{k:"p",id:x.it.code}})));
+  add("sem_ean","info","Produto da fila sem EAN","Sem EAN o separador bipa o código interno. Gere o EAN em Locais → Etiquetas.",
+    pr.filter(x=>PRODUCTS[x.it.code] && eanState(PRODUCTS[x.it.code].ean).c!=="done").map(x=>({txt:`${x.it.code} · ${PRODUCTS[x.it.code].name}`, sub:`em ${x.n} pedido(s)`, open:{k:"p",id:x.it.code}})));
+  const byEan={}; Object.values(PRODUCTS).forEach(p=>{ if(p.ean && eanState(p.ean).c==="done") (byEan[p.ean] ||= []).push(p); });
+  add("ean_dup","crit","EAN repetido em produtos diferentes","Dois produtos com o mesmo código de barras: a bipagem pode aceitar o produto errado.",
+    Object.entries(byEan).filter(([,l])=>l.length>1).map(([e,l])=>({txt:`EAN ${e}`, sub:l.map(p=>p.code+" "+p.name).join(" · "), open:{k:"p",id:l[0].code}})));
+  add("eco_sku","warn","E-commerce com cadastro diferente do site","O site mandou um EAN de outro produto ou um SKU que não existe aqui. Corrija o cadastro na Magazord.",
+    act.filter(isEco).flatMap(o=>(o.items||[]).filter(it=>it.semCadastro||it.eanSiteDe).map(it=>row(o, it.semCadastro?`SKU ${it.sku||it.code} sem cadastro no Picking`:`SKU ${it.sku} veio com o EAN do ${it.eanSiteDe}`, o.importedAt))));
+  // técnico
+  if(G.err){ const e24=G.err.filter(e=>Date.parse(e.created_at)>=now-G_D); if(e24.length) A.push({id:"erros",sev:"info",title:"Erros do sistema nas últimas 24 h",hint:"Falhas técnicas registradas nos aparelhos. Veja a aba Erros do sistema.",rows:[{txt:`${e24.length} registro(s)`, sub:`${new Set(e24.map(e=>e.message)).size} tipo(s) de erro`, open:{k:"tab",id:"erros"}}]}); }
+  const ord={crit:0,warn:1,info:2}; return A.sort((a,b)=>ord[a.sev]-ord[b.sev] || b.rows.length-a.rows.length);
+}
+
+let G_AC={t:0,n:0,c:0}; function gAlertCount(){ if(Date.now()-G_AC.t>3e4){ try{ const A=gAlerts(); G_AC={t:Date.now(), n:A.filter(a=>a.sev!=="info").reduce((t,a)=>t+a.rows.length,0), c:A.filter(a=>a.sev==="crit").reduce((t,a)=>t+a.rows.length,0)}; }catch(e){ G_AC.t=Date.now(); } } return G_AC; }
+/* ---- Equipe: produtividade por pessoa no período ---- */
+function gTeam(days){
+  const since=gSince(days), T={}, P=id=>(T[id] ||= {id, ped:0, pc:0, tm:0, tn:0, loc:0, falta:0, rein:0, nf:0, nfl:0, adj:0, act:0});
+  ORDERS.forEach(o=>{
+    const runs=[...(o.etapas||[]).filter(e=>e.pickedBy), ...(o.pickedBy?[{startedAt:o.startedAt, pickedAt:o.pickedAt, pickedBy:o.pickedBy, cur:true}]:[])];
+    runs.forEach(r=>{ if(!(r.pickedAt>=since)) return; const u=P(r.pickedBy); u.ped++; if(r.cur) u.pc+=gPieces(o); else u.pc+=+r.pecas||0;
+      const d=r.pickedAt-(r.startedAt||0); if(r.startedAt && d>0 && d<4*G_H){ u.tm+=d; u.tn++; } });
+    if(o.pickedBy && o.pickedAt>=since) (o.res||[]).forEach(r=>{ if(r && (r.status==="miss"||r.status==="part")) P(o.pickedBy).falta++; });
+    (o.locScans||[]).forEach(e=>{ if(e?.by && e.at>=since) P(e.by).loc++; });
+    (o.restarts||[]).forEach(r=>{ if(r?.by && r.at>=since) P(r.by).rein++; });
+    (o.hist||[]).forEach(h=>{ if(h?.by && h.t>=since) P(h.by).act++; });
+  });
+  Object.values(NFS||{}).forEach(n=>{ const R=n.received; if(R?.by && R.at>=since){ const u=P(R.by); u.nf++; u.nfl+=(R.lines||[]).length; }
+    (R?.adj||[]).forEach(a=>{ if(a.by && a.at>=since) P(a.by).adj++; }); });
+  return Object.values(T).filter(u=>u.id).sort((a,b)=>b.ped-a.ped || b.nf-a.nf || b.act-a.act);
+}
+
+/* ---- Atividade: tudo o que foi feito, montado dos registros de cada pedido e de cada nota ---- */
+function gActivity(days){
+  const since=gSince(days), ev=[];
+  ORDERS.concat(DELETED||[]).forEach(o=>{
+    const last=Math.max(+o.createdAt||0, +o.pickedAt||0, +o.storedAt||0, +o.sentAt||0, +o.sentAt1||0, +o.deletedAt||0, ...(o.hist||[]).map(h=>+h.t||0), ...(o.restarts||[]).map(r=>+r.at||0));
+    if(last<since) return;
+    orderTimeline(o).forEach(e=>{ if(e.t>=since) ev.push({t:e.t, txt:e.txt, by:e.by||"", k:e.k||"", ref:gRef(o), open:{k:"o",id:o.id}, area:isEco(o)?"E-commerce":"Pré-venda"}); });
+  });
+  Object.values(NFS||{}).forEach(n=>{ const R=n.received, ref=`NF ${n.num} · ${n.forn||""}`, op={k:"nf",id:n.id};
+    if(R?.at>=since) ev.push({t:R.at, txt:`Nota recebida${R.div?" com divergência":""} · ${R.vols||0} caixa(s)`, by:R.by||"", k:R.div?"warn":"ok", ref, open:op, area:"Recebimento"});
+    (R?.adj||[]).forEach(a=>{ if(a.at>=since) ev.push({t:a.at, txt:`Recebido ajustado: ${(a.ch||[]).map(c=>`${c.code} ${c.de}→${c.para}`).join(", ")||"caixas"}`, by:a.by||"", k:"warn", ref, open:op, area:"Recebimento"}); });
+    if(!R && n.conf?.at>=since) ev.push({t:n.conf.at, txt:`Conferência em andamento · ${Object.keys(n.conf.chk||{}).length} item(ns)`, by:n.conf.by||"", k:"", ref, open:op, area:"Recebimento"});
+  });
+  return ev.sort((a,b)=>b.t-a.t);
+}
+
+/* ---- tela ---- */
+function gLoadErrors(force){ if(!window.psErrors || G.errLoading || (!force && G.err && Date.now()-G.errAt<6e4)) return;
+  G.errLoading=true; window.psErrors(7).then(l=>{ G.err=l; G.errAt=Date.now(); G.errFail=""; }, e=>{ G.errFail=e.message||"Falha ao ler"; }).finally(()=>{ G.errLoading=false; if(state.sector==="gestao") render(); }); }
+function gKpi(label, val, sub, tone){ return `<div class="gk ${tone||""}"><small>${label}</small><b class="tnum">${val}</b>${sub?`<span>${sub}</span>`:""}</div>`; }
+function gHoje(){
+  const d0=gDay0(), now=Date.now(), O=ORDERS.filter(o=>o.status!=="excluido");
+  const entr=O.filter(o=>(o.createdAt||0)>=d0), sep=O.filter(o=>(o.pickedAt||0)>=d0 && o.pickedBy);
+  const tms=sep.map(o=>o.pickedAt-(o.startedAt||0)).filter(x=>x>0 && x<4*G_H), wait=sep.map(o=>(o.startedAt||0)-(o.queuedAt||o.createdAt||0)).filter(x=>x>0 && x<3*G_D);
+  const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+  const fila=O.filter(o=>o.status==="aguardando" && pickList(o).length), doing=O.filter(o=>o.status==="separando"), mesa=O.filter(o=>o.status==="na_mesa");
+  const pronto=O.filter(o=>o.status==="pronto_envio" && !o.colmeia && !o.naLoja && !o.retira && !o.sentAt);
+  const hiveN=O.filter(gHoldsHive).length, nfR=Object.values(NFS||{}).filter(n=>(n.received?.at||0)>=d0);
+  const alerts=gAlerts(), crit=alerts.filter(a=>a.sev==="crit").reduce((t,a)=>t+a.rows.length,0), warn=alerts.filter(a=>a.sev==="warn").reduce((t,a)=>t+a.rows.length,0);
+  const oldest=fila.reduce((m,o)=>Math.min(m,o.queuedAt||o.createdAt||now), now);
+  const hours=[]; for(let h=7;h<=19;h++) hours.push({h, n:sep.filter(o=>new Date(o.pickedAt).getHours()===h).length});
+  const mx=Math.max(1,...hours.map(x=>x.n)), curH=new Date().getHours();
+  const eco=sep.filter(isEco).length;
+  return `<div class="gkpis">
+      ${gKpi("Entraram hoje", entr.length, `${entr.filter(isEco).length} e-commerce · ${entr.length-entr.filter(isEco).length} pré-vendas`)}
+      ${gKpi("Separados hoje", sep.length, `${sep.reduce((t,o)=>t+gPieces(o),0)} peças`)}
+      ${gKpi("Tempo médio de separação", avg(tms)==null?"—":fmtDur(avg(tms)).replace(/ \d+s$/,""), "do início ao fim, por pedido")}
+      ${gKpi("Espera média na fila", avg(wait)==null?"—":fmtDur(avg(wait)).replace(/ \d+s$/,""), "da entrada ao início")}
+      ${gKpi("Na fila agora", fila.length, fila.length?`mais antigo há ${gAgo(oldest)}`:"fila zerada", fila.length && now-oldest>2*G_H?"bad":"")}
+      ${gKpi("Alertas", crit+warn, crit?`${crit} crítico(s)`:"nenhum crítico", crit?"bad":warn?"warn":"ok")}
+    </div>
+    <div class="ggrid">
+      <section class="panel"><h3>Separados por hora · hoje</h3>
+        <div class="gbars" role="img" aria-label="Pedidos separados por hora hoje">${hours.map(x=>`<div class="gbar ${x.h===curH?"now":""}"><span class="tnum">${x.n||""}</span><i style="height:${Math.round(x.n/mx*100)}%"></i><small>${x.h}h</small></div>`).join("")}</div>
+        <p class="hint">${sep.length?`${eco} e-commerce e ${sep.length-eco} pré-vendas separados hoje.`:"Nenhum pedido separado hoje ainda."}</p></section>
+      <section class="panel"><h3>Agora na operação</h3>
+        <div class="gnow">${gKpi("Em separação", doing.length)}${gKpi("Na mesa", mesa.length, "", mesa.some(o=>now-(o.atMesaAt||now)>2*G_H)?"warn":"")}${gKpi("Prontos p/ envio", pronto.length)}${gKpi("Colmeias ocupadas", `${hiveN}/${HIVE.length}`)}${gKpi("Notas recebidas hoje", nfR.length, nfR.filter(n=>n.received.div).length?`${nfR.filter(n=>n.received.div).length} com divergência`:"")}</div>
+        <div class="eyebrow" style="margin-top:12px">Quem está separando</div>
+        <div class="glist">${doing.length ? doing.sort((a,b)=>(a.startedAt||0)-(b.startedAt||0)).map(o=>{ const r=res(o), pl=pickList(o), done=pl.filter(x=>r[x.i]?.status&&r[x.i].status!=="pend").length;
+          return `<button class="grow2" data-gopen="o:${esc(o.id)}"><b>${esc(gName(o.startedBy))}</b><span>${esc(gRef(o))}</span><small class="tnum">${done}/${pl.length} itens · há ${gAgo(o.startedAt)}</small></button>`; }).join("") : `<small class="muted-s">Ninguém separando agora.</small>`}</div></section>
+    </div>
+    <section class="panel"><h3>O que precisa de atenção</h3>${alerts.length ? `<div class="gsum">${alerts.slice(0,8).map(a=>`<button class="gsumi s-${a.sev}" data-gtab="alertas" data-gal="${a.id}"><b class="tnum">${a.rows.length}</b><span>${esc(a.title)}</span></button>`).join("")}</div>` : `<p class="hint">Tudo em dia: nenhuma regra de conferência encontrou problema.</p>`}</section>`;
+}
+function gAlertas(){
+  const A=gAlerts(), sevT={crit:"Crítico",warn:"Atenção",info:"Informativo"};
+  if(!A.length) return `<section class="panel"><div class="gok">Tudo em dia. Nenhuma das 18 conferências encontrou problema.</div></section>`;
+  return `<p class="hint" style="margin:0 0 10px">${A.length} conferência(s) com pendência. O sistema confere sozinho: fila, separação, mesa, colmeias, envio, recebimento, compras, cadastro e erros técnicos.</p>
+    <div class="galerts">${A.map(a=>{ const open=state.gAl===a.id;
+      return `<section class="panel galert s-${a.sev} ${open?"open":""}"><button class="galh" data-gal="${a.id}" aria-expanded="${open}"><span class="gsev s-${a.sev}">${sevT[a.sev]}</span><b>${esc(a.title)}</b><span class="gcount tnum">${a.rows.length}</span><span class="gchev" aria-hidden="true">${open?"▴":"▾"}</span></button>
+        ${open?`<p class="hint">${esc(a.hint)}</p><div class="glist">${a.rows.slice(0,60).map(r=>`<button class="grow2" data-gopen="${r.open.k}:${esc(r.open.id)}"><b>${esc(r.txt)}</b><span>${esc(r.sub||"")}</span>${r.t?`<small class="tnum">${new Date(r.t).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</small>`:""}</button>`).join("")}${a.rows.length>60?`<small class="muted-s">+ ${a.rows.length-60}</small>`:""}</div>`:""}</section>`; }).join("")}</div>`;
+}
+function gEquipe(){
+  const d=state.gDays||1, L=gTeam(d);
+  const per=`<div class="seg" role="group" aria-label="Período">${[[1,"Hoje"],[7,"7 dias"],[30,"30 dias"]].map(([k,t])=>`<button data-gdays="${k}" aria-pressed="${d===k}">${t}</button>`).join("")}</div>`;
+  return `<section class="panel"><div class="gbarh"><h3>Produtividade da equipe</h3>${per}</div>
+    ${L.length ? `<div class="gtablewrap"><table class="gtable"><thead><tr><th>Pessoa</th><th>Pedidos</th><th>Peças</th><th>Tempo médio</th><th>Peças/h</th><th title="Bipagens da etiqueta do endereço">Bip. endereço</th><th>Faltas</th><th>Reinícios</th><th>Notas</th><th title="Ajustes de nota recebida">Ajustes</th><th title="Ações registradas no histórico dos pedidos">Ações</th></tr></thead>
+      <tbody>${L.map(u=>{ const tm=u.tn?u.tm/u.tn:null, ph=u.tm>0?Math.round(u.pc/(u.tm/G_H)):null;
+        return `<tr><td><b>${esc(gName(u.id))}</b></td><td class="tnum">${u.ped||"—"}</td><td class="tnum">${u.pc||"—"}</td><td class="tnum">${tm==null?"—":fmtDur(tm).replace(/ \d+s$/,"")}</td><td class="tnum">${ph??"—"}</td><td class="tnum">${u.loc||"—"}</td><td class="tnum ${u.falta?"bad-t":""}">${u.falta||"—"}</td><td class="tnum ${u.rein?"warn-t":""}">${u.rein||"—"}</td><td class="tnum">${u.nf?`${u.nf} <small>(${u.nfl} itens)</small>`:"—"}</td><td class="tnum">${u.adj||"—"}</td><td class="tnum">${u.act||"—"}</td></tr>`; }).join("")}</tbody></table></div>`
+      : `<p class="hint">Nenhuma atividade registrada no período.</p>`}
+    <p class="hint">Tempo médio e peças por hora contam do início ao fim de cada separação (separações acima de 4 h ficam de fora). Bipagens de endereço mostram se o separador está confirmando o local antes de pegar a peça.</p></section>`;
+}
+function gAtividade(){
+  const d=state.gDays||1, all=gActivity(d), who=state.gWho||"", area=state.gArea||"", q=(state.gQ||"").trim();
+  const people=[...new Set(all.map(e=>e.by).filter(Boolean))].sort((a,b)=>gName(a).localeCompare(gName(b)));
+  const list=all.filter(e=>(!who || e.by===who) && (!area || e.area===area) && (!q || fz(e.txt+" "+e.ref+" "+gName(e.by), q)));
+  const pg=pageOf(list, "gact", 50), dt=t=>new Date(t).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+  return `<section class="panel"><div class="gbarh"><h3>Atividade · ${list.length} registro(s)</h3>
+      <div class="gfilt"><div class="seg" role="group" aria-label="Período">${[[1,"Hoje"],[7,"7 dias"],[30,"30 dias"]].map(([k,t])=>`<button data-gdays="${k}" aria-pressed="${d===k}">${t}</button>`).join("")}</div>
+      <select class="tin" id="gWho" aria-label="Pessoa"><option value="">Todas as pessoas</option>${people.map(id=>`<option value="${esc(id)}" ${who===id?"selected":""}>${esc(gName(id))}</option>`).join("")}</select>
+      <select class="tin" id="gArea" aria-label="Área"><option value="">Todas as áreas</option>${["Pré-venda","E-commerce","Recebimento"].map(a=>`<option ${area===a?"selected":""}>${a}</option>`).join("")}</select>
+      <input class="tin" id="gQ" type="search" placeholder="Buscar: pedido, cliente, ação" value="${esc(state.gQ||"")}" autocomplete="off"></div></div>
+    ${pg.items.length ? `<div class="gfeed">${pg.items.map(e=>`<button class="gev ${e.k?"k-"+e.k:""}" data-gopen="${e.open.k}:${esc(e.open.id)}"><time class="tnum">${dt(e.t)}</time><span class="gevt">${esc(e.txt)}</span><span class="gevr">${esc(e.ref)}</span><small>${e.by?esc(gName(e.by)):"sistema"}</small></button>`).join("")}</div>${pg.pager}` : `<p class="hint">Nenhum registro com esses filtros.</p>`}</section>`;
+}
+function gErros(){
+  gLoadErrors(false);
+  if(!window.psErrors) return `<section class="panel"><p class="hint">Os erros técnicos só aparecem no app publicado.</p></section>`;
+  if(G.errFail) return `<section class="panel"><p class="hint">Não foi possível ler os erros: ${esc(G.errFail)}</p><button class="btn" id="gErrRe">Tentar de novo</button></section>`;
+  if(!G.err) return `<section class="panel"><p class="hint">Carregando os erros dos últimos 7 dias…</p></section>`;
+  const dev=ua=>/KP58|Android/i.test(ua||"")?(/KP58/i.test(ua)?"Coletor":"Android"):/iPhone|iPad/i.test(ua||"")?"iPhone":/Windows/i.test(ua||"")?"Windows":/Mac/i.test(ua||"")?"Mac":"Outro";
+  const grp={}; G.err.forEach(e=>{ const k=e.kind+"|"+e.message; const g=(grp[k] ||= {kind:e.kind, msg:e.message, src:e.source, n:0, last:0, dev:new Set(), ses:new Set()}); g.n++; g.last=Math.max(g.last, Date.parse(e.created_at)); g.dev.add(dev(e.user_agent)); g.ses.add(e.session_id); });
+  const L=Object.values(grp).sort((a,b)=>b.last-a.last), kindT={error:"Erro de tela",promise:"Erro de tela",resource:"Arquivo não carregou",http:"Servidor",network:"Conexão",manual:"Registrado"};
+  return `<section class="panel"><div class="gbarh"><h3>Erros do sistema · últimos 7 dias</h3><button class="mini" id="gErrRe">Atualizar</button></div>
+    ${L.length ? `<div class="glist">${L.map(g=>`<div class="gerr"><span class="gsev s-${g.kind==="network"?"info":g.kind==="http"?"warn":"crit"}">${kindT[g.kind]||g.kind}</span><div class="gerrm"><b>${esc(g.msg)}</b><small>${g.src?esc(g.src)+" · ":""}${[...g.dev].join(", ")} · ${g.ses.size} aparelho(s)/sessão(ões)</small></div><span class="gcount tnum">${g.n}×</span><small class="tnum">${new Date(g.last).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</small></div>`).join("")}</div>`
+      : `<div class="gok">Nenhum erro técnico registrado nos últimos 7 dias.</div>`}
+    <p class="hint">Falhas de conexão em sequência costumam ser Wi-Fi do estoque. Erros de tela que se repetem precisam de correção no app: mande um print daqui no chat.</p></section>`;
+}
+function gOrderModal(o){
+  const ov=document.createElement("div"); ov.className="modal"; const st=statusInfo(o), r=res(o);
+  ov.innerHTML=`<div class="mbox gmodal" role="dialog" aria-modal="true" aria-label="Pedido ${esc(o.num)}"><h2>#${esc(o.num)} · ${esc(o.client||"")}</h2>
+    <p><span class="chip ${st.c||""}">${esc(st.t)}</span> ${isEco(o)?"E-commerce":"Pré-venda"}${o.seller?` · ${esc(o.seller)}`:""}${o.colmeia?` · colmeia ${esc(o.colmeia.slice(3))}`:""}</p>
+    <div class="glist">${(o.items||[]).map((it,i)=>`<div class="gitem"><b class="mono">${esc(it.code)}</b><span>${esc(it.name||"")}</span><small class="tnum">${it.qty} pç${it.qtyEnc?` · enc ${it.qtyEnc}`:""}${r[i]?.status && r[i].status!=="pend"?` · separado ${r[i].got||0}`:""}${PRODUCTS[it.code]?.loc?` · ${esc(PRODUCTS[it.code].loc)}`:" · sem endereço"}</small></div>`).join("")}</div>
+    <div class="eyebrow" style="margin-top:12px">Linha do tempo</div>${timelineHTML(o)}
+    <div class="mact"><button class="btn primary" id="gmClose">Fechar</button></div></div>`;
+  const close=()=>ov.remove(); ov.onclick=e=>{ if(e.target===ov) close(); }; document.body.appendChild(ov); ov.querySelector("#gmClose").onclick=close; ov.querySelector("#gmClose").focus(); fillNames(ov);
+}
+function gOpen(k, id){
+  if(k==="o"){ const o=[...ORDERS, ...(DELETED||[])].find(x=>x.id===id); if(o) gOrderModal(o); return; }
+  if(k==="nf"){ const n=NFS[id]; if(!n) return; state.sector="recebimento"; state.view="orders"; openReceb(n); return; }
+  if(k==="p"){ state.sector="estoque"; state.etab="produtos"; state.prodQ=id; render(); return; }
+  if(k==="tab"){ state.gTab=id; render(); }
+}
+function renderGestao(){
+  const tab=state.gTab||"hoje", A=gAlerts(), nCrit=A.filter(a=>a.sev==="crit").reduce((t,a)=>t+a.rows.length,0), nWarn=A.filter(a=>a.sev==="warn").reduce((t,a)=>t+a.rows.length,0);
+  if(tab==="hoje" || tab==="alertas") gLoadErrors(false);
+  const body = tab==="alertas" ? gAlertas() : tab==="equipe" ? gEquipe() : tab==="atividade" ? gAtividade() : tab==="erros" ? gErros() : gHoje();
+  app.innerHTML = topnav() + `<header class="bar"><div class="grow"><h1>Gestão</h1><div class="sub">Visão do gerente: números do dia, conferências automáticas, equipe e tudo o que foi feito</div></div>
+    <div class="gupd"><small>Atualizado às ${new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</small></div></header>
+    <div class="seg gtabs" role="tablist">${G_TABS.map(([k,t])=>`<button data-gtab="${k}" aria-pressed="${tab===k}" role="tab">${t}${k==="alertas" && (nCrit+nWarn)?` <span class="gbadge s-${nCrit?"crit":"warn"}">${nCrit+nWarn}</span>`:""}</button>`).join("")}</div>
+    <div class="gbody">${body}</div>`;
+  bindNav(); fillNames(app);
+  app.querySelectorAll("[data-gtab]").forEach(b=>b.onclick=()=>{ state.gTab=b.dataset.gtab; if(b.dataset.gal) state.gAl=b.dataset.gal; render(); scrollTo(0,0); });
+  app.querySelectorAll(".galh[data-gal]").forEach(b=>b.onclick=()=>{ state.gAl = state.gAl===b.dataset.gal ? "" : b.dataset.gal; render(); });
+  app.querySelectorAll("[data-gopen]").forEach(b=>b.onclick=()=>{ const [k,...r]=b.dataset.gopen.split(":"); gOpen(k, r.join(":")); });
+  app.querySelectorAll("[data-gdays]").forEach(b=>b.onclick=()=>{ state.gDays=+b.dataset.gdays; state.pg && (state.pg.gact=1); render(); });
+  const w=document.getElementById("gWho"); if(w) w.onchange=()=>{ state.gWho=w.value; state.pg && (state.pg.gact=1); render(); };
+  const a=document.getElementById("gArea"); if(a) a.onchange=()=>{ state.gArea=a.value; state.pg && (state.pg.gact=1); render(); };
+  const q=document.getElementById("gQ"); if(q) q.oninput=()=>{ state.gQ=q.value; state.pg && (state.pg.gact=1); const pos=q.selectionStart; render(); const n=document.getElementById("gQ"); if(n){ n.focus(); n.setSelectionRange(pos,pos); } };
+  const er=document.getElementById("gErrRe"); if(er) er.onclick=()=>{ G.errFail=""; gLoadErrors(true); render(); };
+}
+
 function renderChamados(){
   const C=chState(); if(!C.loaded && !C.loading && !C.err) chLoad();
   const th=C.threads||[], fe=C.features||[], pend=fe.filter(f=>!f.done), done=fe.filter(f=>f.done);

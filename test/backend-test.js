@@ -223,6 +223,10 @@ document.documentElement.classList.add("ps-test"); // no teste os botões "Simul
   };
   window.claude = (HV_TOKEN || RC_TOKEN) ? { async use(){ return null; } } : { async use(name){ return name === "db" ? db : name === "user" ? user : name === "downloads" ? downloads : null; } };
   window.psRefresh = async () => { Object.keys(DB).forEach(emit); };
+  window.psErrors = async () => { const n=Date.now(); return [
+    {created_at:new Date(n-36e5).toISOString(), kind:"error", message:"TypeError: Cannot read properties of undefined (reading 'code')", source:"index.html:4890:12", url:"https://picking-serena.vercel.app/", user_agent:"Mozilla/5.0 (Linux; Android 11; KP58HYT) Chrome/120", session_id:"a1"},
+    {created_at:new Date(n-72e5).toISOString(), kind:"error", message:"TypeError: Cannot read properties of undefined (reading 'code')", source:"index.html:4890:12", url:"https://picking-serena.vercel.app/", user_agent:"Mozilla/5.0 (Linux; Android 11; KP58HYT) Chrome/120", session_id:"b2"},
+    {created_at:new Date(n-864e5).toISOString(), kind:"network", message:"Falha de rede em https://x.supabase.co/rest/v1/orders: Failed to fetch", source:null, url:"https://picking-serena.vercel.app/", user_agent:"Mozilla/5.0 (iPhone; CPU iPhone OS 17_0) Safari", session_id:"c3"}]; };
   /* teste: o vídeo fica só nesta aba (não vai para nenhum servidor) */
   window.psStorage = { async upload(path, file){ return URL.createObjectURL(file); }, async remove(){ } };
   /* Lucas no ambiente de teste: respostas simuladas (o de verdade usa a API no servidor) */
