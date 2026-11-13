@@ -3564,7 +3564,7 @@ function bipItemsHTML(o){
     const t=x.at || (st!=="pend" && st!=="enc" ? lh?.at : 0), who=x.by || lh?.by || (st!=="pend"&&st!=="enc" ? o.pickedBy : "");
     const chip = st==="enc" ? `<span class="bipst s-enc">Encomenda</span>` : st==="ok" ? `<span class="bipst s-ok">✓ ${x.got||need}/${need}</span>` : st==="part" ? `<span class="bipst s-part">${x.got||0}/${need}</span>` : st==="miss" ? `<span class="bipst s-miss">Falta 0/${need}</span>` : `<span class="bipst s-pend">0/${need}</span>`;
     const det=[loc ? (lh && x.how!=="local" ? `${loc} bipado` : loc) : (st==="enc"?"":"sem endereço"),
-      x.how==="peca" ? `EAN lido peça por peça (${x.bips||x.got})` : x.how==="conta" ? "EAN lido + contagem" : x.how==="local" ? "OK sem ler o EAN (endereço bipado)" : x.how==="manual" && st!=="miss" ? "OK sem ler o EAN" : "",
+      x.how==="peca" ? `EAN lido peça por peça (${x.bips||x.got})` : x.how==="conta" ? "EAN lido + contagem" : x.how==="local" ? (eanExpected(o) ? "endereço + OK, sem ler o EAN (fora do padrão)" : "endereço bipado + OK") : x.how==="manual" && st!=="miss" ? "OK sem bipar endereço nem produto (fora do padrão)" : "",
       (()=>{ const n=(o.bipErr||[]).filter(e=>e.i===i).length; return n ? `⚠ ${n} bip(s) incorreto(s)` : ""; })(),
       x.spot ? `na ${spotName(x.spot)}` : "", enc && need ? `${enc} pç encomenda` : ""].filter(Boolean).join(" · ");
     return `<div class="bipr s-${st}"><span class="mono">${esc(it.code)}</span><span class="bipn">${esc(it.name||"")}${det?`<small>${esc(det)}</small>`:""}</span>${chip}<span class="bipw">${t?`<time datetime="${new Date(t).toISOString()}" title="${esc(full(t))}">${hm(t)}</time>`:"<i>—</i>"}${who?`<small>${esc(uname(who).split(" ")[0])}</small>`:""}</span></div>`; }).join("");
@@ -4559,7 +4559,11 @@ const pickDirect = o => !!o && !isEco(o) && !!o.naLoja && o.mode==="total" && !o
 /* E-commerce: o separador bipa a etiqueta do ENDEREÇO (não o produto), confirma a quantidade e leva para a mesa */
 /* Mapa de calor: cada vez que o separador bipa a etiqueta do endereço certo fica gravado no pedido (locScans: endereço, hora, quem) */
 /* Bipagem incorreta na separação: fica no pedido (histórico, Itens bipados, Gestão) */
+/* Como cada item foi conferido. Procedimento atual: só "cliente na loja" (pickDirect) lê o EAN peça por peça;
+   e-commerce, retirada e envio confirmam pelo endereço + OK. Fora do padrão: OK sem bipar nada, ou cliente na loja sem ler o EAN. */
 const EAN_HOW = h => h==="peca" || h==="conta", OK_HOW = h => h==="local" || h==="manual";
+const eanExpected = o => pickDirect(o) || !!o?.conferidoLocal;
+const howOff = (o, r) => !!r && r.status!=="miss" && r.status!=="pend" && (r.how==="manual" || (eanExpected(o) && OK_HOW(r.how)));
 function prodByCode(v){ v=String(v||""); return PRODUCTS[v] || Object.values(PRODUCTS).find(p=>p && (p.ean===v || p.eanInt===v || (p.eanAnt||[]).includes(v))) || null; }
 function logBipErr(o, it, v, k, txt){ try{ const x=ORDERS.find(y=>y.id===o.id)||o;
   const e={at:Date.now(), by:ME.id||"", i:it?.i??null, cod:it?.code||"", v:String(v||"").slice(0,40), k, txt:String(txt||"").slice(0,140)};
@@ -7013,14 +7017,14 @@ function gAlerts(){
 let G_AC={t:0,n:0,c:0}; function gAlertCount(){ if(Date.now()-G_AC.t>3e4){ try{ const A=gAlerts(); G_AC={t:Date.now(), n:A.filter(a=>a.sev!=="info").reduce((t,a)=>t+a.rows.length,0), c:A.filter(a=>a.sev==="crit").reduce((t,a)=>t+a.rows.length,0)}; }catch(e){ G_AC.t=Date.now(); } } return G_AC; }
 /* ---- Equipe: produtividade por pessoa no período ---- */
 function gTeam(days){
-  const since=gSince(days), T={}, P=id=>(T[id] ||= {id, ped:0, pc:0, tm:0, tn:0, loc:0, falta:0, rein:0, nf:0, nfl:0, adj:0, act:0, ean:0, okk:0, err:0});
+  const since=gSince(days), T={}, P=id=>(T[id] ||= {id, ped:0, pc:0, tm:0, tn:0, loc:0, falta:0, rein:0, nf:0, nfl:0, adj:0, act:0, ean:0, okk:0, off:0, err:0});
   ORDERS.forEach(o=>{
     const runs=[...(o.etapas||[]).filter(e=>e.pickedBy), ...(o.pickedBy?[{startedAt:o.startedAt, pickedAt:o.pickedAt, pickedBy:o.pickedBy, cur:true}]:[])];
     runs.forEach(r=>{ if(!(r.pickedAt>=since)) return; const u=P(r.pickedBy); u.ped++; if(r.cur) u.pc+=gPieces(o); else u.pc+=+r.pecas||0;
       const d=r.pickedAt-(r.startedAt||0); if(r.startedAt && d>0 && d<4*G_H){ u.tm+=d; u.tn++; } });
     if(o.pickedBy && o.pickedAt>=since) (o.res||[]).forEach(r=>{ if(r && (r.status==="miss"||r.status==="part")) P(o.pickedBy).falta++; });
     (o.locScans||[]).forEach(e=>{ if(e?.by && e.at>=since) P(e.by).loc++; });
-    (o.res||[]).forEach(r=>{ if(r?.by && r.at>=since && r.status!=="miss"){ if(EAN_HOW(r.how)) P(r.by).ean++; else if(OK_HOW(r.how)) P(r.by).okk++; } });
+    (o.res||[]).forEach(r=>{ if(r?.by && r.at>=since && r.status!=="miss"){ if(EAN_HOW(r.how)) P(r.by).ean++; else if(r.how==="local") P(r.by).okk++; if(howOff(o,r)) P(r.by).off++; } });
     (o.bipErr||[]).forEach(e=>{ if(e?.by && e.at>=since) P(e.by).err++; });
     (o.restarts||[]).forEach(r=>{ if(r?.by && r.at>=since) P(r.by).rein++; });
     (o.hist||[]).forEach(h=>{ if(h?.by && h.t>=since) P(h.by).act++; });
@@ -7038,8 +7042,9 @@ function gActivity(days){
     if(last<since) return;
     orderTimeline(o).forEach(e=>{ if(e.t>=since) ev.push({t:e.t, txt:e.txt, by:e.by||"", k:e.k||"", ref:gRef(o), open:{k:"o",id:o.id}, area:isEco(o)?"E-commerce":"Pré-venda"}); });
     (o.res||[]).forEach((r,i)=>{ if(!r?.at || r.at<since) return; const c=o.items?.[i]?.code||"";
-      const txt = r.status==="miss" ? `Item ${c} marcado como falta` : EAN_HOW(r.how) ? `Item ${c} conferido por leitura do EAN · ${r.got} pç` : `Item ${c} conferido por OK, sem ler o EAN · ${r.got} pç`;
-      ev.push({t:r.at, txt, by:r.by||"", k:r.status==="miss"?"warn":EAN_HOW(r.how)?"ok":"", ref:gRef(o), open:{k:"o",id:o.id}, area:isEco(o)?"E-commerce":"Pré-venda"}); });
+      const off=howOff(o,r), txt = r.status==="miss" ? `Item ${c} marcado como falta` : EAN_HOW(r.how) ? `Item ${c} conferido por leitura do EAN · ${r.got} pç`
+        : r.how==="local" ? `Item ${c} conferido por endereço + OK · ${r.got} pç${off?" · fora do padrão (cliente na loja)":""}` : `Item ${c} confirmado no OK sem bipar · ${r.got} pç · fora do padrão`;
+      ev.push({t:r.at, txt, by:r.by||"", k:r.status==="miss"||off?"warn":EAN_HOW(r.how)?"ok":"", ref:gRef(o), open:{k:"o",id:o.id}, area:isEco(o)?"E-commerce":"Pré-venda"}); });
   });
   Object.values(NFS||{}).forEach(n=>{ const R=n.received, ref=`NF ${n.num} · ${n.forn||""}`, op={k:"nf",id:n.id};
     if(R?.at>=since) ev.push({t:R.at, txt:`Nota recebida${R.div?" com divergência":""} · ${R.vols||0} caixa(s)`, by:R.by||"", k:R.div?"warn":"ok", ref, open:op, area:"Recebimento"});
@@ -7088,18 +7093,18 @@ function gHoje(){
     <section class="panel"><h3>O que precisa de atenção</h3>${alerts.length ? `<div class="gsum">${alerts.slice(0,8).map(a=>`<button class="gsumi s-${a.sev}" data-gtab="alertas" data-gal="${a.id}"><b class="tnum">${a.rows.length}</b><span>${esc(a.title)}</span></button>`).join("")}</div>` : `<p class="hint">Tudo em dia: nenhuma regra de conferência encontrou problema.</p>`}</section>`;
 }
 /* Hoje: pedidos separados conferidos por leitura do EAN x por OK, e bipagens incorretas */
-function gConfOf(o){ let ean=0, ok=0; (o.res||[]).forEach(r=>{ if(!r || r.status==="miss" || r.status==="pend") return; if(EAN_HOW(r.how)) ean++; else if(OK_HOW(r.how)) ok++; });
-  const d0=gDay0(), err=(o.bipErr||[]).filter(e=>e.at>=d0).length; return {ean, ok, err, k: ok ? "ok" : ean ? "ean" : ""}; }
+function gConfOf(o){ let ean=0, end=0, off=0; (o.res||[]).forEach(r=>{ if(!r || r.status==="miss" || r.status==="pend") return; if(EAN_HOW(r.how)) ean++; else if(r.how==="local") end++; if(howOff(o,r)) off++; });
+  const d0=gDay0(), err=(o.bipErr||[]).filter(e=>e.at>=d0).length; return {ean, end, off, err, k: off ? "off" : !ean && !end ? "" : ean && !end ? "ean" : "end"}; }
 function gConfHTML(sep){
-  const L=sep.map(o=>({o, ...gConfOf(o)})), reg=L.filter(x=>x.k), nE=reg.filter(x=>x.k==="ean").length, nO=reg.filter(x=>x.k==="ok").length;
-  const iE=reg.reduce((t,x)=>t+x.ean,0), iO=reg.reduce((t,x)=>t+x.ok,0), d0=gDay0(), errs=ORDERS.reduce((t,o)=>t+(o.bipErr||[]).filter(e=>e.at>=d0).length,0);
+  const L=sep.map(o=>({o, ...gConfOf(o)})), reg=L.filter(x=>x.k), n=k=>reg.filter(x=>x.k===k).length;
+  const d0=gDay0(), errs=ORDERS.reduce((t,o)=>t+(o.bipErr||[]).filter(e=>e.at>=d0).length,0);
   const f=state.gConf||"", show=L.filter(x=>!f || (f==="err" ? x.err : x.k===f)).sort((a,b)=>(b.o.pickedAt||0)-(a.o.pickedAt||0));
-  const pct=reg.length?Math.round(nE/reg.length*100):null;
+  const tag={ean:`<span class="gtag s-ok">EAN</span>`, end:`<span class="gtag">ENDEREÇO</span>`, off:`<span class="gtag s-warn">FORA DO PADRÃO</span>`};
   return `<section class="panel"><div class="gbarh"><h3>Conferência dos produtos · separados hoje</h3>
-      <div class="seg" role="group" aria-label="Filtro">${[["","Todos"],["ean","Leitura do EAN"],["ok","Com OK"],["err","Bip. incorreta"]].map(([k,t])=>`<button data-gconf="${k}" aria-pressed="${f===k}">${t}</button>`).join("")}</div></div>
-    <div class="gnow">${gKpi("Pedidos 100% por EAN", nE, pct==null?"sem registro ainda":`${pct}% dos pedidos`, "ok")}${gKpi("Pedidos com OK", nO, "algum item sem ler o EAN", nO?"warn":"")}${gKpi("Itens lidos por EAN", iE)}${gKpi("Itens por OK", iO, "", iO?"warn":"")}${gKpi("Bipagens incorretas", errs, "", errs?"bad":"")}</div>
-    <div class="glist" style="margin-top:10px">${show.length ? show.slice(0,40).map(x=>`<button class="grow2" data-gopen="o:${esc(x.o.id)}"><b>${esc(gRef(x.o))}</b><span>${x.k==="ean"?`<span class="gtag s-ok">EAN</span>`:x.k==="ok"?`<span class="gtag s-warn">OK</span>`:`<span class="gtag">sem registro</span>`}${x.ean?` ${x.ean} por EAN`:""}${x.ok?` · ${x.ok} por OK`:""}${x.err?` · <b class="bad-t">${x.err} bip. incorreta(s)</b>`:""} · ${esc(gShort(x.o.pickedBy))}</span><small class="tnum">${new Date(x.o.pickedAt).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</small></button>`).join("")+(show.length>40?`<small class="muted-s">+ ${show.length-40}</small>`:"") : `<small class="muted-s">Nenhum pedido neste filtro hoje.</small>`}</div>
-    <p class="hint">EAN = o separador leu o código de barras do produto. OK = confirmou no botão sem ler o produto (no e-commerce, bipando só o endereço). Pedidos separados antes desta função aparecem "sem registro".</p></section>`;
+      <div class="seg" role="group" aria-label="Filtro">${[["","Todos"],["end","Endereço"],["ean","Leitura do EAN"],["off","Fora do padrão"],["err","Bip. incorreta"]].map(([k,t])=>`<button data-gconf="${k}" aria-pressed="${f===k}">${t}</button>`).join("")}</div></div>
+    <div class="gnow">${gKpi("Por endereço + OK", n("end"), "e-commerce, retirada e envio")}${gKpi("Com leitura do EAN", n("ean"), "cliente na loja", "ok")}${gKpi("Fora do padrão", n("off"), "OK sem bipar ou loja sem EAN", n("off")?"warn":"")}${gKpi("Bipagens incorretas", errs, "código errado bipado", errs?"bad":"")}</div>
+    <div class="glist" style="margin-top:10px">${show.length ? show.slice(0,40).map(x=>`<button class="grow2" data-gopen="o:${esc(x.o.id)}"><b>${esc(gRef(x.o))}</b><span>${tag[x.k]||`<span class="gtag">sem registro</span>`}${[x.end?`${x.end} por endereço`:"", x.ean?`${x.ean} por EAN`:"", x.off?`${x.off} fora do padrão`:""].filter(Boolean).join(" · ")}${x.err?` · <b class="bad-t">${x.err} bip. incorreta(s)</b>`:""} · ${esc(gShort(x.o.pickedBy))}</span><small class="tnum">${new Date(x.o.pickedAt).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</small></button>`).join("")+(show.length>40?`<small class="muted-s">+ ${show.length-40}</small>`:"") : `<small class="muted-s">Nenhum pedido neste filtro hoje.</small>`}</div>
+    <p class="hint">Procedimento atual: só o pedido com cliente na loja lê o EAN peça por peça; e-commerce, retirada e envio confirmam bipando o endereço + OK. Fora do padrão = OK sem bipar nada, ou cliente na loja sem ler o EAN. Pedidos separados antes desta função aparecem "sem registro".</p></section>`;
 }
 function gAlertas(){
   const A=gAlerts(), sevT={crit:"Crítico",warn:"Atenção",info:"Informativo"};
@@ -7113,9 +7118,9 @@ function gEquipe(){
   const d=state.gDays||1, L=gTeam(d);
   const per=`<div class="seg" role="group" aria-label="Período">${[[1,"Hoje"],[7,"7 dias"],[30,"30 dias"]].map(([k,t])=>`<button data-gdays="${k}" aria-pressed="${d===k}">${t}</button>`).join("")}</div>`;
   return `<section class="panel"><div class="gbarh"><h3>Produtividade da equipe</h3>${per}</div>
-    ${L.length ? `<div class="gtablewrap"><table class="gtable"><thead><tr><th>Pessoa</th><th>Pedidos</th><th>Peças</th><th>Tempo médio</th><th>Peças/h</th><th title="Bipagens da etiqueta do endereço">Bip. endereço</th><th title="Itens conferidos lendo o EAN do produto">Itens EAN</th><th title="Itens confirmados no OK, sem ler o EAN">Itens OK</th><th title="Bipagens de código errado na separação">Bip. incorretas</th><th>Faltas</th><th>Reinícios</th><th>Notas</th><th title="Ajustes de nota recebida">Ajustes</th><th title="Ações registradas no histórico dos pedidos">Ações</th></tr></thead>
+    ${L.length ? `<div class="gtablewrap"><table class="gtable"><thead><tr><th>Pessoa</th><th>Pedidos</th><th>Peças</th><th>Tempo médio</th><th>Peças/h</th><th title="Bipagens da etiqueta do endereço">Bip. endereço</th><th title="Itens conferidos lendo o EAN do produto">Itens EAN</th><th title="Itens confirmados bipando o endereço + OK (procedimento atual)">Itens endereço</th><th title="Confirmados no OK sem bipar nada, ou cliente na loja sem ler o EAN">Fora do padrão</th><th title="Bipagens de código errado na separação">Bip. incorretas</th><th>Faltas</th><th>Reinícios</th><th>Notas</th><th title="Ajustes de nota recebida">Ajustes</th><th title="Ações registradas no histórico dos pedidos">Ações</th></tr></thead>
       <tbody>${L.map(u=>{ const tm=u.tn?u.tm/u.tn:null, ph=u.tm>0?Math.round(u.pc/(u.tm/G_H)):null;
-        return `<tr><td><b>${esc(gName(u.id))}</b></td><td class="tnum">${u.ped||"—"}</td><td class="tnum">${u.pc||"—"}</td><td class="tnum">${tm==null?"—":fmtDur(tm).replace(/ \d+s$/,"")}</td><td class="tnum">${ph??"—"}</td><td class="tnum">${u.loc||"—"}</td><td class="tnum">${u.ean||"—"}</td><td class="tnum ${u.okk?"warn-t":""}">${u.okk||"—"}</td><td class="tnum ${u.err?"bad-t":""}">${u.err||"—"}</td><td class="tnum ${u.falta?"bad-t":""}">${u.falta||"—"}</td><td class="tnum ${u.rein?"warn-t":""}">${u.rein||"—"}</td><td class="tnum">${u.nf?`${u.nf} <small>(${u.nfl} itens)</small>`:"—"}</td><td class="tnum">${u.adj||"—"}</td><td class="tnum">${u.act||"—"}</td></tr>`; }).join("")}</tbody></table></div>`
+        return `<tr><td><b>${esc(gName(u.id))}</b></td><td class="tnum">${u.ped||"—"}</td><td class="tnum">${u.pc||"—"}</td><td class="tnum">${tm==null?"—":fmtDur(tm).replace(/ \d+s$/,"")}</td><td class="tnum">${ph??"—"}</td><td class="tnum">${u.loc||"—"}</td><td class="tnum">${u.ean||"—"}</td><td class="tnum">${u.okk||"—"}</td><td class="tnum ${u.off?"warn-t":""}">${u.off||"—"}</td><td class="tnum ${u.err?"bad-t":""}">${u.err||"—"}</td><td class="tnum ${u.falta?"bad-t":""}">${u.falta||"—"}</td><td class="tnum ${u.rein?"warn-t":""}">${u.rein||"—"}</td><td class="tnum">${u.nf?`${u.nf} <small>(${u.nfl} itens)</small>`:"—"}</td><td class="tnum">${u.adj||"—"}</td><td class="tnum">${u.act||"—"}</td></tr>`; }).join("")}</tbody></table></div>`
       : `<p class="hint">Nenhuma atividade registrada no período.</p>`}
     <p class="hint">Tempo médio e peças por hora contam do início ao fim de cada separação (separações acima de 4 h ficam de fora). Bipagens de endereço mostram se o separador está confirmando o local antes de pegar a peça.</p></section>`;
 }
