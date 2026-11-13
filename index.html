@@ -296,6 +296,9 @@ button:focus-visible{outline:3px solid var(--route);outline-offset:2px}
 .order.urg-retira{border-color:var(--ok);box-shadow:0 0 0 1px var(--ok) inset;border-left-color:var(--ok)}
 .retirabar{background:var(--bad);color:#fff;font-weight:800;font-size:12px;letter-spacing:.08em;border-radius:6px;padding:4px 8px;align-self:flex-start}
 .retirabar.rb-green{background:var(--ok)}
+.chip.envtag{background:#7a3fd1;color:#fff;font-weight:800;letter-spacing:.02em}
+.desmt td.d{color:var(--bad);font-weight:700}.desmt td.ok{color:var(--ok);font-weight:700}
+.desmbox{margin-top:10px;padding:10px 12px;border-radius:10px;background:var(--bg);border:1px solid var(--line);font-size:14px}.desmbox.bad{border-color:var(--bad)}
 .tvrow.tvurg{border-left-color:var(--bad);background:var(--bad-soft)}
 .tvrow.tvurg.green{border-left-color:var(--ok);background:var(--ok-soft)}
 .tvurgtag.green{background:var(--ok)}
@@ -1011,6 +1014,7 @@ body.pda .keyhint{display:block}
 .li.hrow.htlwrap{flex-wrap:wrap}.htlwrap .hmain{min-width:0}
 .htlbtn{flex:none;width:34px;height:34px}.htlbtn .xpchev{width:18px;height:18px;transition:transform .3s cubic-bezier(.2,.8,.2,1)}.htlbtn[aria-expanded="true"] .xpchev{transform:rotate(180deg)}
 .htlbox{flex-basis:100%;width:100%}
+.oe1{margin-top:10px;display:flex;flex-direction:column;gap:6px}.oe1r{display:grid;grid-template-columns:1fr 90px;gap:10px;align-items:center;font-size:14px}.oe1r small{display:block;color:var(--muted)}
 .oenote{font-size:13px;color:var(--accent);margin:8px 0 2px;display:flex;flex-direction:column;gap:2px}.oenote:empty{display:none}
 .bipit{margin:8px 0 4px;padding-top:10px;border-top:1px dashed var(--line);display:flex;flex-direction:column;gap:2px}
 .bipt{display:flex;justify-content:space-between;gap:8px;font-size:13px;margin-bottom:4px}.bipt span{color:var(--muted)}
@@ -1231,7 +1235,10 @@ function pvSlot(p){ const base=pvId(p);
   for(let n=1;n<50;n++){ const id=n===1?base:`${base}-${n}`, o=ORDERS.find(x=>x.id===id);
     if(!o || !pvDone(o)) return {id, prev:o||null, again: n>1 ? n : 0, last: n>1 ? ORDERS.find(x=>x.id===(n===2?base:`${base}-${n-1}`)) : null}; }
   return {id:`${base}-${Date.now()}`, prev:null, again:2, last:null}; }
-const reenvioTag = o => o.reenvio ? ` <span class="chip enc" title="Esta pré-venda já tinha sido entregue; este é um novo pedido com o mesmo número">${o.reenvio}ª entrega</span>` : "";
+const reenvioTag = o => (o.reenvio ? ` <span class="chip enc" title="Esta pré-venda já tinha sido entregue; este é um novo pedido com o mesmo número">${o.reenvio}ª entrega</span>` : "") + envTag(o);
+/* Envio parcial desmembrado: a pré-venda nova (itens da loja) é o 1º envio; a original fica com a encomenda */
+const envTag = o => o?.envio1De ? ` <span class="chip envtag" title="Pré-venda desmembrada da #${esc(o.envio1Num||"")}: itens da loja. A encomenda segue na #${esc(o.envio1Num||"")}.">Com Encomenda - 1° Envio</span>`
+  : o?.envio1 ? ` <span class="chip enc" title="Pré-venda desmembrada: o 1º envio saiu como #${esc(o.envio1.num)}">1º envio: #${esc(o.envio1.num)}</span>` : "";
 function parsePresale(raw){
   const cells = raw.filter(c=>c.s && c.s.trim()).map(c=>({s:c.s.trim(), x:c.x, y:c.y, w:c.w, cx:c.x+c.w/2}));
   const lines=[];
@@ -1303,6 +1310,7 @@ function statusInfo(o){
     case "pronto_envio": return {t: o.naLoja && !o.colmeia ? "Finalizado · entregue ao cliente na loja" : o.colmeia && o.mode!=="aguarda" ? `Pronto · cliente retira na colmeia ${o.colmeia.slice(3)}` : o.mode==="encomenda" ? "Encomenda chegou · pronto para enviar" : o.mode==="aguarda" ? `Encomenda chegou · retirar da colmeia ${o.colmeia||""}` : o.remessa===2 ? "Encomenda chegou" : "Finalizado · na mesa", c:"done"};
     case "encomenda": return {t:"Encomenda total · aguardando chegada", c:"enc"};
     case "analise_compras": return {t:"Aguardando decisão de Compras", c:"urg"};
+    case "desmembrar": return {t:"Aguardando desmembramento · Compras", c:"urg"};
     case "enc_pendente": return {t:"1º envio feito · aguardando encomenda", c:"enc"};
     case "na_colmeia": return {t:"Na colmeia · aguardando encomenda", c:"enc"};
     case "na_mesa": return {t:`Na mesa · guardar na colmeia${o.colmeia?" "+o.colmeia.slice(3):""}`, c:"prog"};
@@ -1831,7 +1839,7 @@ function openHiveNew(){
   document.body.appendChild(ov); scanbar.hidden=true; draw(); ov.querySelector("#hnNum").focus();
 }
 /* ---- Administrador: editar um pedido (tipo de envio, retirada, transportadora, situação, bandeja/mesa, colmeia, observação) ---- */
-const ST_EDIT = [["aguardando","Aguardando separação"],["separando","Em separação"],["na_mesa","Na mesa"],["na_colmeia","Na colmeia · aguardando encomenda"],["pronto_envio","Pronto (para enviar/retirar)"],["enviado","Finalizado · enviado/retirado"],["analise_compras","Aguardando decisão de Compras"],["encomenda","Encomenda total · aguardando chegada"],["enc_pendente","1º envio feito · aguardando encomenda"]];
+const ST_EDIT = [["desmembrar","Aguardando desmembramento (Compras)"],["aguardando","Aguardando separação"],["separando","Em separação"],["na_mesa","Na mesa"],["na_colmeia","Na colmeia · aguardando encomenda"],["pronto_envio","Pronto (para enviar/retirar)"],["enviado","Finalizado · enviado/retirado"],["analise_compras","Aguardando decisão de Compras"],["encomenda","Encomenda total · aguardando chegada"],["enc_pendente","1º envio feito · aguardando encomenda"]];
 const sepUsers = keep => Object.entries(USERS).filter(([id,u])=>id===keep || (u.active!==false && userRoles(u).some(r=>CANAL_ROLES.includes(r)))).sort((a,b)=>String(a[1].name||"").localeCompare(String(b[1].name||"")));
 /* Transferir de canal: confirmar o tipo de envio, como o Comercial faz ao subir a pré-venda */
 function askTransferMode(o, canal){
@@ -1898,6 +1906,9 @@ function openOrderEdit(id){
       <label><span>Colmeia</span><select class="tin" id="oeHive">${opt("","Sem colmeia",f.colmeia)}${HIVE.map(c=>opt(c, hiveLbl(c), f.colmeia, c!==f.colmeia && hiveBlocked(c))).join("")}</select></label>
       <label class="oefull"><span>Observação</span><textarea class="tin" id="oeObs" rows="2">${esc(f.obs)}</textarea></label>
     </div>
+    ${o.envio1De ? `<div class="oe1"><div class="eyebrow">Itens do 1º envio · faltou peça? diminua aqui</div>
+      <small class="muted-s">O que diminuir volta para a encomenda da #${esc(o.envio1Num||"")} e Compras é avisado para encomendar mais.</small>
+      ${(o.items||[]).map((it,i)=>{ const r=(o.res||[])[i]; return `<label class="oe1r"><span><b class="mono">${esc(it.code)}</b> ${esc(it.name)}${r&&r.status!=="pend"?`<small>separado ${r.got||0}/${it.qty}</small>`:""}</span><input class="tin r" type="number" min="0" max="${it.qty}" step="1" value="${it.qty}" data-oe1="${i}" aria-label="Quantidade de ${esc(it.code)} no 1º envio"></label>`; }).join("")}</div>` : ""}
     <div class="oenote" id="oeNote" role="status" aria-live="polite"></div>
     <small class="muted-s">As alterações ficam registradas no histórico do pedido com o seu nome.</small>
     <div class="merr" id="oeErr"></div>
@@ -1958,6 +1969,21 @@ function openOrderEdit(id){
     if(n.colmeia!==f.colmeia){ patch.colmeia=n.colmeia||null; ch.push(`colmeia: ${n.colmeia?n.colmeia.slice(3):"liberada"}`);
       if(n.colmeia){ patch.storedAt=Date.now(); patch.storedBy=ME.id||""; if(o.tray && !n.tray){ patch.tray=""; patch.trayStatus=""; } } }
     if(n.obs!==f.obs){ patch.obs=n.obs; ch.push("observação"); }
+    // 1º envio: peça que faltou sai desta pré-venda e volta para a encomenda da original (aviso para Compras)
+    const cut=[]; ov.querySelectorAll("[data-oe1]").forEach(inp=>{ const i=+inp.dataset.oe1, it=o.items[i], v=Math.max(0,Math.min(it.qty,Math.round(+inp.value||0))); if(v<it.qty) cut.push({i, it, d:it.qty-v, v}); });
+    if(cut.length){ const orig=ORDERS.find(x=>x.id===o.envio1De);
+      if(!orig){ g("oeErr").textContent=`Não achei a pré-venda original #${o.envio1Num||""}.`; return; }
+      const r=[...(o.res||[])], keep=[];
+      const items=o.items.map((it,i)=>{ const c=cut.find(x=>x.i===i); if(!c){ keep.push(r[i]); return it; } if(c.v<=0) return null;
+        const g0=r[i]?.got||0; keep.push(r[i] ? {...r[i], got:Math.min(g0,c.v), status: g0>=c.v ? "ok" : g0>0 ? "part" : r[i].status} : r[i]); return {...it, qty:c.v}; }).filter(Boolean);
+      patch.items=items; patch.res=o.res ? keep.slice(0, items.length) : null; patch.envioAdjAt=Date.now(); patch.envioAdjBy=ME.id||"";
+      ch.push("1º envio: "+cut.map(c=>`${c.it.code} ${c.it.qty} → ${c.v} pç`).join(", "));
+      const oi=[...(orig.items||[])], changes=[];
+      cut.forEach(c=>{ const k=oi.findIndex(x=>x.code===c.it.code), from=k>=0?(oi[k].qtyEnc||0):0;
+        if(k>=0) oi[k]={...oi[k], qty:oi[k].qty+c.d, qtyEnc:(oi[k].qtyEnc||0)+c.d}; else oi.push({code:c.it.code, name:c.it.name, ean:c.it.ean||"", un:c.it.un, qty:c.d, price:c.it.price||0, loc:"", qtyEnc:c.d, eta:""});
+        changes.push({code:c.it.code, name:c.it.name, from, to:from+c.d, qtyFrom:k>=0?orig.items[k].qty:0, qtyTo:(k>=0?orig.items[k].qty:0)+c.d}); });
+      patchOrder(orig.id, {items:oi, adjCompras:{at:Date.now(), by:ME.id||"", changes:[...((orig.adjCompras&&!orig.adjCompras.ok)?orig.adjCompras.changes:[]), ...changes], ok:false},
+        hist:[...(orig.hist||[]), {t:Date.now(), by:ME.id||"", ev:`Faltou no 1º envio #${o.num}: `+cut.map(c=>`${c.it.code} +${c.d} pç para encomendar`).join(", ")}]}); }
     if(!ch.length){ close(); return; }
     patch.hist=[...(o.hist||[]), {t:Date.now(), by:ME.id||"", ev:"Editado pelo administrador · "+ch.join(" · ")}];
     patch.editedAt=Date.now(); patch.editedBy=ME.id||"";
@@ -2196,7 +2222,8 @@ const COMPRA_LABEL = { falta:["A encomendar","bad"], parcial:["Encomendado em pa
 function renderCompras(){
   if(state.nfEdit) return renderNfEdit();
   const decide = ORDERS.filter(o=>toDecide(o) && !isEco(o)).sort((a,b)=>(urgRank(b)-urgRank(a)) || (a.createdAt||0)-(b.createdAt||0));
-  const tab = state.cTab || (decide.length ? "decidir" : "abertas");
+  const desm = ORDERS.filter(o=>o.status==="desmembrar").sort((a,b)=>(a.decidedAt||0)-(b.decidedAt||0));
+  const tab = state.cTab || (decide.length ? "decidir" : desm.length ? "desmembrar" : "abertas");
   const open = ORDERS.filter(encOpen).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
   const done = ORDERS.filter(o=>!isEco(o) && hasEnc(o) && encArrived(o) && o.status!=="excluido").sort((a,b)=>(b.arrivedAt||0)-(a.arrivedAt||0)).slice(0,60);
   const allIt = open.flatMap(o=>encItems(o).map(x=>({...x, o}))), falta = allIt.filter(x=>compraSt(x)==="falta"||compraSt(x)==="parcial"), aguard = allIt.filter(x=>["pedido","parcial","faturado","fatparc"].includes(compraSt(x))), late = aguard.filter(x=>prazoInfo(x)?.c==="bad");
@@ -2204,7 +2231,10 @@ function renderCompras(){
   const match = o => !q || fz([o.num,o.client,o.seller,...(o.items||[]).map(i=>i.code+" "+i.name)].join(" "), q);
   const purch = Object.values(PURCHASES).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   let body;
-  if(tab==="decidir"){
+  if(tab==="desmembrar"){
+    const list = desm.filter(match);
+    body = list.length ? `<div class="cplist">${list.map(desmCard).join("")}</div>` : `<div class="empty">${q?"Nada encontrado para essa busca.":"Nenhuma pré-venda aguardando desmembramento."}</div>`;
+  } else if(tab==="decidir"){
     const list = decide.filter(match), pgd = pageOf(list, "cpdec", 10);
     body = list.length ? `${pgd.top}<div class="cplist">${pgd.items.map(decideCard).join("")}</div>${pgd.pager}`
       : `<div class="empty">${q?"Nada encontrado para essa busca.":"Nenhuma pré-venda aguardando decisão."}</div>`;
@@ -2246,7 +2276,7 @@ function renderCompras(){
   app.innerHTML = topnav() + `
     <header class="bar"><div class="grow"><h1>Compras · encomendas</h1><div class="sub">Itens que o comercial vendeu sob encomenda e o pedido feito ao fornecedor</div></div>
       <div class="cpbtns"><button class="btn ghost cpbtn" id="cpNf">Importar nota fiscal</button><button class="btn primary cpbtn" id="cpImport">Importar pedido do fornecedor</button></div></header>
-    <div class="cptools"><div class="seg">${[["decidir",`Para decidir · ${decide.length}`],["abertas",`Em aberto · ${open.length}`],["chegada",`Aguardando chegada · ${aguard.length}${late.length?` (${late.length} atrasado${late.length===1?"":"s"})`:""}`],["fornecedor",`Pedidos ao fornecedor · ${purch.length}`],["notas",`Notas fiscais · ${Object.keys(NFS).length}`],["concluidas","Concluídas"]].map(([k,t])=>`<button data-ctab="${k}" aria-pressed="${tab===k}">${t}</button>`).join("")}</div>
+    <div class="cptools"><div class="seg">${[["decidir",`Para decidir · ${decide.length}`],["desmembrar",`Desmembrar · ${desm.length}`],["abertas",`Em aberto · ${open.length}`],["chegada",`Aguardando chegada · ${aguard.length}${late.length?` (${late.length} atrasado${late.length===1?"":"s"})`:""}`],["fornecedor",`Pedidos ao fornecedor · ${purch.length}`],["notas",`Notas fiscais · ${Object.keys(NFS).length}`],["concluidas","Concluídas"]].map(([k,t])=>`<button data-ctab="${k}" aria-pressed="${tab===k}">${t}</button>`).join("")}</div>
       ${tab!=="fornecedor"?`<input class="tinput cpq" id="cpQ" placeholder="${tab==="notas"?"Buscar nota, fornecedor ou item":"Buscar pré-venda, cliente ou código"}" value="${esc(state.cQ||"")}">`:""}</div>
     ${adjComprasHTML(ORDERS.filter(o=>o.adjCompras && !o.adjCompras.ok))}
     ${body}`;
@@ -2274,7 +2304,7 @@ function renderCompras(){
   app.querySelectorAll("details[data-cpid]").forEach(d=>d.ontoggle=()=>{ const id=d.dataset.cpid, set=new Set(state.cpOpen||[]); d.open?set.add(id):set.delete(id); state.cpOpen=[...set]; });
   app.querySelectorAll("[data-carr]").forEach(b=>b.onclick=()=>{ const [oid,i]=b.dataset.carr.split(":"); setItemArrived(oid,+i,b.dataset.v==="1"); });
   app.querySelectorAll("[data-crel]").forEach(b=>b.onclick=()=>{ if(!b.dataset.c){ b.dataset.c="1"; b.textContent="Confirmar: encomenda chegou"; return; } releaseEnc(b.dataset.crel); });
-  bindDecide();
+  bindDecide(); bindDesm();
   app.querySelectorAll("[data-cpexp]").forEach(b=>b.onclick=()=>{ const id=b.dataset.cpexp, set=new Set(state.cpExp||[]), open=!set.has(id); open?set.add(id):set.delete(id); state.cpExp=[...set];
     xpToggle(b.closest(".cpcard").querySelector(".xpbox"), b, open); });
   app.querySelectorAll("[data-cunst]").forEach(b=>b.onclick=()=>openUnstoreQR(b.dataset.cunst));
@@ -2287,7 +2317,9 @@ function decidePlan(o, qs){
   const kind = !enc ? "total" : !pick ? "encomenda" : "aguarda";
   return { items, enc, pick, kind, refsPick: items.filter(it=>it.qty-it.qtyEnc>0).length, refsEnc: items.filter(it=>it.qtyEnc>0).length };
 }
+const dqMode = o => (state.dqm ||= {})[o.id] || (o.modeCom==="parcial" || o.mode==="parcial" ? "parcial" : "junto");
 function decidePlanText(pl, o){
+  if(pl.kind==="aguarda" && dqMode(o)==="parcial") return `<b>Envio parcial · desmembrar</b>: ${pl.refsPick} ref. · ${pl.pick} pç da loja vão numa <b>pré-venda nova</b> (1º envio) · a #${esc(o.num)} fica com a encomenda (${pl.enc} pç). Depois de confirmar, importe o PDF da pré-venda nova na aba <b>Desmembrar</b>.`;
   if(pl.kind==="encomenda") return `<b>Encomenda total</b>: encomendar ${pl.enc} pç · não passa pela separação nem usa colmeia.`;
   if(pl.kind==="total") return `<b>Nada a encomendar</b>: vai para a separação como envio total (${pl.pick} pç).`;
   return `<b>Separar o que tem na loja</b>: ${pl.refsPick} ref. · ${pl.pick} pç vão para a separação e o separador guarda na colmeia que bipar · encomendar ${pl.enc} pç.`;
@@ -2345,12 +2377,13 @@ function decideCard(o){
       <td class="r"><div class="encin"><input type="number" min="0" max="${it.qty}" step="1" value="${e}" data-dq="${o.id}:${i}" aria-label="Encomendar de ${esc(it.code)}"><label><input type="checkbox" data-dqall="${o.id}:${i}" ${e===it.qty?"checked":""}>todas</label></div></td>
       <td class="r tnum"><b>${it.qty-e}</b></td><td class="tnum">${fmtDate(it.eta)||"—"}</td></tr>`; }).join("")}
     </tbody></table></div>
+    ${!isEco(o)?`<div class="seg dqm" role="group" aria-label="Como enviar" data-dqmw="${o.id}" ${pl.kind==="aguarda"?"":"hidden"}><button type="button" data-dqm="${o.id}:junto" aria-pressed="${dqMode(o)==="junto"}">Tudo junto · aguarda na colmeia</button><button type="button" data-dqm="${o.id}:parcial" aria-pressed="${dqMode(o)==="parcial"}">Envio parcial · desmembrar a pré-venda</button></div>`:""}
     <div class="decplan" id="dp-${o.id}">${decidePlanText(pl,o)}</div>
     <div class="cpfoot">${hasRole("admin")?`<button class="mini" data-ditems="${o.id}">Editar itens</button>`:""}<button class="mini" data-dall="${o.id}">Encomendar tudo</button><button class="btn primary cpbtn" data-dok="${o.id}">Confirmar e encaminhar</button></div>
   </article>`;
 }
 function bindDecide(){
-  const upd = oid => { const o=ORDERS.find(x=>x.id===oid), box=document.getElementById("dp-"+oid); if(o&&box) box.innerHTML=decidePlanText(decidePlan(o, state.dq[oid]), o);
+  const upd = oid => { const o=ORDERS.find(x=>x.id===oid), box=document.getElementById("dp-"+oid); if(o&&box){ const pl=decidePlan(o, state.dq[oid]); box.innerHTML=decidePlanText(pl, o); const w=app.querySelector(`[data-dqmw="${oid}"]`); if(w) w.hidden = pl.kind!=="aguarda"; }
     app.querySelectorAll(`[data-dq^="${oid}:"]`).forEach(inp=>{ const i=+inp.dataset.dq.split(":")[1], it=o.items[i], v=Math.max(0,Math.min(it.qty,+inp.value||0));
       const tr=inp.closest("tr"); tr.querySelector("td:nth-child(5) b").textContent=it.qty-v; tr.querySelector("[data-dqall]").checked = v===it.qty; }); };
   app.querySelectorAll("[data-dq]").forEach(inp=>inp.oninput=()=>{ const [oid,i]=inp.dataset.dq.split(":"); state.dq[oid][+i]=+inp.value||0; upd(oid); });
@@ -2358,6 +2391,8 @@ function bindDecide(){
     state.dq[oid][+i]=v; app.querySelector(`[data-dq="${oid}:${i}"]`).value=v; upd(oid); });
   app.querySelectorAll("[data-dall]").forEach(b=>b.onclick=()=>{ const o=ORDERS.find(x=>x.id===b.dataset.dall); o.items.forEach((it,i)=>{ state.dq[o.id][i]=it.qty; const inp=app.querySelector(`[data-dq="${o.id}:${i}"]`); if(inp) inp.value=it.qty; }); upd(o.id); });
   app.querySelectorAll("[data-dok]").forEach(b=>b.onclick=()=>decideOrder(b.dataset.dok));
+  app.querySelectorAll("[data-dqm]").forEach(b=>b.onclick=()=>{ const [oid,m]=b.dataset.dqm.split(":"); (state.dqm ||= {})[oid]=m;
+    b.parentElement.querySelectorAll("[data-dqm]").forEach(x=>x.setAttribute("aria-pressed", x===b)); upd(oid); });
   app.querySelectorAll("[data-ditems]").forEach(b=>b.onclick=()=>openDecideItems(b.dataset.ditems));
   app.querySelectorAll("[data-daq]").forEach(inp=>inp.onchange=()=>{ const [oid,i]=inp.dataset.daq.split(":"); state.dq ||= {}; state.dq[oid] ||= {}; state.dq[oid][+i]=Math.max(0,Math.round(+inp.value||0)); rerender(); });
   app.querySelectorAll("[data-daok]").forEach(b=>b.onclick=()=>decideAdjOrder(b.dataset.daok));
@@ -2405,6 +2440,80 @@ function openDecideItems(id){
   ov.onclick=e=>{ if(e.target===ov) close(); };
   draw();
 }
+/* ---- Envio parcial: Compras desmembra a pré-venda (a nova = 1º envio, itens da loja; a original = encomenda) ---- */
+const loja = it => Math.max(0, (+it.qty||0)-(+it.qtyEnc||0));
+function desmCard(o){
+  const its=(o.items||[]), pc=its.reduce((s,it)=>s+loja(it),0), en=its.reduce((s,it)=>s+(+it.qtyEnc||0),0);
+  return `<article class="cpcard dec">
+    <div class="cphead"><b class="mono">#${esc(o.num)}</b><span class="chip urg">Aguardando desmembramento</span><span class="muted-s">Compras decidiu envio parcial${o.decidedAt?" há "+since(o.decidedAt):""}</span>${o.naLoja?`<span class="retirabar">CLIENTE NA LOJA</span>`:o.retira?`<span class="retirabar rb-green">RETIRA NA LOJA</span>`:""}</div>
+    <div class="cpcli">${esc(o.client)}<small>${[o.seller?"Vendedor "+esc(o.seller):"", transpOf(o)?esc(transpOf(o)):""].filter(Boolean).join(" · ")}</small></div>
+    <div class="cpnote">Desmembre no sistema de vendas: a <b>pré-venda nova</b> leva os itens da loja (1º envio) e a <b>#${esc(o.num)}</b> fica com a encomenda. Depois importe aqui o PDF da pré-venda nova: o sistema confere os itens e manda ela para a separação.</div>
+    <div class="cptwrap"><table class="cptab"><thead><tr><th>Código</th><th>Item</th><th class="r">Vendido</th><th class="r">1º envio · loja</th><th class="r">Encomenda · #${esc(o.num)}</th></tr></thead><tbody>
+    ${its.map(it=>`<tr><td class="mono">${esc(it.code)}</td><td>${esc(it.name)}</td><td class="r tnum">${it.qty}</td><td class="r tnum"><b>${loja(it)||"—"}</b></td><td class="r tnum">${it.qtyEnc||"—"}</td></tr>`).join("")}
+    </tbody></table></div>
+    <div class="decplan"><b>1º envio: ${pc} pç</b> · encomenda: ${en} pç</div>
+    <div class="cpfoot">${hasRole("admin")?`<button class="mini" data-desmback="${o.id}">Voltar para decidir</button>`:""}<label class="btn primary cpbtn" style="display:flex;align-items:center;justify-content:center;cursor:pointer">Importar PDF da pré-venda nova<input type="file" accept="application/pdf,.pdf" data-desmpdf="${o.id}" hidden></label></div>
+  </article>`;
+}
+function bindDesm(){
+  app.querySelectorAll("[data-desmpdf]").forEach(inp=>inp.onchange=async e=>{ const f=e.target.files[0]; if(!f) return; const o=ORDERS.find(x=>x.id===inp.dataset.desmpdf); if(!o) return;
+    let p; try{ p=await readPresalePdf(f); }catch(x){ p=null; }
+    inp.value=""; if(!p || !p.num || !(p.items||[]).length) return toast("Não reconheci este PDF como pré-venda");
+    openDesm(o, p); });
+  app.querySelectorAll("[data-desmback]").forEach(b=>b.onclick=()=>{ const o=ORDERS.find(x=>x.id===b.dataset.desmback); if(!o) return;
+    patchOrder(o.id,{status:"analise_compras", hist:[...(o.hist||[]), {t:Date.now(), by:ME.id||"", ev:"Desmembramento cancelado · voltou para Compras decidir"}]}); state.cTab="decidir"; render(); });
+}
+// compara a pré-venda nova com o que Compras decidiu separar da loja
+function desmCheck(o, p){
+  const nv={}; (p.items||[]).forEach(it=>nv[it.code]=(nv[it.code]||0)+(+it.qty||0));
+  const codes=[...new Set([...(o.items||[]).filter(it=>loja(it)>0).map(it=>it.code), ...Object.keys(nv)])];
+  const rows=codes.map(c=>{ const its=(o.items||[]).filter(x=>x.code===c), sold=its.reduce((s,x)=>s+x.qty,0), exp=its.reduce((s,x)=>s+loja(x),0), got=nv[c]||0;
+    return {code:c, name:its[0]?.name || p.items.find(x=>x.code===c)?.name || c, sold, exp, got, inOrig:its.length>0}; });
+  const errs=[];
+  if(String(p.num)===String(o.num)) errs.push(`Este é o PDF da própria #${o.num}. Importe a pré-venda nova do 1º envio.`);
+  rows.filter(r=>!r.inOrig).forEach(r=>errs.push(`${r.code} não está na #${o.num}.`));
+  rows.filter(r=>r.inOrig && r.got>r.sold).forEach(r=>errs.push(`${r.code}: ${r.got} pç na nova, mas só ${r.sold} vendidas.`));
+  if((p.items||[]).some(it=>!(+it.qty>0))) errs.push("Quantidade zerada em algum item: o PDF não foi lido corretamente.");
+  const sl=pvSlot({num:p.num, docType:p.docType||""}), ex=sl.prev && sl.prev.status!=="excluido" ? sl.prev : null;
+  if(ex && !(ex.status==="aguardando" && !ex.startedAt)) errs.push(`A pré-venda #${p.num} já está no sistema (${statusInfo(ex).t}).`);
+  const cliDiff = p.client && hvNorm(p.client).trim()!==hvNorm(o.client||"").trim();
+  return {rows, errs, diff: rows.some(r=>r.inOrig && r.got!==r.exp), sl, ex, cliDiff};
+}
+function openDesm(o, p){
+  const c=desmCheck(o, p), ov=document.createElement("div"); ov.className="modal"; document.body.appendChild(ov); scanbar.hidden=true;
+  const close=()=>{ ov.remove(); render(); };
+  ov.innerHTML=`<div class="mbox wide" role="dialog" aria-modal="true" aria-label="Desmembrar a pré-venda ${esc(o.num)}"><h2>1º envio · #${esc(p.num)}</h2>
+    <p>Pré-venda nova de <b>${esc(p.client||"—")}</b>, desmembrada da <b>#${esc(o.num)}</b>.</p>
+    <div class="cptwrap"><table class="cptab desmt"><thead><tr><th>Código</th><th>Item</th><th class="r">Decidido · loja</th><th class="r">Na #${esc(p.num)}</th><th class="r">Fica na encomenda</th></tr></thead><tbody>
+    ${c.rows.map(r=>`<tr><td class="mono">${esc(r.code)}</td><td>${esc(r.name)}</td><td class="r tnum">${r.exp}</td><td class="r tnum ${r.got===r.exp?"ok":"d"}">${r.got}${r.got===r.exp?" ✓":""}</td><td class="r tnum">${r.inOrig?Math.max(0,r.sold-r.got):"—"}</td></tr>`).join("")}
+    </tbody></table></div>
+    ${c.cliDiff?`<div class="desmbox">Atenção: o cliente da pré-venda nova (${esc(p.client)}) é diferente da #${esc(o.num)} (${esc(o.client)}).</div>`:""}
+    ${c.errs.length?`<div class="desmbox bad">${c.errs.map(esc).join("<br>")}</div>`
+      : c.diff?`<div class="desmbox bad">A pré-venda nova <b>não bate</b> com a decisão de Compras. Corrija no sistema de vendas e importe de novo, ou use a pré-venda nova como está: a encomenda da #${esc(o.num)} é recalculada (coluna "Fica na encomenda").</div>`
+      : `<div class="desmbox">Tudo confere. A <b>#${esc(p.num)}</b> vai para a fila da separação com a tag <b>Com Encomenda - 1° Envio</b>, e a <b>#${esc(o.num)}</b> fica aguardando a encomenda.</div>`}
+    <div class="mact"><button class="btn ghost" id="mNo">Cancelar</button>${c.errs.length?"":`<button class="btn primary" id="mOk">${c.diff?"Usar a nova e recalcular a encomenda":"Confirmar desmembramento"}</button>`}</div></div>`;
+  ov.onclick=e=>{ if(e.target===ov) close(); };
+  ov.querySelector("#mNo").onclick=close;
+  const ok=ov.querySelector("#mOk"); if(ok) ok.onclick=()=>{ if(desmApply(o, p, c)) close(); };
+}
+function desmApply(o, p, c){
+  const now=Date.now(), by=ME.id||"", got={}; (p.items||[]).forEach(it=>got[it.code]=(got[it.code]||0)+(+it.qty||0));
+  const left={...got};
+  const encItems=(o.items||[]).map(it=>{ const take=Math.min(it.qty, left[it.code]||0); left[it.code]=(left[it.code]||0)-take; const e=it.qty-take; return e>0 ? {...it, qty:e, qtyEnc:e} : null; }).filter(Boolean);
+  if(!encItems.length){ toast("Nada ficaria na encomenda: use Nada a encomendar"); return false; }
+  const items=(p.items||[]).map(it=>{ const P=PRODUCTS[it.code]; if(!P) saveProduct({code:it.code, name:it.name, ean:it.ean||"", loc:""});
+    return {code:it.code, name:it.name, ean:it.ean||P?.ean||"", un:it.un, qty:it.qty, price:it.price, loc:"", qtyEnc:0, eta:""}; });
+  const nid=c.sl.id, enc=encItems.reduce((s,x)=>s+x.qty,0), pcs=items.reduce((s,x)=>s+x.qty,0);
+  const head={ num:String(p.num), docType:p.docType||"", date:p.date||"", time:p.time||"", clientCode:p.clientCode||o.clientCode||"", client:p.client||o.client, city:p.city||o.city||"", seller:p.seller||o.seller||"",
+    obs:p.obs||"", total:p.total||0, mode:"total", modeCom:"total", v2:true, items, res:null, remessa:1, canal:"consultiva", retira:!!o.retira, naLoja:!!o.naLoja,
+    transportadora: carrierFromObs(p.obs||"")||transpOf(o)||"", envio1De:o.id, envio1Num:o.num, decidedAt:now, decidedBy:by };
+  const ev={t:now, by, ev:`Pré-venda do 1º envio da #${o.num} (desmembrada por Compras) · ${pcs} pç da loja`};
+  saveOrder(c.ex ? {...c.ex, ...head, hist:[...(c.ex.hist||[]), ev]} : {id:nid, ...head, status:"aguardando", queuedAt:now, createdAt:now, createdBy:by, ...(c.sl.again?{reenvio:c.sl.again, reenvioDe:c.sl.last?.id||""}:{}), hist:[ev]});
+  patchOrder(o.id, {items:encItems, mode:"encomenda", status:"encomenda", res:null, envio1:{id:nid, num:String(p.num), at:now, by}, desmAt:now, desmBy:by,
+    hist:[...(o.hist||[]), {t:now, by, ev:`Desmembrada por Compras · 1º envio: #${p.num} (${pcs} pç da loja) · fica com a encomenda (${enc} pç)${c.diff?" · encomenda recalculada pela pré-venda nova":""}`}]});
+  toast(`#${p.num} na fila · #${o.num} aguarda a encomenda`);
+  return true;
+}
 function decideOrder(oid){
   const o=ORDERS.find(x=>x.id===oid); if(!o || !toDecide(o)) return;
   const pl=decidePlan(o, state.dq?.[oid]||{}), now=Date.now();
@@ -2412,10 +2521,12 @@ function decideOrder(oid){
   let patch;
   if(pl.kind==="encomenda") patch={mode:"encomenda", status:"encomenda"};
   else if(pl.kind==="total") patch={mode:"total", status:"aguardando", queuedAt:now};
+  else if(!isEco(o) && dqMode(o)==="parcial") patch={mode:"parcial", status:"desmembrar"}; // envio parcial: Compras desmembra a pré-venda antes da separação
   else patch={mode:"aguarda", status:"aguardando", queuedAt:now}; // a colmeia é a que o separador bipar ao guardar
   patchOrder(oid, {...patch, items, res:null, decidedAt:now, decidedBy:ME.id||""});
-  delete state.dq[oid];
-  toast(pl.kind==="encomenda" ? `#${o.num} · encomenda total` : `#${o.num} enviado à separação`);
+  delete state.dq[oid]; if(state.dqm) delete state.dqm[oid];
+  if(patch.status==="desmembrar") state.cTab="desmembrar";
+  toast(pl.kind==="encomenda" ? `#${o.num} · encomenda total` : patch.status==="desmembrar" ? `#${o.num} · importe a pré-venda do 1º envio` : `#${o.num} enviado à separação`);
   rerender();
 }
 function compraCard(o, closed){
@@ -2423,7 +2534,7 @@ function compraCard(o, closed){
   const pick=(o.items||[]).filter(it=>it.qty-(it.qtyEnc||0)>0);
   const where = o.colmeia ? `<span class="cpcm" title="Colmeia">Colmeia <b>${esc(o.colmeia.slice(3))}</b></span>` : "";
   return `<article class="cpcard">
-    <div class="cphead"><b class="mono">#${esc(o.num)}</b><span class="chip ${k.c}">${k.t}</span>${where}${o.naLoja?`<span class="retirabar">CLIENTE NA LOJA</span>`:o.retira?`<span class="retirabar rb-green">RETIRA NA LOJA</span>`:""}</div>
+    <div class="cphead"><b class="mono">#${esc(o.num)}</b>${envTag(o)}<span class="chip ${k.c}">${k.t}</span>${where}${o.naLoja?`<span class="retirabar">CLIENTE NA LOJA</span>`:o.retira?`<span class="retirabar rb-green">RETIRA NA LOJA</span>`:""}</div>
     <div class="cpcli">${esc(o.client)}<small>${[o.seller?"Vendedor "+esc(o.seller):"", o.date?esc(o.date):"", transpOf(o)?esc(transpOf(o)):""].filter(Boolean).join(" · ")}</small></div>
     <div class="cpnote">${esc(k.d)}${pick.length?` · ${pick.length} ref. de pronta entrega`:""}</div>
     ${(()=>{ // todos os itens da pré-venda: encomenda primeiro; mais de 2 produtos → "ver todos"
@@ -3749,7 +3860,7 @@ function renderOrders(){
       ${hist.length ? `<div class="list" style="margin-top:0">${pgH.items.map(o=>{ const st=statusInfo(o), pk=o.pickedAt&&o.startedAt?o.pickedAt-o.startedAt:null;
         const tp=transpOf(o), fin=/^Finalizado/.test(st.t);
         const hop=(state.histOpen||[]).includes(o.id);
-        return `<div class="li hrow htlwrap" style="cursor:default"><div class="hmain"><div class="htop"><b class="hnum tnum">#${esc(o.num)}</b>${tp?transpBadge(tp):isEco(o)?"":`<span class="muted-s">sem transportadora</span>`}</div>
+        return `<div class="li hrow htlwrap" style="cursor:default"><div class="hmain"><div class="htop"><b class="hnum tnum">#${esc(o.num)}</b>${envTag(o)}${tp?transpBadge(tp):isEco(o)?"":`<span class="muted-s">sem transportadora</span>`}</div>
           <div class="hcli">${esc(o.client)}</div>
           <small>${o.status==="excluido"?`Excluído ${fmtClock(o.deletedAt)} · motivo: ${esc(o.deleteReason||"")}`:fmtClock(o.pickedAt)}${pk!=null?" · picking "+fmtDur(pk).replace(/ \d+s$/,""):""}${o.tray||bigOnMesa(o)?" · "+esc(spotsTxt(o)):""}</small></div>
           <span class="chip ${st.c} ${fin?"okc":""}" title="${esc(st.t)}">${fin?"OK":esc(st.t.split(" · ")[0])}</span>${canEditOrd && o.status!=="excluido" ? `<button class="mini hedit" data-oedit="${esc(o.id)}" title="Editar pedido">Editar</button>`:""}
@@ -4818,7 +4929,7 @@ function renderToMesa(){
   const o = ORDERS.find(x=>x.id===state.oid); if(!o){ state.view="orders"; return render(); }
   const r=res(o), pl=pickList(o), units=pl.reduce((s,x)=>s+(r[x.i].got||0),0), total=pl.reduce((s,x)=>s+x.need,0);
   app.innerHTML = `
-    <header class="bar">${BACK_BTN}<div class="grow"><h1>#${esc(o.num)}</h1><div class="sub">${esc(o.client)}</div></div><span class="timer" title="Tempo de picking">⏱ ${since(o.startedAt)}</span></header>
+    <header class="bar">${BACK_BTN}<div class="grow"><h1>#${esc(o.num)}${envTag(o)}</h1><div class="sub">${esc(o.client)}</div></div><span class="timer" title="Tempo de picking">⏱ ${since(o.startedAt)}</span></header>
     <div class="done">
       <div class="big" style="background:var(--accent-soft);color:var(--accent-ink)"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10h18v3H3zM5 13v7M19 13v7M8 10V6h8v4"/></svg></div>
       <h2>Leve as peças para a mesa de expedição</h2>
@@ -7022,6 +7133,10 @@ function gAlerts(){
   const pend=act.filter(o=>["aguardando","separando"].includes(o.status)), prodUse={};
   pend.forEach(o=>pickList(o).forEach(x=>{ const it=o.items[x.i]; (prodUse[it.code] ||= {it, n:0, o:[]}).n++; prodUse[it.code].o.push("#"+o.num); }));
   const pr=Object.values(prodUse);
+  add("desmembrar","warn","Aguardando desmembramento","Envio parcial decidido, mas Compras ainda não importou a pré-venda nova do 1º envio. A separação só começa depois.",
+    O.filter(o=>o.status==="desmembrar" && now-(o.decidedAt||o.createdAt||now)>4*G_H).map(o=>row(o, `há ${gAgo(o.decidedAt||o.createdAt)}`, o.decidedAt)));
+  add("falta_1envio","crit","1º envio com peça faltando","A separação do 1º envio terminou com falta. Ajuste a pré-venda (Editar pedido → Itens do 1º envio) para a peça voltar à encomenda e Compras ser avisado.",
+    O.filter(o=>o.envio1De && o.pickedAt && !o.envioAdjAt && (o.res||[]).some(r=>r && (r.status==="miss"||r.status==="part")) && !["enviado","excluido"].includes(o.status)).map(o=>row(o, `${(o.res||[]).filter(r=>r&&(r.status==="miss"||r.status==="part")).length} item(ns) com falta`, o.pickedAt)));
   add("bip_err","warn","Bipagens incorretas (24 h)","O separador bipou um código que não era do item: outro produto, endereço errado ou código não cadastrado. Confira o pedido e o cadastro.",
     O.filter(o=>(o.bipErr||[]).some(e=>e.at>=now-G_D)).map(o=>{ const l=o.bipErr.filter(e=>e.at>=now-G_D), u=l[l.length-1]; return row(o, `${l.length} bip(s) · ${u.txt}`, u.at); }));
   add("sem_local","warn","Produto da fila sem endereço","O separador vai procurar no estoque. Cadastre o endereço em Locais.",
@@ -7132,7 +7247,7 @@ function gConfHTML(sep){
 }
 function gAlertas(){
   const A=gAlerts(), sevT={crit:"Crítico",warn:"Atenção",info:"Informativo"};
-  if(!A.length) return `<section class="panel"><div class="gok">Tudo em dia. Nenhuma das 18 conferências encontrou problema.</div></section>`;
+  if(!A.length) return `<section class="panel"><div class="gok">Tudo em dia. Nenhuma das 20 conferências encontrou problema.</div></section>`;
   return `<p class="hint" style="margin:0 0 10px">${A.length} conferência(s) com pendência. O sistema confere sozinho: fila, separação, mesa, colmeias, envio, recebimento, compras, cadastro e erros técnicos.</p>
     <div class="galerts">${A.map(a=>{ const open=state.gAl===a.id;
       return `<section class="panel galert s-${a.sev} ${open?"open":""}"><button class="galh" data-gal="${a.id}" aria-expanded="${open}"><span class="gsev s-${a.sev}">${sevT[a.sev]}</span><b>${esc(a.title)}</b><span class="gcount tnum">${a.rows.length}</span><span class="gchev" aria-hidden="true">${open?"▴":"▾"}</span></button>
