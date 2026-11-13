@@ -1011,6 +1011,7 @@ body.pda .keyhint{display:block}
 .li.hrow.htlwrap{flex-wrap:wrap}.htlwrap .hmain{min-width:0}
 .htlbtn{flex:none;width:34px;height:34px}.htlbtn .xpchev{width:18px;height:18px;transition:transform .3s cubic-bezier(.2,.8,.2,1)}.htlbtn[aria-expanded="true"] .xpchev{transform:rotate(180deg)}
 .htlbox{flex-basis:100%;width:100%}
+.oenote{font-size:13px;color:var(--accent);margin:8px 0 2px;display:flex;flex-direction:column;gap:2px}.oenote:empty{display:none}
 .bipit{margin:8px 0 4px;padding-top:10px;border-top:1px dashed var(--line);display:flex;flex-direction:column;gap:2px}
 .bipt{display:flex;justify-content:space-between;gap:8px;font-size:13px;margin-bottom:4px}.bipt span{color:var(--muted)}
 .bipr{display:grid;grid-template-columns:auto 1fr auto 52px;gap:4px 10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px}
@@ -1876,7 +1877,11 @@ function askTransferMode(o, canal){
 function openOrderEdit(id){
   const o=ORDERS.find(x=>x.id===id); if(!o || !hasRole("admin")) return;
   const f={ canal:isEco(o)?"ecommerce":"consultiva", sep:sepOf(o), mode:o.mode||"total", ret: o.naLoja?"naLoja":o.retira?"retira":"", transp: transpOf(o)||"", status:o.status, tray:o.tray||"", colmeia:o.colmeia||"", obs:o.obs||"" };
-  const used=new Set(ORDERS.filter(x=>usesHive(x) && x.id!==o.id).map(x=>x.colmeia));
+  // quem ocupa cada colmeia (mesmo cliente pode dividir; cliente diferente bloqueia)
+  const occ={}; ORDERS.forEach(x=>{ if(x.id!==o.id && x.colmeia && !["enviado","excluido"].includes(x.status)) (occ[x.colmeia] ||= []).push(x); });
+  const sameCli = x => hvNorm(x.client||"").trim()===hvNorm(o.client||"").trim();
+  const hiveLbl = c => { const l=occ[c]; return !l ? c.slice(3) : c.slice(3)+(l.every(sameCli)?" · mesmo cliente":" · ocupada"); };
+  const hiveBlocked = c => (occ[c]||[]).some(x=>!sameCli(x));
   const ov=document.createElement("div"); ov.className="modal"; document.body.appendChild(ov); scanbar.hidden=true;
   const close=()=>{ ov.remove(); render(); };
   const opt=(v,t,cur,dis)=>`<option value="${esc(v)}" ${v===cur?"selected":""} ${dis?"disabled":""}>${esc(t)}</option>`;
@@ -1890,18 +1895,35 @@ function openOrderEdit(id){
       <label><span>Transportadora</span><input class="tin" id="oeTransp" list="oeTList" value="${esc(f.transp)}" placeholder="Não identificada"><datalist id="oeTList">${[...new Set([...ORDERS.map(transpOf).filter(Boolean),...Object.keys(TRANSP)])].sort().map(n=>`<option value="${esc(n)}">`).join("")}</datalist></label>
       <label><span>Situação (onde está no fluxo)</span><select class="tin" id="oeSt">${ST_EDIT.map(([k,t])=>opt(k,t,f.status)).join("")}${ST_EDIT.some(([k])=>k===f.status)?"":opt(f.status,statusInfo(o).t,f.status)}</select></label>
       <label><span>Bandeja / mesa</span><input class="tin" id="oeTray" data-scan value="${esc(f.tray)}" placeholder="Sem bandeja"></label>
-      <label><span>Colmeia</span><select class="tin" id="oeHive">${opt("","Sem colmeia",f.colmeia)}${HIVE.map(c=>opt(c, c.slice(3)+(used.has(c)?" · ocupada":""), f.colmeia, used.has(c))).join("")}</select></label>
+      <label><span>Colmeia</span><select class="tin" id="oeHive">${opt("","Sem colmeia",f.colmeia)}${HIVE.map(c=>opt(c, hiveLbl(c), f.colmeia, c!==f.colmeia && hiveBlocked(c))).join("")}</select></label>
       <label class="oefull"><span>Observação</span><textarea class="tin" id="oeObs" rows="2">${esc(f.obs)}</textarea></label>
     </div>
+    <div class="oenote" id="oeNote" role="status" aria-live="polite"></div>
     <small class="muted-s">As alterações ficam registradas no histórico do pedido com o seu nome.</small>
     <div class="merr" id="oeErr"></div>
     <div class="mact"><button class="btn ghost" id="mNo">Cancelar</button><button class="btn primary" id="mOk">Salvar alterações</button></div></div>`;
   const g=k=>ov.querySelector("#"+k);
   ov.onclick=e=>{ if(e.target===ov) close(); };
   g("mNo").onclick=close;
+  /* campos que dependem um do outro: colmeia x retirada x bandeja/mesa x situação (ajusta na hora e avisa) */
+  const notes=[], note=t=>{ if(!notes.includes(t)) notes.push(t); g("oeNote").innerHTML=notes.map(x=>`<div>↻ ${esc(x)}</div>`).join(""); g("oeErr").textContent=""; };
+  const HIVE_ST=["na_colmeia","pronto_envio","enc_pendente","enviado"];
+  g("oeHive").onchange=()=>{ const c=g("oeHive").value; if(!c) return;
+    if(!g("oeRet").value && g("oeMode").value!=="aguarda"){ g("oeRet").value="retira"; note("Retirada mudou para Retira na Loja (colmeia é para o cliente retirar)."); }
+    if(g("oeTray").value.trim()){ g("oeTray").value=""; note("Bandeja/mesa liberada: o pedido sai da mesa e vai para a colmeia."); }
+    if(!HIVE_ST.includes(g("oeSt").value)){ g("oeSt").value = g("oeMode").value==="aguarda" ? "na_colmeia" : "pronto_envio"; note(`Situação mudou para ${g("oeSt").selectedOptions[0].text}.`); } };
+  g("oeRet").onchange=()=>{ if(!g("oeRet").value && g("oeHive").value && g("oeMode").value!=="aguarda"){ g("oeHive").value=""; note("Colmeia liberada: pedido de transportadora não fica na colmeia."); } };
+  g("oeTray").onchange=()=>{ if(g("oeTray").value.trim() && g("oeHive").value){ g("oeHive").value=""; note("Colmeia liberada: o pedido volta para a bandeja/mesa."); } };
+  g("oeSt").onchange=()=>{ if(!HIVE_ST.includes(g("oeSt").value) && g("oeHive").value){ g("oeHive").value=""; note("Colmeia liberada: nessa situação o pedido não está na colmeia."); } };
   g("mOk").onclick=async()=>{
     const n={ canal:g("oeCanal").value, sep:g("oeSep").value, mode:g("oeMode").value, ret:g("oeRet").value, transp:g("oeTransp").value.trim(), status:g("oeSt").value, tray:g("oeTray").value.trim().toUpperCase(), colmeia:g("oeHive").value, obs:g("oeObs").value.trim() };
-    if(n.colmeia && ORDERS.some(x=>usesHive(x) && x.id!==o.id && x.colmeia===n.colmeia)){ g("oeErr").textContent=`A colmeia ${n.colmeia.slice(3)} está ocupada.`; return; }
+    const bad=t=>{ g("oeErr").textContent=t; return true; };
+    if(n.colmeia && n.colmeia!==f.colmeia && hiveBlocked(n.colmeia) && bad(`A colmeia ${n.colmeia.slice(3)} está com outro cliente (${(occ[n.colmeia]||[]).map(x=>"#"+x.num).join(", ")}).`)) return;
+    if(n.colmeia && !n.ret && n.mode!=="aguarda" && bad("Colmeia é para o cliente retirar: escolha Retirada = Retira na Loja, ou Tipo de envio = Aguarda encomenda.")) return;
+    if(n.colmeia && n.tray && bad("O pedido não pode estar na bandeja/mesa e na colmeia ao mesmo tempo: apague a bandeja/mesa ou a colmeia.")) return;
+    if(n.colmeia && !HIVE_ST.includes(n.status) && bad("Nessa situação o pedido não está na colmeia: escolha a situação Pronto ou Na colmeia, ou deixe Sem colmeia.")) return;
+    if(n.status==="na_colmeia" && !n.colmeia && bad("Escolha a colmeia onde o pedido está.")) return;
+    if(n.mode!==f.mode && n.canal===f.canal && n.mode!=="total" && !(o.items||[]).some(it=>(+it.qtyEnc||0)>0) && bad(`${MODES[n.mode]?.t} precisa dos itens sob encomenda marcados: faça a mudança por Compras (decidir o pedido).`)) return;
     const su=n.sep && n.sep!==f.sep && USERS[n.sep];
     if(su && !userRoles(su).includes("admin") && !(n.canal==="ecommerce" ? su.ecommerce : su.consultiva!==false)){ g("oeErr").textContent=`${su.name||"Essa pessoa"} não separa ${n.canal==="ecommerce"?"E-commerce":"Venda Consultiva"}. Marque o canal no cadastro dela em Usuários ou escolha outro separador.`; return; }
     const patch={}, ch=[], uname=id=>USERS[id]?.name||USERS[id]?.login||"usuário";
@@ -1924,7 +1946,8 @@ function openOrderEdit(id){
     if(n.sep!==f.sep){ patch.assignTo=n.sep;
       if(o.status==="separando" && n.status==="separando"){ if(n.sep) patch.startedBy=n.sep; else { n.status="aguardando"; patch.status="aguardando"; patch.startedBy=""; patch.queuedAt=Date.now(); } }
       ch.push(n.sep ? `separador: ${f.sep?uname(f.sep)+" → ":""}${uname(n.sep)}` : `separador: ${uname(f.sep)} → volta para a fila`); }
-    if(n.mode!==f.mode){ patch.mode=n.mode; ch.push(`tipo de envio: ${MODES[f.mode]?.t||f.mode} → ${MODES[n.mode]?.t}`); }
+    if(n.mode!==f.mode){ patch.mode=n.mode; ch.push(`tipo de envio: ${MODES[f.mode]?.t||f.mode} → ${MODES[n.mode]?.t}`);
+      if(n.mode==="total" && (o.items||[]).some(it=>(+it.qtyEnc||0)>0) && !patch.items){ patch.items=o.items.map(it=>({...it, qtyEnc:0, eta:""})); ch.push("itens sob encomenda desmarcados"); } }
     if(n.ret!==f.ret){ patch.retira=n.ret==="retira"||n.ret==="naLoja"; patch.naLoja=n.ret==="naLoja"; ch.push(`retirada: ${n.ret==="naLoja"?"cliente está na loja":n.ret==="retira"?"retira na loja":"transportadora/entrega"}`); }
     if(n.transp!==f.transp){ patch.transportadora=n.transp; ch.push(`transportadora: ${n.transp||"—"}`); }
     if(n.status!==f.status && !patch.status){ patch.status=n.status; ch.push(`situação: ${(ST_EDIT.find(x=>x[0]===f.status)||[,f.status])[1]} → ${(ST_EDIT.find(x=>x[0]===n.status)||[,n.status])[1]}`);
@@ -1932,7 +1955,8 @@ function openOrderEdit(id){
       if(n.status==="aguardando"){ patch.queuedAt=Date.now(); patch.startedAt=null; patch.startedBy=""; } }
     if(patch.status==="separando" && !o.startedBy && n.sep){ patch.startedBy=n.sep; patch.startedAt=o.startedAt||Date.now(); }
     if(n.tray!==f.tray){ patch.tray=n.tray; patch.trayStatus=n.tray ? (o.trayStatus && o.trayStatus!=="livre" ? o.trayStatus : "mesa") : ""; ch.push(`bandeja/mesa: ${n.tray||"liberada"}`); }
-    if(n.colmeia!==f.colmeia){ patch.colmeia=n.colmeia||null; ch.push(`colmeia: ${n.colmeia?n.colmeia.slice(3):"liberada"}`); }
+    if(n.colmeia!==f.colmeia){ patch.colmeia=n.colmeia||null; ch.push(`colmeia: ${n.colmeia?n.colmeia.slice(3):"liberada"}`);
+      if(n.colmeia){ patch.storedAt=Date.now(); patch.storedBy=ME.id||""; if(o.tray && !n.tray){ patch.tray=""; patch.trayStatus=""; } } }
     if(n.obs!==f.obs){ patch.obs=n.obs; ch.push("observação"); }
     if(!ch.length){ close(); return; }
     patch.hist=[...(o.hist||[]), {t:Date.now(), by:ME.id||"", ev:"Editado pelo administrador · "+ch.join(" · ")}];
